@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { Pressable, StyleSheet } from "react-native";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { Pressable, StyleSheet, Text } from "react-native";
 
 export interface MuteToggleProps {
   init: boolean;
@@ -23,9 +22,9 @@ export default function MuteToggle({
       }}
     >
       {toggle ? (
-        <MaterialIcons size={size} color={color} name="volume-mute" />
+        <Text style={{ fontSize: 30 }}>🔇</Text>
       ) : (
-        <MaterialIcons size={size} color={color} name="volume-up" />
+        <Text style={{ fontSize: 30 }}>🔊</Text>
       )}
     </Pressable>
   );

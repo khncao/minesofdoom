@@ -11,8 +11,8 @@ export default function AppLayout() {
           alignItems: "center",
         }}
       >
-        <Text style={{ ...styles.text, fontSize: 24 }}>
-          Idle Click Mines of Doom
+        <Text style={{ ...styles.text, fontSize: 20 }}>
+          🤳Idle Click🖱️Mines⛏️of Doom😃
         </Text>
       </View>
       <Slot />

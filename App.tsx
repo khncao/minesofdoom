@@ -14,7 +14,6 @@ import { Audio } from "expo-av";
 import AsyncStorage, {
   useAsyncStorage,
 } from "@react-native-async-storage/async-storage";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import ModalButton from "./components/ModalButton";
 import ConfirmableButton from "./components/ConfirmableButton";
 import IntegerInput from "./components/IntegerInput";
@@ -81,8 +80,8 @@ const defaultSettingsData = {
   division: false,
 };
 
-const mineralIcon = <MaterialIcons name="dirty-lens" size={20} color="white" />;
-const gemIcon = <MaterialIcons name="diamond" size={20} color="white" />;
+const mineralIcon = <Text style={{ fontSize: 20 }}>🪨</Text>;
+const gemIcon = <Text style={{ fontSize: 20 }}>💎</Text>;
 
 function getRandomInt(max: number) {
   return Math.floor(Math.random() * max);
@@ -327,7 +326,7 @@ export default function App() {
             }}
             title={`UPGRADE POWER (-${getClickUpgradeCost(
               gameState.clickPower
-            )}) (${gameState.clickPower})`}
+            )} 🪨) (${gameState.clickPower})`}
           />
 
           <Button
@@ -343,7 +342,7 @@ export default function App() {
             disabled={gameState.gems < getMinerUpgradeCost(gameState.miners)}
             title={`BUY A MINER (-${getMinerUpgradeCost(
               gameState.miners
-            )} GEMS) (${gameState.miners})`}
+            )} 💎) (${gameState.miners})`}
           />
         </View>
 

@@ -6,8 +6,8 @@ import {
   StyleSheet,
   View,
   ViewStyle,
+  Text,
 } from "react-native";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 export interface ModalButtonProps {
   children?: React.ReactNode;
@@ -21,7 +21,7 @@ export default function ModalButton(props: ModalButtonProps) {
       onPress={() => setShowSettings(!showSettings)}
       style={{ margin: 10 }}
     >
-      <MaterialIcons size={30} color="white" name="settings" />
+      <Text style={{ fontSize: 30 }}>⚙️</Text>
     </Pressable>
   );
 
