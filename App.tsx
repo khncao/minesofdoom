@@ -22,9 +22,7 @@ import Miner from "./components/Miner";
 import { AppContext } from "./AppContext";
 import MuteToggle from "./components/MuteToggle";
 import { useLocalStorage } from "./hooks/useLocalStorage";
-
-const stoneSound = require("./assets/audio/stones_01.mp3");
-const pickaxeSound = require("./assets/audio/pickaxe1.mp3");
+import { pickaxeSound, stoneSound } from "./public/assets";
 
 type SaveData = {
   minerals: number;
