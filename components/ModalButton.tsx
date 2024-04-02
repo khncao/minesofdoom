@@ -8,6 +8,7 @@ import {
   ViewStyle,
   Text,
 } from "react-native";
+import WebsiteLink from "./WebsiteLink";
 
 export interface ModalButtonProps {
   children?: React.ReactNode;
@@ -44,13 +45,22 @@ export default function ModalButton(props: ModalButtonProps) {
 
         <View
           style={{
-            backgroundColor: "darkgrey",
+            backgroundColor: "#404040",
             marginTop: "auto",
             gap: 20,
           }}
         >
           {props.children}
-          {toggle}
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            {toggle}
+            <WebsiteLink />
+          </View>
         </View>
       </Modal>
     </View>
