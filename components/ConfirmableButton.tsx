@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Modal, View, Text } from "react-native";
+import { Modal, View, Text } from "react-native";
 
 export interface ConfirmableButtonProps {
   title: string;
@@ -19,8 +19,11 @@ export default function ConfirmableButton(props: ConfirmableButtonProps) {
         transparent={true}
       >
         <View style={styles.modal}>
-          <Text style={styles.text}>{props.description}</Text>
-          <Text style={styles.text}>Are you sure?</Text>
+          <View style={{ margin: 10 }}>
+            <Text style={styles.text}>{props.description}</Text>
+            <Text style={styles.text}>Are you sure?</Text>
+          </View>
+
           <View style={styles.buttons}>
             <Button
               title="Confirm"
@@ -44,6 +47,7 @@ export default function ConfirmableButton(props: ConfirmableButtonProps) {
 }
 
 import { StyleSheet } from "react-native";
+import Button from "./Button";
 const styles = StyleSheet.create({
   modal: {
     justifyContent: "flex-end",

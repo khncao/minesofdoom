@@ -1,6 +1,5 @@
 import React, { useRef } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
-import { RefObject } from "react";
 
 export interface IntegerInputProps {
   defaultValue?: number;
