@@ -38,6 +38,7 @@ type SaveData = {
   startTime: number;
   saveTime: number;
   saveVersion: number;
+  tick: number;
 };
 
 type SettingsData = {
@@ -74,6 +75,7 @@ const emptySaveData = {
   startTime: Date.now(),
   saveTime: 0,
   saveVersion,
+  tick: 0,
 };
 
 const defaultSettingsData = {
@@ -158,6 +160,7 @@ export default function App() {
   const comboMultiplier = 1 + Math.floor(combo / 10);
 
   const onTick = useRef<Array<() => void>>([]);
+  const [tick, setTick] = useState(0);
 
   // Load stored data
   useEffect(() => {
@@ -209,13 +212,14 @@ export default function App() {
     const data = JSON.stringify(gameState);
     // console.log(data);
     setSaveData(data);
-    // displayMessageCallback("Game saved", 3000);
-    // console.log("save");
   }, [gameState, setSaveData]);
+
+  const timeout = useRef<NodeJS.Timeout>();
 
   // Main loop interval
   useEffect(() => {
-    const loop = setInterval(() => {
+    clearTimeout(timeout.current);
+    timeout.current = setTimeout(() => {
       setGameState((n: SaveData) => {
         return {
           ...n,
@@ -225,11 +229,14 @@ export default function App() {
       if (gameState.miners > 0) {
         onTick.current.forEach((fn) => fn());
       }
-      saveGame();
-      // console.log("tick");
+      if (tick % 10 === 0) {
+        saveGame();
+      }
+      console.log(`tick: ${tick}`);
+      setTick((old) => old + 1);
     }, msPerTick);
-    return () => clearInterval(loop);
-  }, [gameState.minerPower, gameState.miners, saveGame]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tick]);
 
   // Audio
   const [sound, setSound] = useState<Audio.Sound>();
