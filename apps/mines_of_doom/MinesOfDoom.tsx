@@ -19,15 +19,24 @@ import { AVPlaybackSource, Audio } from "expo-av";
 import AsyncStorage, {
   useAsyncStorage,
 } from "@react-native-async-storage/async-storage";
-import ModalButton from "./components/ModalButton";
-import ConfirmableButton from "./components/ConfirmableButton";
-import IntegerInput from "./components/IntegerInput";
+import { useLocalStorage } from "apps/hooks/useLocalStorage";
 import Miner from "./components/Miner";
-import { AppContext } from "./AppContext";
-import MuteToggle from "./components/MuteToggle";
-import { useLocalStorage } from "./hooks/useLocalStorage";
-import { pickaxeSound, stoneSound } from "./public/assets";
-import Button from "./components/Button";
+import Button from "apps/components/Button";
+import ConfirmableButton from "apps/components/ConfirmableButton";
+import IntegerInput from "apps/components/IntegerInput";
+import BottomModal from "apps/components/BottomModal";
+import MuteToggle from "apps/components/MuteToggle";
+import { pickaxeSound, stoneSound } from "assets/index";
+import WebsiteLink from "apps/components/WebsiteLink";
+import {
+  EquationSettings,
+  getRandomEquation,
+  approxeq,
+  Ops,
+  defaultEquationSettings,
+} from "apps/utils/math/equations";
+import { emojis, emojiText } from "apps/utils/graphics/emojis";
+import { Context } from "./context";
 
 type SaveData = {
   minerals: number;
@@ -43,19 +52,7 @@ type SaveData = {
 
 type SettingsData = {
   autosave: number;
-  minNumber: number;
-  maxNumber: number;
-  multiply: boolean;
-  add: boolean;
-  subtract: boolean;
-  division: boolean;
-};
-
-const Ops = {
-  mult: "*",
-  add: "+",
-  sub: "-",
-  div: "/",
+  equations: EquationSettings;
 };
 
 // TODO: number to bigint
@@ -65,6 +62,7 @@ const settingsDataKey = "settings";
 const msPerTick = 1000;
 const gemChance = 0.05;
 const gemMineralCost = 100000;
+const equationSettingsKey = "equationSettings";
 
 const emptySaveData = {
   minerals: 0,
@@ -80,53 +78,7 @@ const emptySaveData = {
 
 const defaultSettingsData = {
   autosave: 30,
-  minNumber: 0,
-  maxNumber: 12,
-  multiply: true,
-  add: false,
-  subtract: false,
-  division: false,
 };
-
-const mineralIcon = (
-  <Text style={{ fontSize: 20, userSelect: "none" }}>🪨</Text>
-);
-const gemIcon = <Text style={{ fontSize: 20, userSelect: "none" }}>💎</Text>;
-
-function getRandomInt(max: number) {
-  return Math.floor(Math.random() * max);
-}
-
-function getRandomEquation(prefs: SettingsData) {
-  const ops: Array<string> = [
-    ...(prefs.multiply ? [Ops.mult] : []),
-    ...(prefs.add ? [Ops.add] : []),
-    ...(prefs.subtract ? [Ops.sub] : []),
-    ...(prefs.division ? [Ops.div] : []),
-  ];
-  const opIdx = Math.floor(Math.random() * ops.length);
-  const op = ops[opIdx];
-  const a = getRandomInt(prefs.maxNumber);
-  let b = getRandomInt(prefs.maxNumber);
-  if (op === Ops.div) {
-    b = Math.max(1, b);
-  }
-  let answer;
-  switch (op) {
-    case Ops.mult:
-      answer = a * b;
-      break;
-    case Ops.add:
-      answer = a + b;
-      break;
-    case Ops.sub:
-      answer = a - b;
-      break;
-    case Ops.div:
-      answer = Math.fround(a / b);
-  }
-  return { op, a, b, answer };
-}
 
 function getClickUpgradeCost(level: number): number {
   return level * level * level * level;
@@ -140,18 +92,22 @@ function rollGem(comboMultiplier: number) {
   return Math.random() < gemChance * comboMultiplier;
 }
 
-const approxeq = (v1: number, v2: number, epsilon = 0.01) =>
-  Math.abs(v1 - v2) <= epsilon;
-
-export default function App() {
+export default function MinesOfDoom() {
   const startTime = useRef(Date.now());
 
   const [settingsData, setSettingsData] = useState(defaultSettingsData);
+  const [equationSettings, setEquationSettings] = useState(
+    defaultEquationSettings
+  );
   const [gameState, setGameState] = useState<SaveData>(emptySaveData);
   const { getItem: getSaveData, setItem: setSaveData } =
     useAsyncStorage(saveDataKey);
   const { getItem: getStoredSettingsData, setItem: setStoredSettingsData } =
     useAsyncStorage(settingsDataKey);
+  const {
+    getItem: getEquationSettingsStore,
+    setItem: setEquationSettingsStore,
+  } = useAsyncStorage(equationSettingsKey);
 
   // currently doesn't mute android touch sounds, but can in the future
   const [mute, setMute] = useLocalStorage<boolean>("mute", false);
@@ -164,6 +120,13 @@ export default function App() {
 
   // Load stored data
   useEffect(() => {
+    getEquationSettingsStore().then((data) => {
+      if (data == null) {
+        return;
+      }
+      const equationSettings: EquationSettings = JSON.parse(data);
+      setEquationSettings(equationSettings);
+    });
     getStoredSettingsData().then((data) => {
       if (data == null) {
         return;
@@ -195,7 +158,6 @@ export default function App() {
   const [showMessage, setShowMessage] = useState<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout>();
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const displayMessageCallback = useCallback(
     (message: string, timeout: number) => {
       if (timeoutRef.current) {
@@ -210,11 +172,15 @@ export default function App() {
   const saveGame = useCallback(() => {
     gameState.saveTime = Date.now();
     const data = JSON.stringify(gameState);
-    // console.log(data);
     setSaveData(data);
   }, [gameState, setSaveData]);
 
   const timeout = useRef<NodeJS.Timeout>();
+  const rendersInTick = useRef(0);
+  rendersInTick.current++;
+  if (rendersInTick.current > 20) {
+    throw new Error("long loop");
+  }
 
   // Main loop interval
   useEffect(() => {
@@ -234,12 +200,14 @@ export default function App() {
       }
       console.log(`tick: ${tick}`);
       setTick((old) => old + 1);
+      rendersInTick.current = 0;
     }, msPerTick);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick]);
 
   // Audio
   const [sound, setSound] = useState<Audio.Sound>();
+  // const sounds = useRef<Array<Audio.Sound>>([]);
   async function playSound(audio: AVPlaybackSource) {
     if (mute) {
       return;
@@ -250,11 +218,12 @@ export default function App() {
     await sound.playAsync();
   }
   useEffect(() => {
-    return sound
-      ? () => {
-          sound.unloadAsync();
-        }
-      : undefined;
+    if (sound == null) {
+      return;
+    }
+    return () => {
+      sound?.unloadAsync();
+    };
   }, [sound]);
 
   const playerPickaxeAnimRef: MutableRefObject<() => void> = useRef<() => void>(
@@ -264,7 +233,7 @@ export default function App() {
   // Logic
   const textInputRef = useRef<null | TextInput>(null);
   const [textInput, setTextInput] = useState("");
-  const [equation, setEquation] = useState(getRandomEquation(settingsData));
+  const [equation, setEquation] = useState(getRandomEquation(equationSettings));
 
   const submit = () => {
     let value = -1;
@@ -293,23 +262,23 @@ export default function App() {
       playSound(pickaxeSound);
       playerPickaxeAnimRef.current();
       setCombo(combo + 1);
-      console.log("submit hit");
     } else {
       playSound(stoneSound);
       setCombo(0);
-      console.log("submit miss");
     }
     setTextInput("");
-    setEquation(getRandomEquation(settingsData));
+    setEquation(getRandomEquation(equationSettings));
   };
 
   return (
-    <AppContext.Provider value={{ onTick: onTick.current }}>
+    <Context.Provider value={{ onTick: onTick.current }}>
       <View style={styles.container}>
         <Text style={styles.text}>
           {equation.a} {equation.op} {equation.b}?
         </Text>
-
+        {
+          // Input
+        }
         <KeyboardAvoidingView behavior="padding">
           <TextInput
             ref={textInputRef}
@@ -328,20 +297,17 @@ export default function App() {
             clearTextOnFocus={true}
             style={{
               ...styles.text,
-              textAlign: "center",
-              borderColor: "white",
-              borderWidth: 1,
+              ...styles.textInputBox,
             }}
           />
         </KeyboardAvoidingView>
 
         <Text style={styles.text}>Combo: {combo}</Text>
         <Text style={styles.text}>Multplier: x{comboMultiplier}</Text>
-
         {
           // Purchaseables
         }
-        <View style={{ gap: 5, flex: 1, marginTop: 8 }}>
+        <View style={{ gap: 5, marginTop: 8 }}>
           <Button
             disabled={
               gameState.minerals < getClickUpgradeCost(gameState.clickPower)
@@ -358,7 +324,7 @@ export default function App() {
             }}
             title={`UPGRADE POWER (-${getClickUpgradeCost(
               gameState.clickPower
-            )} 🪨) (${gameState.clickPower})`}
+            )} ${emojis.gem}) (${gameState.clickPower})`}
           />
 
           <Button
@@ -372,9 +338,9 @@ export default function App() {
               });
             }}
             disabled={gameState.gems < getMinerUpgradeCost(gameState.miners)}
-            title={`BUY A MINER (-${getMinerUpgradeCost(
-              gameState.miners
-            )} 💎) (${gameState.miners})`}
+            title={`BUY A MINER (-${getMinerUpgradeCost(gameState.miners)} ${
+              emojis.gem
+            }) (${gameState.miners})`}
           />
 
           <Button
@@ -388,10 +354,12 @@ export default function App() {
               });
             }}
             disabled={gameState.minerals < gemMineralCost}
-            title={`BUY A GEM (-${gemMineralCost} 🪨)`}
+            title={`BUY A GEM (-${gemMineralCost} ${emojis.mineral})`}
           />
         </View>
-
+        {
+          // Canvas
+        }
         <Pressable
           onPress={() => {
             setGameState((n: SaveData) => {
@@ -403,19 +371,18 @@ export default function App() {
             playSound(pickaxeSound);
             playerPickaxeAnimRef.current();
             setCombo(0);
-            console.log("click");
           }}
           style={{ ...styles.canvas, paddingTop: 10 }}
         >
           <View>
-            <View style={{ flexDirection: "row", justifyContent: "center" }}>
-              {mineralIcon}
+            <View style={styles.flexCenteredRow}>
+              {emojiText("mineral")}
               <Text style={{ ...styles.text, alignSelf: "center" }}>
                 {gameState.minerals}
               </Text>
             </View>
-            <View style={{ flexDirection: "row", justifyContent: "center" }}>
-              {gemIcon}
+            <View style={styles.flexCenteredRow}>
+              {emojiText("gem")}
               <Text style={{ ...styles.text, alignSelf: "center" }}>
                 {gameState.gems}
               </Text>
@@ -435,149 +402,153 @@ export default function App() {
             </View>
           </View>
         </Pressable>
-
         {
           // Settings
         }
+        <View style={{ flex: 4 }} />
         <View
           style={{
+            alignSelf: "flex-start",
             flexDirection: "row",
-            alignSelf: "stretch",
-            justifyContent: "space-between",
+            alignItems: "center",
+            margin: 10,
           }}
         >
-          <View
-            style={{
-              alignSelf: "flex-start",
-              flexDirection: "row",
-              alignItems: "center",
-              margin: 10,
-            }}
-          >
-            <ModalButton style={{ alignSelf: "flex-start" }}>
-              <View style={{ gap: 2, marginTop: 5 }}>
-                {/* <IntegerInput
+          <BottomModal>
+            <View style={{ gap: 2, marginTop: 5 }}>
+              {/* <IntegerInput
                   label="Autosave interval(secs), 0 to disable: "
                   defaultValue={settingsData.autosave}
                   onChangeValue={(newVal) =>
                     setSettingsData({ ...settingsData, autosave: newVal })
                   }
                 /> */}
-                <IntegerInput
-                  label="Max constant value in equations: "
-                  defaultValue={settingsData.maxNumber}
-                  onChangeValue={(newVal) =>
-                    setSettingsData({ ...settingsData, maxNumber: newVal })
-                  }
+              <IntegerInput
+                label="Max constant value in equations: "
+                defaultValue={equationSettings.maxNumber}
+                onChangeValue={(newVal) =>
+                  setEquationSettings({
+                    ...equationSettings,
+                    maxNumber: newVal,
+                  })
+                }
+              />
+              <View
+                style={{
+                  ...styles.flexCenteredRow,
+                  gap: 4,
+                }}
+              >
+                <Text style={styles.text}>*</Text>
+                <Switch
+                  value={equationSettings.multiply}
+                  onValueChange={(newVal) => {
+                    setEquationSettings({
+                      ...equationSettings,
+                      multiply: newVal,
+                    });
+                  }}
                 />
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 4,
-                    justifyContent: "center",
+                <Text style={styles.text}>+</Text>
+                <Switch
+                  value={equationSettings.add}
+                  onValueChange={(newVal) => {
+                    setEquationSettings({ ...equationSettings, add: newVal });
                   }}
-                >
-                  <Text style={styles.text}>*</Text>
-                  <Switch
-                    value={settingsData.multiply}
-                    onValueChange={(newVal) => {
-                      setSettingsData({ ...settingsData, multiply: newVal });
-                    }}
-                  />
-                  <Text style={styles.text}>+</Text>
-                  <Switch
-                    value={settingsData.add}
-                    onValueChange={(newVal) => {
-                      setSettingsData({ ...settingsData, add: newVal });
-                    }}
-                  />
-                  <Text style={styles.text}>-</Text>
-                  <Switch
-                    value={settingsData.subtract}
-                    onValueChange={(newVal) => {
-                      setSettingsData({ ...settingsData, subtract: newVal });
-                    }}
-                  />
-                  <Text style={styles.text}>/</Text>
-                  <Switch
-                    value={settingsData.division}
-                    onValueChange={(newVal) => {
-                      setSettingsData({ ...settingsData, division: newVal });
-                    }}
-                  />
-                </View>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 4,
-                    justifyContent: "center",
-                    marginTop: 10,
+                />
+                <Text style={styles.text}>-</Text>
+                <Switch
+                  value={equationSettings.subtract}
+                  onValueChange={(newVal) => {
+                    setEquationSettings({
+                      ...equationSettings,
+                      subtract: newVal,
+                    });
                   }}
-                >
-                  <Button
-                    title="Save"
-                    onPress={() => {
-                      saveGame();
-                      setStoredSettingsData(JSON.stringify(settingsData));
-                      displayMessageCallback("Saved", 3000);
-                    }}
-                  />
-                  <ConfirmableButton
-                    title="Reset"
-                    description="Will delete current save data and reset to initial state."
-                    onPress={() => {
-                      AsyncStorage.removeItem(saveDataKey);
-                      setGameState(emptySaveData);
-                    }}
-                  />
-                </View>
-                <View style={{ alignSelf: "center", margin: 10 }}>
-                  {showMessage && (
-                    <Text style={{ ...styles.text }}>{showMessage}</Text>
-                  )}
-                </View>
+                />
+                <Text style={styles.text}>/</Text>
+                <Switch
+                  value={equationSettings.division}
+                  onValueChange={(newVal) => {
+                    setEquationSettings({
+                      ...equationSettings,
+                      division: newVal,
+                    });
+                  }}
+                />
               </View>
-            </ModalButton>
-            <MuteToggle
-              init={mute}
-              onToggleChange={(newVal) => {
-                setMute(newVal);
-              }}
-            />
-          </View>
+              <View
+                style={{
+                  ...styles.flexCenteredRow,
+                  gap: 4,
+                  marginTop: 10,
+                }}
+              >
+                <Button
+                  title="Save"
+                  onPress={() => {
+                    saveGame();
+                    setStoredSettingsData(JSON.stringify(settingsData));
+                    setEquationSettingsStore(JSON.stringify(equationSettings));
+                    displayMessageCallback("Saved", 3000);
+                  }}
+                />
+                <ConfirmableButton
+                  title="Reset"
+                  description="Will delete current save data and reset to initial state."
+                  onPress={() => {
+                    AsyncStorage.removeItem(saveDataKey);
+                    setGameState(emptySaveData);
+                  }}
+                />
+              </View>
+              <WebsiteLink />
+              <View style={{ alignSelf: "center", margin: 10 }}>
+                {showMessage && (
+                  <Text style={{ ...styles.text }}>{showMessage}</Text>
+                )}
+              </View>
+            </View>
+          </BottomModal>
+          <MuteToggle
+            init={mute}
+            onToggleChange={(newVal) => {
+              setMute(newVal);
+            }}
+          />
         </View>
 
         <StatusBar style="auto" />
       </View>
-    </AppContext.Provider>
+    </Context.Provider>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: "#2f2f2f",
     alignItems: "center",
-    justifyContent: "center",
     gap: 3,
-  },
-  footer_container: {
-    flex: 1 / 3,
-    alignItems: "center",
-    justifyContent: "flex-end",
-    alignContent: "flex-end",
-    gap: 4,
+    flex: 4,
   },
   canvas: {
-    // flex: 1,
+    flex: 3,
     minWidth: "98%",
     backgroundColor: "#2f1f1f",
+    margin: 4,
   },
-  flex_row: {},
   text: {
     color: "#fff",
     userSelect: "none",
+  },
+  textInputBox: {
+    textAlign: "center",
+    borderColor: "white",
+    borderWidth: 1,
+  },
+  flexCenteredRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

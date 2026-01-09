@@ -4,15 +4,9 @@ import { Pressable, StyleSheet, Text } from "react-native";
 export interface MuteToggleProps {
   init: boolean;
   onToggleChange: (newValue: boolean) => void;
-  size?: number;
-  color?: string;
 }
 
-export default function MuteToggle({
-  size = 30,
-  color = "white",
-  ...props
-}: MuteToggleProps) {
+export default function MuteToggle({ ...props }: MuteToggleProps) {
   const [toggle, setToggle] = useState(props.init);
   return (
     <Pressable
@@ -22,12 +16,16 @@ export default function MuteToggle({
       }}
     >
       {toggle ? (
-        <Text style={{ fontSize: 30 }}>🔇</Text>
+        <Text style={styles.iconText}>🔇</Text>
       ) : (
-        <Text style={{ fontSize: 30 }}>🔊</Text>
+        <Text style={styles.iconText}>🔊</Text>
       )}
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  iconText: {
+    fontSize: 30,
+  },
+});

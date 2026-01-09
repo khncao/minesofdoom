@@ -1,7 +1,7 @@
 import React, { MutableRefObject, useContext, useEffect, useRef } from "react";
 import { Animated, StyleSheet, View } from "react-native";
-import { AppContext } from "../AppContext";
-import { pickaxeImg } from "../public/assets";
+import { pickaxeImg } from "assets/index";
+import { AppContext } from "apps/AppContext";
 
 export interface MinerProps {
   animateRef?: MutableRefObject<() => void>;
