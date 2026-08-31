@@ -1,6 +1,6 @@
 import { ExpoConfig, ConfigContext } from "expo/config";
 
-const pickaxePng = "./public/assets/pickaxe.png";
+const pickaxePng = "./public/assets/logo.jpg";
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -33,5 +33,5 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundler: "metro",
     output: "static",
   },
-  plugins: ["expo-router"],
+  plugins: [["expo-router", { root: "apps" }]],
 });

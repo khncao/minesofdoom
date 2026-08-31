@@ -1,13 +1,11 @@
+import MinesOfDoom from "apps/mines_of_doom/MinesOfDoom";
 import { Stack } from "expo-router";
-import { View, Text } from "react-native";
 
 export default function Index() {
   return (
     <>
-      <Stack.Screen />
-      <View style={{ backgroundColor: "grey", flex: 1 }}>
-        <Text style={{ color: "white", alignSelf: "center" }}>Home</Text>
-      </View>
+      <Stack.Screen options={{ title: "🤳Idle Click🖱️Mines⛏️of Doom😃" }} />
+      <MinesOfDoom />
     </>
   );
 }

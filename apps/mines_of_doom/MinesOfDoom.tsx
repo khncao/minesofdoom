@@ -36,7 +36,7 @@ import {
   defaultEquationSettings,
 } from "apps/utils/math/equations";
 import { emojis, emojiText } from "apps/utils/graphics/emojis";
-import { Context } from "./context";
+import { Context } from "./Context";
 
 type SaveData = {
   minerals: number;
@@ -97,7 +97,7 @@ export default function MinesOfDoom() {
 
   const [settingsData, setSettingsData] = useState(defaultSettingsData);
   const [equationSettings, setEquationSettings] = useState(
-    defaultEquationSettings
+    defaultEquationSettings,
   );
   const [gameState, setGameState] = useState<SaveData>(emptySaveData);
   const { getItem: getSaveData, setItem: setSaveData } =
@@ -133,7 +133,7 @@ export default function MinesOfDoom() {
       }
       const settingsData: SettingsData = JSON.parse(data);
       setSettingsData(settingsData);
-      console.log("loaded settings");
+      // console.log("loaded settings");
     });
     getSaveData().then((data) => {
       if (data == null) {
@@ -141,7 +141,7 @@ export default function MinesOfDoom() {
       }
       const saveData: SaveData = JSON.parse(data);
       const elapsedTicks = Math.floor(
-        (Date.now() - saveData.saveTime) / msPerTick
+        (Date.now() - saveData.saveTime) / msPerTick,
       );
       setGameState({
         ...saveData,
@@ -150,13 +150,13 @@ export default function MinesOfDoom() {
           saveData.miners * saveData.minerPower * elapsedTicks,
       });
       startTime.current = saveData.startTime;
-      console.log("loaded save");
+      // console.log("loaded save");
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [showMessage, setShowMessage] = useState<string | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const displayMessageCallback = useCallback(
     (message: string, timeout: number) => {
@@ -166,7 +166,7 @@ export default function MinesOfDoom() {
       timeoutRef.current = setTimeout(() => setShowMessage(null), timeout);
       setShowMessage(message);
     },
-    []
+    [],
   );
 
   const saveGame = useCallback(() => {
@@ -175,7 +175,7 @@ export default function MinesOfDoom() {
     setSaveData(data);
   }, [gameState, setSaveData]);
 
-  const timeout = useRef<NodeJS.Timeout>();
+  const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rendersInTick = useRef(0);
   rendersInTick.current++;
   if (rendersInTick.current > 20) {
@@ -184,7 +184,9 @@ export default function MinesOfDoom() {
 
   // Main loop interval
   useEffect(() => {
-    clearTimeout(timeout.current);
+    if (timeout.current) {
+      clearTimeout(timeout.current);
+    }
     timeout.current = setTimeout(() => {
       setGameState((n: SaveData) => {
         return {
@@ -198,7 +200,7 @@ export default function MinesOfDoom() {
       if (tick % 10 === 0) {
         saveGame();
       }
-      console.log(`tick: ${tick}`);
+      // console.log(`tick: ${tick}`);
       setTick((old) => old + 1);
       rendersInTick.current = 0;
     }, msPerTick);
@@ -227,7 +229,7 @@ export default function MinesOfDoom() {
   }, [sound]);
 
   const playerPickaxeAnimRef: MutableRefObject<() => void> = useRef<() => void>(
-    () => {}
+    () => {},
   );
 
   // Logic
@@ -240,7 +242,7 @@ export default function MinesOfDoom() {
     try {
       value = Number.parseFloat(textInput);
     } catch (e) {
-      console.log(e);
+      // console.log(e);
     }
 
     if (equation.answer != null && approxeq(value, equation.answer)) {
@@ -323,7 +325,7 @@ export default function MinesOfDoom() {
               });
             }}
             title={`UPGRADE POWER (-${getClickUpgradeCost(
-              gameState.clickPower
+              gameState.clickPower,
             )} ${emojis.gem}) (${gameState.clickPower})`}
           />
 
