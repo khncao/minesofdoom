@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import {
+  Animated,
   KeyboardAvoidingView,
   Pressable,
   StyleSheet,
@@ -15,7 +16,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { AVPlaybackSource, Audio } from "expo-av";
+import { Audio } from "expo-av";
 import AsyncStorage, {
   useAsyncStorage,
 } from "@react-native-async-storage/async-storage";
@@ -26,8 +27,11 @@ import ConfirmableButton from "apps/components/ConfirmableButton";
 import IntegerInput from "apps/components/IntegerInput";
 import BottomModal from "apps/components/BottomModal";
 import MuteToggle from "apps/components/MuteToggle";
+import DebrisParticles, {
+  DebrisParticlesRef,
+} from "apps/components/DebrisParticles";
+import CaveBackground from "apps/components/CaveBackground";
 import { pickaxeSound, stoneSound } from "assets/index";
-import WebsiteLink from "apps/components/WebsiteLink";
 import {
   EquationSettings,
   getRandomEquation,
@@ -176,11 +180,6 @@ export default function MinesOfDoom() {
   }, [gameState, setSaveData]);
 
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const rendersInTick = useRef(0);
-  rendersInTick.current++;
-  if (rendersInTick.current > 20) {
-    throw new Error("long loop");
-  }
 
   // Main loop interval
   useEffect(() => {
@@ -197,40 +196,71 @@ export default function MinesOfDoom() {
       if (gameState.miners > 0) {
         onTick.current.forEach((fn) => fn());
       }
-      if (tick % 10 === 0) {
+      if (tick % 100 === 0) {
         saveGame();
       }
       // console.log(`tick: ${tick}`);
       setTick((old) => old + 1);
-      rendersInTick.current = 0;
     }, msPerTick);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick]);
 
   // Audio
-  const [sound, setSound] = useState<Audio.Sound>();
-  // const sounds = useRef<Array<Audio.Sound>>([]);
-  async function playSound(audio: AVPlaybackSource) {
-    if (mute) {
-      return;
-    }
-    const { sound } = await Audio.Sound.createAsync(audio);
-    setSound(sound);
+  // Sounds are created once and reused. Creating a new Audio.Sound on every
+  // click (and storing it in state) forced an extra re-render per click, which
+  // combined with the game-state updates pushed renders past the tick budget.
+  const pickaxeSoundRef = useRef<Audio.Sound | null>(null);
+  const stoneSoundRef = useRef<Audio.Sound | null>(null);
 
-    await sound.playAsync();
-  }
+  const playSound = useCallback(
+    (sound: Audio.Sound | null) => {
+      if (mute || sound == null) {
+        return;
+      }
+      sound.playAsync();
+    },
+    [mute],
+  );
+
   useEffect(() => {
-    if (sound == null) {
-      return;
-    }
+    let cancelled = false;
+    (async () => {
+      const [pickaxe, stone] = await Promise.all([
+        Audio.Sound.createAsync(pickaxeSound),
+        Audio.Sound.createAsync(stoneSound),
+      ]);
+      if (cancelled) {
+        pickaxe.sound.unloadAsync();
+        stone.sound.unloadAsync();
+        return;
+      }
+      pickaxeSoundRef.current = pickaxe.sound;
+      stoneSoundRef.current = stone.sound;
+    })();
     return () => {
-      sound?.unloadAsync();
+      cancelled = true;
+      pickaxeSoundRef.current?.unloadAsync();
+      stoneSoundRef.current?.unloadAsync();
+      pickaxeSoundRef.current = null;
+      stoneSoundRef.current = null;
     };
-  }, [sound]);
+  }, []);
 
   const playerPickaxeAnimRef: MutableRefObject<() => void> = useRef<() => void>(
     () => {},
   );
+  const debrisRef = useRef<DebrisParticlesRef>(null);
+  const comboFlashAnim = useRef(new Animated.Value(1)).current;
+
+  const flashCombo = useCallback(() => {
+    comboFlashAnim.setValue(1.6);
+    Animated.spring(comboFlashAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  }, [comboFlashAnim]);
+
+  const depth = Math.floor(gameState.minerals / 500);
 
   // Logic
   const textInputRef = useRef<null | TextInput>(null);
@@ -261,20 +291,32 @@ export default function MinesOfDoom() {
           gems: rollGem(comboMultiplier) ? n.gems + 1 : n.gems,
         };
       });
-      playSound(pickaxeSound);
+      playSound(pickaxeSoundRef.current);
       playerPickaxeAnimRef.current();
+      debrisRef.current?.trigger();
+      flashCombo();
       setCombo(combo + 1);
     } else {
-      playSound(stoneSound);
+      playSound(stoneSoundRef.current);
       setCombo(0);
     }
     setTextInput("");
     setEquation(getRandomEquation(equationSettings));
   };
 
+  const mineralsPerSec = gameState.miners * gameState.minerPower;
+
   return (
     <Context.Provider value={{ onTick: onTick.current }}>
       <View style={styles.container}>
+        <View style={styles.depthBanner}>
+          <Text style={styles.depthText}>⛏ Depth: {depth}m</Text>
+          {mineralsPerSec > 0 && (
+            <Text style={styles.depthText}>
+              {emojis.mineral} {mineralsPerSec}/s
+            </Text>
+          )}
+        </View>
         <Text style={styles.text}>
           {equation.a} {equation.op} {equation.b}?
         </Text>
@@ -304,8 +346,19 @@ export default function MinesOfDoom() {
           />
         </KeyboardAvoidingView>
 
-        <Text style={styles.text}>Combo: {combo}</Text>
-        <Text style={styles.text}>Multplier: x{comboMultiplier}</Text>
+        <View style={styles.flexCenteredRow}>
+          <Animated.Text
+            style={[
+              styles.comboText,
+              { transform: [{ scale: comboFlashAnim }] },
+            ]}
+          >
+            {combo > 0 ? `🔥 ${combo}x combo` : ""}
+          </Animated.Text>
+          {comboMultiplier > 1 && (
+            <Text style={styles.multiplierText}> ×{comboMultiplier}</Text>
+          )}
+        </View>
         {
           // Purchaseables
         }
@@ -326,7 +379,7 @@ export default function MinesOfDoom() {
             }}
             title={`UPGRADE POWER (-${getClickUpgradeCost(
               gameState.clickPower,
-            )} ${emojis.gem}) (${gameState.clickPower})`}
+            )} ${emojis.mineral}) (${gameState.clickPower})`}
           />
 
           <Button
@@ -370,13 +423,15 @@ export default function MinesOfDoom() {
                 minerals: n.minerals + gameState.clickPower,
               };
             });
-            playSound(pickaxeSound);
+            playSound(pickaxeSoundRef.current);
             playerPickaxeAnimRef.current();
+            debrisRef.current?.trigger();
             setCombo(0);
           }}
           style={{ ...styles.canvas, paddingTop: 10 }}
         >
-          <View>
+          <CaveBackground depth={depth} />
+          <View style={{ alignItems: "center" }}>
             <View style={styles.flexCenteredRow}>
               {emojiText("mineral")}
               <Text style={{ ...styles.text, alignSelf: "center" }}>
@@ -390,7 +445,14 @@ export default function MinesOfDoom() {
               </Text>
             </View>
 
-            <Miner key={"player"} animateRef={playerPickaxeAnimRef} />
+            <View style={{ position: "relative", alignItems: "center" }}>
+              <Miner
+                key={"player"}
+                animateRef={playerPickaxeAnimRef}
+                isPlayer={true}
+              />
+              <DebrisParticles ref={debrisRef} />
+            </View>
             <View
               style={{
                 flexDirection: "row",
@@ -504,7 +566,6 @@ export default function MinesOfDoom() {
                   }}
                 />
               </View>
-              <WebsiteLink />
               <View style={{ alignSelf: "center", margin: 10 }}>
                 {showMessage && (
                   <Text style={{ ...styles.text }}>{showMessage}</Text>
@@ -538,6 +599,7 @@ const styles = StyleSheet.create({
     minWidth: "98%",
     backgroundColor: "#2f1f1f",
     margin: 4,
+    overflow: "hidden",
   },
   text: {
     color: "#fff",
@@ -552,5 +614,30 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
+  },
+  depthBanner: {
+    flexDirection: "row",
+    gap: 16,
+    paddingTop: 6,
+    paddingHorizontal: 12,
+    alignSelf: "stretch",
+    justifyContent: "space-between",
+  },
+  depthText: {
+    color: "#b0a090",
+    fontSize: 12,
+    userSelect: "none",
+  },
+  comboText: {
+    color: "#ffaa44",
+    fontSize: 16,
+    fontWeight: "bold",
+    userSelect: "none",
+  },
+  multiplierText: {
+    color: "#ff6644",
+    fontSize: 16,
+    fontWeight: "bold",
+    userSelect: "none",
   },
 });

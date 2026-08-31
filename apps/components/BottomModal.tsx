@@ -23,24 +23,37 @@ export default function BottomModal(props: BottomModalProps) {
         visible={showModal}
         onRequestClose={() => setShowModal(false)}
         transparent={true}
-        onPointerUp={() => setShowModal(false)}
       >
-        <Pressable
-          onPress={() => {
-            setShowModal(false);
-          }}
-        />
+        <Pressable style={styles.backdrop} onPress={() => setShowModal(false)} />
 
-        <View style={styles.childrenContainer}>{props.children}</View>
+        <View style={styles.childrenContainer}>
+          <Pressable style={styles.closeButton} onPress={() => setShowModal(false)}>
+            <Text style={styles.closeButtonText}>✕</Text>
+          </Pressable>
+          {props.children}
+        </View>
       </Modal>
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
   childrenContainer: {
     backgroundColor: "#404040",
-    marginTop: "auto",
     gap: 20,
+    paddingBottom: 20,
+  },
+  closeButton: {
+    alignSelf: "flex-end",
+    padding: 10,
+    paddingHorizontal: 16,
+  },
+  closeButtonText: {
+    color: "#ccc",
+    fontSize: 20,
   },
 });
