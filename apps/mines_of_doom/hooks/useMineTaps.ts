@@ -5,6 +5,7 @@ import {
   useRef,
 } from "react";
 import type { DebrisParticlesRef } from "apps/components/DebrisParticles";
+import type { BlockBreakRef } from "apps/components/BlockBreak";
 import type { SoundKey } from "./useSounds";
 
 const TAP_FLUSH_INTERVAL = 50;
@@ -14,6 +15,7 @@ export function useMineTaps({
   play,
   playerPickaxeAnimRef,
   debrisRef,
+  blockBreakRef,
   addTapGain,
   onResetCombo,
   onGain,
@@ -22,6 +24,7 @@ export function useMineTaps({
   play: (key: SoundKey, minInterval?: number) => void;
   playerPickaxeAnimRef: MutableRefObject<() => void>;
   debrisRef: RefObject<DebrisParticlesRef>;
+  blockBreakRef: RefObject<BlockBreakRef>;
   addTapGain: (gain: number) => void;
   onResetCombo: () => void;
   /** Optional per-tap feedback hook (e.g. floating "+N" text). */
@@ -65,9 +68,18 @@ export function useMineTaps({
     play("pickaxe", 60);
     playerPickaxeAnimRef.current();
     debrisRef.current?.trigger();
+    blockBreakRef.current?.trigger();
     onResetCombo();
     onGain?.(gain);
-  }, [scheduleTapFlush, play, onResetCombo, playerPickaxeAnimRef, debrisRef, onGain]);
+  }, [
+    scheduleTapFlush,
+    play,
+    onResetCombo,
+    playerPickaxeAnimRef,
+    debrisRef,
+    blockBreakRef,
+    onGain,
+  ]);
 
   return { mineTap };
 }

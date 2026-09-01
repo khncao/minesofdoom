@@ -12,7 +12,10 @@ import {
   gemMineralCost,
   getClickUpgradeCost,
   getDepth,
+  getDepthTier,
+  getMinerPowerUpgradeCost,
   getMinerUpgradeCost,
+  lifetimeDelta,
   maxOfflineTicks,
   migrateSaveData,
   msPerTick,
@@ -20,6 +23,17 @@ import {
   saveDataKey,
   saveVersion,
 } from "../game";
+import { getTierBonus } from "../goals";
+import {
+  DEFAULT_OWNED,
+  DEFAULT_OUTFIT,
+  DEFAULT_PICKAXE,
+  OUTFITS,
+  PICKAXES,
+  getCostGems,
+  isOutfitId,
+  isPickaxeId,
+} from "../cosmetics";
 
 export function useGameEngine(
   displayMessage: (message: string, timeout: number) => void,
@@ -112,6 +126,43 @@ export function useGameEngine(
         startTime: num(migrated.startTime, now),
         saveTime: num(migrated.saveTime, now),
         saveVersion: num(migrated.saveVersion, saveVersion),
+        lifetimeMinerals: num(migrated.lifetimeMinerals, 0),
+        lifetimeCorrect: num(migrated.lifetimeCorrect, 0),
+        maxCombo: num(migrated.maxCombo, 0),
+        maxDepth: num(migrated.maxDepth, 0),
+        minersOwnedEver: num(migrated.minersOwnedEver, 0),
+        totalGemsMinted: num(migrated.totalGemsMinted, 0),
+        totalGemsSpent: num(migrated.totalGemsSpent, 0),
+        totalPrestiges: num(migrated.totalPrestiges, 0),
+        completedTiers: Array.isArray(migrated.completedTiers)
+          ? migrated.completedTiers.filter((t): t is string =>
+              typeof t === "string",
+            )
+          : [],
+        playerSeed: num(migrated.playerSeed, 12345),
+        // Always keep the free defaults owned; drop unknown ids.
+        ownedCosmetics: [
+          ...new Set([
+            ...DEFAULT_OWNED,
+            ...(Array.isArray(migrated.ownedCosmetics)
+              ? migrated.ownedCosmetics.filter(
+                  (c): c is string =>
+                    typeof c === "string" &&
+                    (isOutfitId(c) || isPickaxeId(c)),
+                )
+              : []),
+          ]),
+        ],
+        selectedOutfit:
+          typeof migrated.selectedOutfit === "string" &&
+          OUTFITS.some((o) => o.id === migrated.selectedOutfit)
+            ? migrated.selectedOutfit
+            : DEFAULT_OUTFIT,
+        selectedPickaxe:
+          typeof migrated.selectedPickaxe === "string" &&
+          PICKAXES.some((p) => p.id === migrated.selectedPickaxe)
+            ? migrated.selectedPickaxe
+            : DEFAULT_PICKAXE,
       };
 
       const offlineMinerals = computeOfflineMinerals(
@@ -122,7 +173,12 @@ export function useGameEngine(
       );
 
       return finish(
-        { ...saveData, minerals: saveData.minerals + offlineMinerals },
+        {
+          ...saveData,
+          minerals: saveData.minerals + offlineMinerals,
+          // Offline earnings count toward lifetime stats too.
+          lifetimeMinerals: saveData.lifetimeMinerals + offlineMinerals,
+        },
         offlineMinerals,
       );
     })();
@@ -193,14 +249,15 @@ export function useGameEngine(
       if (gameStateRef.current.miners > 0) {
         // Only update state when something actually changes; allocating a new
         // state object every second forced a full re-render even when idle.
-        setGameState((n: SaveData) =>
-          n.miners > 0
-            ? {
-                ...n,
-                minerals: n.minerals + n.miners * n.minerPower * elapsed,
-              }
-            : n,
-        );
+        setGameState((n: SaveData) => {
+          if (n.miners <= 0) return n;
+          const income = n.miners * n.minerPower * elapsed;
+          return {
+            ...n,
+            minerals: n.minerals + income,
+            ...lifetimeDelta(n, { minerals: income }),
+          };
+        });
         // One animation tick per fire (not per caught-up tick) so resuming a
         // backgrounded tab doesn't spam the miners with pickaxe swings.
         onTick.current.forEach((fn) => fn());
@@ -221,11 +278,13 @@ export function useGameEngine(
   }, []);
 
   // Add a batch of minerals earned by rapid tapping (see useMineTaps).
+  // `gain` is the effective (depth-tier-bonus-included) tap value.
   const addTapGain = useCallback((gain: number) => {
     if (gain > 0) {
       setGameState((n: SaveData) => ({
         ...n,
         minerals: n.minerals + gain,
+        ...lifetimeDelta(n, { minerals: gain }),
       }));
     }
   }, []);
@@ -236,14 +295,26 @@ export function useGameEngine(
   // and returned so the UI can react to a successful roll (sound, toast,
   // floating text) — the updater itself must stay a pure function of state.
   const applyAnswerReward = useCallback(
-    (value: number, comboMultiplier: number): boolean => {
+    (value: number, comboMultiplier: number, newCombo: number): boolean => {
       const gem = rollGem(comboMultiplier);
-      setGameState((n: SaveData) => ({
-        ...n,
-        minerals:
-          n.minerals + Math.max(1, value) * n.clickPower * comboMultiplier,
-        gems: gem ? n.gems + 1 : n.gems,
-      }));
+      setGameState((n: SaveData) => {
+        // Depth-tier click bonus (authoritative; the UI shows the same value
+        // computed from the rendered depth — they only disagree across a
+        // tier boundary, by at most one gain event).
+        const bonus = getDepthTier(getDepth(n.minerals)).clickBonus;
+        const gained = Math.max(1, value) * n.clickPower * comboMultiplier * bonus;
+        return {
+          ...n,
+          minerals: n.minerals + gained,
+          gems: gem ? n.gems + 1 : n.gems,
+          ...lifetimeDelta(n, {
+            minerals: gained,
+            correct: 1,
+            combo: newCombo,
+            gemsMinted: gem ? 1 : 0,
+          }),
+        };
+      });
       return gem;
     },
     [],
@@ -261,10 +332,13 @@ export function useGameEngine(
 
   const buyMiner = useCallback(() => {
     setGameState((n: SaveData) => {
+      const cost = getMinerUpgradeCost(n.miners);
       return {
         ...n,
         miners: n.miners + 1,
-        gems: n.gems - getMinerUpgradeCost(n.miners),
+        gems: n.gems - cost,
+        minersOwnedEver: Math.max(n.minersOwnedEver, n.miners + 1),
+        totalGemsSpent: n.totalGemsSpent + cost,
       };
     });
   }, []);
@@ -275,8 +349,80 @@ export function useGameEngine(
         ...n,
         minerals: n.minerals - gemMineralCost,
         gems: n.gems + 1,
+        totalGemsMinted: n.totalGemsMinted + 1,
       };
     });
+  }, []);
+
+  // Tier-1 unlock: raise each miner's output (unlocks via goals.ts).
+  const upgradeMinerPower = useCallback(() => {
+    setGameState((n: SaveData) => {
+      const cost = getMinerPowerUpgradeCost(n.minerPower);
+      if (n.minerals < cost) return n;
+      return {
+        ...n,
+        minerPower: n.minerPower + 1,
+        minerals: n.minerals - cost,
+      };
+    });
+  }, []);
+
+  // Record goal-tier completions and grant their one-time bonuses.
+  // Idempotent: tier ids already in completedTiers are ignored, so a
+  // double-fired updater (React may run updaters twice in dev) can't pay
+  // the bonus twice.
+  const completeTiers = useCallback((ids: string[]) => {
+    if (ids.length === 0) return;
+    setGameState((n: SaveData) => {
+      const fresh = ids.filter((id) => !n.completedTiers.includes(id));
+      if (fresh.length === 0) return n;
+      return {
+        ...n,
+        minerals: n.minerals + getTierBonus(fresh),
+        lifetimeMinerals: n.lifetimeMinerals + getTierBonus(fresh),
+        completedTiers: [...n.completedTiers, ...fresh],
+      };
+    });
+  }, []);
+
+  // Buy a cosmetic (outfit or pickaxe) with gems; auto-selects it. Unknown
+  // ids and unaffordable prices are no-ops (button state may be stale).
+  const buyCosmetic = useCallback((id: string) => {
+    const cost = getCostGems(id);
+    if (cost == null) return;
+    setGameState((n: SaveData) => {
+      if (n.ownedCosmetics.includes(id) || n.gems < cost) return n;
+      return {
+        ...n,
+        gems: n.gems - cost,
+        totalGemsSpent: n.totalGemsSpent + cost,
+        ownedCosmetics: [...n.ownedCosmetics, id],
+        selectedOutfit: isOutfitId(id) ? id : n.selectedOutfit,
+        selectedPickaxe: isPickaxeId(id) ? id : n.selectedPickaxe,
+      };
+    });
+  }, []);
+
+  // Switch to an already-owned cosmetic.
+  const selectCosmetic = useCallback((id: string) => {
+    setGameState((n: SaveData) => {
+      if (!n.ownedCosmetics.includes(id)) return n;
+      if (isOutfitId(id) && n.selectedOutfit === id) return n;
+      if (isPickaxeId(id) && n.selectedPickaxe === id) return n;
+      return {
+        ...n,
+        selectedOutfit: isOutfitId(id) ? id : n.selectedOutfit,
+        selectedPickaxe: isPickaxeId(id) ? id : n.selectedPickaxe,
+      };
+    });
+  }, []);
+
+  // Reroll the player sprite randomizer (roster variants follow, since they
+  // derive from the same seed). Seed computed outside the updater so a
+  // double-invoked updater can't desync what the UI shows.
+  const rerollPlayerSeed = useCallback(() => {
+    const seed = Math.floor(Math.random() * 2147483647) || 1;
+    setGameState((n: SaveData) => ({ ...n, playerSeed: seed }));
   }, []);
 
   const resetGame = useCallback(() => {
@@ -299,6 +445,11 @@ export function useGameEngine(
     upgradePower,
     buyMiner,
     buyGem,
+    upgradeMinerPower,
+    completeTiers,
+    buyCosmetic,
+    selectCosmetic,
+    rerollPlayerSeed,
     resetGame,
   };
 }
