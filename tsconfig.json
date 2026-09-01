@@ -6,7 +6,7 @@
     "paths": {
       "components/*": ["apps/components/*"],
       "hooks/*": ["apps/hooks/*"],
-      "assets/*": ["./dist/assets/*"]
+      "assets/*": ["./public/assets/*"]
     }
   }
 }

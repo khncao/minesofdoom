@@ -34,4 +34,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     output: "static",
   },
   plugins: [["expo-router", { root: "apps" }]],
+  // Let Metro honor the tsconfig.json "paths" mapping (assets/* ->
+  // dist/assets/*), otherwise "assets/index" imports don't resolve.
+  experiments: {
+    tsconfigPaths: true,
+  },
 });
