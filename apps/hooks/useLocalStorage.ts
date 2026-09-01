@@ -20,20 +20,39 @@ export function useLocalStorage<T>(
   getItemRef.current = getItem;
 
   useEffect(() => {
+    let cancelled = false;
     setPending(true);
-    getItemRef.current().then((val) => {
-      if (val != null) {
-        setValue(JSON.parse(val) as T);
-      }
-    });
-    return () => setPending(false);
+    getItemRef.current()
+      .then((val) => {
+        if (cancelled) return;
+        if (val != null) {
+          try {
+            setValue(JSON.parse(val) as T);
+          } catch (e) {
+            // Corrupt value: fall back to the initial value rather than
+            // crashing the whole screen on mount.
+            console.warn(`Corrupt value for "${key}", using default`, e);
+          }
+        }
+      })
+      .catch((e) => console.warn(`Failed to read "${key}"`, e))
+      .finally(() => {
+        if (!cancelled) setPending(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const setter = useCallback(
     (newVal: T) => {
       setPending(true);
-      setItemRef.current(JSON.stringify(newVal)).then(() => setPending(false));
+      setItemRef.current(JSON.stringify(newVal))
+        .catch((e) => console.warn(`Failed to write "${key}"`, e))
+        .finally(() => setPending(false));
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
   return [value, setter, pending];

@@ -1,5 +1,5 @@
 import React, { MutableRefObject, useContext, useEffect, useRef } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import { Animated, Text } from "react-native";
 import { pickaxeImg } from "assets/index";
 import { Context } from "../Context";
 
@@ -81,7 +81,6 @@ function Miner({ scale = 1, ...props }: MinerProps) {
   }, []);
 
   const minerSize = props.isPlayer ? 28 : 18;
-  const helmet = props.isPlayer ? "⛏️" : "⛏️";
 
   return (
     <Animated.View
@@ -111,5 +110,3 @@ function Miner({ scale = 1, ...props }: MinerProps) {
 }
 
 export default React.memo(Miner);
-
-const styles = StyleSheet.create({});
