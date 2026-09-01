@@ -10,6 +10,8 @@ function MuteToggle({ ...props }: MuteToggleProps) {
   const [toggle, setToggle] = useState(props.init);
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={toggle ? "Unmute sound" : "Mute sound"}
       onPress={() => {
         setToggle(!toggle);
         props.onToggleChange(!toggle);

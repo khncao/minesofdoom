@@ -22,7 +22,12 @@ export default function Button({
   style,
 }: ButtonProps) {
   return (
-    <Pressable disabled={disabled} onPress={onPress}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      disabled={disabled}
+      onPress={onPress}
+    >
       <View
         style={[
           {

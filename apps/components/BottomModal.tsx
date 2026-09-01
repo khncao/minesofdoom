@@ -9,7 +9,12 @@ export interface BottomModalProps {
 function BottomModal(props: BottomModalProps) {
   const [showModal, setShowModal] = useState(false);
   const toggle = (
-    <Pressable onPress={() => setShowModal(!showModal)} style={{ margin: 10 }}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Settings"
+      onPress={() => setShowModal(!showModal)}
+      style={{ margin: 10 }}
+    >
       {props.pressable ?? <Text style={{ fontSize: 30 }}>⚙️</Text>}
     </Pressable>
   );
@@ -27,7 +32,12 @@ function BottomModal(props: BottomModalProps) {
         <Pressable style={styles.backdrop} onPress={() => setShowModal(false)} />
 
         <View style={styles.childrenContainer}>
-          <Pressable style={styles.closeButton} onPress={() => setShowModal(false)}>
+          <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Close settings"
+        style={styles.closeButton}
+        onPress={() => setShowModal(false)}
+      >
             <Text style={styles.closeButtonText}>✕</Text>
           </Pressable>
           {props.children}

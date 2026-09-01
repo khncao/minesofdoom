@@ -1,5 +1,5 @@
 import React, { Dispatch, SetStateAction } from "react";
-import { Button, Keyboard, StyleSheet, View } from "react-native";
+import { Button, StyleSheet, View } from "react-native";
 
 export interface NumericKeypadProps {
   setText: Dispatch<SetStateAction<string>>;

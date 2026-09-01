@@ -1,13 +1,11 @@
 import React from "react";
-import { Linking, StyleSheet, Text } from "react-native";
-
-const urls = {};
+import { Linking, Text } from "react-native";
 
 export interface WebsiteLinkProps {
   url?: string;
 }
 
-export default function WebsiteLink({ url, ...props }: WebsiteLinkProps) {
+export default function WebsiteLink({ url }: WebsiteLinkProps) {
   return (
     <Text
       onPress={() => {
@@ -19,5 +17,3 @@ export default function WebsiteLink({ url, ...props }: WebsiteLinkProps) {
     </Text>
   );
 }
-
-const styles = StyleSheet.create({});
