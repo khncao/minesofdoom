@@ -1,66 +1,63 @@
-# Iteration 5 — Tier-4 cave themes (Crystal Kingdom)
+# Iteration 6 — Tier-5 "Motherlode" endgame: legendary miners
 
-Continues phase 7. Iteration 4 finished tier 3 (Magma Frontier) with the
-gem upgrade lines (click ×2, combo resistance); this is the next unlock in
-the §4.6 chain — **tier 4 "Crystal Kingdom": the cosmetic lines, starting
-with cave themes**. Cave themes are a *cosmetic* line (a pure recolor of
-the cave background, no gameplay effect), gem-priced, and — like every §4.6
-unlock — gated: visible but locked (🔒 Crystal Kingdom) until tier 4
-completes. They are *meta* cosmetics: like outfits/pickaxes they survive a
-sunk shaft (`sinkNewShaft` leaves them intact).
+Continues phase 7. Iteration 5 shipped tier 4 (Crystal Kingdom) cave themes;
+the log's "Next: tier 5 endgame" lands here. Tier 5 is the §4.6 endgame tier:
+**"Endgame content — legendary miner type, hard-mode equation modes with
+better payouts, final cosmetic set."** This iteration ships the first and
+most mechanical of the three: the **legendary miner type** — the third miner
+type and the endgame raw-output sink. Hard-mode equation modes and the final
+cosmetic set are later iterations (they touch the equation generator /
+cosmetics catalog, not the miner economy).
 
 ## Design
 
-- **Cave theme** (`cosmetics.ts`): a named recolor of the cave background.
-  Each theme is a `tints: string[5]` palette — one tint per depth tier
-  (Surface Caverns → Crystal Kingdom), index-aligned with `DEPTH_TIERS`
-  (`game.ts`). The cave still varies with depth; a theme just shifts the
-  whole palette, so a theme stays alive as you descend.
-  - **Default theme** `natural` (free, owned from the start): its palette is
-    exactly `DEPTH_TIERS`' tints (`DEFAULT_CAVE_TINTS`), i.e. today's look —
-    a fresh save (or a player who never opens the section) sees no change.
-    A unit test pins `DEFAULT_CAVE_TINTS === DEPTH_TIERS' tints`.
-  - **4 paid themes** (gem-priced): `amethyst` 5💎, `verdant` 8💎,
-    `solar` 12💎, `void` 20💎 — distinct palettes.
-  - Resolution: `getThemeTint(theme, tierId) = theme.tints[tierId]`
-    (clamped). The on-screen tint is
-    `getThemeTint(getCaveTheme(selectedCaveTheme), getDepthTier(depth).id)`,
-    so the background always matches the save.
-- **Save v8**: `ownedCaveThemes: string[]` (defaults to `["natural"]`) +
-  `selectedCaveTheme: string` (defaults to `natural`). 7→8 migration keeps
-  valid owned ids (drops junk) and a valid selection (else `natural`),
-  always keeping the free `natural` owned; clamped loader;
-  `createEmptySaveData` defaults.
-- **Engine actions** `buyCaveTheme(id)` / `selectCaveTheme(id)`:
-  unknown-id and unaffordable no-ops (same pattern as `buyCosmetic`), a buy
-  auto-selects, and the gem spend counts toward `totalGemsSpent`.
-  `sinkNewShaft` leaves both fields intact (cosmetics survive, like
-  outfits/pickaxes).
-- **UI**: new "Cave themes" block in the settings CosmeticsSection — a row
-  per theme with a 5-swatch palette thumbnail; buy / owned / selected
-  states, gem price; the whole block renders locked (🔒 Crystal Kingdom)
-  until tier 4 completes, per the §4.6 visible-but-locked rule.
-- **`goals.ts`**: tier-4 unlock text drops "(coming soon)" → "Cave themes";
-  new `CAVE_THEME_UNLOCK_TIER = "t4"` constant (matches the other gates).
+- **Legendary miners** (third miner type, `game.ts`): gem-priced, the
+  **premium** miner — highest absolute output per miner, steepest gem curve.
+  Fast miners (tier 2) remain the *efficiency* play (cheap, weak); legendary
+  miners convert a gem hoard into raw income — the classic endgame sink.
+  - **Cost** `getLegendaryMinerCost(current) = max(1, ceil(2·(current+1)⁴))`
+    gems — the same quartic family as the other two types, 2× the
+    normal-miner curve and above both types at every count (miners are a
+    premium, not a bargain).
+  - **Output** `getLegendaryMinerOutput(minerPower) = 2·minerPower`
+    minerals/sec — exactly double a normal miner, and miner-power upgrades
+    apply to *all three* types (same rule as fast miners).
+- **Save v9**: `legendaryMiners: number` (defaults to 0). 8→9 migration
+  clamps junk (`Math.max(0, floor(...))`, like `fastMiners`); clamped loader
+  in `useGameEngine`; `createEmptySaveData` defaults to 0.
+- **Engine**: `buyLegendaryMiner` action — affordability-guarded (same
+  pattern as `buyFastMiner`), counts toward `totalGemsSpent`. Passive income
+  paths include the third type: `getMineralsPerSec` /
+  `computeOfflineMinerals` gain a `legendaryMiners` parameter (defaulted, so
+  call sites and tests stay source-compatible), the per-tick income check
+  fires when any of the three types is owned, and the depth-banner `/s`
+  agrees. `sinkNewShaft` resets `legendaryMiners` to 0 — miners are *run*
+  resources, exactly like normal/fast miners (only meta cosmetics survive).
+- **`goals.ts`**: new `LEGENDARY_MINER_UNLOCK_TIER = "t5"` constant; tier-5
+  unlock text drops "(coming soon)" → "Legendary miners" (names the shipped
+  line, same treatment as `CAVE_THEME_UNLOCK_TIER`'s "Cave themes").
+- **UI**: new `BUY A LEGENDARY MINER` button in `PurchaseButtons` — gem cost,
+  owned count, `/s each` readout; rendered locked
+  (`🔒 BUY LEGENDARY MINER (Motherlode)`) until tier 5 completes, per the
+  §4.6 visible-but-locked rule. `MiningCanvas` gains a third roster row
+  (scale 0.55 — between normal 0.5 and player 1, seed offset 2000 so sprite
+  variants can't collide with the normal (0) or fast (1000) rows).
 
 ## Tasks
 
-- [x] `cosmetics.ts`: `CaveTheme` + `CAVE_THEMES` catalog (natural + 4 paid),
-      `DEFAULT_CAVE_THEME` / `DEFAULT_OWNED_CAVE_THEMES` /
-      `DEFAULT_CAVE_TINTS`, `getCaveTheme` / `isCaveThemeId` /
-      `getCaveThemeCost` / `getThemeTint`
-- [x] Save v8: `ownedCaveThemes` + `selectedCaveTheme`, 7→8 migration +
-      clamped loader + `createEmptySaveData`
-- [x] Engine: `buyCaveTheme` / `selectCaveTheme` actions (unknown-id /
-      affordability guarded, buy auto-selects, count toward
-      `totalGemsSpent`); both fields survive `sinkNewShaft`
-- [x] `goals.ts`: `CAVE_THEME_UNLOCK_TIER` + tier-4 unlock text
-      "Cave themes"
-- [x] UI: CosmeticsSection "Cave themes" block (palette swatches, buy /
-      owned / selected, locked until Crystal Kingdom); tint wired through
-      MinesOfDoom → MiningCanvas from the selected theme
-- [x] Unit tests: catalog invariants (unique ids, 5 hex tints, free
-      default), `getThemeTint` clamping, `natural` palette == `DEPTH_TIERS`,
-      v7→v8 migration, new-save defaults
+- [x] `game.ts`: `getLegendaryMinerCost` / `getLegendaryMinerOutput`,
+      `legendaryMiners` in `getMineralsPerSec` / `computeOfflineMinerals`
+- [x] Save v9: `legendaryMiners` (8→9 migration + clamped loader +
+      `createEmptySaveData` default)
+- [x] Engine: `buyLegendaryMiner` action (affordability-guarded, counts
+      toward `totalGemsSpent`); tick income / offline earnings / banner `/s`
+      include the type; `sinkNewShaft` resets it
+- [x] `goals.ts`: `LEGENDARY_MINER_UNLOCK_TIER = "t5"` + tier-5 unlock text
+      "Legendary miners"
+- [x] UI: `PurchaseButtons` legend-miner button (locked until Motherlode) +
+      `MiningCanvas` third roster row
+- [x] Unit tests: cost curve (monotonic, 2× fast, above normal), output =
+      2× power, per-sec across all three types, offline with legendaries,
+      v8→v9 migration (junk clamp), new-save default
 - [x] Verify: `npm run typecheck` / `lint` / `test` / `npx expo export -p web`
 - [x] Update `docs/todo.md` (phase 7 section + log)

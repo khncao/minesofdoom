@@ -18,6 +18,8 @@ import {
   getFastMinerOutput,
   getGemChance,
   getGemChanceCost,
+  getLegendaryMinerCost,
+  getLegendaryMinerOutput,
   comboResistRetentionPerLevel,
   getMineralsPerSec,
   getMinerPowerUpgradeCost,
@@ -65,6 +67,24 @@ describe("cost curves", () => {
       const c = getFastMinerCost(n);
       expect(c).toBeGreaterThan(prev);
       expect(c).toBeLessThanOrEqual(getMinerUpgradeCost(n));
+      prev = c;
+    }
+  });
+
+  test("legendary miner cost: 2*(n+1)^4, strictly increasing, above every other type", () => {
+    expect(getLegendaryMinerCost(0)).toBe(2);
+    expect(getLegendaryMinerCost(1)).toBe(32);
+    expect(getLegendaryMinerCost(2)).toBe(162);
+    expect(getLegendaryMinerCost(10)).toBe(29282);
+    let prev = 0;
+    for (let n = 0; n < 100; n++) {
+      const c = getLegendaryMinerCost(n);
+      expect(c).toBeGreaterThan(prev);
+      // The endgame sink: pricier than a normal miner and than a fast miner
+      // at every count (same quartic family, steepest curve).
+      expect(c).toBeGreaterThanOrEqual(getMinerUpgradeCost(n));
+      expect(c).toBeGreaterThanOrEqual(getFastMinerCost(n));
+      expect(c).toBe(Math.max(1, Math.ceil(2 * (n + 1) ** 4)));
       prev = c;
     }
   });
@@ -135,6 +155,21 @@ describe("fast miner output", () => {
   });
 });
 
+describe("legendary miner output", () => {
+  test("exactly double a normal miner at every power level", () => {
+    expect(getLegendaryMinerOutput(1)).toBe(2);
+    expect(getLegendaryMinerOutput(2)).toBe(4);
+    expect(getLegendaryMinerOutput(10)).toBe(20);
+    for (let p = 1; p <= 100; p++) {
+      expect(getLegendaryMinerOutput(p)).toBe(2 * p);
+      // Always strictly stronger than a fast miner (the premium type).
+      expect(getLegendaryMinerOutput(p)).toBeGreaterThan(
+        getFastMinerOutput(p),
+      );
+    }
+  });
+});
+
 describe("getMineralsPerSec", () => {
   test("normal miners only", () => {
     expect(getMineralsPerSec(2, 3, 0)).toBe(6);
@@ -151,6 +186,15 @@ describe("getMineralsPerSec", () => {
     expect(getMineralsPerSec(1, 2, 1)).toBe(3);
     // 2 normal @ power 4 + 3 fast @ output 2 = 8 + 6
     expect(getMineralsPerSec(2, 4, 3)).toBe(14);
+  });
+
+  test("legendary miners add their double output (third type)", () => {
+    // 2 legendary @ power 3: output 6 each = 12
+    expect(getMineralsPerSec(0, 3, 0, 2)).toBe(12);
+    // 1 normal @ power 2 + 1 fast @ output 1 + 2 legendary @ output 4 = 2+1+8
+    expect(getMineralsPerSec(1, 2, 1, 2)).toBe(11);
+    // Defaulted argument keeps old call sites source-compatible.
+    expect(getMineralsPerSec(1, 2, 1)).toBe(3);
   });
 });
 
@@ -350,10 +394,21 @@ describe("computeOfflineMinerals", () => {
     expect(computeOfflineMinerals(2, 3, 3, now - 10 * msPerTick, now)).toBe(90);
   });
 
+  test("legendary miners contribute their (double) output", () => {
+    // 10 ticks: 1 normal @ power 3 (3/s) + 2 legendary @ output 6 (12/s) = 150
+    expect(computeOfflineMinerals(1, 3, 0, now - 10 * msPerTick, now, 1, 2)).toBe(
+      150,
+    );
+    // Prestige multiplier and legendary miners compose.
+    expect(computeOfflineMinerals(1, 3, 0, now - 10 * msPerTick, now, 2, 2)).toBe(
+      300,
+    );
+  });
+
   test("caps at maxOfflineTicks (8h)", () => {
     const nineHours = 9 * 3600 * 1000;
-    expect(computeOfflineMinerals(2, 3, 3, now - nineHours, now)).toBe(
-      getMineralsPerSec(2, 3, 3) * maxOfflineTicks,
+    expect(computeOfflineMinerals(2, 3, 3, now - nineHours, now, 1, 4)).toBe(
+      getMineralsPerSec(2, 3, 3, 4) * maxOfflineTicks,
     );
   });
 
@@ -571,6 +626,35 @@ describe("migrateSaveData", () => {
     expect(migrated.selectedCaveTheme).toBe("amethyst");
   });
 
+  test("v8 save gains legendaryMiners=0", () => {
+    const migrated = migrateSaveData({ minerals: 1, saveVersion: 8 });
+    expect(migrated.saveVersion).toBe(saveVersion);
+    expect(migrated.legendaryMiners).toBe(0);
+  });
+
+  test("v8 save keeps a valid legendaryMiners count", () => {
+    const migrated = migrateSaveData({ saveVersion: 8, legendaryMiners: 7 });
+    expect(migrated.legendaryMiners).toBe(7);
+  });
+
+  test("v8 save clamps junk/negative legendaryMiners", () => {
+    const junk = migrateSaveData({
+      saveVersion: 8,
+      legendaryMiners: "banana",
+    });
+    expect(junk.legendaryMiners).toBe(0);
+    const negative = migrateSaveData({
+      saveVersion: 8,
+      legendaryMiners: -4,
+    });
+    expect(negative.legendaryMiners).toBe(0);
+    const floored = migrateSaveData({
+      saveVersion: 8,
+      legendaryMiners: 3.9,
+    });
+    expect(floored.legendaryMiners).toBe(3);
+  });
+
   test("v7 save drops junk owned cave theme ids and falls back selection", () => {
     const migrated = migrateSaveData({
       saveVersion: 7,
@@ -617,5 +701,13 @@ describe("createEmptySaveData tier-3 fields", () => {
     const save = createEmptySaveData();
     expect(save.clickBoostLevels).toBe(0);
     expect(save.comboResistLevels).toBe(0);
+  });
+});
+
+describe("createEmptySaveData tier-5 fields", () => {
+  test("new saves start with no legendary miners", () => {
+    const save = createEmptySaveData();
+    expect(save.legendaryMiners).toBe(0);
+    expect(save.saveVersion).toBe(saveVersion);
   });
 });

@@ -18,6 +18,8 @@ import {
   getFastMinerOutput,
   getGemChance,
   getGemChanceCost,
+  getLegendaryMinerCost,
+  getLegendaryMinerOutput,
   getMinerPowerUpgradeCost,
   getMinerUpgradeCost,
   getPrestigeLevel,
@@ -32,8 +34,10 @@ const PurchaseButtons = memo(function PurchaseButtons({
   minerPowerUnlocked,
   miners,
   fastMiners,
+  legendaryMiners,
   gemChanceLevels,
   fastMinerUnlocked,
+  legendaryMinerUnlocked,
   prestigeLevel,
   lifetimeMinerals,
   prestigeUnlocked,
@@ -42,6 +46,7 @@ const PurchaseButtons = memo(function PurchaseButtons({
   onUpgradePower,
   onBuyMiner,
   onBuyFastMiner,
+  onBuyLegendaryMiner,
   onBuyGem,
   onBuyGemChance,
   onBuyClickBoost,
@@ -57,9 +62,12 @@ const PurchaseButtons = memo(function PurchaseButtons({
   minerPowerUnlocked: boolean;
   miners: number;
   fastMiners: number;
+  legendaryMiners: number;
   gemChanceLevels: number;
   /** Tier-2 goal unlock (goals.ts): fast miners + gem chance upgrade. */
   fastMinerUnlocked: boolean;
+  /** Tier-5 goal unlock (goals.ts): legendary miners (endgame). */
+  legendaryMinerUnlocked: boolean;
   /** Tier-3 goal unlock (goals.ts): prestige / New Shaft + gem upgrades. */
   prestigeUnlocked: boolean;
   /** Banked prestige level (save). */
@@ -72,6 +80,7 @@ const PurchaseButtons = memo(function PurchaseButtons({
   onUpgradePower: () => void;
   onBuyMiner: () => void;
   onBuyFastMiner: () => void;
+  onBuyLegendaryMiner: () => void;
   onBuyGem: () => void;
   onBuyGemChance: () => void;
   onBuyClickBoost: () => void;
@@ -80,6 +89,7 @@ const PurchaseButtons = memo(function PurchaseButtons({
   onSinkNewShaft: () => void;
 }) {
   const fastCost = getFastMinerCost(fastMiners);
+  const legendaryCost = getLegendaryMinerCost(legendaryMiners);
   const gemCost = getGemChanceCost(gemChanceLevels);
   const gemChancePct = Math.round(getGemChance(gemChanceLevels) * 100);
   const gemChanceMaxed = gemChanceLevels >= GEM_CHANCE_MAX_LEVELS;
@@ -127,6 +137,21 @@ const PurchaseButtons = memo(function PurchaseButtons({
                 fastMiners
               }, ${getFastMinerOutput(minerPower)}/s each)`
             : `🔒 BUY FAST MINER (Deep Shaft)`
+        }
+      />
+
+      {/* Tier-5 endgame unlock (plan §4.6): third miner type — the premium
+          raw-output sink (double a normal miner's output, 2x the normal
+          miner's gem curve). Shown but locked until Motherlode. */}
+      <Button
+        onPress={onBuyLegendaryMiner}
+        disabled={!legendaryMinerUnlocked || gems < legendaryCost}
+        title={
+          legendaryMinerUnlocked
+            ? `BUY A LEGENDARY MINER (-${formatNumber(legendaryCost)} ${
+                emojis.gem
+              }) (${legendaryMiners}, ${getLegendaryMinerOutput(minerPower)}/s each)`
+            : `🔒 BUY LEGENDARY MINER (Motherlode)`
         }
       />
 

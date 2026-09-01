@@ -21,6 +21,7 @@ const MiningCanvas = memo(function MiningCanvas({
   gems,
   miners,
   fastMiners,
+  legendaryMiners,
   onTap,
   playerPickaxeAnimRef,
   debrisRef,
@@ -38,6 +39,8 @@ const MiningCanvas = memo(function MiningCanvas({
   miners: number;
   /** Tier-2 second miner type: rendered smaller, cheaper/weaker. */
   fastMiners: number;
+  /** Tier-5 endgame miner type: the premium raw-output crew. */
+  legendaryMiners: number;
   onTap: () => void;
   playerPickaxeAnimRef: MutableRefObject<() => void>;
   /** Seeded sprite variants (cosmetics). */
@@ -115,6 +118,19 @@ const MiningCanvas = memo(function MiningCanvas({
               scale={0.35}
               reactOnTick={true}
               seed={rosterSeed(playerSeed, 1000 + idx)}
+              outfitId={outfitId}
+              pickaxeId={pickaxeId}
+            />
+          ))}
+          {/* Legendary miners (tier-5 endgame): the premium crew, seed
+              offset by 2000 so their sprite variants can't collide with
+              either of the other two rows. */}
+          {[...Array(Math.min(legendaryMiners, 50))].map((_, idx) => (
+            <Miner
+              key={`legendary-${idx}`}
+              scale={0.55}
+              reactOnTick={true}
+              seed={rosterSeed(playerSeed, 2000 + idx)}
               outfitId={outfitId}
               pickaxeId={pickaxeId}
             />

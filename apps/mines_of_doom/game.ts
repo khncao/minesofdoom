@@ -20,6 +20,11 @@ export type SaveData = {
   // (+1% base gem chance per level).
   fastMiners: number;
   gemChanceLevels: number;
+  // Tier-5 (Motherlode) endgame content: legendary miners (third miner type,
+  // the premium raw-output sink: highest per-miner output, steepest gem
+  // curve). Like every miner type, they are run resources — a sunk shaft
+  // resets them.
+  legendaryMiners: number;
   // Tier-3 (Magma Frontier) content: prestige. The permanent "new shaft"
   // multiplier banked so far, as a level index into PRESTIGE_LEVELS. Unlike
   // the lifetime stats, this is a banked (not purely derived) value: it only
@@ -72,7 +77,7 @@ export type SettingsData = {
 
 // TODO: number to bigint
 export const saveDataKey = "save";
-export const saveVersion = 8;
+export const saveVersion = 9;
 export const settingsDataKey = "settings";
 export const equationSettingsKey = "equationSettings";
 
@@ -207,6 +212,18 @@ const migrations: Record<
         COMBO_RESIST_MAX_LEVELS,
         Math.max(0, Math.floor(num(data.comboResistLevels, 0))),
       ),
+    };
+  },
+  // 8 -> 9: tier-5 endgame content (legendary miners, third miner type). Old
+  // saves own no legendary miners yet; clamped like the other roster counts
+  // so a corrupt save can't mint a negative crew.
+  8: (data) => {
+    const num = (v: unknown, fallback: number) =>
+      typeof v === "number" && Number.isFinite(v) ? v : fallback;
+    return {
+      ...data,
+      saveVersion: 9,
+      legendaryMiners: Math.max(0, Math.floor(num(data.legendaryMiners, 0))),
     };
   },
   // 7 -> 8: tier-4 cosmetic line (cave themes). Old saves own just the free
@@ -366,6 +383,7 @@ export function createEmptySaveData(): SaveData {
     minerPower: 1,
     fastMiners: 0,
     gemChanceLevels: 0,
+    legendaryMiners: 0,
     prestigeLevel: 0,
     clickBoostLevels: 0,
     comboResistLevels: 0,
@@ -446,13 +464,37 @@ export function getFastMinerOutput(minerPower: number): number {
   return Math.max(1, Math.floor(minerPower / 2));
 }
 
-/** Total passive minerals/sec across both miner types. */
+/**
+ * Gem cost of the next legendary miner (third miner type, tier-5 endgame
+ * unlock). The premium curve: the same quartic family as the other types,
+ * 2x the normal-miner curve — the endgame raw-output sink, not a bargain.
+ */
+export function getLegendaryMinerCost(current: number): number {
+  return Math.max(1, Math.ceil(2 * (current + 1) ** 4));
+}
+
+/**
+ * Mineral output per second of a single legendary miner: exactly double a
+ * normal miner, with miner-power upgrades applying to all three types.
+ * Fast miners stay the gem-efficiency play; legendaries trade the premium
+ * gem cost for raw income.
+ */
+export function getLegendaryMinerOutput(minerPower: number): number {
+  return 2 * minerPower;
+}
+
+/** Total passive minerals/sec across all three miner types. */
 export function getMineralsPerSec(
   miners: number,
   minerPower: number,
   fastMiners: number,
+  legendaryMiners: number = 0,
 ): number {
-  return miners * minerPower + fastMiners * getFastMinerOutput(minerPower);
+  return (
+    miners * minerPower +
+    fastMiners * getFastMinerOutput(minerPower) +
+    legendaryMiners * getLegendaryMinerOutput(minerPower)
+  );
 }
 
 /** Mineral cost of raising miner power from `current` to current + 1. */
@@ -545,6 +587,7 @@ export function computeOfflineMinerals(
   saveTime: number,
   now: number,
   multiplier = 1,
+  legendaryMiners: number = 0,
 ): number {
   if (saveTime <= 0 || now <= saveTime) {
     return 0;
@@ -553,5 +596,9 @@ export function computeOfflineMinerals(
     Math.max(0, Math.floor((now - saveTime) / msPerTick)),
     maxOfflineTicks,
   );
-  return getMineralsPerSec(miners, minerPower, fastMiners) * elapsedTicks * multiplier;
+  return (
+    getMineralsPerSec(miners, minerPower, fastMiners, legendaryMiners) *
+    elapsedTicks *
+    multiplier
+  );
 }

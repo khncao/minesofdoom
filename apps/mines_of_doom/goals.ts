@@ -66,6 +66,12 @@ export const PRESTIGE_UNLOCK_TIER = "t3";
 export const CAVE_THEME_UNLOCK_TIER = "t4";
 
 /**
+ * The endgame tier that unlocks the first §4.6 "endgame content" line:
+ * legendary miners (third miner type, the premium raw-output sink).
+ */
+export const LEGENDARY_MINER_UNLOCK_TIER = "t5";
+
+/**
  * The tier chain (flavor from plan §4.6, tuned to the stats the game
  * actually tracks). Tiers are sequential: a tier only completes once every
  * earlier tier is complete.
@@ -121,7 +127,7 @@ export const GOAL_TIERS: GoalTier[] = [
     id: "t5",
     name: "Motherlode",
     bonusMinerals: 50_000_000,
-    unlock: "Endgame content (coming soon)",
+    unlock: "Legendary miners",
     goals: [
       { id: "t5-prestige", metric: "totalPrestiges", target: 3, label: "Prestige 3 times" },
       { id: "t5-depth", metric: "maxDepth", target: 1500, label: "Reach depth 1500m" },

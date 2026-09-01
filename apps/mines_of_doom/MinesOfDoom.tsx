@@ -33,6 +33,7 @@ import {
   CAVE_THEME_UNLOCK_TIER,
   FAST_MINER_UNLOCK_TIER,
   GOAL_TIERS,
+  LEGENDARY_MINER_UNLOCK_TIER,
   MINER_POWER_UNLOCK_TIER,
   PRESTIGE_UNLOCK_TIER,
   getCompletedTierIds,
@@ -69,6 +70,7 @@ export default function MinesOfDoom() {
     upgradePower,
     buyMiner,
     buyFastMiner,
+    buyLegendaryMiner,
     buyGem,
     buyGemChance,
     buyClickBoost,
@@ -345,8 +347,10 @@ export default function MinesOfDoom() {
           minerPowerUnlocked={gameState.completedTiers.includes(MINER_POWER_UNLOCK_TIER)}
           miners={gameState.miners}
           fastMiners={gameState.fastMiners}
+          legendaryMiners={gameState.legendaryMiners}
           gemChanceLevels={gameState.gemChanceLevels}
           fastMinerUnlocked={gameState.completedTiers.includes(FAST_MINER_UNLOCK_TIER)}
+          legendaryMinerUnlocked={gameState.completedTiers.includes(LEGENDARY_MINER_UNLOCK_TIER)}
           prestigeLevel={gameState.prestigeLevel}
           lifetimeMinerals={gameState.lifetimeMinerals}
           prestigeUnlocked={gameState.completedTiers.includes(PRESTIGE_UNLOCK_TIER)}
@@ -355,6 +359,7 @@ export default function MinesOfDoom() {
           onUpgradePower={upgradePower}
           onBuyMiner={buyMiner}
           onBuyFastMiner={buyFastMiner}
+          onBuyLegendaryMiner={buyLegendaryMiner}
           onBuyGem={buyGem}
           onBuyGemChance={buyGemChance}
           onBuyClickBoost={buyClickBoost}
@@ -369,6 +374,7 @@ export default function MinesOfDoom() {
           gems={gameState.gems}
           miners={gameState.miners}
           fastMiners={gameState.fastMiners}
+          legendaryMiners={gameState.legendaryMiners}
           onTap={mineTap}
           playerPickaxeAnimRef={playerPickaxeAnimRef}
           debrisRef={debrisRef}

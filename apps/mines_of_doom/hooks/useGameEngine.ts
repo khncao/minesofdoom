@@ -22,6 +22,7 @@ import {
   getDepthTier,
   getFastMinerCost,
   getGemChance,
+  getLegendaryMinerCost,
   getGemChanceCost,
   getMineralsPerSec,
   getMinerPowerUpgradeCost,
@@ -142,6 +143,7 @@ export function useGameEngine(
         miners: num(migrated.miners, 0),
         minerPower: num(migrated.minerPower, 1),
         fastMiners: Math.max(0, Math.floor(num(migrated.fastMiners, 0))),
+        legendaryMiners: Math.max(0, Math.floor(num(migrated.legendaryMiners, 0))),
         gemChanceLevels: Math.min(
           GEM_CHANCE_MAX_LEVELS,
           Math.max(0, Math.floor(num(migrated.gemChanceLevels, 0))),
@@ -229,6 +231,7 @@ export function useGameEngine(
         saveData.saveTime,
         now,
         getPrestigeMultiplier(saveData.prestigeLevel),
+        saveData.legendaryMiners,
       );
 
       return finish(
@@ -307,7 +310,8 @@ export function useGameEngine(
       tickCountRef.current += elapsed;
       if (
         gameStateRef.current.miners > 0 ||
-        gameStateRef.current.fastMiners > 0
+        gameStateRef.current.fastMiners > 0 ||
+        gameStateRef.current.legendaryMiners > 0
       ) {
         // Only update state when something actually changes; allocating a new
         // state object every second forced a full re-render even when idle.
@@ -315,7 +319,7 @@ export function useGameEngine(
           // The banked prestige multiplier applies to passive income too, so a
           // new run starts with a stronger crew (the whole point of prestige).
           const income =
-            getMineralsPerSec(n.miners, n.minerPower, n.fastMiners) *
+            getMineralsPerSec(n.miners, n.minerPower, n.fastMiners, n.legendaryMiners) *
             elapsed *
             getPrestigeMultiplier(n.prestigeLevel);
           if (income <= 0) return n;
@@ -429,6 +433,23 @@ export function useGameEngine(
       return {
         ...n,
         fastMiners: n.fastMiners + 1,
+        gems: n.gems - cost,
+        totalGemsSpent: n.totalGemsSpent + cost,
+      };
+    });
+  }, []);
+
+  // Tier-5 endgame unlock: legendary miner (third miner type — premium gem
+  // curve, double the per-miner output of a normal miner). Affordability-
+  // guarded like the other purchases; miners are run resources, so a sunk
+  // shaft resets the roster (see sinkNewShaft).
+  const buyLegendaryMiner = useCallback(() => {
+    setGameState((n: SaveData) => {
+      const cost = getLegendaryMinerCost(n.legendaryMiners);
+      if (n.gems < cost) return n;
+      return {
+        ...n,
+        legendaryMiners: n.legendaryMiners + 1,
         gems: n.gems - cost,
         totalGemsSpent: n.totalGemsSpent + cost,
       };
@@ -611,7 +632,7 @@ export function useGameEngine(
   }, []);
 
   // Tier-3 unlock (plan §4.1 "New Shaft", §4.6): sink a new shaft — reset the
-  // run's mining operation (minerals, miners, fast miners, click & miner
+  // run's mining operation (minerals, all three miner types, click & miner
   // power) in exchange for banking a permanent multiplier based on lifetime
   // minerals. The banked level only ever moves UP toward the level the
   // player's lifetime has unlocked, and the action is a no-op unless there's
@@ -629,6 +650,7 @@ export function useGameEngine(
         minerals: 0,
         miners: 0,
         fastMiners: 0,
+        legendaryMiners: 0,
         clickPower: 1,
         minerPower: 1,
       };
@@ -653,6 +675,7 @@ export function useGameEngine(
         gameState.miners,
         gameState.minerPower,
         gameState.fastMiners,
+        gameState.legendaryMiners,
       ) * getPrestigeMultiplier(gameState.prestigeLevel),
     saveGame,
     addTapGain,
@@ -660,6 +683,7 @@ export function useGameEngine(
     upgradePower,
     buyMiner,
     buyFastMiner,
+    buyLegendaryMiner,
     buyGem,
     buyGemChance,
     buyClickBoost,
