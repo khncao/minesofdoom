@@ -1,6 +1,7 @@
 import {
   CLICK_BOOST_MAX_LEVELS,
   COMBO_RESIST_MAX_LEVELS,
+  DEPTH_TIERS,
   GEM_CHANCE_MAX_LEVELS,
   computeOfflineMinerals,
   createEmptySaveData,
@@ -29,7 +30,8 @@ import {
   migrateSaveData,
   msPerTick,
   saveVersion,
-} from "./game";
+} from "../game";
+import { DEFAULT_CAVE_THEME, DEFAULT_CAVE_TINTS } from "../cosmetics";
 
 describe("cost curves", () => {
   test("click upgrade cost", () => {
@@ -198,9 +200,7 @@ describe("combo resistance (tier-3 gem line)", () => {
   test("retention is +10% per level, capped at 50%", () => {
     expect(getComboRetention(0)).toBe(0);
     expect(getComboRetention(1)).toBeCloseTo(comboResistRetentionPerLevel);
-    expect(getComboRetention(3)).toBeCloseTo(
-      3 * comboResistRetentionPerLevel,
-    );
+    expect(getComboRetention(3)).toBeCloseTo(3 * comboResistRetentionPerLevel);
     expect(getComboRetention(COMBO_RESIST_MAX_LEVELS)).toBeCloseTo(0.5);
     // Over-cap levels keep no more than the cap.
     expect(getComboRetention(COMBO_RESIST_MAX_LEVELS + 9)).toBe(
@@ -352,20 +352,18 @@ describe("computeOfflineMinerals", () => {
 
   test("caps at maxOfflineTicks (8h)", () => {
     const nineHours = 9 * 3600 * 1000;
-    expect(
-      computeOfflineMinerals(2, 3, 3, now - nineHours, now),
-    ).toBe(getMineralsPerSec(2, 3, 3) * maxOfflineTicks);
+    expect(computeOfflineMinerals(2, 3, 3, now - nineHours, now)).toBe(
+      getMineralsPerSec(2, 3, 3) * maxOfflineTicks,
+    );
   });
 
   test("prestige multiplier scales the offline payout", () => {
     // 10 ticks: 2 miners * 3 power * 10 = 60, x2 banked = 120.
-    expect(
-      computeOfflineMinerals(2, 3, 0, now - 10 * msPerTick, now, 2),
-    ).toBe(120);
+    expect(computeOfflineMinerals(2, 3, 0, now - 10 * msPerTick, now, 2)).toBe(
+      120,
+    );
     // Default multiplier (no argument) is 1 — same as before.
-    expect(
-      computeOfflineMinerals(2, 3, 0, now - 10 * msPerTick, now),
-    ).toBe(60);
+    expect(computeOfflineMinerals(2, 3, 0, now - 10 * msPerTick, now)).toBe(60);
   });
 });
 
@@ -414,7 +412,10 @@ describe("migrateSaveData", () => {
   });
 
   test("v1 save with junk completedTiers only keeps strings", () => {
-    const migrated = migrateSaveData({ saveVersion: 1, completedTiers: ["t1", 5, null] });
+    const migrated = migrateSaveData({
+      saveVersion: 1,
+      completedTiers: ["t1", 5, null],
+    });
     expect(migrated.completedTiers).toEqual(["t1"]);
   });
 
@@ -452,7 +453,9 @@ describe("migrateSaveData", () => {
     const migrated = migrateSaveData({});
     expect(migrated.saveVersion).toBe(saveVersion);
     expect(typeof migrated.playerSeed).toBe("number");
-    expect(migrated.ownedCosmetics).toEqual(expect.arrayContaining(["classic", "steel"]));
+    expect(migrated.ownedCosmetics).toEqual(
+      expect.arrayContaining(["classic", "steel"]),
+    );
   });
 
   test("v3 save gains completedAchievements defaulting to none", () => {
@@ -548,6 +551,46 @@ describe("migrateSaveData", () => {
     });
     expect(over.clickBoostLevels).toBe(CLICK_BOOST_MAX_LEVELS);
     expect(over.comboResistLevels).toBe(COMBO_RESIST_MAX_LEVELS);
+  });
+
+  test("v7 save gains the free default cave theme", () => {
+    const migrated = migrateSaveData({ minerals: 1, saveVersion: 7 });
+    expect(migrated.saveVersion).toBe(saveVersion);
+    expect(migrated.ownedCaveThemes).toEqual([DEFAULT_CAVE_THEME]);
+    expect(migrated.selectedCaveTheme).toBe(DEFAULT_CAVE_THEME);
+  });
+
+  test("v7 save keeps valid owned cave themes and a valid selection", () => {
+    const migrated = migrateSaveData({
+      saveVersion: 7,
+      ownedCaveThemes: ["natural", "amethyst"],
+      selectedCaveTheme: "amethyst",
+    });
+    expect(migrated.ownedCaveThemes).toContain("natural");
+    expect(migrated.ownedCaveThemes).toContain("amethyst");
+    expect(migrated.selectedCaveTheme).toBe("amethyst");
+  });
+
+  test("v7 save drops junk owned cave theme ids and falls back selection", () => {
+    const migrated = migrateSaveData({
+      saveVersion: 7,
+      ownedCaveThemes: ["banana", 42, "amethyst"],
+      selectedCaveTheme: "void-9000",
+    });
+    expect(migrated.ownedCaveThemes).toEqual(["natural", "amethyst"]);
+    expect(migrated.selectedCaveTheme).toBe(DEFAULT_CAVE_THEME);
+  });
+});
+
+describe("cave themes save fields", () => {
+  test("new saves own the free default theme and select it", () => {
+    const save = createEmptySaveData();
+    expect(save.ownedCaveThemes).toEqual([DEFAULT_CAVE_THEME]);
+    expect(save.selectedCaveTheme).toBe(DEFAULT_CAVE_THEME);
+  });
+
+  test("the natural theme's palette mirrors DEPTH_TIERS (original look)", () => {
+    expect(DEFAULT_CAVE_TINTS).toEqual(DEPTH_TIERS.map((t) => t.tint));
   });
 });
 

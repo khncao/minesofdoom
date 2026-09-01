@@ -42,9 +42,13 @@ import {
   DEFAULT_OWNED,
   DEFAULT_OUTFIT,
   DEFAULT_PICKAXE,
+  DEFAULT_OWNED_CAVE_THEMES,
+  DEFAULT_CAVE_THEME,
   OUTFITS,
   PICKAXES,
+  getCaveThemeCost,
   getCostGems,
+  isCaveThemeId,
   isOutfitId,
   isPickaxeId,
 } from "../cosmetics";
@@ -199,6 +203,23 @@ export function useGameEngine(
           PICKAXES.some((p) => p.id === migrated.selectedPickaxe)
             ? migrated.selectedPickaxe
             : DEFAULT_PICKAXE,
+        // Always keep the free default cave theme owned; drop unknown ids.
+        ownedCaveThemes: [
+          ...new Set([
+            ...DEFAULT_OWNED_CAVE_THEMES,
+            ...(Array.isArray(migrated.ownedCaveThemes)
+              ? migrated.ownedCaveThemes.filter(
+                  (c): c is string =>
+                    typeof c === "string" && isCaveThemeId(c),
+                )
+              : []),
+          ]),
+        ],
+        selectedCaveTheme:
+          typeof migrated.selectedCaveTheme === "string" &&
+          isCaveThemeId(migrated.selectedCaveTheme)
+            ? migrated.selectedCaveTheme
+            : DEFAULT_CAVE_THEME,
       };
 
       const offlineMinerals = computeOfflineMinerals(
@@ -530,6 +551,33 @@ export function useGameEngine(
     setGameState((n: SaveData) => ({ ...n, playerSeed: seed }));
   }, []);
 
+  // Tier-4 unlock: buy a cave theme (cave background recolor) with gems;
+  // auto-selects it. Unknown ids and unaffordable prices are no-ops (button
+  // state may be stale). Gem spend counts toward totalGemsSpent.
+  const buyCaveTheme = useCallback((id: string) => {
+    const cost = getCaveThemeCost(id);
+    if (cost == null) return;
+    setGameState((n: SaveData) => {
+      if (n.ownedCaveThemes.includes(id) || n.gems < cost) return n;
+      return {
+        ...n,
+        gems: n.gems - cost,
+        totalGemsSpent: n.totalGemsSpent + cost,
+        ownedCaveThemes: [...n.ownedCaveThemes, id],
+        selectedCaveTheme: id,
+      };
+    });
+  }, []);
+
+  // Switch to an already-owned cave theme.
+  const selectCaveTheme = useCallback((id: string) => {
+    setGameState((n: SaveData) => {
+      if (!n.ownedCaveThemes.includes(id)) return n;
+      if (n.selectedCaveTheme === id) return n;
+      return { ...n, selectedCaveTheme: id };
+    });
+  }, []);
+
   // Tier-3 unlock: second gem upgrade line — each level doubles tap/answer
   // gains. Capped; over-cap purchases are no-ops.
   const buyClickBoost = useCallback(() => {
@@ -622,6 +670,8 @@ export function useGameEngine(
     buyCosmetic,
     selectCosmetic,
     rerollPlayerSeed,
+    buyCaveTheme,
+    selectCaveTheme,
     sinkNewShaft,
     resetGame,
   };

@@ -1,58 +1,66 @@
-# Iteration 4 — Tier-3 gem upgrades: click ×2 + combo resistance
+# Iteration 5 — Tier-4 cave themes (Crystal Kingdom)
 
-Continues phase 7. Iteration 3 shipped prestige ("New Shaft"), the rest of
-the tier-3 unlock from plan §4.6; this is the remaining part, explicitly
-deferred by it: **"more gem upgrade lines (click ×2, combo resistance)"**.
-Both are gem-priced, both unlock behind goal tier 3 (Magma Frontier,
-`goals.ts`) like the other tier-3 content, and both are *meta* — like gems
-and gem-chance they survive a sunk shaft, so a prestige run starts with the
-same upgrade lines in place.
+Continues phase 7. Iteration 4 finished tier 3 (Magma Frontier) with the
+gem upgrade lines (click ×2, combo resistance); this is the next unlock in
+the §4.6 chain — **tier 4 "Crystal Kingdom": the cosmetic lines, starting
+with cave themes**. Cave themes are a *cosmetic* line (a pure recolor of
+the cave background, no gameplay effect), gem-priced, and — like every §4.6
+unlock — gated: visible but locked (🔒 Crystal Kingdom) until tier 4
+completes. They are *meta* cosmetics: like outfits/pickaxes they survive a
+sunk shaft (`sinkNewShaft` leaves them intact).
 
 ## Design
 
-- **Click ×2** (`clickBoostLevels` in the save): each level **doubles**
-  tap gains and correct-answer gains — `getClickBoostMultiplier(level) =
-  2^level`. Applied to click gains only (passive miner income is
-  untouched, so it stays a tap/answer investment, not an income one).
-  - Cap: `CLICK_BOOST_MAX_LEVELS = 4` → ×1/×2/×4/×8/×16.
-  - Cost: `getClickBoostCost(level) = 25·(level+1)²` gems (quadratic like
-    gem chance, steeper base so it outlives it as a sink).
-  - Applied authoritatively in the engine (`applyAnswerReward`; taps arrive
-    pre-multiplied through `effectiveClickPower`) and mirrored in the UI
-    via `effectiveClickPower`, so pending-gain / floating text / banner
-    all agree.
-- **Combo resistance** (`comboResistLevels` in the save): wrong answers and
-  canvas taps used to zero the combo. Each level keeps **10%** of the
-  combo on a loss (floored): `getComboRetention(level) = min(0.1·level, 0.5)`
-  → level 0 = today's behavior, cap `COMBO_RESIST_MAX_LEVELS = 5` = keep
-  50%. `getResistantComboReset(combo, level) = floor(combo · retention)` —
-  deterministic (no RNG, so it's testable and matches what the button
-  shows), strictly ≤ the combo, and a no-op at level 0.
-  - Cost: `getComboResistCost(level) = 20·(level+1)²` gems.
-  - Both reset paths share the retention: the wrong-answer handler and
-    `useMineTaps`' per-tap reset, so tap-spamming an equation can't
-    accidentally burn the combo faster than the displayed rule.
-- **Save v7**: `clickBoostLevels` + `comboResistLevels`, 6→7 migration
-  (clamp junk / over-cap, floor + `>= 0`) + clamped loader.
-- **Engine actions** `buyClickBoost` / `buyComboResist`: cap- and
-  affordability-guarded no-ops (same pattern as `buyGemChance`), count
-  toward `totalGemsSpent`. `sinkNewShaft` leaves both levels intact.
+- **Cave theme** (`cosmetics.ts`): a named recolor of the cave background.
+  Each theme is a `tints: string[5]` palette — one tint per depth tier
+  (Surface Caverns → Crystal Kingdom), index-aligned with `DEPTH_TIERS`
+  (`game.ts`). The cave still varies with depth; a theme just shifts the
+  whole palette, so a theme stays alive as you descend.
+  - **Default theme** `natural` (free, owned from the start): its palette is
+    exactly `DEPTH_TIERS`' tints (`DEFAULT_CAVE_TINTS`), i.e. today's look —
+    a fresh save (or a player who never opens the section) sees no change.
+    A unit test pins `DEFAULT_CAVE_TINTS === DEPTH_TIERS' tints`.
+  - **4 paid themes** (gem-priced): `amethyst` 5💎, `verdant` 8💎,
+    `solar` 12💎, `void` 20💎 — distinct palettes.
+  - Resolution: `getThemeTint(theme, tierId) = theme.tints[tierId]`
+    (clamped). The on-screen tint is
+    `getThemeTint(getCaveTheme(selectedCaveTheme), getDepthTier(depth).id)`,
+    so the background always matches the save.
+- **Save v8**: `ownedCaveThemes: string[]` (defaults to `["natural"]`) +
+  `selectedCaveTheme: string` (defaults to `natural`). 7→8 migration keeps
+  valid owned ids (drops junk) and a valid selection (else `natural`),
+  always keeping the free `natural` owned; clamped loader;
+  `createEmptySaveData` defaults.
+- **Engine actions** `buyCaveTheme(id)` / `selectCaveTheme(id)`:
+  unknown-id and unaffordable no-ops (same pattern as `buyCosmetic`), a buy
+  auto-selects, and the gem spend counts toward `totalGemsSpent`.
+  `sinkNewShaft` leaves both fields intact (cosmetics survive, like
+  outfits/pickaxes).
+- **UI**: new "Cave themes" block in the settings CosmeticsSection — a row
+  per theme with a 5-swatch palette thumbnail; buy / owned / selected
+  states, gem price; the whole block renders locked (🔒 Crystal Kingdom)
+  until tier 4 completes, per the §4.6 visible-but-locked rule.
+- **`goals.ts`**: tier-4 unlock text drops "(coming soon)" → "Cave themes";
+  new `CAVE_THEME_UNLOCK_TIER = "t4"` constant (matches the other gates).
 
 ## Tasks
 
-- [x] `game.ts`: `CLICK_BOOST_MAX_LEVELS` / `COMBO_RESIST_MAX_LEVELS` +
-      `getClickBoostMultiplier` / `getClickBoostCost` /
-      `getComboResistCost` / `getComboRetention` / `getResistantComboReset`
-- [x] Save v7: `clickBoostLevels` + `comboResistLevels`, 6→7 migration
-      (clamp junk / over-cap) + clamped loader + `createEmptySaveData`
-- [x] Engine: `buyClickBoost` / `buyComboResist` actions; click-boost
-      multiplier folded into `applyAnswerReward`; combo resets keep the
-      retained fraction (wrong answer + mine-tap paths)
-- [x] `goals.ts`: tier-3 unlock text names the gem upgrade lines
-- [x] UI: `PurchaseButtons` — CLICK ×2 + COMBO RESISTANCE buttons (locked
-      🔒 Magma Frontier until the tier completes, MAX state, current level
-      in the label); combo-lost message reflects retained combo
-- [x] Unit tests: ×2 curve + clamping, retention/reset math, costs, v6→v7
-      migration
+- [x] `cosmetics.ts`: `CaveTheme` + `CAVE_THEMES` catalog (natural + 4 paid),
+      `DEFAULT_CAVE_THEME` / `DEFAULT_OWNED_CAVE_THEMES` /
+      `DEFAULT_CAVE_TINTS`, `getCaveTheme` / `isCaveThemeId` /
+      `getCaveThemeCost` / `getThemeTint`
+- [x] Save v8: `ownedCaveThemes` + `selectedCaveTheme`, 7→8 migration +
+      clamped loader + `createEmptySaveData`
+- [x] Engine: `buyCaveTheme` / `selectCaveTheme` actions (unknown-id /
+      affordability guarded, buy auto-selects, count toward
+      `totalGemsSpent`); both fields survive `sinkNewShaft`
+- [x] `goals.ts`: `CAVE_THEME_UNLOCK_TIER` + tier-4 unlock text
+      "Cave themes"
+- [x] UI: CosmeticsSection "Cave themes" block (palette swatches, buy /
+      owned / selected, locked until Crystal Kingdom); tint wired through
+      MinesOfDoom → MiningCanvas from the selected theme
+- [x] Unit tests: catalog invariants (unique ids, 5 hex tints, free
+      default), `getThemeTint` clamping, `natural` palette == `DEPTH_TIERS`,
+      v7→v8 migration, new-save defaults
 - [x] Verify: `npm run typecheck` / `lint` / `test` / `npx expo export -p web`
 - [x] Update `docs/todo.md` (phase 7 section + log)

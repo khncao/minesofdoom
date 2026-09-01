@@ -2,8 +2,11 @@ import {
   DEFAULT_OWNED,
   DEFAULT_OUTFIT,
   DEFAULT_PICKAXE,
+  DEFAULT_OWNED_CAVE_THEMES,
+  DEFAULT_CAVE_THEME,
   OUTFITS,
   PICKAXES,
+  isCaveThemeId,
 } from "./cosmetics";
 
 export type SaveData = {
@@ -54,6 +57,11 @@ export type SaveData = {
   ownedCosmetics: string[];
   selectedOutfit: string;
   selectedPickaxe: string;
+  // Tier-4 (Crystal Kingdom) cosmetic line: cave themes (cave background
+  // recolors). ownedCaveThemes = theme ids; selectedCaveTheme = the active
+  // one. Like every cosmetic, they survive a sunk shaft.
+  ownedCaveThemes: string[];
+  selectedCaveTheme: string;
 };
 
 // NOTE: equation settings are persisted separately under equationSettingsKey;
@@ -64,7 +72,7 @@ export type SettingsData = {
 
 // TODO: number to bigint
 export const saveDataKey = "save";
-export const saveVersion = 7;
+export const saveVersion = 8;
 export const settingsDataKey = "settings";
 export const equationSettingsKey = "equationSettings";
 
@@ -199,6 +207,31 @@ const migrations: Record<
         COMBO_RESIST_MAX_LEVELS,
         Math.max(0, Math.floor(num(data.comboResistLevels, 0))),
       ),
+    };
+  },
+  // 7 -> 8: tier-4 cosmetic line (cave themes). Old saves own just the free
+  // default and haven't changed the cave look; junk ids are dropped and the
+  // free default is always kept owned, like every other cosmetic field.
+  7: (data) => {
+    const owned = [
+      ...new Set([
+        ...DEFAULT_OWNED_CAVE_THEMES,
+        ...(Array.isArray(data.ownedCaveThemes)
+          ? data.ownedCaveThemes.filter(
+              (c): c is string => typeof c === "string" && isCaveThemeId(c),
+            )
+          : []),
+      ]),
+    ];
+    return {
+      ...data,
+      saveVersion: 8,
+      ownedCaveThemes: owned,
+      selectedCaveTheme:
+        typeof data.selectedCaveTheme === "string" &&
+        isCaveThemeId(data.selectedCaveTheme)
+          ? data.selectedCaveTheme
+          : DEFAULT_CAVE_THEME,
     };
   },
 };
@@ -353,6 +386,8 @@ export function createEmptySaveData(): SaveData {
     ownedCosmetics: [...DEFAULT_OWNED],
     selectedOutfit: DEFAULT_OUTFIT,
     selectedPickaxe: DEFAULT_PICKAXE,
+    ownedCaveThemes: [...DEFAULT_OWNED_CAVE_THEMES],
+    selectedCaveTheme: DEFAULT_CAVE_THEME,
   };
 }
 

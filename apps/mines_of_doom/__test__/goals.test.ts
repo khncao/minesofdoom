@@ -1,11 +1,11 @@
-import { createEmptySaveData, SaveData } from "./game";
+import { createEmptySaveData, SaveData } from "../game";
 import {
   GOAL_TIERS,
   getCompletedTierIds,
   getGoalProgress,
   getTierBonus,
   isGoalComplete,
-} from "./goals";
+} from "../goals";
 
 const baseSave = () => createEmptySaveData();
 
@@ -20,16 +20,26 @@ describe("goal tier derivation", () => {
   });
 
   test("tier 1 completes when all its goals are met", () => {
-    const save = saveWith({ maxDepth: 10, lifetimeCorrect: 50, minersOwnedEver: 1 });
+    const save = saveWith({
+      maxDepth: 10,
+      lifetimeCorrect: 50,
+      minersOwnedEver: 1,
+    });
     expect(getCompletedTierIds(save)).toEqual(["t1"]);
     // Not all of tier 1's goals met yet => no completion
-    expect(getCompletedTierIds(saveWith({ maxDepth: 10, lifetimeCorrect: 50 }))).toEqual([]);
+    expect(
+      getCompletedTierIds(saveWith({ maxDepth: 10, lifetimeCorrect: 50 })),
+    ).toEqual([]);
   });
 
   test("tiers are sequential: later stats can't skip earlier tiers", () => {
     // Depth 1500m and 500-combo clear tier 5's metrics, but without the
     // early-game goals (50 answers, a miner) nothing completes.
-    const save = saveWith({ maxDepth: 1500, maxCombo: 500, lifetimeMinerals: 1e9 });
+    const save = saveWith({
+      maxDepth: 1500,
+      maxCombo: 500,
+      lifetimeMinerals: 1e9,
+    });
     expect(getCompletedTierIds(save)).toEqual([]);
   });
 
@@ -45,9 +55,7 @@ describe("goal tier derivation", () => {
       totalGemsMinted: 100,
       totalPrestiges: 3,
     });
-    expect(getCompletedTierIds(save)).toEqual(
-      GOAL_TIERS.map((t) => t.id),
-    );
+    expect(getCompletedTierIds(save)).toEqual(GOAL_TIERS.map((t) => t.id));
   });
 
   test("stats survive spending: maxDepth never decreases with minerals", () => {
@@ -79,8 +87,12 @@ describe("goal progress helpers", () => {
 
   test("getGoalProgress clamps fraction at 1", () => {
     const goal = GOAL_TIERS[0].goals[1];
-    expect(getGoalProgress(saveWith({ lifetimeCorrect: 25 }), goal).fraction).toBe(0.5);
-    expect(getGoalProgress(saveWith({ lifetimeCorrect: 999 }), goal).fraction).toBe(1);
+    expect(
+      getGoalProgress(saveWith({ lifetimeCorrect: 25 }), goal).fraction,
+    ).toBe(0.5);
+    expect(
+      getGoalProgress(saveWith({ lifetimeCorrect: 999 }), goal).fraction,
+    ).toBe(1);
   });
 
   test("getTierBonus sums bonuses and ignores unknown ids", () => {

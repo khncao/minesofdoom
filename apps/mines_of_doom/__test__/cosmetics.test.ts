@@ -1,17 +1,24 @@
 import {
+  CAVE_THEMES,
   DEFAULT_OWNED,
   DEFAULT_OUTFIT,
   DEFAULT_PICKAXE,
+  DEFAULT_CAVE_THEME,
+  DEFAULT_OWNED_CAVE_THEMES,
   OUTFITS,
   PICKAXES,
+  getCaveTheme,
+  getCaveThemeCost,
   getCostGems,
   getOutfit,
   getPickaxe,
+  getThemeTint,
+  isCaveThemeId,
   isOutfitId,
   isPickaxeId,
   rosterSeed,
   rollMinerLook,
-} from "./cosmetics";
+} from "../cosmetics";
 
 const HEX6 = /^#[0-9a-f]{6}$/i;
 
@@ -48,6 +55,47 @@ describe("catalog", () => {
     expect(isPickaxeId("nope")).toBe(false);
     expect(getCostGems("nope")).toBeUndefined();
     expect(getCostGems(DEFAULT_PICKAXE)).toBe(0);
+  });
+});
+
+describe("cave themes", () => {
+  test("ids are unique and disjoint from outfits/pickaxes", () => {
+    const ids = [
+      ...OUTFITS.map((o) => o.id),
+      ...PICKAXES.map((p) => p.id),
+      ...CAVE_THEMES.map((t) => t.id),
+    ];
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  test("every theme has exactly 5 valid hex tints (one per depth tier)", () => {
+    for (const t of CAVE_THEMES) {
+      expect(t.tints).toHaveLength(5);
+      for (const c of t.tints) {
+        expect(c).toMatch(HEX6);
+      }
+    }
+  });
+
+  test("default theme is free and is the only owned-by-default id", () => {
+    expect(DEFAULT_OWNED_CAVE_THEMES).toEqual([DEFAULT_CAVE_THEME]);
+    expect(getCaveTheme(DEFAULT_CAVE_THEME).costGems).toBe(0);
+  });
+
+  test("unknown ids fall back to the default theme", () => {
+    expect(getCaveTheme("nope").id).toBe(DEFAULT_CAVE_THEME);
+    expect(isCaveThemeId("nope")).toBe(false);
+    expect(getCaveThemeCost("nope")).toBeUndefined();
+    expect(getCaveThemeCost(DEFAULT_CAVE_THEME)).toBe(0);
+  });
+
+  test("getThemeTint indexes by depth tier and clamps bad indices", () => {
+    const theme = getCaveTheme("amethyst");
+    for (let i = 0; i < 5; i++) {
+      expect(getThemeTint(theme, i)).toBe(theme.tints[i]);
+    }
+    expect(getThemeTint(theme, -1)).toBe(theme.tints[0]);
+    expect(getThemeTint(theme, 99)).toBe(theme.tints[4]);
   });
 });
 

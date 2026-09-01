@@ -60,6 +60,12 @@ export const FAST_MINER_UNLOCK_TIER = "t2";
 export const PRESTIGE_UNLOCK_TIER = "t3";
 
 /**
+ * Tier that unlocks the cosmetic lines (cave themes, §4.3/§5.2) — gem-priced
+ * cave background recolors, purely visual.
+ */
+export const CAVE_THEME_UNLOCK_TIER = "t4";
+
+/**
  * The tier chain (flavor from plan §4.6, tuned to the stats the game
  * actually tracks). Tiers are sequential: a tier only completes once every
  * earlier tier is complete.
@@ -104,7 +110,7 @@ export const GOAL_TIERS: GoalTier[] = [
     id: "t4",
     name: "Crystal Kingdom",
     bonusMinerals: 5_000_000,
-    unlock: "Cave themes (coming soon)",
+    unlock: "Cave themes",
     goals: [
       { id: "t4-prestige", metric: "totalPrestiges", target: 1, label: "Prestige once" },
       { id: "t4-depth", metric: "maxDepth", target: 500, label: "Reach depth 500m" },

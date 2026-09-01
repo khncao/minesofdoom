@@ -174,3 +174,97 @@ export function rollMinerLook(seed: number, outfitId: string): MinerLook {
 export function rosterSeed(playerSeed: number, index: number): number {
   return hashSeed(playerSeed, index);
 }
+
+// ---------------------------------------------------------------------------
+// Cave themes (plan §4.3 / §5.2 cosmetic line, §4.6 tier-4 "Crystal Kingdom"
+// unlock): a named recolor of the cave background. Purely visual — no
+// gameplay effect. Each theme is a palette of one tint per depth tier
+// (index-aligned with DEPTH_TIERS in game.ts), so the cave still shifts with
+// depth; the theme just moves the whole palette. The default theme's palette
+// is exactly DEPTH_TIERS' tints, so it reproduces the original look and a
+// fresh save (or one who never opens the section) sees no change.
+// ---------------------------------------------------------------------------
+export type CaveTheme = {
+  id: string;
+  name: string;
+  /** 0 = owned from the start, otherwise the gem price. */
+  costGems: number;
+  /** One tint per depth tier (index-aligned with DEPTH_TIERS). */
+  tints: string[];
+};
+
+/**
+ * Default (free) cave background tints — mirrors DEPTH_TIERS in game.ts,
+ * one tint per tier. A unit test pins this against DEPTH_TIERS so the two
+ * can't drift apart.
+ */
+export const DEFAULT_CAVE_TINTS: string[] = [
+  "#a0856a", // 0 Surface Caverns
+  "#8fa8b8", // 1 Deep Grotto
+  "#9a7fb8", // 2 Crystal Depths
+  "#b8705a", // 3 Magma Frontier
+  "#5ab8b8", // 4 Crystal Kingdom
+];
+
+export const CAVE_THEMES: CaveTheme[] = [
+  {
+    id: "natural",
+    name: "Natural",
+    costGems: 0,
+    tints: DEFAULT_CAVE_TINTS,
+  },
+  {
+    id: "amethyst",
+    name: "Amethyst Cavern",
+    costGems: 5,
+    tints: ["#c8a8e0", "#b090d8", "#9a7fc8", "#b88fe0", "#d8c0f0"],
+  },
+  {
+    id: "verdant",
+    name: "Verdant Hollow",
+    costGems: 8,
+    tints: ["#a8c890", "#90b878", "#78a860", "#8fc85a", "#a8e878"],
+  },
+  {
+    id: "solar",
+    name: "Solar Vein",
+    costGems: 12,
+    tints: ["#e8d8a8", "#e8c878", "#e8b050", "#e89838", "#f0d060"],
+  },
+  {
+    id: "void",
+    name: "Void Depths",
+    costGems: 20,
+    tints: ["#6a7a9a", "#5a6a8a", "#4a5a7a", "#5a4a7a", "#7a6aaa"],
+  },
+];
+
+export const DEFAULT_CAVE_THEME = "natural";
+/** Cave theme ids owned by every new save. */
+export const DEFAULT_OWNED_CAVE_THEMES = [DEFAULT_CAVE_THEME];
+
+export function getCaveTheme(id: string): CaveTheme {
+  return CAVE_THEMES.find((t) => t.id === id) ?? CAVE_THEMES[0];
+}
+
+export function isCaveThemeId(id: string): boolean {
+  return CAVE_THEMES.some((t) => t.id === id);
+}
+
+/** Gem price of a cave theme (undefined for unknown ids). */
+export function getCaveThemeCost(id: string): number | undefined {
+  if (!isCaveThemeId(id)) return undefined;
+  return getCaveTheme(id).costGems;
+}
+
+/**
+ * The cave background tint at a depth tier for the given theme (clamped, so
+ * a bad tier index can't go out of range).
+ */
+export function getThemeTint(theme: CaveTheme, tierId: number): string {
+  const idx = Math.min(
+    Math.max(0, Math.floor(tierId)),
+    theme.tints.length - 1,
+  );
+  return theme.tints[idx];
+}

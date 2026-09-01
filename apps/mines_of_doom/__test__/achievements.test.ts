@@ -1,4 +1,4 @@
-import { createEmptySaveData, SaveData } from "./game";
+import { createEmptySaveData, SaveData } from "../game";
 import {
   ACHIEVEMENTS,
   getAchievement,
@@ -6,7 +6,7 @@ import {
   getAchievementProgress,
   getCompletedAchievementIds,
   isAchievementComplete,
-} from "./achievements";
+} from "../achievements";
 
 const baseSave = () => createEmptySaveData();
 
@@ -39,14 +39,22 @@ describe("achievement derivation", () => {
 
   test("isAchievementComplete is target >= comparison", () => {
     const a = getAchievement("answers-100")!;
-    expect(isAchievementComplete(saveWith({ lifetimeCorrect: 99 }), a)).toBe(false);
-    expect(isAchievementComplete(saveWith({ lifetimeCorrect: 100 }), a)).toBe(true);
+    expect(isAchievementComplete(saveWith({ lifetimeCorrect: 99 }), a)).toBe(
+      false,
+    );
+    expect(isAchievementComplete(saveWith({ lifetimeCorrect: 100 }), a)).toBe(
+      true,
+    );
   });
 
   test("getAchievementProgress clamps at 1", () => {
     const a = getAchievement("answers-100")!;
-    expect(getAchievementProgress(saveWith({ lifetimeCorrect: 50 }), a).fraction).toBe(0.5);
-    expect(getAchievementProgress(saveWith({ lifetimeCorrect: 999 }), a).fraction).toBe(1);
+    expect(
+      getAchievementProgress(saveWith({ lifetimeCorrect: 50 }), a).fraction,
+    ).toBe(0.5);
+    expect(
+      getAchievementProgress(saveWith({ lifetimeCorrect: 999 }), a).fraction,
+    ).toBe(1);
   });
 
   test("achievements are independent: no tier-style sequencing", () => {
@@ -55,7 +63,9 @@ describe("achievement derivation", () => {
     // and deep/lifetime achievements don't gate shallow ones either.
     const save = saveWith({ totalGemsMinted: 100 });
     const done = getCompletedAchievementIds(save);
-    expect(done).toEqual(expect.arrayContaining(["gem-1", "gem-10", "gem-50", "gem-100"]));
+    expect(done).toEqual(
+      expect.arrayContaining(["gem-1", "gem-10", "gem-50", "gem-100"]),
+    );
     expect(done).not.toContain("miner-1");
   });
 
@@ -78,9 +88,9 @@ describe("getAchievementBonus", () => {
   test("sums bonuses and ignores unknown ids", () => {
     const all = ACHIEVEMENTS.reduce((s, a) => s + a.bonusMinerals, 0);
     expect(getAchievementBonus(ACHIEVEMENTS.map((a) => a.id))).toBe(all);
-    expect(
-      getAchievementBonus(["miner-1", "nope"]),
-    ).toBe(getAchievement("miner-1")!.bonusMinerals);
+    expect(getAchievementBonus(["miner-1", "nope"])).toBe(
+      getAchievement("miner-1")!.bonusMinerals,
+    );
     expect(getAchievementBonus([])).toBe(0);
   });
 });

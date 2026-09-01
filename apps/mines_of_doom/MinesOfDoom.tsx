@@ -5,6 +5,7 @@ import { useLocalStorage } from "apps/hooks/useLocalStorage";
 import type { DebrisParticlesRef } from "apps/components/DebrisParticles";
 import type { BlockBreakRef } from "apps/components/BlockBreak";
 import { Context } from "./Context";
+import { getCaveTheme, getThemeTint } from "./cosmetics";
 import { styles } from "./styles";
 import DepthBanner from "./components/DepthBanner";
 import EquationDisplay from "./components/EquationDisplay";
@@ -29,6 +30,7 @@ import {
   getCompletedAchievementIds,
 } from "./achievements";
 import {
+  CAVE_THEME_UNLOCK_TIER,
   FAST_MINER_UNLOCK_TIER,
   GOAL_TIERS,
   MINER_POWER_UNLOCK_TIER,
@@ -77,10 +79,18 @@ export default function MinesOfDoom() {
     buyCosmetic,
     selectCosmetic,
     rerollPlayerSeed,
+    buyCaveTheme,
+    selectCaveTheme,
     sinkNewShaft,
     resetGame,
   } = useGameEngine(displayMessage, () => autosaveSecondsRef.current);
   const depthTier = getDepthTier(depth);
+  // Tier-4 cave theme recolors the depth tint (the natural theme's palette
+  // is exactly the depth tint, so it's the unchanged look by default).
+  const caveTint = getThemeTint(
+    getCaveTheme(gameState.selectedCaveTheme),
+    depthTier.id,
+  );
   // Depth-tier click bonus + banked prestige multiplier + the tier-3 click
   // x2 upgrade included: this is the value taps and answers actually pay
   // with (the engine applies the same multipliers authoritatively), so
@@ -116,6 +126,13 @@ export default function MinesOfDoom() {
       onBuy: buyCosmetic,
       onSelect: selectCosmetic,
       onReroll: rerollPlayerSeed,
+      caveThemesUnlocked: gameState.completedTiers.includes(
+        CAVE_THEME_UNLOCK_TIER,
+      ),
+      ownedCaveThemes: gameState.ownedCaveThemes,
+      selectedCaveTheme: gameState.selectedCaveTheme,
+      onBuyCaveTheme: buyCaveTheme,
+      onSelectCaveTheme: selectCaveTheme,
     }),
     [
       gameState.gems,
@@ -123,9 +140,14 @@ export default function MinesOfDoom() {
       gameState.ownedCosmetics,
       gameState.selectedOutfit,
       gameState.selectedPickaxe,
+      gameState.completedTiers,
+      gameState.ownedCaveThemes,
+      gameState.selectedCaveTheme,
       buyCosmetic,
       selectCosmetic,
       rerollPlayerSeed,
+      buyCaveTheme,
+      selectCaveTheme,
     ],
   );
 
@@ -342,7 +364,7 @@ export default function MinesOfDoom() {
         />
         <MiningCanvas
           depth={depth}
-          tint={depthTier.tint}
+          tint={caveTint}
           minerals={gameState.minerals}
           gems={gameState.gems}
           miners={gameState.miners}
