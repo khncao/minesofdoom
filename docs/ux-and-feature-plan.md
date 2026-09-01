@@ -57,6 +57,7 @@ Last updated: 2026-08-31
 - **BigInt for minerals** (already noted as TODO) — minerals will overflow `Number.MAX_SAFE_INTEGER` with miners running; migrate save format when switching.
 - **Corrupt-save handling.** `JSON.parse` on load will crash the app on a bad save; wrap in try/catch and offer "load backup" / "start fresh".
 - **Offline progress cap.** Offline earnings are unbounded; cap at e.g. 8h and show an "welcome back" modal with the earned amount.
+- Tie in to app store cloud features
 
 ### 3.2 Game loop
 - The tick uses `setTimeout` chained on `tick` state — drifts and pauses when the tab is backgrounded. Consider a `setInterval`-based tick that computes elapsed ticks from timestamps (also fixes drift after tab sleep).
@@ -97,7 +98,7 @@ Last updated: 2026-08-31
 - **Lucky pick.** Small chance per correct answer for a crit (×5) — complements the existing gem roll.
 
 ### 4.3 Meta / social
-- **Leaderboard** (optional, needs a backend — e.g., Supabase): depth reached, minerals/sec.
+- **Leaderboard** (optional, needs a backend or integrate with app store cloud features): depth reached, minerals/sec.
 - **Shareable save codes.** Encode save as a short base64 string for sharing/import (also enables backup without cloud).
 - **Themes.** Cave color themes unlocked by depth; stored in settings.
 
@@ -137,6 +138,34 @@ Current state is placeholder-grade: `Miner` renders a `👷`/`👷‍♂️` emo
 - **Budget guard:** total sprite assets < ~1 MB (pixel art is forgiving); measure bundle size before/after in CI.
 
 **Risks:** art scope creep (mitigate: ship miner + mineral + gem first, everything else is stretch); animation sync (one shared clock, no per-sprite timers); web parity (Skia runs on web — verify, else use SVG-crop fallback on web).
+
+### 4.6 Overarching goals — complete goals to unlock new purchaseables
+
+The game has no long-term destination: everything buyable is buyable from minute one (just expensive). The plan is a **tiered goal chain** — a handful of big, thematic "contract" goals that, when completed, unlock *new* purchasable content lines. Content drips in as the player proves progress, which gives the idle loop a reason to keep going and naturally paces the §4.1 features (miner upgrades, gem uses, prestige) behind meaningful milestones instead of dumping them all at once.
+
+**Design rules** (must stay consistent with §5.4 F2P guardrails):
+- Goals only ever unlock **access** to content that is bought with *in-game* currency (minerals/gems). Never pay-to-unlock, never real-money gates.
+- Every goal must be completable by a free player without grinding tricks; tiers should take roughly a week of normal play each (same horizon as the free-path benchmark in §5).
+- Goal progress is permanent and survives prestige (it tracks lifetime stats, not current-run stats).
+- Each tier completion gives a small immediate bonus (minerals + badge/title) plus the unlock — the unlock is the reward, the minerals are the confetti.
+
+**Proposed chain** (names are flavor, tune to taste):
+
+| Tier | Theme | Example goals (pick 3–5 per tier) | Unlocks (new purchaseables) |
+|---|---|---|---|
+| 1 | Prospector's License | reach depth 10m; 50 total correct answers; own your first miner | **Miner power upgrades** (mineral-spent, §4.1) — the first upgrade line beyond "buy more miners" |
+| 2 | Deep Shaft | reach depth 50m; 10 miners; 50-combo; spend 10 gems | **Second miner type** (e.g., fast miner: cheaper/sec, weaker) + first gem upgrade (gem chance +1%, §4.1) |
+| 3 | Magma Frontier | reach depth 150m; 10 miners upgraded; own 100 gems; 100-combo | **Prestige / New Shaft** (§4.1) + more gem upgrade lines (click ×2, combo resistance) + second miner type |
+| 4 | Crystal Kingdom | prestige once; depth 500m lifetime; collect 50 gems in one run; 1000 total correct answers | **Cosmetic lines open** — cave themes + sprite palette packs (§4.3/§4.5/§5.2: buyable in gems *and* in the IAP cosmetic packs — same items, two currencies) |
+| 5 | Motherlode | prestige ×3; reach the max depth tier; 500-combo; own all miner types | **Endgame content** — legendary miner type, hard-mode equation modes with better payouts (§4.2), final cosmetic set |
+
+**Mechanics & implementation:**
+- **Lifetime stats** in the save: `lifetimeMinerals`, `lifetimeCorrect`, `maxCombo`, `totalGemsMinted/Spent`, `maxDepth`, `totalPrestiges`, `minersOwnedEver`, `minerTypesOwned`… computed incrementally in the state update (not scanned from history). Save migration adds the fields with zeros.
+- **`goals.ts` config module:** each goal = `{ id, tierId, metric, target }` where `metric` is a key into lifetime stats. Completion is derived state (`metric value ≥ target`), not stored as a mutable flag — makes it cheat-resistant to save corruption and trivial to test (unit test: metric progression → unlock).
+- **Tier completion** fires once (persist `completedTiers: string[]`): toast/celebration, bonus grant, and the shop shows the new purchaseables (they render as locked + "Unlocks in: <next tier goal>" until then, so players can see what's coming).
+- **UI:** a "Goals" view (settings tab or its own button) listing tiers, each goal with a progress bar (progress bars here reuse the 2.1 combo/depth progress-bar pattern). A small "next unlock" chip on the shop buttons for at-a-glance motivation.
+- **Synergies:** achievements (§4.1) become the one-off bonus badges; overarching goals are the content gates — keep them distinct so neither system does both jobs. Random events (§4.2) can occasionally add temporary "bonus goal" objectives for extra minerals (e.g., "answer 10 divisions in the next 2 minutes").
+- **Balance guardrail:** after each tier unlock, re-check the free-path benchmark — new purchaseables must be a *choice*, not a required power spike (a player who ignores all new purchaseables must still reach the next tier at a reasonable pace).
 
 ## 5. Monetization (ethical, F2P-first)
 
@@ -189,8 +218,8 @@ Store: RevenueCat (or `react-native-iap` directly) for receipts/entitlements acr
 1. **Quick wins (UX):** number formatting, pending-gain display, wrong-answer shake, save-on-blur, offline cap + welcome-back modal.
 2. **Stability:** save migration + corrupt-save handling, tick drift fix, unit tests for math/save logic.
 3. **Structure:** split `MinesOfDoom.tsx` into hooks/components, `balance.ts`, CI.
-4. **Juice:** floating text, haptics, milestone toasts, combo tier effects.
-5. **Art:** pick sprite style (pixel art) → Skia `SpriteView`/shared-clock foundation → miner + mineral + gem sprites → cave tile layer → debris/depth variants.
-6. **Features:** depth tiers → achievements → miner upgrades → prestige.
-7. **Nice-to-have:** events, daily bonus, share codes, leaderboard.
-8. **Monetization (ethical):** daily bonus/streaks (retention first) → opt-in rewarded ads (offline ×2, cave-in rescue) → Remove Ads + earnable-also cosmetics. No pay-to-speed, web stays 100% free. Behind an ad/IAP provider abstraction so web never bundles an ad SDK.
+4. **Monetization (ethical):** daily bonus/streaks (retention first) → opt-in rewarded ads (offline ×2, cave-in rescue) → Remove Ads + earnable-also cosmetics. No pay-to-speed, web stays 100% free. Behind an ad/IAP provider abstraction so web never bundles an ad SDK.
+5. **Juice:** floating text, haptics, milestone toasts, combo tier effects.
+6. **Art:** pick sprite style (pixel art) → Skia `SpriteView`/shared-clock foundation → miner + mineral + gem sprites → cave tile layer → debris/depth variants.
+7. **Features:** depth tiers → lifetime stats + overarching goal tiers (unlocking miner upgrades → gem upgrades → prestige → cosmetics as tiers complete) → achievements.
+8. **Nice-to-have:** events, daily bonus, share codes, leaderboard.
