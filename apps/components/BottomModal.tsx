@@ -4,6 +4,7 @@ import { Modal, Pressable, StyleSheet, View, Text } from "react-native";
 export interface BottomModalProps {
   pressable?: React.ReactNode;
   children?: React.ReactNode;
+  accessibilityLabel?: string;
 }
 
 function BottomModal(props: BottomModalProps) {
@@ -11,7 +12,7 @@ function BottomModal(props: BottomModalProps) {
   const toggle = (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Settings"
+      accessibilityLabel={props.accessibilityLabel ?? "Settings"}
       onPress={() => setShowModal(!showModal)}
       style={{ margin: 10 }}
     >
