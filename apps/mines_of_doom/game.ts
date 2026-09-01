@@ -12,6 +12,17 @@ export type SaveData = {
   clickPower: number;
   miners: number;
   minerPower: number;
+  // Tier-2 (Deep Shaft) content: fast miners (second miner type, cheaper curve
+  // than normal miners, weaker per-miner output) and the first gem upgrade
+  // (+1% base gem chance per level).
+  fastMiners: number;
+  gemChanceLevels: number;
+  // Tier-3 (Magma Frontier) content: prestige. The permanent "new shaft"
+  // multiplier banked so far, as a level index into PRESTIGE_LEVELS. Unlike
+  // the lifetime stats, this is a banked (not purely derived) value: it only
+  // moves up when the player actually sinks a new shaft, which is what makes
+  // the reset worth doing (the multiplier is the reward, banked at prestige).
+  prestigeLevel: number;
   startTime: number;
   saveTime: number;
   saveVersion: number;
@@ -48,7 +59,7 @@ export type SettingsData = {
 
 // TODO: number to bigint
 export const saveDataKey = "save";
-export const saveVersion = 4;
+export const saveVersion = 6;
 export const settingsDataKey = "settings";
 export const equationSettingsKey = "equationSettings";
 
@@ -134,6 +145,38 @@ const migrations: Record<
         )
       : [],
   }),
+  // 4 -> 5: fast miners (second miner type) + gem chance upgrade. Old saves
+  // own no fast miners yet and haven't bought any gem levels.
+  // (kept below the new 5 -> 6 entry; migrations are walked in ascending key
+  // order by migrateSaveData, so ordering in this object doesn't matter.)
+  4: (data) => {
+    const num = (v: unknown, fallback: number) =>
+      typeof v === "number" && Number.isFinite(v) ? v : fallback;
+    return {
+      ...data,
+      saveVersion: 5,
+      fastMiners: Math.max(0, Math.floor(num(data.fastMiners, 0))),
+      gemChanceLevels: Math.min(
+        GEM_CHANCE_MAX_LEVELS,
+        Math.max(0, Math.floor(num(data.gemChanceLevels, 0))),
+      ),
+    };
+  },
+  // 5 -> 6: prestige ("new shaft"). Old saves have never banked a multiplier,
+  // so the permanent level starts at 0 (x1). The banked level is clamped so a
+  // corrupt save can't mint a multiplier past the highest defined level.
+  5: (data) => {
+    const num = (v: unknown, fallback: number) =>
+      typeof v === "number" && Number.isFinite(v) ? v : fallback;
+    return {
+      ...data,
+      saveVersion: 6,
+      prestigeLevel: Math.min(
+        PRESTIGE_LEVELS.length - 1,
+        Math.max(0, Math.floor(num(data.prestigeLevel, 0))),
+      ),
+    };
+  },
 };
 
 /** Walk a parsed save through every migration up to the current version. */
@@ -159,6 +202,10 @@ export function migrateSaveData(parsed: Record<string, unknown>): Record<
 }
 export const msPerTick = 1000;
 export const gemChance = 0.05;
+/** Base gem chance added per level of the gem chance upgrade. */
+export const gemChancePerLevel = 0.01;
+/** Gem chance upgrade cap: 5% base + 20 levels = 25%. */
+export const GEM_CHANCE_MAX_LEVELS = 20;
 export const gemMineralCost = 100000;
 // Cap offline earnings at 8 hours of mining
 export const maxOfflineTicks = 8 * 60 * 60;
@@ -198,6 +245,59 @@ export function getDepthTier(depth: number): DepthTier {
   return tier;
 }
 
+/**
+ * Prestige ("New Shaft", plan §4.1 / tier 3, §4.6). Sinking a new shaft
+ * resets the run's mining operation (minerals, miners, fast miners, click &
+ * miner power) but banks a permanent multiplier based on lifetime minerals.
+ *
+ * The multiplier is a stepped, monotonic table keyed by the *lifetime*
+ * minerals mined (a stat that never resets), so a banked level can never be
+ * lost by spending minerals. It is stepped rather than continuous so that
+ * "banking a new level" is a discrete, meaningful event: between two
+ * thresholds the available level is fixed, so you can only prestige again
+ * once lifetime crosses the next rung — which keeps repeated resets from
+ * being spammable.
+ */
+export type PrestigeLevel = {
+  /** Level index (the save's `prestigeLevel`). */
+  level: number;
+  /** Lifetime minerals required to *bank* this level. */
+  at: number;
+  /** Permanent multiplier applied to gains & passive income at this level. */
+  multiplier: number;
+};
+
+export const PRESTIGE_LEVELS: PrestigeLevel[] = [
+  { level: 0, at: 0, multiplier: 1 },
+  { level: 1, at: 5_000_000, multiplier: 1.5 },
+  { level: 2, at: 50_000_000, multiplier: 2 },
+  { level: 3, at: 250_000_000, multiplier: 2.5 },
+  { level: 4, at: 1_000_000_000, multiplier: 3.5 },
+  { level: 5, at: 5_000_000_000, multiplier: 5 },
+];
+
+/**
+ * The highest prestige level whose lifetime-mineral threshold has been met.
+ * This is the level the player could *bank* right now; the banked level on
+ * the save only ever moves up toward it (see sinkNewShaft in the engine).
+ */
+export function getPrestigeLevel(lifetimeMinerals: number): number {
+  let level = 0;
+  for (const p of PRESTIGE_LEVELS) {
+    if (lifetimeMinerals >= p.at) level = p.level;
+  }
+  return level;
+}
+
+/** Permanent multiplier for a banked prestige level (clamped to the table). */
+export function getPrestigeMultiplier(prestigeLevel: number): number {
+  const idx = Math.min(
+    Math.max(0, Math.floor(prestigeLevel)),
+    PRESTIGE_LEVELS.length - 1,
+  );
+  return PRESTIGE_LEVELS[idx].multiplier;
+}
+
 // Factory instead of a shared constant: consumers (e.g. saveGame) may modify
 // the object, and a shared mutable default would leak changes across resets.
 export function createEmptySaveData(): SaveData {
@@ -207,6 +307,9 @@ export function createEmptySaveData(): SaveData {
     clickPower: 1,
     miners: 0,
     minerPower: 1,
+    fastMiners: 0,
+    gemChanceLevels: 0,
+    prestigeLevel: 0,
     startTime: Date.now(),
     saveTime: 0,
     saveVersion,
@@ -268,13 +371,48 @@ export function getMinerUpgradeCost(current: number): number {
   return current * current * current * current + 1;
 }
 
+/** Gem cost of the next fast miner (second miner type, tier-2 unlock). */
+export function getFastMinerCost(current: number): number {
+  return Math.max(1, Math.ceil((current + 1) ** 4 / 8));
+}
+
+/**
+ * Mineral output per second of a single fast miner: weaker than a normal
+ * miner (minerPower) at every power level, with miner-power upgrades
+ * applying to both types.
+ */
+export function getFastMinerOutput(minerPower: number): number {
+  return Math.max(1, Math.floor(minerPower / 2));
+}
+
+/** Total passive minerals/sec across both miner types. */
+export function getMineralsPerSec(
+  miners: number,
+  minerPower: number,
+  fastMiners: number,
+): number {
+  return miners * minerPower + fastMiners * getFastMinerOutput(minerPower);
+}
+
 /** Mineral cost of raising miner power from `current` to current + 1. */
 export function getMinerPowerUpgradeCost(current: number): number {
   return 1000 * current * current;
 }
 
-export function rollGem(comboMultiplier: number): boolean {
-  return Math.random() < gemChance * comboMultiplier;
+export function rollGem(chance: number, comboMultiplier: number): boolean {
+  return Math.random() < chance * comboMultiplier;
+}
+
+/** Effective base gem chance at the given upgrade level (capped). */
+export function getGemChance(level: number): number {
+  return gemChance +
+    Math.min(Math.max(0, Math.floor(level)), GEM_CHANCE_MAX_LEVELS) *
+      gemChancePerLevel;
+}
+
+/** Gem cost of raising gem chance from `level` to level + 1. */
+export function getGemChanceCost(level: number): number {
+  return 10 * (level + 1) * (level + 1);
 }
 
 export function getDepth(minerals: number): number {
@@ -289,15 +427,17 @@ export function getDepth(minerals: number): number {
 export function computeOfflineMinerals(
   miners: number,
   minerPower: number,
+  fastMiners: number,
   saveTime: number,
   now: number,
+  multiplier = 1,
 ): number {
-  if (miners <= 0 || saveTime <= 0 || now <= saveTime) {
+  if (saveTime <= 0 || now <= saveTime) {
     return 0;
   }
   const elapsedTicks = Math.min(
     Math.max(0, Math.floor((now - saveTime) / msPerTick)),
     maxOfflineTicks,
   );
-  return miners * minerPower * elapsedTicks;
+  return getMineralsPerSec(miners, minerPower, fastMiners) * elapsedTicks * multiplier;
 }

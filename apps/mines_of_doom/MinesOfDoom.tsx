@@ -14,15 +14,22 @@ import PurchaseButtons from "./components/PurchaseButtons";
 import MiningCanvas from "./components/MiningCanvas";
 import SettingsPanel from "./components/SettingsPanel";
 import GoalsPanel from "./components/GoalsPanel";
-import { defaultSettingsData, getDepthTier, SettingsData } from "./game";
+import {
+  defaultSettingsData,
+  getDepthTier,
+  getPrestigeMultiplier,
+  SettingsData,
+} from "./game";
 import {
   getAchievement,
   getAchievementBonus,
   getCompletedAchievementIds,
 } from "./achievements";
 import {
+  FAST_MINER_UNLOCK_TIER,
   GOAL_TIERS,
   MINER_POWER_UNLOCK_TIER,
+  PRESTIGE_UNLOCK_TIER,
   getCompletedTierIds,
 } from "./goals";
 import { formatNumber } from "apps/utils/format";
@@ -56,19 +63,26 @@ export default function MinesOfDoom() {
     applyAnswerReward,
     upgradePower,
     buyMiner,
+    buyFastMiner,
     buyGem,
+    buyGemChance,
     upgradeMinerPower,
     completeTiers,
     completeAchievements,
     buyCosmetic,
     selectCosmetic,
     rerollPlayerSeed,
+    sinkNewShaft,
     resetGame,
   } = useGameEngine(displayMessage, () => autosaveSecondsRef.current);
   const depthTier = getDepthTier(depth);
-  // Depth-tier click bonus included: this is the value taps and answers
-  // actually pay with (the engine applies the same bonus authoritatively).
-  const effectiveClickPower = gameState.clickPower * depthTier.clickBonus;
+  // Depth-tier click bonus + banked prestige multiplier included: this is the
+  // value taps and answers actually pay with (the engine applies the same
+  // multipliers authoritatively), so pending-gain / floating text agree.
+  const effectiveClickPower =
+    gameState.clickPower *
+    depthTier.clickBonus *
+    getPrestigeMultiplier(gameState.prestigeLevel);
   const {
     settingsData,
     setSettingsData,
@@ -287,10 +301,19 @@ export default function MinesOfDoom() {
           minerPower={gameState.minerPower}
           minerPowerUnlocked={gameState.completedTiers.includes(MINER_POWER_UNLOCK_TIER)}
           miners={gameState.miners}
+          fastMiners={gameState.fastMiners}
+          gemChanceLevels={gameState.gemChanceLevels}
+          fastMinerUnlocked={gameState.completedTiers.includes(FAST_MINER_UNLOCK_TIER)}
+          prestigeLevel={gameState.prestigeLevel}
+          lifetimeMinerals={gameState.lifetimeMinerals}
+          prestigeUnlocked={gameState.completedTiers.includes(PRESTIGE_UNLOCK_TIER)}
           onUpgradePower={upgradePower}
           onBuyMiner={buyMiner}
+          onBuyFastMiner={buyFastMiner}
           onBuyGem={buyGem}
+          onBuyGemChance={buyGemChance}
           onUpgradeMinerPower={upgradeMinerPower}
+          onSinkNewShaft={sinkNewShaft}
         />
         <MiningCanvas
           depth={depth}
@@ -298,6 +321,7 @@ export default function MinesOfDoom() {
           minerals={gameState.minerals}
           gems={gameState.gems}
           miners={gameState.miners}
+          fastMiners={gameState.fastMiners}
           onTap={mineTap}
           playerPickaxeAnimRef={playerPickaxeAnimRef}
           debrisRef={debrisRef}

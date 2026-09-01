@@ -6,6 +6,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { emojis } from "apps/utils/graphics/emojis";
 import { formatNumber } from "apps/utils/format";
 import {
+  GEM_CHANCE_MAX_LEVELS,
+  PRESTIGE_LEVELS,
   SaveData,
   computeOfflineMinerals,
   createEmptySaveData,
@@ -13,8 +15,14 @@ import {
   getClickUpgradeCost,
   getDepth,
   getDepthTier,
+  getFastMinerCost,
+  getGemChance,
+  getGemChanceCost,
+  getMineralsPerSec,
   getMinerPowerUpgradeCost,
   getMinerUpgradeCost,
+  getPrestigeLevel,
+  getPrestigeMultiplier,
   lifetimeDelta,
   maxOfflineTicks,
   migrateSaveData,
@@ -124,6 +132,15 @@ export function useGameEngine(
         clickPower: num(migrated.clickPower, 1),
         miners: num(migrated.miners, 0),
         minerPower: num(migrated.minerPower, 1),
+        fastMiners: Math.max(0, Math.floor(num(migrated.fastMiners, 0))),
+        gemChanceLevels: Math.min(
+          GEM_CHANCE_MAX_LEVELS,
+          Math.max(0, Math.floor(num(migrated.gemChanceLevels, 0))),
+        ),
+        prestigeLevel: Math.min(
+          PRESTIGE_LEVELS.length - 1,
+          Math.max(0, Math.floor(num(migrated.prestigeLevel, 0))),
+        ),
         startTime: num(migrated.startTime, now),
         saveTime: num(migrated.saveTime, now),
         saveVersion: num(migrated.saveVersion, saveVersion),
@@ -174,8 +191,10 @@ export function useGameEngine(
       const offlineMinerals = computeOfflineMinerals(
         saveData.miners,
         saveData.minerPower,
+        saveData.fastMiners,
         saveData.saveTime,
         now,
+        getPrestigeMultiplier(saveData.prestigeLevel),
       );
 
       return finish(
@@ -252,12 +271,20 @@ export function useGameEngine(
         return;
       }
       tickCountRef.current += elapsed;
-      if (gameStateRef.current.miners > 0) {
+      if (
+        gameStateRef.current.miners > 0 ||
+        gameStateRef.current.fastMiners > 0
+      ) {
         // Only update state when something actually changes; allocating a new
         // state object every second forced a full re-render even when idle.
         setGameState((n: SaveData) => {
-          if (n.miners <= 0) return n;
-          const income = n.miners * n.minerPower * elapsed;
+          // The banked prestige multiplier applies to passive income too, so a
+          // new run starts with a stronger crew (the whole point of prestige).
+          const income =
+            getMineralsPerSec(n.miners, n.minerPower, n.fastMiners) *
+            elapsed *
+            getPrestigeMultiplier(n.prestigeLevel);
+          if (income <= 0) return n;
           return {
             ...n,
             minerals: n.minerals + income,
@@ -302,13 +329,20 @@ export function useGameEngine(
   // floating text) — the updater itself must stay a pure function of state.
   const applyAnswerReward = useCallback(
     (value: number, comboMultiplier: number, newCombo: number): boolean => {
-      const gem = rollGem(comboMultiplier);
+      // Gem chance includes the purchased upgrade levels (read from the ref
+      // so a state update in flight can't change the roll mid-answer).
+      const gem = rollGem(
+        getGemChance(gameStateRef.current.gemChanceLevels),
+        comboMultiplier,
+      );
       setGameState((n: SaveData) => {
         // Depth-tier click bonus (authoritative; the UI shows the same value
         // computed from the rendered depth — they only disagree across a
         // tier boundary, by at most one gain event).
         const bonus = getDepthTier(getDepth(n.minerals)).clickBonus;
-        const gained = Math.max(1, value) * n.clickPower * comboMultiplier * bonus;
+        const prestige = getPrestigeMultiplier(n.prestigeLevel);
+        const gained =
+          Math.max(1, value) * n.clickPower * comboMultiplier * bonus * prestige;
         return {
           ...n,
           minerals: n.minerals + gained,
@@ -344,6 +378,37 @@ export function useGameEngine(
         miners: n.miners + 1,
         gems: n.gems - cost,
         minersOwnedEver: Math.max(n.minersOwnedEver, n.miners + 1),
+        totalGemsSpent: n.totalGemsSpent + cost,
+      };
+    });
+  }, []);
+
+  // Tier-2 unlock: fast miner (second miner type — cheaper gem curve, weaker
+  // per-miner output). Affordability-guarded like the other purchases.
+  const buyFastMiner = useCallback(() => {
+    setGameState((n: SaveData) => {
+      const cost = getFastMinerCost(n.fastMiners);
+      if (n.gems < cost) return n;
+      return {
+        ...n,
+        fastMiners: n.fastMiners + 1,
+        gems: n.gems - cost,
+        totalGemsSpent: n.totalGemsSpent + cost,
+      };
+    });
+  }, []);
+
+  // Tier-2 unlock: first gem upgrade — +1% base gem chance per level.
+  // Capped; over-cap purchases are no-ops.
+  const buyGemChance = useCallback(() => {
+    setGameState((n: SaveData) => {
+      if (n.gemChanceLevels >= GEM_CHANCE_MAX_LEVELS) return n;
+      const cost = getGemChanceCost(n.gemChanceLevels);
+      if (n.gems < cost) return n;
+      return {
+        ...n,
+        gemChanceLevels: n.gemChanceLevels + 1,
+        gems: n.gems - cost,
         totalGemsSpent: n.totalGemsSpent + cost,
       };
     });
@@ -449,6 +514,31 @@ export function useGameEngine(
     setGameState((n: SaveData) => ({ ...n, playerSeed: seed }));
   }, []);
 
+  // Tier-3 unlock (plan §4.1 "New Shaft", §4.6): sink a new shaft — reset the
+  // run's mining operation (minerals, miners, fast miners, click & miner
+  // power) in exchange for banking a permanent multiplier based on lifetime
+  // minerals. The banked level only ever moves UP toward the level the
+  // player's lifetime has unlocked, and the action is a no-op unless there's
+  // a strictly higher level to bank — so you can't spam the reset (each real
+  // reset costs your run resources, and lifetime never decreases).
+  // Gems, gem-chance levels, cosmetics, and every lifetime stat survive.
+  const sinkNewShaft = useCallback(() => {
+    setGameState((n: SaveData) => {
+      const available = getPrestigeLevel(n.lifetimeMinerals);
+      if (available <= n.prestigeLevel) return n; // nothing new to bank
+      return {
+        ...n,
+        prestigeLevel: available,
+        totalPrestiges: n.totalPrestiges + 1,
+        minerals: 0,
+        miners: 0,
+        fastMiners: 0,
+        clickPower: 1,
+        minerPower: 1,
+      };
+    });
+  }, []);
+
   const resetGame = useCallback(() => {
     setGameState(createEmptySaveData());
     // Clear async first; the next periodic save rewrites a fresh state, so
@@ -462,19 +552,27 @@ export function useGameEngine(
     gameState,
     onTick,
     depth: getDepth(gameState.minerals),
-    mineralsPerSec: gameState.miners * gameState.minerPower,
+    mineralsPerSec:
+      getMineralsPerSec(
+        gameState.miners,
+        gameState.minerPower,
+        gameState.fastMiners,
+      ) * getPrestigeMultiplier(gameState.prestigeLevel),
     saveGame,
     addTapGain,
     applyAnswerReward,
     upgradePower,
     buyMiner,
+    buyFastMiner,
     buyGem,
+    buyGemChance,
     upgradeMinerPower,
     completeTiers,
     completeAchievements,
     buyCosmetic,
     selectCosmetic,
     rerollPlayerSeed,
+    sinkNewShaft,
     resetGame,
   };
 }

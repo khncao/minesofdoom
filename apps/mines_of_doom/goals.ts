@@ -47,6 +47,18 @@ export type GoalTier = {
 export const MINER_POWER_UNLOCK_TIER = "t1";
 
 /**
+ * Tier that unlocks the second miner type (fast miners) and the first gem
+ * upgrade (gem chance +1%).
+ */
+export const FAST_MINER_UNLOCK_TIER = "t2";
+
+/**
+ * Tier that unlocks prestige ("New Shaft") — sink a new shaft to bank a
+ * permanent multiplier based on lifetime minerals.
+ */
+export const PRESTIGE_UNLOCK_TIER = "t3";
+
+/**
  * The tier chain (flavor from plan §4.6, tuned to the stats the game
  * actually tracks). Tiers are sequential: a tier only completes once every
  * earlier tier is complete.
@@ -67,7 +79,7 @@ export const GOAL_TIERS: GoalTier[] = [
     id: "t2",
     name: "Deep Shaft",
     bonusMinerals: 50_000,
-    unlock: "Faster miners (coming soon)",
+    unlock: "Fast miners + gem chance upgrade",
     goals: [
       { id: "t2-depth", metric: "maxDepth", target: 50, label: "Reach depth 50m" },
       { id: "t2-miners", metric: "minersOwnedEver", target: 10, label: "Own 10 miners" },
@@ -79,7 +91,7 @@ export const GOAL_TIERS: GoalTier[] = [
     id: "t3",
     name: "Magma Frontier",
     bonusMinerals: 500_000,
-    unlock: "Prestige / New Shaft (coming soon)",
+    unlock: "Prestige / New Shaft",
     goals: [
       { id: "t3-depth", metric: "maxDepth", target: 150, label: "Reach depth 150m" },
       { id: "t3-power", metric: "minerPower", target: 11, label: "Upgrade miner power 10 times" },
