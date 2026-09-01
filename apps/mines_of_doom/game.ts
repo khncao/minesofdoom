@@ -23,6 +23,11 @@ export type SaveData = {
   // moves up when the player actually sinks a new shaft, which is what makes
   // the reset worth doing (the multiplier is the reward, banked at prestige).
   prestigeLevel: number;
+  // Tier-3 gem upgrade lines (also Magma Frontier): each level doubles
+  // tap/answer gains, and each level of combo resistance keeps 10% of the
+  // combo when a wrong answer or mine tap would normally zero it.
+  clickBoostLevels: number;
+  comboResistLevels: number;
   startTime: number;
   saveTime: number;
   saveVersion: number;
@@ -59,7 +64,7 @@ export type SettingsData = {
 
 // TODO: number to bigint
 export const saveDataKey = "save";
-export const saveVersion = 6;
+export const saveVersion = 7;
 export const settingsDataKey = "settings";
 export const equationSettingsKey = "equationSettings";
 
@@ -174,6 +179,25 @@ const migrations: Record<
       prestigeLevel: Math.min(
         PRESTIGE_LEVELS.length - 1,
         Math.max(0, Math.floor(num(data.prestigeLevel, 0))),
+      ),
+    };
+  },
+  // 6 -> 7: tier-3 gem upgrade lines (click x2, combo resistance). Old saves
+  // haven't bought any levels; clamped like every other level field so a
+  // corrupt save can't mint an over-cap upgrade.
+  6: (data) => {
+    const num = (v: unknown, fallback: number) =>
+      typeof v === "number" && Number.isFinite(v) ? v : fallback;
+    return {
+      ...data,
+      saveVersion: 7,
+      clickBoostLevels: Math.min(
+        CLICK_BOOST_MAX_LEVELS,
+        Math.max(0, Math.floor(num(data.clickBoostLevels, 0))),
+      ),
+      comboResistLevels: Math.min(
+        COMBO_RESIST_MAX_LEVELS,
+        Math.max(0, Math.floor(num(data.comboResistLevels, 0))),
       ),
     };
   },
@@ -310,6 +334,8 @@ export function createEmptySaveData(): SaveData {
     fastMiners: 0,
     gemChanceLevels: 0,
     prestigeLevel: 0,
+    clickBoostLevels: 0,
+    comboResistLevels: 0,
     startTime: Date.now(),
     saveTime: 0,
     saveVersion,
@@ -413,6 +439,59 @@ export function getGemChance(level: number): number {
 /** Gem cost of raising gem chance from `level` to level + 1. */
 export function getGemChanceCost(level: number): number {
   return 10 * (level + 1) * (level + 1);
+}
+
+// Tier-3 gem upgrade line: click power. Each level doubles tap/answer
+// gains (passive income is unaffected — this is an investment in the
+// player's own pickaxe, not in the crew).
+/** Max levels of the click x2 upgrade: x1, x2, x4, x8, x16. */
+export const CLICK_BOOST_MAX_LEVELS = 4;
+
+/** Tap/answer gain multiplier at the given level (2^level, clamped). */
+export function getClickBoostMultiplier(level: number): number {
+  return 2 **
+    Math.min(Math.max(0, Math.floor(level)), CLICK_BOOST_MAX_LEVELS);
+}
+
+/** Gem cost of raising the click multiplier from `level` to level + 1. */
+export function getClickBoostCost(level: number): number {
+  return 25 * (level + 1) * (level + 1);
+}
+
+// Tier-3 gem upgrade line: combo resistance. A wrong answer or mine tap
+// normally zeroes the combo; each level keeps 10% of it instead (floored).
+/** Max levels: 0% / 10% / ... / 50% of the combo survives a loss. */
+export const COMBO_RESIST_MAX_LEVELS = 5;
+/** Fraction of the combo kept per resistance level. */
+export const comboResistRetentionPerLevel = 0.1;
+
+/** Fraction of the combo kept on a loss at the given level (capped). */
+export function getComboRetention(level: number): number {
+  return Math.min(
+    comboResistRetentionPerLevel *
+      Math.min(
+        Math.max(0, Math.floor(level)),
+        COMBO_RESIST_MAX_LEVELS,
+      ),
+    comboResistRetentionPerLevel * COMBO_RESIST_MAX_LEVELS,
+  );
+}
+
+/**
+ * The combo value after a loss (wrong answer or mine tap) at the given
+ * resistance level: the floored retained fraction. Level 0 zeroes it
+ * (today's behavior); the result is always in [0, combo].
+ */
+export function getResistantComboReset(combo: number, level: number): number {
+  return Math.min(
+    combo,
+    Math.max(0, Math.floor(combo * getComboRetention(level))),
+  );
+}
+
+/** Gem cost of raising combo resistance from `level` to level + 1. */
+export function getComboResistCost(level: number): number {
+  return 20 * (level + 1) * (level + 1);
 }
 
 export function getDepth(minerals: number): number {

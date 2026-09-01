@@ -54,7 +54,8 @@ export const FAST_MINER_UNLOCK_TIER = "t2";
 
 /**
  * Tier that unlocks prestige ("New Shaft") — sink a new shaft to bank a
- * permanent multiplier based on lifetime minerals.
+ * permanent multiplier based on lifetime minerals — plus the remaining
+ * gem upgrade lines (click ×2, combo resistance).
  */
 export const PRESTIGE_UNLOCK_TIER = "t3";
 
@@ -91,7 +92,7 @@ export const GOAL_TIERS: GoalTier[] = [
     id: "t3",
     name: "Magma Frontier",
     bonusMinerals: 500_000,
-    unlock: "Prestige / New Shaft",
+    unlock: "Prestige / New Shaft + gem upgrades (click ×2, combo resistance)",
     goals: [
       { id: "t3-depth", metric: "maxDepth", target: 150, label: "Reach depth 150m" },
       { id: "t3-power", metric: "minerPower", target: 11, label: "Upgrade miner power 10 times" },

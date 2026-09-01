@@ -6,13 +6,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { emojis } from "apps/utils/graphics/emojis";
 import { formatNumber } from "apps/utils/format";
 import {
+  CLICK_BOOST_MAX_LEVELS,
+  COMBO_RESIST_MAX_LEVELS,
   GEM_CHANCE_MAX_LEVELS,
   PRESTIGE_LEVELS,
   SaveData,
   computeOfflineMinerals,
   createEmptySaveData,
   gemMineralCost,
+  getClickBoostCost,
+  getClickBoostMultiplier,
   getClickUpgradeCost,
+  getComboResistCost,
   getDepth,
   getDepthTier,
   getFastMinerCost,
@@ -140,6 +145,14 @@ export function useGameEngine(
         prestigeLevel: Math.min(
           PRESTIGE_LEVELS.length - 1,
           Math.max(0, Math.floor(num(migrated.prestigeLevel, 0))),
+        ),
+        clickBoostLevels: Math.min(
+          CLICK_BOOST_MAX_LEVELS,
+          Math.max(0, Math.floor(num(migrated.clickBoostLevels, 0))),
+        ),
+        comboResistLevels: Math.min(
+          COMBO_RESIST_MAX_LEVELS,
+          Math.max(0, Math.floor(num(migrated.comboResistLevels, 0))),
         ),
         startTime: num(migrated.startTime, now),
         saveTime: num(migrated.saveTime, now),
@@ -341,8 +354,11 @@ export function useGameEngine(
         // tier boundary, by at most one gain event).
         const bonus = getDepthTier(getDepth(n.minerals)).clickBonus;
         const prestige = getPrestigeMultiplier(n.prestigeLevel);
+        // Click x2 upgrade (tier 3): doubles tap/answer gains per level.
+        const clickBoost = getClickBoostMultiplier(n.clickBoostLevels);
         const gained =
-          Math.max(1, value) * n.clickPower * comboMultiplier * bonus * prestige;
+          Math.max(1, value) *
+          n.clickPower * comboMultiplier * bonus * prestige * clickBoost;
         return {
           ...n,
           minerals: n.minerals + gained,
@@ -514,6 +530,38 @@ export function useGameEngine(
     setGameState((n: SaveData) => ({ ...n, playerSeed: seed }));
   }, []);
 
+  // Tier-3 unlock: second gem upgrade line — each level doubles tap/answer
+  // gains. Capped; over-cap purchases are no-ops.
+  const buyClickBoost = useCallback(() => {
+    setGameState((n: SaveData) => {
+      if (n.clickBoostLevels >= CLICK_BOOST_MAX_LEVELS) return n;
+      const cost = getClickBoostCost(n.clickBoostLevels);
+      if (n.gems < cost) return n;
+      return {
+        ...n,
+        clickBoostLevels: n.clickBoostLevels + 1,
+        gems: n.gems - cost,
+        totalGemsSpent: n.totalGemsSpent + cost,
+      };
+    });
+  }, []);
+
+  // Tier-3 unlock: third gem upgrade line — keep part of the combo on a
+  // wrong answer / mine tap. Capped; over-cap purchases are no-ops.
+  const buyComboResist = useCallback(() => {
+    setGameState((n: SaveData) => {
+      if (n.comboResistLevels >= COMBO_RESIST_MAX_LEVELS) return n;
+      const cost = getComboResistCost(n.comboResistLevels);
+      if (n.gems < cost) return n;
+      return {
+        ...n,
+        comboResistLevels: n.comboResistLevels + 1,
+        gems: n.gems - cost,
+        totalGemsSpent: n.totalGemsSpent + cost,
+      };
+    });
+  }, []);
+
   // Tier-3 unlock (plan §4.1 "New Shaft", §4.6): sink a new shaft — reset the
   // run's mining operation (minerals, miners, fast miners, click & miner
   // power) in exchange for banking a permanent multiplier based on lifetime
@@ -566,6 +614,8 @@ export function useGameEngine(
     buyFastMiner,
     buyGem,
     buyGemChance,
+    buyClickBoost,
+    buyComboResist,
     upgradeMinerPower,
     completeTiers,
     completeAchievements,

@@ -23,7 +23,11 @@ export function useCombo() {
     setCombo((c) => c + 1);
   }, [flash]);
 
-  const reset = useCallback(() => setCombo(0), []);
+  // Combo loss with optional resistance (tier-3 upgrade): keep `ratio`
+  // (a fraction in [0, 1]) of the combo instead of zeroing it.
+  const reset = useCallback((ratio: number = 0) => {
+    setCombo((c) => Math.max(0, Math.floor(c * ratio)));
+  }, []);
 
   return { combo, comboMultiplier, flashAnim, increment, reset };
 }

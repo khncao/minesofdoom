@@ -16,8 +16,11 @@ import SettingsPanel from "./components/SettingsPanel";
 import GoalsPanel from "./components/GoalsPanel";
 import {
   defaultSettingsData,
+  getComboRetention,
   getDepthTier,
   getPrestigeMultiplier,
+  getResistantComboReset,
+  getClickBoostMultiplier,
   SettingsData,
 } from "./game";
 import {
@@ -66,6 +69,8 @@ export default function MinesOfDoom() {
     buyFastMiner,
     buyGem,
     buyGemChance,
+    buyClickBoost,
+    buyComboResist,
     upgradeMinerPower,
     completeTiers,
     completeAchievements,
@@ -76,13 +81,15 @@ export default function MinesOfDoom() {
     resetGame,
   } = useGameEngine(displayMessage, () => autosaveSecondsRef.current);
   const depthTier = getDepthTier(depth);
-  // Depth-tier click bonus + banked prestige multiplier included: this is the
-  // value taps and answers actually pay with (the engine applies the same
-  // multipliers authoritatively), so pending-gain / floating text agree.
+  // Depth-tier click bonus + banked prestige multiplier + the tier-3 click
+  // x2 upgrade included: this is the value taps and answers actually pay
+  // with (the engine applies the same multipliers authoritatively), so
+  // pending-gain / floating text agree.
   const effectiveClickPower =
     gameState.clickPower *
     depthTier.clickBonus *
-    getPrestigeMultiplier(gameState.prestigeLevel);
+    getPrestigeMultiplier(gameState.prestigeLevel) *
+    getClickBoostMultiplier(gameState.clickBoostLevels);
   const {
     settingsData,
     setSettingsData,
@@ -133,6 +140,14 @@ export default function MinesOfDoom() {
     increment: incrementCombo,
     reset: resetCombo,
   } = useCombo();
+  // Combo resistance (tier-3 gem upgrade): the fraction of the combo a
+  // wrong answer / mine tap keeps. Ref so the stable tap-reset callback
+  // below always sees the current level without re-subscribing.
+  const comboResistRatioRef = useRef(0);
+  comboResistRatioRef.current = getComboRetention(gameState.comboResistLevels);
+  const handleComboReset = useCallback(() => {
+    resetCombo(comboResistRatioRef.current);
+  }, [resetCombo]);
   const { shakeAnim, shake } = useShakeInput();
 
   const playerPickaxeAnimRef: MutableRefObject<() => void> = useRef<() => void>(
@@ -222,7 +237,7 @@ export default function MinesOfDoom() {
     debrisRef,
     blockBreakRef,
     addTapGain,
-    onResetCombo: resetCombo,
+    onResetCombo: handleComboReset,
     onGain: handleTapGain,
   });
 
@@ -260,10 +275,16 @@ export default function MinesOfDoom() {
     onIncorrect: () => {
       play("stone", 150);
       shake();
+      // Combo resistance (tier-3 gem upgrade): part of the combo survives.
+      const retention = getComboRetention(gameState.comboResistLevels);
       if (combo > 0) {
-        displayMessage("Combo lost!", 1500);
+        const kept = getResistantComboReset(combo, gameState.comboResistLevels);
+        displayMessage(
+          kept > 0 ? `Combo dropped to ${kept}!` : "Combo lost!",
+          1500,
+        );
       }
-      resetCombo();
+      resetCombo(retention);
     },
   });
 
@@ -307,11 +328,15 @@ export default function MinesOfDoom() {
           prestigeLevel={gameState.prestigeLevel}
           lifetimeMinerals={gameState.lifetimeMinerals}
           prestigeUnlocked={gameState.completedTiers.includes(PRESTIGE_UNLOCK_TIER)}
+          clickBoostLevels={gameState.clickBoostLevels}
+          comboResistLevels={gameState.comboResistLevels}
           onUpgradePower={upgradePower}
           onBuyMiner={buyMiner}
           onBuyFastMiner={buyFastMiner}
           onBuyGem={buyGem}
           onBuyGemChance={buyGemChance}
+          onBuyClickBoost={buyClickBoost}
+          onBuyComboResist={buyComboResist}
           onUpgradeMinerPower={upgradeMinerPower}
           onSinkNewShaft={sinkNewShaft}
         />

@@ -4,10 +4,16 @@ import Button from "apps/components/Button";
 import { emojis } from "apps/utils/graphics/emojis";
 import { formatNumber } from "apps/utils/format";
 import {
+  CLICK_BOOST_MAX_LEVELS,
+  COMBO_RESIST_MAX_LEVELS,
   GEM_CHANCE_MAX_LEVELS,
   PRESTIGE_LEVELS,
   gemMineralCost,
+  getClickBoostCost,
+  getClickBoostMultiplier,
   getClickUpgradeCost,
+  getComboResistCost,
+  getComboRetention,
   getFastMinerCost,
   getFastMinerOutput,
   getGemChance,
@@ -31,11 +37,15 @@ const PurchaseButtons = memo(function PurchaseButtons({
   prestigeLevel,
   lifetimeMinerals,
   prestigeUnlocked,
+  clickBoostLevels,
+  comboResistLevels,
   onUpgradePower,
   onBuyMiner,
   onBuyFastMiner,
   onBuyGem,
   onBuyGemChance,
+  onBuyClickBoost,
+  onBuyComboResist,
   onUpgradeMinerPower,
   onSinkNewShaft,
 }: {
@@ -50,17 +60,22 @@ const PurchaseButtons = memo(function PurchaseButtons({
   gemChanceLevels: number;
   /** Tier-2 goal unlock (goals.ts): fast miners + gem chance upgrade. */
   fastMinerUnlocked: boolean;
-  /** Tier-3 goal unlock (goals.ts): prestige / New Shaft. */
+  /** Tier-3 goal unlock (goals.ts): prestige / New Shaft + gem upgrades. */
   prestigeUnlocked: boolean;
   /** Banked prestige level (save). */
   prestigeLevel: number;
   /** Lifetime minerals (drives which multiplier level is available to bank). */
   lifetimeMinerals: number;
+  /** Tier-3 gem upgrade levels (both survive prestige). */
+  clickBoostLevels: number;
+  comboResistLevels: number;
   onUpgradePower: () => void;
   onBuyMiner: () => void;
   onBuyFastMiner: () => void;
   onBuyGem: () => void;
   onBuyGemChance: () => void;
+  onBuyClickBoost: () => void;
+  onBuyComboResist: () => void;
   onUpgradeMinerPower: () => void;
   onSinkNewShaft: () => void;
 }) {
@@ -75,6 +90,14 @@ const PurchaseButtons = memo(function PurchaseButtons({
   const canBank = availableLevel > prestigeLevel;
   const availableMult = getPrestigeMultiplier(availableLevel);
   const nextLevel = PRESTIGE_LEVELS[prestigeLevel + 1];
+  // Tier-3 gem upgrade lines (both unlock with Magma Frontier, both
+  // survive a sunk shaft, so the labels can show the banked state).
+  const clickBoostCost = getClickBoostCost(clickBoostLevels);
+  const clickBoostMult = getClickBoostMultiplier(clickBoostLevels);
+  const clickBoostMaxed = clickBoostLevels >= CLICK_BOOST_MAX_LEVELS;
+  const comboResistCost = getComboResistCost(comboResistLevels);
+  const comboResistMaxed = comboResistLevels >= COMBO_RESIST_MAX_LEVELS;
+  const comboKeepPct = Math.round(getComboRetention(comboResistLevels) * 100);
   return (
     <View style={{ gap: 5, marginTop: 8 }}>
       <Button
@@ -139,6 +162,36 @@ const PurchaseButtons = memo(function PurchaseButtons({
             : gemChanceMaxed
               ? `GEM CHANCE ${gemChancePct}% (MAX)`
               : `GEM CHANCE +1% (-${formatNumber(gemCost)} ${emojis.gem}) (now ${gemChancePct}%)`
+        }
+      />
+
+      {/* Tier-3 unlock: second gem upgrade line — each level doubles
+          tap/answer gains (passive income is unaffected). */}
+      <Button
+        onPress={onBuyClickBoost}
+        disabled={!prestigeUnlocked || clickBoostMaxed || gems < clickBoostCost}
+        title={
+          !prestigeUnlocked
+            ? `🔒 CLICK ×2 (Magma Frontier)`
+            : clickBoostMaxed
+              ? `CLICK POWER ×${clickBoostMult} (MAX)`
+              : `CLICK ×2 (-${formatNumber(clickBoostCost)} ${emojis.gem}) (now ×${clickBoostMult})`
+        }
+      />
+
+      {/* Tier-3 unlock: third gem upgrade line — keep part of the combo on
+          a wrong answer / mine tap instead of losing it all. */}
+      <Button
+        onPress={onBuyComboResist}
+        disabled={
+          !prestigeUnlocked || comboResistMaxed || gems < comboResistCost
+        }
+        title={
+          !prestigeUnlocked
+            ? `🔒 COMBO RESISTANCE (Magma Frontier)`
+            : comboResistMaxed
+              ? `COMBO RESISTANCE (keep ${comboKeepPct}%) (MAX)`
+              : `COMBO RESISTANCE (-${formatNumber(comboResistCost)} ${emojis.gem}) (keep ${comboKeepPct}%)`
         }
       />
 

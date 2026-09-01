@@ -1,4 +1,6 @@
 import {
+  CLICK_BOOST_MAX_LEVELS,
+  COMBO_RESIST_MAX_LEVELS,
   GEM_CHANCE_MAX_LEVELS,
   computeOfflineMinerals,
   createEmptySaveData,
@@ -7,9 +9,15 @@ import {
   getDepth,
   getDepthTier,
   getFastMinerCost,
+  getClickBoostCost,
+  getClickBoostMultiplier,
+  getComboResistCost,
+  getComboRetention,
+  getResistantComboReset,
   getFastMinerOutput,
   getGemChance,
   getGemChanceCost,
+  comboResistRetentionPerLevel,
   getMineralsPerSec,
   getMinerPowerUpgradeCost,
   getMinerUpgradeCost,
@@ -154,6 +162,90 @@ describe("gem chance upgrade", () => {
     expect(getGemChance(GEM_CHANCE_MAX_LEVELS + 5)).toBe(
       getGemChance(GEM_CHANCE_MAX_LEVELS),
     );
+  });
+});
+
+describe("click boost upgrade (tier-3 gem line)", () => {
+  test("multiplier doubles per level, clamped at the cap", () => {
+    expect(getClickBoostMultiplier(0)).toBe(1);
+    expect(getClickBoostMultiplier(1)).toBe(2);
+    expect(getClickBoostMultiplier(2)).toBe(4);
+    expect(getClickBoostMultiplier(CLICK_BOOST_MAX_LEVELS)).toBe(
+      2 ** CLICK_BOOST_MAX_LEVELS,
+    );
+    // Over-cap levels don't stack past the cap.
+    expect(getClickBoostMultiplier(CLICK_BOOST_MAX_LEVELS + 5)).toBe(
+      getClickBoostMultiplier(CLICK_BOOST_MAX_LEVELS),
+    );
+    // Negative/junk levels behave like level 0.
+    expect(getClickBoostMultiplier(-3)).toBe(1);
+  });
+
+  test("cost is 25*(level+1)^2, strictly increasing to the cap", () => {
+    expect(getClickBoostCost(0)).toBe(25);
+    expect(getClickBoostCost(1)).toBe(100);
+    expect(getClickBoostCost(2)).toBe(225);
+    let prev = 0;
+    for (let lvl = 0; lvl < CLICK_BOOST_MAX_LEVELS; lvl++) {
+      const c = getClickBoostCost(lvl);
+      expect(c).toBeGreaterThan(prev);
+      prev = c;
+    }
+  });
+});
+
+describe("combo resistance (tier-3 gem line)", () => {
+  test("retention is +10% per level, capped at 50%", () => {
+    expect(getComboRetention(0)).toBe(0);
+    expect(getComboRetention(1)).toBeCloseTo(comboResistRetentionPerLevel);
+    expect(getComboRetention(3)).toBeCloseTo(
+      3 * comboResistRetentionPerLevel,
+    );
+    expect(getComboRetention(COMBO_RESIST_MAX_LEVELS)).toBeCloseTo(0.5);
+    // Over-cap levels keep no more than the cap.
+    expect(getComboRetention(COMBO_RESIST_MAX_LEVELS + 9)).toBe(
+      getComboRetention(COMBO_RESIST_MAX_LEVELS),
+    );
+  });
+
+  test("reset keeps the floored retained fraction, always in [0, combo]", () => {
+    // Level 0 behaves exactly like the old zeroing reset.
+    expect(getResistantComboReset(77, 0)).toBe(0);
+    // 10% of 13 = 1.3 -> 1.
+    expect(getResistantComboReset(13, 1)).toBe(1);
+    // Below 10 combo, even 10% floors to 0.
+    expect(getResistantComboReset(9, 1)).toBe(0);
+    // Half the combo at the cap (floored).
+    expect(getResistantComboReset(41, COMBO_RESIST_MAX_LEVELS)).toBe(20);
+    for (let combo = 0; combo <= 1000; combo += 37) {
+      for (let lvl = 0; lvl <= COMBO_RESIST_MAX_LEVELS + 2; lvl++) {
+        const kept = getResistantComboReset(combo, lvl);
+        expect(kept).toBeGreaterThanOrEqual(0);
+        expect(kept).toBeLessThanOrEqual(combo);
+      }
+    }
+  });
+
+  test("more resistance never keeps less of the combo", () => {
+    for (let combo = 0; combo <= 500; combo += 11) {
+      let prevKept = 0;
+      for (let lvl = 0; lvl <= COMBO_RESIST_MAX_LEVELS; lvl++) {
+        const kept = getResistantComboReset(combo, lvl);
+        expect(kept).toBeGreaterThanOrEqual(prevKept);
+        prevKept = kept;
+      }
+    }
+  });
+
+  test("cost is 20*(level+1)^2, strictly increasing to the cap", () => {
+    expect(getComboResistCost(0)).toBe(20);
+    expect(getComboResistCost(1)).toBe(80);
+    let prev = 0;
+    for (let lvl = 0; lvl < COMBO_RESIST_MAX_LEVELS; lvl++) {
+      const c = getComboResistCost(lvl);
+      expect(c).toBeGreaterThan(prev);
+      prev = c;
+    }
   });
 });
 
@@ -423,6 +515,40 @@ describe("migrateSaveData", () => {
     const negative = migrateSaveData({ saveVersion: 5, prestigeLevel: -4 });
     expect(negative.prestigeLevel).toBe(0);
   });
+
+  test("v6 save gains clickBoostLevels=0 and comboResistLevels=0", () => {
+    const migrated = migrateSaveData({ minerals: 1, saveVersion: 6 });
+    expect(migrated.saveVersion).toBe(saveVersion);
+    expect(migrated.clickBoostLevels).toBe(0);
+    expect(migrated.comboResistLevels).toBe(0);
+  });
+
+  test("v6 save keeps valid tier-3 gem upgrade levels", () => {
+    const migrated = migrateSaveData({
+      saveVersion: 6,
+      clickBoostLevels: 2,
+      comboResistLevels: 4,
+    });
+    expect(migrated.clickBoostLevels).toBe(2);
+    expect(migrated.comboResistLevels).toBe(4);
+  });
+
+  test("v6 save clamps junk/over-cap tier-3 levels", () => {
+    const junk = migrateSaveData({
+      saveVersion: 6,
+      clickBoostLevels: "banana",
+      comboResistLevels: -7,
+    });
+    expect(junk.clickBoostLevels).toBe(0);
+    expect(junk.comboResistLevels).toBe(0);
+    const over = migrateSaveData({
+      saveVersion: 6,
+      clickBoostLevels: 999,
+      comboResistLevels: 999,
+    });
+    expect(over.clickBoostLevels).toBe(CLICK_BOOST_MAX_LEVELS);
+    expect(over.comboResistLevels).toBe(COMBO_RESIST_MAX_LEVELS);
+  });
 });
 
 describe("createEmptySaveData cosmetics", () => {
@@ -440,5 +566,13 @@ describe("createEmptySaveData tier-2 fields", () => {
     const save = createEmptySaveData();
     expect(save.fastMiners).toBe(0);
     expect(save.gemChanceLevels).toBe(0);
+  });
+});
+
+describe("createEmptySaveData tier-3 fields", () => {
+  test("new saves start with no click boost and no combo resistance", () => {
+    const save = createEmptySaveData();
+    expect(save.clickBoostLevels).toBe(0);
+    expect(save.comboResistLevels).toBe(0);
   });
 });
