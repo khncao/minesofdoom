@@ -4,7 +4,8 @@ import { Animated, StyleSheet, Text, View } from "react-native";
 const TILE_HEIGHT = 24;
 const COLS = 20;
 
-// Row templates by depth tier
+// Row templates by depth band (bands line up with DEPTH_TIERS in game.ts:
+// rock below 10m, gems 10–49m, sparkles from 50m).
 function buildRow(depth: number, rowIdx: number): string {
   const seed = depth * 1000 + rowIdx;
   const pseudo = (n: number) => Math.abs(Math.sin(seed * 9301 + n * 49297 + 233995)) % 1;
@@ -12,7 +13,7 @@ function buildRow(depth: number, rowIdx: number): string {
     const v = pseudo(c);
     if (depth < 10) {
       return v < 0.06 ? "🪨" : v < 0.1 ? "·" : " ";
-    } else if (depth < 30) {
+    } else if (depth < 50) {
       return v < 0.08 ? "💎" : v < 0.15 ? "🪨" : v < 0.2 ? "·" : " ";
     } else {
       return v < 0.05 ? "✨" : v < 0.12 ? "💎" : v < 0.2 ? "🪨" : v < 0.25 ? "·" : " ";
@@ -25,9 +26,11 @@ const ROWS = 12;
 
 interface CaveBackgroundProps {
   depth: number;
+  /** Tint for the current depth tier (DEPTH_TIERS in game.ts). */
+  tint?: string;
 }
 
-function CaveBackground({ depth }: CaveBackgroundProps) {
+function CaveBackground({ depth, tint = "#a0856a" }: CaveBackgroundProps) {
   const scrollAnim = useRef(new Animated.Value(0)).current;
   const scrollAnimRunRef = useRef<Animated.CompositeAnimation | null>(null);
   const scrollOffset = useRef(0);
@@ -70,7 +73,7 @@ function CaveBackground({ depth }: CaveBackgroundProps) {
     <View style={styles.container} pointerEvents="none">
       <Animated.View style={{ transform: [{ translateY }] }}>
         {rows.map((row, i) => (
-          <Text key={i} style={styles.row}>
+          <Text key={i} style={{ ...styles.row, color: tint }}>
             {row}
           </Text>
         ))}

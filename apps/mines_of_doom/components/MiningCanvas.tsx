@@ -4,31 +4,45 @@ import Miner from "./Miner";
 import DebrisParticles, {
   DebrisParticlesRef,
 } from "apps/components/DebrisParticles";
+import BlockBreak, { BlockBreakRef } from "apps/components/BlockBreak";
 import CaveBackground from "apps/components/CaveBackground";
 import FloatingTextLayer, {
   FloatingTextRef,
 } from "./FloatingTextLayer";
 import { emojiText } from "apps/utils/graphics/emojis";
 import { formatNumber } from "apps/utils/format";
+import { rosterSeed } from "../cosmetics";
 import { styles } from "../styles";
 
 const MiningCanvas = memo(function MiningCanvas({
   depth,
+  tint,
   minerals,
   gems,
   miners,
   onTap,
   playerPickaxeAnimRef,
   debrisRef,
+  blockBreakRef,
   floatingTextRef,
+  playerSeed,
+  outfitId,
+  pickaxeId,
 }: {
   depth: number;
+  /** Cave background tint for the current depth tier. */
+  tint: string;
   minerals: number;
   gems: number;
   miners: number;
   onTap: () => void;
   playerPickaxeAnimRef: MutableRefObject<() => void>;
+  /** Seeded sprite variants (cosmetics). */
+  playerSeed: number;
+  outfitId: string;
+  pickaxeId: string;
   debrisRef: RefObject<DebrisParticlesRef>;
+  blockBreakRef: RefObject<BlockBreakRef>;
   floatingTextRef: RefObject<FloatingTextRef>;
 }) {
   return (
@@ -45,7 +59,7 @@ const MiningCanvas = memo(function MiningCanvas({
       accessibilityRole="button"
       accessibilityLabel="Mine"
     >
-      <CaveBackground depth={depth} />
+      <CaveBackground depth={depth} tint={tint} />
       <FloatingTextLayer ref={floatingTextRef} />
       <View style={{ alignItems: "center" }}>
         <View style={styles.flexCenteredRow}>
@@ -66,8 +80,12 @@ const MiningCanvas = memo(function MiningCanvas({
             key={"player"}
             animateRef={playerPickaxeAnimRef}
             isPlayer={true}
+            seed={playerSeed}
+            outfitId={outfitId}
+            pickaxeId={pickaxeId}
           />
           <DebrisParticles ref={debrisRef} />
+          <BlockBreak ref={blockBreakRef} />
         </View>
         <View
           style={{
@@ -77,7 +95,14 @@ const MiningCanvas = memo(function MiningCanvas({
           }}
         >
           {[...Array(Math.min(miners, 50))].map((_, idx) => (
-            <Miner key={idx} scale={0.5} reactOnTick={true} />
+            <Miner
+              key={idx}
+              scale={0.5}
+              reactOnTick={true}
+              seed={rosterSeed(playerSeed, idx)}
+              outfitId={outfitId}
+              pickaxeId={pickaxeId}
+            />
           ))}
         </View>
       </View>

@@ -1,13 +1,19 @@
-import React, { MutableRefObject, useContext, useEffect, useRef } from "react";
-import { Animated, Text } from "react-native";
-import { pickaxeImg } from "assets/index";
+import React, { MutableRefObject, useContext, useEffect, useMemo, useRef } from "react";
+import { Animated, Image } from "react-native";
 import { Context } from "../Context";
+import { getPickaxe, rollMinerLook } from "../cosmetics";
+import { minerSpriteUri, pickaxeSpriteUri } from "apps/utils/graphics/pixelArt";
 
 export interface MinerProps {
   animateRef?: MutableRefObject<() => void>;
   scale?: number;
   reactOnTick?: boolean;
   isPlayer?: boolean;
+  /** Seeded variant: the player uses their own seed, roster miners use a
+   *  seed derived from it (see rosterSeed). */
+  seed: number;
+  outfitId: string;
+  pickaxeId: string;
 }
 
 // Minimum time between pickaxe swings so fast tapping doesn't queue up
@@ -80,7 +86,19 @@ function Miner({ scale = 1, ...props }: MinerProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const minerSize = props.isPlayer ? 28 : 18;
+  // Programmatic pixel sprites: deterministic per (seed, outfit) / theme,
+  // cached as PNG data URIs so all same-variant miners share one image.
+  const bodyUri = useMemo(
+    () => minerSpriteUri(rollMinerLook(props.seed, props.outfitId)),
+    [props.seed, props.outfitId],
+  );
+  const pickaxeUri = useMemo(
+    () => pickaxeSpriteUri(getPickaxe(props.pickaxeId).theme),
+    [props.pickaxeId],
+  );
+
+  const bodySize = props.isPlayer ? 44 : 24;
+  const pickaxeSize = props.isPlayer ? 36 : 20;
 
   return (
     <Animated.View
@@ -89,21 +107,22 @@ function Miner({ scale = 1, ...props }: MinerProps) {
         transform: [{ translateY: bounceAnim }, { scale }],
       }}
     >
-      <Text
-        style={{
-          fontSize: minerSize,
-          lineHeight: minerSize + 4,
-          userSelect: "none",
-        }}
-      >
-        {props.isPlayer ? "👷‍♂️" : "👷"}
-      </Text>
+      <Image
+        source={{ uri: bodyUri }}
+        style={{ width: bodySize, height: bodySize }}
+        accessibilityRole="image"
+      />
       <Animated.Image
+        source={{ uri: pickaxeUri }}
         style={{
-          alignSelf: "center",
+          width: pickaxeSize,
+          height: pickaxeSize,
+          // Overlap the body so the pickaxe reads as held, same offset feel
+          // as the old emoji + pickaxe layout.
+          marginTop: props.isPlayer ? -18 : -10,
+          marginLeft: props.isPlayer ? 12 : 7,
           transform: [{ rotate: spin }],
         }}
-        source={pickaxeImg}
       />
     </Animated.View>
   );
