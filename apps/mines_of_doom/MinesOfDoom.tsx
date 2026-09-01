@@ -16,6 +16,11 @@ import SettingsPanel from "./components/SettingsPanel";
 import GoalsPanel from "./components/GoalsPanel";
 import { defaultSettingsData, getDepthTier, SettingsData } from "./game";
 import {
+  getAchievement,
+  getAchievementBonus,
+  getCompletedAchievementIds,
+} from "./achievements";
+import {
   GOAL_TIERS,
   MINER_POWER_UNLOCK_TIER,
   getCompletedTierIds,
@@ -54,6 +59,7 @@ export default function MinesOfDoom() {
     buyGem,
     upgradeMinerPower,
     completeTiers,
+    completeAchievements,
     buyCosmetic,
     selectCosmetic,
     rerollPlayerSeed,
@@ -162,6 +168,28 @@ export default function MinesOfDoom() {
       );
     }
   }, [gameState, completeTiers, displayMessage]);
+
+  // Achievements (plan §4.1): one-off bonus badges, kept distinct from the
+  // goal tier gates above. Same derived-completion + idempotent-updater
+  // pattern; multiple first-completions in one render collapse into one
+  // toast so a save load can't spam the message overlay.
+  useEffect(() => {
+    const newly = getCompletedAchievementIds(gameState).filter(
+      (id) => !gameState.completedAchievements.includes(id),
+    );
+    if (newly.length === 0) return;
+    completeAchievements(newly);
+    const names = newly
+      .map((id) => getAchievement(id)?.label ?? id)
+      .slice(0, 3);
+    const extra = newly.length - names.length;
+    const label =
+      extra > 0 ? `${names.join(" · ")} +${extra} more` : names.join(" · ");
+    displayMessage(
+      `🏅 ${label}! +${formatNumber(getAchievementBonus(newly))} ${emojis.mineral}`,
+      6000,
+    );
+  }, [gameState, completeAchievements, displayMessage]);
 
   // Floating "+N" on canvas taps (stable so memoized consumers stay stable).
   const handleTapGain = useCallback(

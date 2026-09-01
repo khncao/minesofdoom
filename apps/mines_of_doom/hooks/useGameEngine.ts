@@ -23,6 +23,7 @@ import {
   saveDataKey,
   saveVersion,
 } from "../game";
+import { getAchievementBonus } from "../achievements";
 import { getTierBonus } from "../goals";
 import {
   DEFAULT_OWNED,
@@ -137,6 +138,11 @@ export function useGameEngine(
         completedTiers: Array.isArray(migrated.completedTiers)
           ? migrated.completedTiers.filter((t): t is string =>
               typeof t === "string",
+            )
+          : [],
+        completedAchievements: Array.isArray(migrated.completedAchievements)
+          ? migrated.completedAchievements.filter(
+              (c): c is string => typeof c === "string",
             )
           : [],
         playerSeed: num(migrated.playerSeed, 12345),
@@ -385,6 +391,24 @@ export function useGameEngine(
     });
   }, []);
 
+  // Record achievement completions and grant their one-time bonuses.
+  // Same idempotent pattern as completeTiers: a double-fired updater
+  // (React may run updaters twice in dev) can't pay the bonus twice.
+  const completeAchievements = useCallback((ids: string[]) => {
+    if (ids.length === 0) return;
+    setGameState((n: SaveData) => {
+      const fresh = ids.filter((id) => !n.completedAchievements.includes(id));
+      if (fresh.length === 0) return n;
+      const bonus = getAchievementBonus(fresh);
+      return {
+        ...n,
+        minerals: n.minerals + bonus,
+        lifetimeMinerals: n.lifetimeMinerals + bonus,
+        completedAchievements: [...n.completedAchievements, ...fresh],
+      };
+    });
+  }, []);
+
   // Buy a cosmetic (outfit or pickaxe) with gems; auto-selects it. Unknown
   // ids and unaffordable prices are no-ops (button state may be stale).
   const buyCosmetic = useCallback((id: string) => {
@@ -447,6 +471,7 @@ export function useGameEngine(
     buyGem,
     upgradeMinerPower,
     completeTiers,
+    completeAchievements,
     buyCosmetic,
     selectCosmetic,
     rerollPlayerSeed,

@@ -29,6 +29,9 @@ export type SaveData = {
   // Goal tier ids whose completion celebration has already fired (the
   // completion itself is derived from lifetime stats in goals.ts).
   completedTiers: string[];
+  // Achievement ids whose one-time bonus has already been granted (same
+  // derived-completion pattern; see achievements.ts).
+  completedAchievements: string[];
   // Programmatic cosmetics: seeded player-sprite look; roster miners derive
   // their variants from this seed. ownedCosmetics = outfit + pickaxe ids.
   playerSeed: number;
@@ -45,7 +48,7 @@ export type SettingsData = {
 
 // TODO: number to bigint
 export const saveDataKey = "save";
-export const saveVersion = 3;
+export const saveVersion = 4;
 export const settingsDataKey = "settings";
 export const equationSettingsKey = "equationSettings";
 
@@ -120,6 +123,17 @@ const migrations: Record<
         PICKAXES.find((p) => owned.includes(p.id))?.id ?? DEFAULT_PICKAXE,
     };
   },
+  // 3 -> 4: achievements (one-off bonus badges, see achievements.ts). Old
+  // saves simply haven't completed any yet.
+  3: (data) => ({
+    ...data,
+    saveVersion: 4,
+    completedAchievements: Array.isArray(data.completedAchievements)
+      ? data.completedAchievements.filter(
+          (c): c is string => typeof c === "string",
+        )
+      : [],
+  }),
 };
 
 /** Walk a parsed save through every migration up to the current version. */
@@ -205,6 +219,7 @@ export function createEmptySaveData(): SaveData {
     totalGemsSpent: 0,
     totalPrestiges: 0,
     completedTiers: [],
+    completedAchievements: [],
     playerSeed: Math.floor(Math.random() * 2147483647) || 1,
     ownedCosmetics: [...DEFAULT_OWNED],
     selectedOutfit: DEFAULT_OUTFIT,

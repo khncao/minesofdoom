@@ -81,7 +81,7 @@ Last updated: 2026-09-01
 - ✅ **First goal unlock: miner power upgrades** — tier 1 unlocks an "UPGRADE MINERS" button (minerals, `getMinerPowerUpgradeCost = 1000·p²`); renders locked (🔒 Prospector's License) until the tier completes, per §4.6's "visible but locked" rule. Engine action is affordability-guarded.
 - ✅ **Player skins / pickaxe themes (tier-4 "skins" half)** — see Phase 6 art work: 5 outfits + 4 pickaxe themes in gems, seeded randomizer + reroll, roster variants. `goals.ts` tier-4 unlock text now reads "Cave themes (coming soon)" (cave themes themselves remain).
 - ⬜ Miner types (tier 2), prestige/New Shaft (tier 3), cave themes (tier 4), endgame (tier 5) — `goals.ts` lists them as "(coming soon)" unlocks; each lands when implemented.
-- ⬜ Achievements (one-off bonus badges, distinct from goal gates per §4.6).
+- ✅ **Achievements** (one-off bonus badges, distinct from goal gates per §4.6) — `apps/mines_of_doom/achievements.ts`: 19 badges (miners 1/5/10/25, gems minted 1/10/50/100, combos 25/100/250, depth 10/50/150/500m, correct answers 100/1k, lifetime minerals 1M/1B), each a small one-time mineral bonus — they unlock nothing, per §4.6's "the minerals are the confetti". Same design rules as the goal tiers: completion is *derived* from lifetime stats (never a flag), but **independent** — no tier sequencing, any badge completes the moment its metric is met. Save v4 adds `completedAchievements: string[]` (records fired bonuses only; v3→v4 migration defaults to `[]`, unit-tested). Engine action `completeAchievements` is idempotent (dev double-fires can't pay twice). UI: badge grid at the bottom of the Goals sheet (✅/locked, live `current/target` progress + bonus line). Completion toast collapses multiple first-completions into one `🏅 A · B (+N 🪨)` message so a save load can't spam the overlay. Unit-tested (catalog invariants, derivation, independence/no-sequencing, spending-survives, bonus sums, v3→v4 migration).
 - ⬜ Gem uses beyond miners (gem-chance +%, click ×2, …).
 
 ## Phase 8 — Nice-to-haves (§6.8)
@@ -103,13 +103,14 @@ Last updated: 2026-09-01
 
 - `npm run typecheck` — clean
 - `npm run lint` — clean
-- `npm test` — 60/60 passing
+- `npm test` — 70/70 passing
 - `npx expo export -p web --clear` — builds
 
 ---
 
 ## Log
 
+- 2026-09-01 — Shipped achievements (the last ⬜ in phase 7's first half): `achievements.ts` with 19 one-off bonus badges derived from the same lifetime stats as the goal tiers, but independent (no sequencing) and gating nothing — pure §4.1 confetti. Save v4 (`completedAchievements`), idempotent `completeAchievements` engine action, badge grid in the Goals sheet, one collapsed completion toast. 10 new unit tests (catalog, derivation, independence, bonus sums, v3→v4 migration). Typecheck, lint, 70 tests, clean web export all pass. Next: tier-2/3 content — second miner type (fast miner) + first gem upgrade, then prestige/New Shaft.
 - 2026-09-01 — Shipped the priority art work: fully programmatic 16×16 PNG sprites (dependency-free encoder in `pixelArt.ts`, base64 data URIs, per-look cache), the player-sprite randomizer (seeded `rollMinerLook` + reroll; roster variants via `rosterSeed`), and the cosmetic line (5 outfit palettes, 4 pickaxe themes, gem-priced, in-settings picker with live sprite previews) behind save v3. Caught and fixed a cosmetic-id collision (outfit `crystal` vs pickaxe → renamed pickaxe to `frost`) which would have made the pickaxe unpurchasable; added `apps/*` moduleNameMapper to Jest. 25 new unit tests (PNG byte-level decode, checksum vectors, PRNG, cosmetics, v3 migration). Typecheck, lint, 60 tests, clean web export all pass. Next: achievements, then tier-2/3 content (miner types, prestige).
 - 2026-08-31 — Started phase 7 with its foundation: lifetime stats + save v2 migration, the `goals.ts` 5-tier contract chain with derived completion + one-time tier bonuses (celebrated once via persisted `completedTiers`), the Goals bottom-sheet UI with per-goal progress bars, depth tiers/biomes (tint, banner name, ×1–×2 click bonus applied in engine + UI), and the first tier unlock — miner power upgrades (locked until Prospector's License). 16 new unit tests (goals derivation, sequencing, v1→v2 migration, depth tiers, `lifetimeDelta`, cost curve). Typecheck, lint, 35 tests, clean web export all pass. Next: achievements, then tier-2/3 content (miner types, prestige).
 - 2026-08-31 — Shipped the open plan TODO (operator tooltips) and the remaining phase-5 juice item, the Minecraft-style rock break (`BlockBreak` + wiring into tap/correct-answer flows). Typecheck, lint, 19 tests, and a clean `npx expo export -p web --clear` all pass.

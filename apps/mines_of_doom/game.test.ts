@@ -212,6 +212,20 @@ describe("migrateSaveData", () => {
     expect(typeof migrated.playerSeed).toBe("number");
     expect(migrated.ownedCosmetics).toEqual(expect.arrayContaining(["classic", "steel"]));
   });
+
+  test("v3 save gains completedAchievements defaulting to none", () => {
+    const migrated = migrateSaveData({ minerals: 1, saveVersion: 3 });
+    expect(migrated.saveVersion).toBe(saveVersion);
+    expect(migrated.completedAchievements).toEqual([]);
+  });
+
+  test("v3 save keeps valid completedAchievements strings, drops junk", () => {
+    const migrated = migrateSaveData({
+      saveVersion: 3,
+      completedAchievements: ["miner-1", 5, null],
+    });
+    expect(migrated.completedAchievements).toEqual(["miner-1"]);
+  });
 });
 
 describe("createEmptySaveData cosmetics", () => {

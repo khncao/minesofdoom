@@ -9,13 +9,16 @@ import {
   getGoalProgress,
   isGoalComplete,
 } from "../goals";
+import { ACHIEVEMENTS, isAchievementComplete } from "../achievements";
 import { SaveData } from "../game";
 import { styles } from "../styles";
 
 /**
  * The "Goals" view (plan §4.6): every tier is listed with per-goal progress
  * bars so players can see what's coming, and each completed tier shows what
- * it unlocked. Completion is derived live from lifetime stats.
+ * it unlocked. Below the tiers, the achievements badge list (plan §4.1):
+ * one-off bonuses, no gates. Completion is derived live from lifetime
+ * stats; the save only records which bonuses already fired.
  */
 const GoalsContent = memo(function GoalsContent({
   stats,
@@ -82,6 +85,41 @@ const GoalsContent = memo(function GoalsContent({
           </View>
         );
       })}
+      <Text style={{ ...styles.text, fontWeight: "bold", fontSize: 14, marginTop: 4 }}>
+        🏅 Achievements
+      </Text>
+      <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+        One-off bonuses — no unlocks, just confetti.
+      </Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+        {ACHIEVEMENTS.map((a) => {
+          const done = isAchievementComplete(stats, a);
+          const current = stats[a.metric];
+          return (
+            <View
+              key={a.id}
+              style={{
+                width: "48%",
+                gap: 2,
+                paddingVertical: 6,
+                paddingHorizontal: 8,
+                backgroundColor: "#1f1f1f",
+                borderRadius: 6,
+                opacity: done ? 1 : 0.55,
+              }}
+            >
+              <Text style={{ fontSize: 12 }}>
+                {done ? "✅" : a.icon} {a.label}
+              </Text>
+              <Text style={{ fontSize: 10, color: "#aaa" }}>
+                {formatNumber(Math.min(current, a.target))}/
+                {formatNumber(a.target)} · +{formatNumber(a.bonusMinerals)}{" "}
+                {emojis.mineral}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 });
