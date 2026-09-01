@@ -1,12 +1,19 @@
-import React, { forwardRef, useImperativeHandle, useRef, useState } from "react";
-import { Animated, StyleSheet, Text } from "react-native";
+import React, { forwardRef, memo, useImperativeHandle, useRef, useState } from "react";
+import { Animated, StyleSheet } from "react-native";
 
 export interface DebrisParticlesRef {
   trigger: () => void;
 }
 
 const PARTICLES = ["🪨", "🪨", "💫", "·", "·", "·"];
-const COUNT = 5;
+const COUNT = 3;
+// Cap total live particles so rapid tapping can't stack unbounded
+// animations (which triggers "Excessive number of pending callbacks").
+// On web the animations are JS-driven, so keep this small: each live
+// particle costs a frame callback + a DOM style write every frame.
+const MAX_PARTICLES = 12;
+const MIN_TRIGGER_INTERVAL = 80;
+const PARTICLE_DURATION = 600;
 
 function makeParticle(id: number) {
   const angle = (Math.random() * Math.PI * 2);
@@ -19,27 +26,46 @@ function makeParticle(id: number) {
   };
 }
 
-const DebrisParticles = forwardRef<DebrisParticlesRef>((_, ref) => {
+// memo: parent re-renders on every tap flush; the only meaningful input is
+  // the (stable) ref, so skip re-rendering unless our own state changes.
+const DebrisParticles = memo(
+  forwardRef<DebrisParticlesRef>(function DebrisParticles(_, ref) {
   const [particles, setParticles] = useState<
     { id: number; emoji: string; tx: number; ty: number; anim: Animated.Value }[]
   >([]);
   const idRef = useRef(0);
+  const lastTriggerRef = useRef(0);
 
   useImperativeHandle(ref, () => ({
     trigger() {
+      const now = Date.now();
+      if (now - lastTriggerRef.current < MIN_TRIGGER_INTERVAL) {
+        return;
+      }
+      lastTriggerRef.current = now;
       const newParticles = Array.from({ length: COUNT }, () => {
         const p = makeParticle(idRef.current++);
         const anim = new Animated.Value(0);
         Animated.timing(anim, {
           toValue: 1,
-          duration: 600,
+          duration: PARTICLE_DURATION,
           useNativeDriver: true,
-        }).start(() => {
-          setParticles((prev) => prev.filter((x) => x.anim !== anim));
-        });
+        }).start();
         return { ...p, anim };
       });
-      setParticles((prev) => [...prev, ...newParticles]);
+      setParticles((prev) => {
+        const next = [...prev, ...newParticles];
+        // Drop the oldest particles if we exceed the cap.
+        return next.length > MAX_PARTICLES
+          ? next.slice(next.length - MAX_PARTICLES)
+          : next;
+      });
+      // Remove the whole batch in one state update instead of one per
+      // particle, so a trigger causes a single re-render rather than COUNT.
+      const batchIds = new Set(newParticles.map((p) => p.id));
+      setTimeout(() => {
+        setParticles((prev) => prev.filter((p) => !batchIds.has(p.id)));
+      }, PARTICLE_DURATION);
     },
   }));
 
@@ -65,7 +91,8 @@ const DebrisParticles = forwardRef<DebrisParticlesRef>((_, ref) => {
       ))}
     </>
   );
-});
+}),
+);
 
 export default DebrisParticles;
 

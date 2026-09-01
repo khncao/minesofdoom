@@ -27,20 +27,34 @@ interface CaveBackgroundProps {
   depth: number;
 }
 
-export default function CaveBackground({ depth }: CaveBackgroundProps) {
+function CaveBackground({ depth }: CaveBackgroundProps) {
   const scrollAnim = useRef(new Animated.Value(0)).current;
+  const scrollAnimRunRef = useRef<Animated.CompositeAnimation | null>(null);
+  const scrollOffset = useRef(0);
   const prevDepth = useRef(depth);
 
   useEffect(() => {
     if (depth !== prevDepth.current) {
       prevDepth.current = depth;
-      Animated.timing(scrollAnim, {
-        toValue: scrollAnim.__getValue() + TILE_HEIGHT,
+      scrollOffset.current += TILE_HEIGHT;
+      // Cancel the in-flight scroll so depth changes during fast mining
+      // don't stack competing animations on the same value.
+      scrollAnimRunRef.current?.stop();
+      scrollAnimRunRef.current = Animated.timing(scrollAnim, {
+        toValue: scrollOffset.current,
         duration: 400,
         useNativeDriver: true,
-      }).start();
+      });
+      scrollAnimRunRef.current.start();
     }
   }, [depth, scrollAnim]);
+
+  useEffect(
+    () => () => {
+      scrollAnimRunRef.current?.stop();
+    },
+    [],
+  );
 
   const rows = Array.from({ length: ROWS + 1 }, (_, i) => {
     const rowDepth = depth + i;
@@ -64,6 +78,8 @@ export default function CaveBackground({ depth }: CaveBackgroundProps) {
     </View>
   );
 }
+
+export default React.memo(CaveBackground);
 
 const styles = StyleSheet.create({
   container: {

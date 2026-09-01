@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { memo, useState } from "react";
 import { Modal, Pressable, StyleSheet, View, Text } from "react-native";
 
 export interface BottomModalProps {
@@ -6,7 +6,7 @@ export interface BottomModalProps {
   children?: React.ReactNode;
 }
 
-export default function BottomModal(props: BottomModalProps) {
+function BottomModal(props: BottomModalProps) {
   const [showModal, setShowModal] = useState(false);
   const toggle = (
     <Pressable onPress={() => setShowModal(!showModal)} style={{ margin: 10 }}>
@@ -36,6 +36,8 @@ export default function BottomModal(props: BottomModalProps) {
     </>
   );
 }
+
+export default memo(BottomModal);
 
 const styles = StyleSheet.create({
   backdrop: {

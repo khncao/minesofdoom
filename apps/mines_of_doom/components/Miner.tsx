@@ -10,15 +10,31 @@ export interface MinerProps {
   isPlayer?: boolean;
 }
 
-export default function Miner({ scale = 1, ...props }: MinerProps) {
+// Minimum time between pickaxe swings so fast tapping doesn't queue up
+// unbounded animations (which triggers "Excessive number of pending callbacks").
+const MIN_PICKAXE_INTERVAL = 100;
+
+function Miner({ scale = 1, ...props }: MinerProps) {
   const appContext = useContext(Context);
   const pickaxeAnim = useRef(new Animated.Value(0)).current;
   const bounceAnim = useRef(new Animated.Value(0)).current;
+  const lastPickaxeRef = useRef(0);
+  const activeAnimRef = useRef<Animated.CompositeAnimation | null>(null);
 
   const pickaxeAnimate = () => {
+    // Throttle so rapid tapping can't stack unbounded pickaxe animations.
+    const now = Date.now();
+    if (now - lastPickaxeRef.current < MIN_PICKAXE_INTERVAL) {
+      return;
+    }
+    lastPickaxeRef.current = now;
+    // Cancel the in-flight swing so fast taps don't run multiple springs on
+    // the same values concurrently (they fight each other and stack frame
+    // callbacks).
+    activeAnimRef.current?.stop();
     pickaxeAnim.setValue(0);
     bounceAnim.setValue(0);
-    Animated.parallel([
+    activeAnimRef.current = Animated.parallel([
       Animated.spring(pickaxeAnim, {
         toValue: 100,
         velocity: 2000,
@@ -36,8 +52,13 @@ export default function Miner({ scale = 1, ...props }: MinerProps) {
           useNativeDriver: true,
         }),
       ]),
-    ]).start();
+    ]);
+    activeAnimRef.current.start();
   };
+
+  useEffect(() => () => {
+    activeAnimRef.current?.stop();
+  }, []);
 
   const spin = pickaxeAnim.interpolate({
     inputRange: [0, 90],
@@ -88,5 +109,7 @@ export default function Miner({ scale = 1, ...props }: MinerProps) {
     </Animated.View>
   );
 }
+
+export default React.memo(Miner);
 
 const styles = StyleSheet.create({});

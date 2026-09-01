@@ -6,7 +6,7 @@ export interface MuteToggleProps {
   onToggleChange: (newValue: boolean) => void;
 }
 
-export default function MuteToggle({ ...props }: MuteToggleProps) {
+function MuteToggle({ ...props }: MuteToggleProps) {
   const [toggle, setToggle] = useState(props.init);
   return (
     <Pressable
@@ -23,6 +23,8 @@ export default function MuteToggle({ ...props }: MuteToggleProps) {
     </Pressable>
   );
 }
+
+export default React.memo(MuteToggle);
 
 const styles = StyleSheet.create({
   iconText: {

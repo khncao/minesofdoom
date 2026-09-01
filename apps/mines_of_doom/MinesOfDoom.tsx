@@ -1,15 +1,17 @@
 import { StatusBar } from "expo-status-bar";
 import {
   MutableRefObject,
+  memo,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import {
   Animated,
+  AppState,
   KeyboardAvoidingView,
-  Pressable,
   StyleSheet,
   Switch,
   Text,
@@ -40,6 +42,7 @@ import {
   defaultEquationSettings,
 } from "apps/utils/math/equations";
 import { emojis, emojiText } from "apps/utils/graphics/emojis";
+import { formatNumber } from "apps/utils/format";
 import { Context } from "./Context";
 
 type SaveData = {
@@ -67,6 +70,8 @@ const msPerTick = 1000;
 const gemChance = 0.05;
 const gemMineralCost = 100000;
 const equationSettingsKey = "equationSettings";
+// Cap offline earnings at 8 hours of mining
+const maxOfflineTicks = 8 * 60 * 60;
 
 const emptySaveData = {
   minerals: 0,
@@ -122,6 +127,10 @@ export default function MinesOfDoom() {
   const onTick = useRef<Array<() => void>>([]);
   const [tick, setTick] = useState(0);
 
+  // Stable context value: creating a new object every render would re-render
+  // every context consumer (all the Miners) on each tap, bypassing memo.
+  const contextValue = useMemo(() => ({ onTick: onTick.current }), []);
+
   // Load stored data
   useEffect(() => {
     getEquationSettingsStore().then((data) => {
@@ -144,16 +153,23 @@ export default function MinesOfDoom() {
         return;
       }
       const saveData: SaveData = JSON.parse(data);
-      const elapsedTicks = Math.floor(
-        (Date.now() - saveData.saveTime) / msPerTick,
+      const elapsedTicks = Math.min(
+        Math.floor((Date.now() - saveData.saveTime) / msPerTick),
+        maxOfflineTicks,
       );
+      const offlineMinerals =
+        saveData.miners * saveData.minerPower * elapsedTicks;
       setGameState({
         ...saveData,
-        minerals:
-          saveData.minerals +
-          saveData.miners * saveData.minerPower * elapsedTicks,
+        minerals: saveData.minerals + offlineMinerals,
       });
       startTime.current = saveData.startTime;
+      if (offlineMinerals > 0) {
+        displayMessageCallback(
+          `Welcome back! Your miners collected ${formatNumber(offlineMinerals)} ${emojis.mineral} while you were away.`,
+          6000,
+        );
+      }
       // console.log("loaded save");
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -179,6 +195,32 @@ export default function MinesOfDoom() {
     setSaveData(data);
   }, [gameState, setSaveData]);
 
+  // Keep a ref to the latest saveGame so the AppState listener (registered
+  // once) always saves the current state.
+  const saveGameRef = useRef(saveGame);
+  saveGameRef.current = saveGame;
+
+  // useAsyncStorage returns new function identities every render, so keep
+  // refs for stable callbacks passed to the memoized settings UI.
+  const setStoredSettingsDataRef = useRef(setStoredSettingsData);
+  setStoredSettingsDataRef.current = setStoredSettingsData;
+  const setEquationSettingsStoreRef = useRef(setEquationSettingsStore);
+  setEquationSettingsStoreRef.current = setEquationSettingsStore;
+  const settingsDataRef = useRef(settingsData);
+  settingsDataRef.current = settingsData;
+  const equationSettingsRef = useRef(equationSettings);
+  equationSettingsRef.current = equationSettings;
+
+  // Save when the app goes to the background
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (status) => {
+      if (status !== "active") {
+        saveGameRef.current();
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Main loop interval
@@ -187,13 +229,15 @@ export default function MinesOfDoom() {
       clearTimeout(timeout.current);
     }
     timeout.current = setTimeout(() => {
-      setGameState((n: SaveData) => {
-        return {
-          ...n,
-          minerals: n.minerals + gameState.miners * gameState.minerPower,
-        };
-      });
       if (gameState.miners > 0) {
+        // Only update state when something actually changes; allocating a new
+        // state object every second forced a full re-render even when idle.
+        setGameState((n: SaveData) => {
+          return {
+            ...n,
+            minerals: n.minerals + n.miners * n.minerPower,
+          };
+        });
         onTick.current.forEach((fn) => fn());
       }
       if (tick % 100 === 0) {
@@ -212,11 +256,19 @@ export default function MinesOfDoom() {
   const pickaxeSoundRef = useRef<Audio.Sound | null>(null);
   const stoneSoundRef = useRef<Audio.Sound | null>(null);
 
+  // Throttle per sound: replaying the same sound is a cancel+restart, so
+  // just cap the rate to avoid hammering the audio layer while spamming.
+  const lastSoundTimeRef = useRef<Record<string, number>>({});
   const playSound = useCallback(
-    (sound: Audio.Sound | null) => {
+    (key: string, sound: Audio.Sound | null, minInterval = 0) => {
       if (mute || sound == null) {
         return;
       }
+      const now = Date.now();
+      if (now - (lastSoundTimeRef.current[key] ?? 0) < minInterval) {
+        return;
+      }
+      lastSoundTimeRef.current[key] = now;
       sound.playAsync();
     },
     [mute],
@@ -251,16 +303,83 @@ export default function MinesOfDoom() {
   );
   const debrisRef = useRef<DebrisParticlesRef>(null);
   const comboFlashAnim = useRef(new Animated.Value(1)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
 
+  const shakeAnimSeqRef = useRef<Animated.CompositeAnimation | null>(null);
+  const shakeInput = useCallback(() => {
+    // Cancel the in-flight shake instead of stacking another sequence.
+    shakeAnimSeqRef.current?.stop();
+    shakeAnim.setValue(0);
+    shakeAnimSeqRef.current = Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 10, duration: 80, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 80, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 10, duration: 80, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 80, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 80, useNativeDriver: true }),
+    ]);
+    shakeAnimSeqRef.current.start();
+  }, [shakeAnim]);
+
+  const comboFlashSpringRef = useRef<Animated.CompositeAnimation | null>(null);
   const flashCombo = useCallback(() => {
+    comboFlashSpringRef.current?.stop();
     comboFlashAnim.setValue(1.6);
-    Animated.spring(comboFlashAnim, {
+    comboFlashSpringRef.current = Animated.spring(comboFlashAnim, {
       toValue: 1,
       useNativeDriver: true,
-    }).start();
+    });
+    comboFlashSpringRef.current.start();
   }, [comboFlashAnim]);
 
   const depth = Math.floor(gameState.minerals / 500);
+
+  // Rapid mine taps: accumulate gains in a ref and flush to state at a
+  // fixed 20Hz rate, so fast tapping causes a handful of cheap re-renders
+  // per second instead of one per tap (50ms display latency is imperceptible
+  // for an idle-game counter).
+  const TAP_FLUSH_INTERVAL = 50;
+  const pendingTapGainRef = useRef(0);
+  const tapFlushScheduledRef = useRef(false);
+  const lastTapFlushRef = useRef(0);
+  const clickPowerRef = useRef(gameState.clickPower);
+  clickPowerRef.current = gameState.clickPower;
+
+  const scheduleTapFlush = useCallback(() => {
+    if (tapFlushScheduledRef.current) {
+      return;
+    }
+    const flush = () => {
+      const now = Date.now();
+      if (now - lastTapFlushRef.current < TAP_FLUSH_INTERVAL) {
+        // Too soon; keep waiting one more frame.
+        requestAnimationFrame(flush);
+        return;
+      }
+      tapFlushScheduledRef.current = false;
+      lastTapFlushRef.current = now;
+      const gain = pendingTapGainRef.current;
+      pendingTapGainRef.current = 0;
+      if (gain > 0) {
+        setGameState((n: SaveData) => ({
+          ...n,
+          minerals: n.minerals + gain,
+        }));
+      }
+    };
+    tapFlushScheduledRef.current = true;
+    requestAnimationFrame(flush);
+  }, []);
+
+  const mineTap = useCallback(() => {
+    pendingTapGainRef.current += clickPowerRef.current;
+    scheduleTapFlush();
+    playSound("pickaxe", pickaxeSoundRef.current, 60);
+    playerPickaxeAnimRef.current();
+    debrisRef.current?.trigger();
+    setCombo(0);
+  }, [scheduleTapFlush, playSound]);
+
+  const handleMuteChange = useCallback((newVal: boolean) => setMute(newVal), [setMute]);
 
   // Logic
   const textInputRef = useRef<null | TextInput>(null);
@@ -291,13 +410,17 @@ export default function MinesOfDoom() {
           gems: rollGem(comboMultiplier) ? n.gems + 1 : n.gems,
         };
       });
-      playSound(pickaxeSoundRef.current);
+      playSound("pickaxe", pickaxeSoundRef.current, 60);
       playerPickaxeAnimRef.current();
       debrisRef.current?.trigger();
       flashCombo();
       setCombo(combo + 1);
     } else {
-      playSound(stoneSoundRef.current);
+      playSound("stone", stoneSoundRef.current, 150);
+      shakeInput();
+      if (combo > 0) {
+        displayMessageCallback("Combo lost!", 1500);
+      }
       setCombo(0);
     }
     setTextInput("");
@@ -306,8 +429,35 @@ export default function MinesOfDoom() {
 
   const mineralsPerSec = gameState.miners * gameState.minerPower;
 
+  const handleSaveSettings = useCallback(() => {
+    saveGameRef.current();
+    setStoredSettingsDataRef.current(JSON.stringify(settingsDataRef.current));
+    setEquationSettingsStoreRef.current(JSON.stringify(equationSettingsRef.current));
+    displayMessageCallback("Saved", 3000);
+  }, [displayMessageCallback]);
+
+  const handleReset = useCallback(() => {
+    AsyncStorage.removeItem(saveDataKey);
+    setGameState(emptySaveData);
+  }, []);
+
+  // Stable element so the memoized BottomModal can skip re-rendering on
+  // every tap (it only changes when settings or the message actually change).
+  const settingsChildren = useMemo(
+    () => (
+      <SettingsContent
+        equationSettings={equationSettings}
+        onChangeEquationSettings={setEquationSettings}
+        showMessage={showMessage}
+        onSave={handleSaveSettings}
+        onReset={handleReset}
+      />
+    ),
+    [equationSettings, showMessage, handleSaveSettings, handleReset],
+  );
+
   return (
-    <Context.Provider value={{ onTick: onTick.current }}>
+    <Context.Provider value={contextValue}>
       <View style={styles.container}>
         <View style={styles.depthBanner}>
           <Text style={styles.depthText}>⛏ Depth: {depth}m</Text>
@@ -320,30 +470,42 @@ export default function MinesOfDoom() {
         <Text style={styles.text}>
           {equation.a} {equation.op} {equation.b}?
         </Text>
+        <Text style={styles.pendingGainText}>
+          correct: +{formatNumber(gameState.clickPower * comboMultiplier)}{" "}
+          {emojis.mineral}
+          {equation.op === Ops.div && " ×10"}
+          {equation.op === Ops.sub && " ×2"}
+        </Text>
         {
           // Input
         }
         <KeyboardAvoidingView behavior="padding">
-          <TextInput
-            ref={textInputRef}
-            value={textInput}
-            onChangeText={setTextInput}
-            inputMode="numeric"
-            autoFocus={true}
-            clearButtonMode="always"
-            onSubmitEditing={() => {
-              submit();
-              textInputRef.current?.clear();
-              setTextInput("");
-            }}
-            selectTextOnFocus={true}
-            blurOnSubmit={false}
-            clearTextOnFocus={true}
+          <Animated.View
             style={{
-              ...styles.text,
-              ...styles.textInputBox,
+              transform: [{ translateX: shakeAnim }],
             }}
-          />
+          >
+            <TextInput
+              ref={textInputRef}
+              value={textInput}
+              onChangeText={setTextInput}
+              inputMode="numeric"
+              autoFocus={true}
+              clearButtonMode="always"
+              onSubmitEditing={() => {
+                submit();
+                textInputRef.current?.clear();
+                setTextInput("");
+              }}
+              selectTextOnFocus={true}
+              blurOnSubmit={false}
+              clearTextOnFocus={true}
+              style={{
+                ...styles.text,
+                ...styles.textInputBox,
+              }}
+            />
+          </Animated.View>
         </KeyboardAvoidingView>
 
         <View style={styles.flexCenteredRow}>
@@ -412,22 +574,17 @@ export default function MinesOfDoom() {
             title={`BUY A GEM (-${gemMineralCost} ${emojis.mineral})`}
           />
         </View>
-        {
-          // Canvas
-        }
-        <Pressable
-          onPress={() => {
-            setGameState((n: SaveData) => {
-              return {
-                ...n,
-                minerals: n.minerals + gameState.clickPower,
-              };
-            });
-            playSound(pickaxeSoundRef.current);
-            playerPickaxeAnimRef.current();
-            debrisRef.current?.trigger();
-            setCombo(0);
-          }}
+        {/*
+          Canvas: plain View + responder system instead of Pressable.
+          On web, Pressable keeps pressed state in React and re-renders
+          twice per tap, which dominated the cost of rapid tapping.
+        */}
+        <View
+          onStartShouldSetResponder={() => true}
+          onResponderRelease={mineTap}
+          onResponderTerminationRequest={() => false}
+          accessibilityRole="button"
+          accessibilityLabel="Mine"
           style={{ ...styles.canvas, paddingTop: 10 }}
         >
           <CaveBackground depth={depth} />
@@ -435,13 +592,13 @@ export default function MinesOfDoom() {
             <View style={styles.flexCenteredRow}>
               {emojiText("mineral")}
               <Text style={{ ...styles.text, alignSelf: "center" }}>
-                {gameState.minerals}
+                {formatNumber(gameState.minerals)}
               </Text>
             </View>
             <View style={styles.flexCenteredRow}>
               {emojiText("gem")}
               <Text style={{ ...styles.text, alignSelf: "center" }}>
-                {gameState.gems}
+                {formatNumber(gameState.gems)}
               </Text>
             </View>
 
@@ -465,7 +622,7 @@ export default function MinesOfDoom() {
               ))}
             </View>
           </View>
-        </Pressable>
+        </View>
         {
           // Settings
         }
@@ -478,107 +635,8 @@ export default function MinesOfDoom() {
             margin: 10,
           }}
         >
-          <BottomModal>
-            <View style={{ gap: 2, marginTop: 5 }}>
-              {/* <IntegerInput
-                  label="Autosave interval(secs), 0 to disable: "
-                  defaultValue={settingsData.autosave}
-                  onChangeValue={(newVal) =>
-                    setSettingsData({ ...settingsData, autosave: newVal })
-                  }
-                /> */}
-              <IntegerInput
-                label="Max constant value in equations: "
-                defaultValue={equationSettings.maxNumber}
-                onChangeValue={(newVal) =>
-                  setEquationSettings({
-                    ...equationSettings,
-                    maxNumber: newVal,
-                  })
-                }
-              />
-              <View
-                style={{
-                  ...styles.flexCenteredRow,
-                  gap: 4,
-                }}
-              >
-                <Text style={styles.text}>*</Text>
-                <Switch
-                  value={equationSettings.multiply}
-                  onValueChange={(newVal) => {
-                    setEquationSettings({
-                      ...equationSettings,
-                      multiply: newVal,
-                    });
-                  }}
-                />
-                <Text style={styles.text}>+</Text>
-                <Switch
-                  value={equationSettings.add}
-                  onValueChange={(newVal) => {
-                    setEquationSettings({ ...equationSettings, add: newVal });
-                  }}
-                />
-                <Text style={styles.text}>-</Text>
-                <Switch
-                  value={equationSettings.subtract}
-                  onValueChange={(newVal) => {
-                    setEquationSettings({
-                      ...equationSettings,
-                      subtract: newVal,
-                    });
-                  }}
-                />
-                <Text style={styles.text}>/</Text>
-                <Switch
-                  value={equationSettings.division}
-                  onValueChange={(newVal) => {
-                    setEquationSettings({
-                      ...equationSettings,
-                      division: newVal,
-                    });
-                  }}
-                />
-              </View>
-              <View
-                style={{
-                  ...styles.flexCenteredRow,
-                  gap: 4,
-                  marginTop: 10,
-                }}
-              >
-                <Button
-                  title="Save"
-                  onPress={() => {
-                    saveGame();
-                    setStoredSettingsData(JSON.stringify(settingsData));
-                    setEquationSettingsStore(JSON.stringify(equationSettings));
-                    displayMessageCallback("Saved", 3000);
-                  }}
-                />
-                <ConfirmableButton
-                  title="Reset"
-                  description="Will delete current save data and reset to initial state."
-                  onPress={() => {
-                    AsyncStorage.removeItem(saveDataKey);
-                    setGameState(emptySaveData);
-                  }}
-                />
-              </View>
-              <View style={{ alignSelf: "center", margin: 10 }}>
-                {showMessage && (
-                  <Text style={{ ...styles.text }}>{showMessage}</Text>
-                )}
-              </View>
-            </View>
-          </BottomModal>
-          <MuteToggle
-            init={mute}
-            onToggleChange={(newVal) => {
-              setMute(newVal);
-            }}
-          />
+          <BottomModal>{settingsChildren}</BottomModal>
+          <MuteToggle init={mute} onToggleChange={handleMuteChange} />
         </View>
 
         <StatusBar style="auto" />
@@ -586,6 +644,97 @@ export default function MinesOfDoom() {
     </Context.Provider>
   );
 }
+
+// Memoized so re-renders from tapping the mine don't re-render the whole
+// settings UI (switches, inputs, modal) on every tap.
+const SettingsContent = memo(function SettingsContent({
+  equationSettings,
+  onChangeEquationSettings,
+  showMessage,
+  onSave,
+  onReset,
+}: {
+  equationSettings: EquationSettings;
+  onChangeEquationSettings: (newSettings: EquationSettings) => void;
+  showMessage: string | null;
+  onSave: () => void;
+  onReset: () => void; }) {
+  return (
+    <View style={{ gap: 2, marginTop: 5 }}>
+      <IntegerInput
+        label="Max constant value in equations: "
+        defaultValue={equationSettings.maxNumber}
+        onChangeValue={(newVal) =>
+          onChangeEquationSettings({
+            ...equationSettings,
+            maxNumber: newVal,
+          })
+        }
+      />
+      <View
+        style={{
+          ...styles.flexCenteredRow,
+          gap: 4,
+        }}
+      >
+        <Text style={styles.text}>*</Text>
+        <Switch
+          value={equationSettings.multiply}
+          onValueChange={(newVal) => {
+            onChangeEquationSettings({
+              ...equationSettings,
+              multiply: newVal,
+            });
+          }}
+        />
+        <Text style={styles.text}>+</Text>
+        <Switch
+          value={equationSettings.add}
+          onValueChange={(newVal) => {
+            onChangeEquationSettings({ ...equationSettings, add: newVal });
+          }}
+        />
+        <Text style={styles.text}>-</Text>
+        <Switch
+          value={equationSettings.subtract}
+          onValueChange={(newVal) => {
+            onChangeEquationSettings({
+              ...equationSettings,
+              subtract: newVal,
+            });
+          }}
+        />
+        <Text style={styles.text}>/</Text>
+        <Switch
+          value={equationSettings.division}
+          onValueChange={(newVal) => {
+            onChangeEquationSettings({
+              ...equationSettings,
+              division: newVal,
+            });
+          }}
+        />
+      </View>
+      <View
+        style={{
+          ...styles.flexCenteredRow,
+          gap: 4,
+          marginTop: 10,
+        }}
+      >
+        <Button title="Save" onPress={onSave} />
+        <ConfirmableButton
+          title="Reset"
+          description="Will delete current save data and reset to initial state."
+          onPress={onReset}
+        />
+      </View>
+      <View style={{ alignSelf: "center", margin: 10 }}>
+        {showMessage && <Text style={{ ...styles.text }}>{showMessage}</Text>}
+      </View>
+    </View>
+  );
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -625,6 +774,11 @@ const styles = StyleSheet.create({
   },
   depthText: {
     color: "#b0a090",
+    fontSize: 12,
+    userSelect: "none",
+  },
+  pendingGainText: {
+    color: "#8fbf8f",
     fontSize: 12,
     userSelect: "none",
   },
