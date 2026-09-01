@@ -3,10 +3,6 @@
 Status: planning draft
 Last updated: 2026-08-31
 
-## TODO
-
-- Add tooltips on math operator toggles showing how calculations for mining work
-
 ## 1. Current State (baseline)
 
 - Core loop: solve a math equation → gain minerals × click power × combo multiplier.
