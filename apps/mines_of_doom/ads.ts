@@ -72,6 +72,20 @@ export const devSimAdProvider: AdProvider = {
     }),
 };
 
+/**
+ * The ONE LINE that swaps ad integrations (mirrors `selectIapProvider` in
+ * iaps.ts). Today: dev builds run the labeled simulation so the full
+ * watch → reward → daily caps flow is exercisable without an ad account;
+ * production runs the no-op (no ad SDK bundled, entry points hidden, web
+ * stays 100% free — guardrail 5). When the real SDK lands
+ * (docs/store-integration.md), this body becomes e.g.
+ * `Platform.OS === "web" ? noopAdProvider : sdkAdProvider` —
+ * `MinesOfDoom.tsx` and every reward rule below are untouched by that change.
+ */
+export function selectAdProvider(dev: boolean): AdProvider {
+  return dev ? devSimAdProvider : noopAdProvider;
+}
+
 // ---------------------------------------------------------------------------
 // Reward rules
 // ---------------------------------------------------------------------------

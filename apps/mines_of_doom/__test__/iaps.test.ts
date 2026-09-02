@@ -2,6 +2,7 @@ import {
   IAP_PACK_GRANTS,
   IAP_PRODUCTS,
   IAP_PRODUCT_LIST,
+  IAP_STORE_IDS,
   IapProductId,
   devSimIapProvider,
   emptyIapEntitlements,
@@ -11,6 +12,7 @@ import {
   iapGrantCosmeticIds,
   mergeIapEntitlements,
   noopIapProvider,
+  selectIapProvider,
 } from "../iaps";
 import {
   CAVE_THEMES,
@@ -19,6 +21,29 @@ import {
 } from "../cosmetics";
 
 const ALL_PRODUCT_IDS = Object.keys(IAP_PRODUCTS) as IapProductId[];
+
+describe("store product ids (docs/store-integration.md table)", () => {
+  it("every product has a Play-Billing-safe, unique store id", () => {
+    const seen = new Set<string>();
+    for (const p of IAP_PRODUCT_LIST) {
+      // Play Billing SKUs: a-z, 0-9, _, no dots; App Store + RevenueCat
+      // accept the same slug, so ONE id serves both stores.
+      expect(p.storeId).toMatch(/^[a-z][a-z0-9_]{0,59}$/);
+      expect(seen.has(p.storeId)).toBe(false);
+      seen.add(p.storeId);
+      // The store id and the internal id must NOT collide — they name
+      // different things (store SKU vs entitlement key).
+      expect(p.storeId).not.toBe(p.id);
+    }
+  });
+
+  it("IAP_STORE_IDS is derived from the catalog and stays in sync", () => {
+    for (const id of ALL_PRODUCT_IDS) {
+      expect(IAP_STORE_IDS[id]).toBe(IAP_PRODUCTS[id].storeId);
+    }
+    expect(Object.keys(IAP_STORE_IDS)).toHaveLength(ALL_PRODUCT_IDS.length);
+  });
+});
 
 describe("IAP catalog (plan §5.2)", () => {
   it("lists Remove Ads with a plain label, a display price, and a blurb", () => {
@@ -172,5 +197,18 @@ describe("providers", () => {
       expect(provider.purchase("removeAds")).resolves.toBeDefined();
       expect(provider.restore()).resolves.toBeDefined();
     }
+  });
+});
+
+describe("provider selection (the one-line swap point)", () => {
+  it("production (dev: false) selects the no-op provider", () => {
+    // Pins guardrail 5: no store SDK is bundled today, so production
+    // selects the no-op whose entry points stay hidden. When the real
+    // provider lands, this test asserts the swap is deliberate.
+    expect(selectIapProvider(false)).toBe(noopIapProvider);
+  });
+
+  it("dev builds select the labeled simulation", () => {
+    expect(selectIapProvider(true)).toBe(devSimIapProvider);
   });
 });

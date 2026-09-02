@@ -39,6 +39,16 @@ export type PurchaseResult = "purchased" | "cancelled" | "error";
 /** One row of the (deliberately tiny) store catalog. */
 export interface IapProduct {
   readonly id: IapProductId;
+  /**
+   * The STORE-side product id (Play Billing SKU / App Store product id /
+   * RevenueCat product id — one canonical slug for both stores). Deliberately
+   * separate from `id` (the internal key that also appears in entitlements
+   * and analytics): store ids have platform constraints (Play Billing SKUs
+   * are lowercase a-z/0-9/_, no dots) and are created in the stores BEFORE
+   * this code ships, so they must stay stable once live. The runbook in
+   * docs/store-integration.md creates products with exactly these ids.
+   */
+  readonly storeId: string;
   /** Plain-language name shown on the purchase page. */
   readonly label: string;
   /**
@@ -59,6 +69,7 @@ export interface IapProduct {
 export const IAP_PRODUCTS: Record<IapProductId, IapProduct> = {
   removeAds: {
     id: "removeAds",
+    storeId: "remove_ads",
     label: "Remove Ads",
     priceLabel: "$2.99",
     blurb:
@@ -68,6 +79,7 @@ export const IAP_PRODUCTS: Record<IapProductId, IapProduct> = {
   },
   packShadowPick: {
     id: "packShadowPick",
+    storeId: "pack_shadow_pickaxe",
     label: "Shadow Pickaxe",
     priceLabel: "$1.99",
     blurb:
@@ -76,6 +88,7 @@ export const IAP_PRODUCTS: Record<IapProductId, IapProduct> = {
   },
   packOniOutfit: {
     id: "packOniOutfit",
+    storeId: "pack_crimson_oni",
     label: "Crimson Oni Outfit",
     priceLabel: "$0.99",
     blurb:
@@ -84,6 +97,7 @@ export const IAP_PRODUCTS: Record<IapProductId, IapProduct> = {
   },
   packCherryTheme: {
     id: "packCherryTheme",
+    storeId: "pack_cherry_indigo",
     label: "Cherry & Indigo Theme",
     priceLabel: "$2.99",
     blurb:
@@ -94,6 +108,19 @@ export const IAP_PRODUCTS: Record<IapProductId, IapProduct> = {
 
 /** Products in display order (Remove Ads first, packs after). */
 export const IAP_PRODUCT_LIST: IapProduct[] = Object.values(IAP_PRODUCTS);
+
+/**
+ * Store-side ids keyed by internal id — what a real `IapProvider` passes to
+ * the store SDKs, and the table the store console setup follows (see
+ * docs/store-integration.md). Derived from the catalog so the two can't
+ * drift; a test pins uniqueness + Play Billing SKU shape.
+ */
+export const IAP_STORE_IDS: Record<IapProductId, string> = Object.fromEntries(
+  (Object.keys(IAP_PRODUCTS) as IapProductId[]).map((id) => [
+    id,
+    IAP_PRODUCTS[id].storeId,
+  ]),
+) as Record<IapProductId, string>;
 
 /**
  * Which cosmetic each pack grants. Pure catalog data: the pack id maps to
@@ -208,6 +235,20 @@ export const devSimIapProvider: IapProvider = {
     }),
   restore: async () => ({}),
 };
+
+/**
+ * The ONE LINE that swaps store integrations (plan §5.2 / todo item: "the
+ * provider swap is one line"). Today: dev builds run the labeled simulation
+ * (the full buy → unlock → Cosmetics flow is exercisable without any store
+ * account), production runs the no-op (nothing bundled, entry points
+ * hidden, web stays 100% free — guardrail 5). When the real SDK lands
+ * (docs/store-integration.md), this body becomes e.g.
+ * `Platform.OS === "web" ? noopIapProvider : revenueCatIapProvider` —
+ * `MinesOfDoom.tsx` and every rule above it are untouched by that change.
+ */
+export function selectIapProvider(dev: boolean): IapProvider {
+  return dev ? devSimIapProvider : noopIapProvider;
+}
 
 // ---------------------------------------------------------------------------
 // Entitlement state

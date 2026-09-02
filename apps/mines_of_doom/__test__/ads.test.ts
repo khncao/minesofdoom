@@ -6,7 +6,10 @@ import {
   AdRewardsState,
   applyAdReward,
   computeAdEligibility,
+  devSimAdProvider,
   getAdRewardState,
+  noopAdProvider,
+  selectAdProvider,
 } from "../ads";
 import { getLocalDayKey } from "../dailyBonus";
 
@@ -122,5 +125,18 @@ describe("applyAdReward", () => {
     expect(applyAdReward(yesterday, "offlineDouble", day(11))).toEqual(
       state(getLocalDayKey(day(11)), 0, 1),
     );
+  });
+});
+
+describe("provider selection (the one-line swap point)", () => {
+  it("production (dev: false) selects the no-op provider", () => {
+    // Pins guardrail 5: no ad SDK is bundled today, so production selects
+    // the no-op whose entry points stay hidden. When the real provider
+    // lands, this test asserts the swap is deliberate.
+    expect(selectAdProvider(false)).toBe(noopAdProvider);
+  });
+
+  it("dev builds select the labeled simulation", () => {
+    expect(selectAdProvider(true)).toBe(devSimAdProvider);
   });
 });

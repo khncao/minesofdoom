@@ -61,15 +61,14 @@ import { noteCrashEvent, setCrashContextState } from "./crashContext";
 import { useDailyBonus } from "./hooks/useDailyBonus";
 import { useAnalytics } from "./hooks/useAnalytics";
 import { useAdRewards } from "./hooks/useAdRewards";
-import { devSimAdProvider, noopAdProvider, type AdKind } from "./ads";
+import { selectAdProvider, type AdKind } from "./ads";
 import { useIap } from "./hooks/useIap";
 import {
   IapProductId,
   IAP_PRODUCTS,
-  devSimIapProvider,
   hasIapEntitlement,
-  noopIapProvider,
   iapGrantCosmeticIds,
+  selectIapProvider,
 } from "./iaps";
 import LoadingScreen from "./components/LoadingScreen";
 import AdRewardsPanel from "./components/AdRewardsPanel";
@@ -519,7 +518,9 @@ export default function MinesOfDoom() {
   // free). Dev builds run a clearly labeled simulation so the full flow —
   // watch → reward → daily caps — can be exercised before the real SDK
   // integration swaps in behind the same interface.
-  const adProvider = __DEV__ ? devSimAdProvider : noopAdProvider;
+  // The provider selection itself is the documented one-line swap point
+  // (selectAdProvider — see its docs; real SDK swap is docs/store-integration.md).
+  const adProvider = selectAdProvider(__DEV__);
   const adRewards = useAdRewards({
     provider: adProvider,
     grantGems,
@@ -537,7 +538,10 @@ export default function MinesOfDoom() {
   // swaps in behind the same interface. Dev builds run a clearly labeled
   // simulation. Entitlements are device-local and never travel in the
   // save; the first validated purchase feeds the analytics record.
-  const iapProvider = __DEV__ ? devSimIapProvider : noopIapProvider;
+  // The provider selection itself is the documented one-line swap point
+  // (selectIapProvider — see its docs; real store SDK swap is
+  // docs/store-integration.md).
+  const iapProvider = selectIapProvider(__DEV__);
   const iap = useIap({
     provider: iapProvider,
     onPurchased: onFirstIap,
