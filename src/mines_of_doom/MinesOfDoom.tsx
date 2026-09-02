@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import { MutableRefObject, useCallback, useEffect, useMemo, useRef } from "react";
-import { Platform, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useLocalStorage } from "src/hooks/useLocalStorage";
 import type { DebrisParticlesRef } from "src/components/DebrisParticles";
 import type { BlockBreakRef } from "src/components/BlockBreak";
@@ -89,6 +89,14 @@ export default function MinesOfDoom() {
   // so returning players don't flash it for a frame on cold start.
   const [onboardingDone, setOnboardingDone, onboardingLoading] =
     useLocalStorage<boolean>("onboardingDone", false);
+
+  // Purchase section collapsed state (plan "Adjust"): the upgrade list can
+  // be hidden entirely to give the cave canvas the whole mid-screen. Like
+  // `mute`, it's a plain display preference persisted in AsyncStorage.
+  const [hidePurchases, setHidePurchases] = useLocalStorage<boolean>(
+    "hidePurchases",
+    false,
+  );
 
   const { showMessage, displayMessage } = useMessages();
   // Autosave cadence (seconds) read by the game loop; kept in a ref so the
@@ -644,35 +652,9 @@ export default function MinesOfDoom() {
           comboMultiplier={comboMultiplier}
           flashAnim={flashAnim}
         />
-        <PurchaseButtons
-          visible={visiblePurchases}
-          minerals={gameState.minerals}
-          gems={gameState.gems}
-          clickPower={gameState.clickPower}
-          minerPower={gameState.minerPower}
-          minerPowerUnlocked={gameState.completedTiers.includes(MINER_POWER_UNLOCK_TIER)}
-          miners={gameState.miners}
-          fastMiners={gameState.fastMiners}
-          legendaryMiners={gameState.legendaryMiners}
-          gemChanceLevels={gameState.gemChanceLevels}
-          fastMinerUnlocked={gameState.completedTiers.includes(FAST_MINER_UNLOCK_TIER)}
-          legendaryMinerUnlocked={gameState.completedTiers.includes(LEGENDARY_MINER_UNLOCK_TIER)}
-          prestigeLevel={gameState.prestigeLevel}
-          lifetimeMinerals={gameState.lifetimeMinerals}
-          prestigeUnlocked={gameState.completedTiers.includes(PRESTIGE_UNLOCK_TIER)}
-          clickBoostLevels={gameState.clickBoostLevels}
-          comboResistLevels={gameState.comboResistLevels}
-          onUpgradePower={upgradePower}
-          onBuyMiner={buyMiner}
-          onBuyFastMiner={buyFastMiner}
-          onBuyLegendaryMiner={buyLegendaryMiner}
-          onBuyGem={buyGem}
-          onBuyGemChance={buyGemChance}
-          onBuyClickBoost={buyClickBoost}
-          onBuyComboResist={buyComboResist}
-          onUpgradeMinerPower={upgradeMinerPower}
-          onSinkNewShaft={sinkNewShaft}
-        />
+        {/* Plan "Adjust" — canvas always visible: the cave sits ABOVE the
+            purchase section, which is height-capped, scrollable, and
+            collapsible, so no unlock count can ever push the canvas off. */}
         <MiningCanvas
           depth={depth}
           tint={caveTint}
@@ -692,6 +674,56 @@ export default function MinesOfDoom() {
           reduceMotion={reduceMotion}
           emojiArt={settingsData.emojiArt}
         />
+        <View style={styles.purchasesSection}>
+          <View style={styles.purchasesHeader}>
+            <Pressable
+              testID="purchases-toggle"
+              accessibilityRole="button"
+              accessibilityLabel={
+                hidePurchases ? "Show upgrades" : "Hide upgrades"
+              }
+              onPress={() => setHidePurchases(!hidePurchases)}
+              style={styles.purchasesToggle}
+            >
+              <Text style={styles.purchasesToggleText}>
+                {hidePurchases ? "▼ UPGRADES" : "▲ UPGRADES"}
+              </Text>
+            </Pressable>
+          </View>
+          {!hidePurchases && (
+            <ScrollView style={styles.purchasesScroll}>
+              <PurchaseButtons
+                visible={visiblePurchases}
+                minerals={gameState.minerals}
+                gems={gameState.gems}
+                clickPower={gameState.clickPower}
+                minerPower={gameState.minerPower}
+                minerPowerUnlocked={gameState.completedTiers.includes(MINER_POWER_UNLOCK_TIER)}
+                miners={gameState.miners}
+                fastMiners={gameState.fastMiners}
+                legendaryMiners={gameState.legendaryMiners}
+                gemChanceLevels={gameState.gemChanceLevels}
+                fastMinerUnlocked={gameState.completedTiers.includes(FAST_MINER_UNLOCK_TIER)}
+                legendaryMinerUnlocked={gameState.completedTiers.includes(LEGENDARY_MINER_UNLOCK_TIER)}
+                prestigeLevel={gameState.prestigeLevel}
+                lifetimeMinerals={gameState.lifetimeMinerals}
+                prestigeUnlocked={gameState.completedTiers.includes(PRESTIGE_UNLOCK_TIER)}
+                clickBoostLevels={gameState.clickBoostLevels}
+                comboResistLevels={gameState.comboResistLevels}
+                onUpgradePower={upgradePower}
+                onBuyMiner={buyMiner}
+                onBuyFastMiner={buyFastMiner}
+                onBuyLegendaryMiner={buyLegendaryMiner}
+                onBuyGem={buyGem}
+                onBuyGemChance={buyGemChance}
+                onBuyClickBoost={buyClickBoost}
+                onBuyComboResist={buyComboResist}
+                onUpgradeMinerPower={upgradeMinerPower}
+                onSinkNewShaft={sinkNewShaft}
+              />
+            </ScrollView>
+          )}
+        </View>
         {showMessage && (
           <View style={styles.messageOverlay} pointerEvents="none">
             <Text style={styles.messageText}>{showMessage}</Text>

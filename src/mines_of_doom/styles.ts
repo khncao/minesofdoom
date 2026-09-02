@@ -17,6 +17,41 @@ export const styles = StyleSheet.create({
     backgroundColor: "#2f1f1f",
     margin: 4,
     overflow: "hidden",
+    // Floor so the cave is never squeezed out of existence on short
+    // screens (plan "Adjust" — canvas always visible): the purchase
+    // section below it is height-capped, and this stops the canvas from
+    // ever collapsing to zero between the two.
+    minHeight: 140,
+  },
+  // Purchase section (plan "Adjust"): the upgrade list lives BELOW the
+  // canvas in a height-capped, scrollable box that can be collapsed
+  // entirely, so however many buttons the economy unlocks, the cave
+  // canvas keeps its flex space (see MinesOfDoom.tsx).
+  purchasesSection: {
+    alignSelf: "stretch",
+    // Hard cap: the section scrolls instead of growing with the unlock
+    // count, so it can't push the canvas off-screen on any device.
+    maxHeight: 232,
+  },
+  purchasesHeader: {
+    flexDirection: "row",
+    justifyContent: "center",
+    paddingTop: 2,
+  },
+  purchasesToggle: {
+    backgroundColor: "#3a3a3a",
+    borderRadius: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 14,
+  },
+  purchasesToggleText: {
+    color: "#bbb",
+    fontSize: 11,
+    fontWeight: "bold",
+    userSelect: "none",
+  },
+  purchasesScroll: {
+    flexGrow: 1,
   },
   text: {
     color: "#fff",
