@@ -12,6 +12,7 @@ import {
   SaveData,
   buildSaveData,
   computeOfflineMinerals,
+  computeOfflineTopUpMinerals,
   createEmptySaveData,
   gemMineralCost,
   getClickBoostCost,
@@ -80,6 +81,12 @@ export function useGameEngine(
   // the state drives the UI offer.
   const offlineDoubleRef = useRef<number | null>(null);
   const [offlineDouble, setOfflineDouble] = useState<number | null>(null);
+  // "Instant offline top-up" (plan §5.1): when the away time hit the 8h cap,
+  // the minerals WITHHELD beyond it (themselves capped at +2h) are held as
+  // a one-shot offer a completed ad can unlock — same ref+state pattern as
+  // offlineDouble (ref for synchronous one-shot claiming, state for UI).
+  const offlineTopUpRef = useRef<number | null>(null);
+  const [offlineTopUp, setOfflineTopUp] = useState<number | null>(null);
 
   // Mark dirty on any state change after load. setSaveDirty(true) is a
   // no-op re-render when the flag is already true (React bails out).
@@ -92,7 +99,11 @@ export function useGameEngine(
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const finish = (data: SaveData | null, offlineMinerals: number) => {
+      const finish = (
+        data: SaveData | null,
+        offlineMinerals: number,
+        offlineTopUp: number,
+      ) => {
         loadedRef.current = true;
         if (cancelled) return;
         setIsLoaded(true);
@@ -107,6 +118,10 @@ export function useGameEngine(
             6000,
           );
         }
+        if (offlineTopUp > 0) {
+          offlineTopUpRef.current = offlineTopUp;
+          setOfflineTopUp(offlineTopUp);
+        }
       };
 
       let raw: string | null;
@@ -114,10 +129,10 @@ export function useGameEngine(
         raw = await getSaveData();
       } catch (e) {
         console.warn("Failed to read save data", e);
-        return finish(null, 0);
+        return finish(null, 0, 0);
       }
       if (raw == null) {
-        return finish(null, 0);
+        return finish(null, 0, 0);
       }
 
       let parsed: Partial<SaveData>;
@@ -133,10 +148,10 @@ export function useGameEngine(
         } catch (e) {
           console.warn("Failed to back up corrupt save", e);
         }
-        return finish(null, 0);
+        return finish(null, 0, 0);
       }
       if (parsed == null || typeof parsed !== "object") {
-        return finish(null, 0);
+        return finish(null, 0, 0);
       }
 
       // Run versioned migrations, then build the save defensively (see
@@ -155,6 +170,15 @@ export function useGameEngine(
         getPrestigeMultiplier(saveData.prestigeLevel),
         saveData.legendaryMiners,
       );
+      const offlineTopUp = computeOfflineTopUpMinerals(
+        saveData.miners,
+        saveData.minerPower,
+        saveData.fastMiners,
+        saveData.saveTime,
+        now,
+        getPrestigeMultiplier(saveData.prestigeLevel),
+        saveData.legendaryMiners,
+      );
 
       return finish(
         {
@@ -164,6 +188,7 @@ export function useGameEngine(
           lifetimeMinerals: saveData.lifetimeMinerals + offlineMinerals,
         },
         offlineMinerals,
+        offlineTopUp,
       );
     })();
     return () => {
@@ -306,6 +331,22 @@ export function useGameEngine(
     if (pending == null || pending <= 0) return;
     offlineDoubleRef.current = null;
     setOfflineDouble(null);
+    setGameState((s: SaveData) => ({
+      ...s,
+      minerals: s.minerals + pending,
+      ...lifetimeDelta(s, { minerals: pending }),
+    }));
+  }, []);
+
+  // Consume the pending "+2h offline top-up" offer (see offlineTopUpRef):
+  // grants the minerals withheld beyond the 8h cap — the base haul was
+  // already paid at load — and clears the offer. No-op when nothing is
+  // pending (offer already claimed, or the haul never hit the cap).
+  const claimOfflineTopUp = useCallback(() => {
+    const pending = offlineTopUpRef.current;
+    if (pending == null || pending <= 0) return;
+    offlineTopUpRef.current = null;
+    setOfflineTopUp(null);
     setGameState((s: SaveData) => ({
       ...s,
       minerals: s.minerals + pending,
@@ -633,11 +674,24 @@ export function useGameEngine(
       getPrestigeMultiplier(decoded.prestigeLevel),
       decoded.legendaryMiners,
     );
+    const topUp = computeOfflineTopUpMinerals(
+      decoded.miners,
+      decoded.minerPower,
+      decoded.fastMiners,
+      decoded.saveTime,
+      now,
+      getPrestigeMultiplier(decoded.prestigeLevel),
+      decoded.legendaryMiners,
+    );
     setGameState({
       ...decoded,
       minerals: decoded.minerals + offline,
       lifetimeMinerals: decoded.lifetimeMinerals + offline,
     });
+    if (topUp > 0) {
+      offlineTopUpRef.current = topUp;
+      setOfflineTopUp(topUp);
+    }
     return true;
   }, []);
 
@@ -668,6 +722,8 @@ export function useGameEngine(
     grantGems,
     offlineDouble,
     claimOfflineDouble,
+    offlineTopUp,
+    claimOfflineTopUp,
     applyAnswerReward,
     upgradePower,
     buyMiner,

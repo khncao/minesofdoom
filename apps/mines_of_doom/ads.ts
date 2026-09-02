@@ -18,7 +18,7 @@
 import { getLocalDayKey } from "./dailyBonus";
 
 /** The kinds of rewards a completed ad can grant. */
-export type AdKind = "gemRolls" | "offlineDouble";
+export type AdKind = "gemRolls" | "offlineDouble" | "offlineTopUp";
 
 /**
  * Outcome of a rewarded ad session. Only "rewarded" entitles the player to
@@ -128,9 +128,10 @@ export type AdEligibility = {
 
 /**
  * What a completed ad of `kind` would grant right now, without mutating
- * anything. `offlineDouble` additionally needs a pending offline haul to
- * double — the caller (the engine knows it) checks that; this covers the
- * daily-cap side of eligibility.
+ * anything. `offlineDouble` and `offlineTopUp` additionally need their
+ * pending offers (a haul to double / an 8h-cap top-up) — the caller (the
+ * engine knows them) checks that; this covers the daily-cap side of
+ * eligibility.
  */
 export function computeAdEligibility(
   state: AdRewardsState | null,

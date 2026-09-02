@@ -5,6 +5,7 @@ import {
   DEPTH_TIERS,
   GEM_CHANCE_MAX_LEVELS,
   computeOfflineMinerals,
+  computeOfflineTopUpMinerals,
   createEmptySaveData,
   gemChancePerLevel,
   getClickUpgradeCost,
@@ -34,6 +35,7 @@ import {
   PRESTIGE_LEVELS,
   migrateSaveData,
   msPerTick,
+  offlineTopUpTicks,
   saveVersion,
   ALL_PURCHASE_IDS,
   ALWAYS_VISIBLE_PURCHASES,
@@ -474,6 +476,45 @@ describe("computeOfflineMinerals", () => {
     );
     // Default multiplier (no argument) is 1 — same as before.
     expect(computeOfflineMinerals(2, 3, 0, now - 10 * msPerTick, now)).toBe(60);
+  });
+});
+
+describe("computeOfflineTopUpMinerals", () => {
+  const now = 1_000_000_000;
+  const hour = 3600 * 1000;
+
+  test("zero saveTime / no elapsed time => 0 (nothing to top up)", () => {
+    expect(computeOfflineTopUpMinerals(2, 3, 0, 0, now)).toBe(0);
+    expect(computeOfflineTopUpMinerals(2, 3, 0, now, now)).toBe(0);
+    expect(computeOfflineTopUpMinerals(2, 3, 0, now + 1000, now)).toBe(0);
+  });
+
+  test("0 while the away time never hit the 8h cap", () => {
+    // 7h59m away — the cap never engaged, so nothing was withheld.
+    expect(
+      computeOfflineTopUpMinerals(2, 3, 0, now - (maxOfflineTicks - 60) * msPerTick, now),
+    ).toBe(0);
+  });
+
+  test("pays the withheld hours once the away time exceeds the cap", () => {
+    // 9h away: 1h beyond the cap.
+    expect(computeOfflineTopUpMinerals(2, 3, 0, now - 9 * hour, now)).toBe(
+      getMineralsPerSec(2, 3, 0) * 3600,
+    );
+  });
+
+  test("the top-up itself caps at offlineTopUpTicks (+2h)", () => {
+    // 15h away: only 2h beyond the cap are granted.
+    expect(computeOfflineTopUpMinerals(2, 3, 0, now - 15 * hour, now)).toBe(
+      getMineralsPerSec(2, 3, 0) * offlineTopUpTicks,
+    );
+  });
+
+  test("fast/legendary miners and the prestige multiplier compose", () => {
+    // 10h away, 2h beyond the cap, x2 banked.
+    expect(
+      computeOfflineTopUpMinerals(2, 3, 3, now - 10 * hour, now, 2, 4),
+    ).toBe(getMineralsPerSec(2, 3, 3, 4) * offlineTopUpTicks * 2);
   });
 });
 

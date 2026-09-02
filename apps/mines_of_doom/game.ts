@@ -442,6 +442,13 @@ export const GEM_CHANCE_MAX_LEVELS = 20;
 export const gemMineralCost = 100000;
 // Cap offline earnings at 8 hours of mining
 export const maxOfflineTicks = 8 * 60 * 60;
+/**
+ * Extra ticks of offline earnings a rewarded ad can unlock (plan §5.1
+ * "instant offline top-up — once offline progress hits the cap, watching
+ * extends it by +2h"). Only meaningful when the away time exceeded
+ * maxOfflineTicks; beyond that the top-up itself caps at these 2h.
+ */
+export const offlineTopUpTicks = 2 * 60 * 60;
 // Minerals per depth meter
 export const mineralsPerDepth = 500;
 
@@ -912,6 +919,37 @@ export function computeOfflineMinerals(
   return (
     getMineralsPerSec(miners, minerPower, fastMiners, legendaryMiners) *
     elapsedTicks *
+    multiplier
+  );
+}
+
+/**
+ * Pure offline-top-up calculation (plan §5.1): the EXTRA minerals a
+ * completed ad would grant — the away-time beyond the 8h cap, itself
+ * capped at offlineTopUpTicks. Zero when the haul never hit the cap
+ * (nothing was withheld), so callers only hold a pending offer when the
+ * return is > 0.
+ */
+export function computeOfflineTopUpMinerals(
+  miners: number,
+  minerPower: number,
+  fastMiners: number,
+  saveTime: number,
+  now: number,
+  multiplier = 1,
+  legendaryMiners: number = 0,
+): number {
+  if (saveTime <= 0 || now <= saveTime) {
+    return 0;
+  }
+  const elapsedTicks = Math.floor((now - saveTime) / msPerTick);
+  if (elapsedTicks <= maxOfflineTicks) {
+    return 0; // no cap was hit — nothing to top up
+  }
+  const extraTicks = Math.min(offlineTopUpTicks, elapsedTicks - maxOfflineTicks);
+  return (
+    getMineralsPerSec(miners, minerPower, fastMiners, legendaryMiners) *
+    extraTicks *
     multiplier
   );
 }

@@ -30,6 +30,8 @@ export function useAdRewards({
   grantGems,
   offlineDouble,
   claimOfflineDouble,
+  offlineTopUp,
+  claimOfflineTopUp,
   displayMessage,
   onAdView,
 }: {
@@ -40,6 +42,10 @@ export function useAdRewards({
   offlineDouble: number | null;
   /** Engine callback: consume the pending offline-double offer. */
   claimOfflineDouble: () => void;
+  /** The pending "+2h offline top-up" haul from the last load (null = none). */
+  offlineTopUp: number | null;
+  /** Engine callback: consume the pending offline-top-up offer. */
+  claimOfflineTopUp: () => void;
   displayMessage: (message: string, timeout: number) => void;
   /** Fired when the player taps "watch" (analytics first-ad-view). */
   onAdView?: (kind: AdKind) => void;
@@ -73,6 +79,12 @@ export function useAdRewards({
       ) {
         return; // no haul to double — the UI should have disabled the row
       }
+      if (
+        kind === "offlineTopUp" &&
+        (offlineTopUp == null || offlineTopUp <= 0)
+      ) {
+        return; // nothing was withheld by the 8h cap — row disabled
+      }
       const eligibility = computeAdEligibility(stateRef.current, kind, now);
       if (!eligibility.eligible) return;
       claimingRef.current = true;
@@ -88,11 +100,18 @@ export function useAdRewards({
                 `Ad finished: +${formatNumber(eligibility.gems)} ${emojis.gem}`,
                 4000,
               );
-            } else {
+            } else if (kind === "offlineDouble") {
               claimOfflineDouble();
               displayMessage(
                 `Ad finished: offline haul doubled ` +
                   `(+${formatNumber(offlineDouble ?? 0)} ${emojis.mineral})`,
+                5000,
+              );
+            } else {
+              claimOfflineTopUp();
+              displayMessage(
+                `Ad finished: +2h offline top-up ` +
+                  `(+${formatNumber(offlineTopUp ?? 0)} ${emojis.mineral})`,
                 5000,
               );
             }
@@ -114,6 +133,8 @@ export function useAdRewards({
       grantGems,
       offlineDouble,
       claimOfflineDouble,
+      offlineTopUp,
+      claimOfflineTopUp,
       displayMessage,
       onAdView,
       setState,
@@ -134,6 +155,11 @@ export function useAdRewards({
       available &&
       offlineDouble != null &&
       offlineDouble > 0 &&
+      dailyCapLeft > 0,
+    canClaimOfflineTopUp:
+      available &&
+      offlineTopUp != null &&
+      offlineTopUp > 0 &&
       dailyCapLeft > 0,
     claim,
   };

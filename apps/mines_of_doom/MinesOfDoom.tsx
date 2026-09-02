@@ -101,6 +101,8 @@ export default function MinesOfDoom() {
     grantGems,
     offlineDouble,
     claimOfflineDouble,
+    offlineTopUp,
+    claimOfflineTopUp,
     upgradePower,
     buyMiner,
     buyFastMiner,
@@ -458,6 +460,8 @@ export default function MinesOfDoom() {
     grantGems,
     offlineDouble,
     claimOfflineDouble,
+    offlineTopUp,
+    claimOfflineTopUp,
     displayMessage,
     onAdView: onFirstAdView,
   });
@@ -605,6 +609,7 @@ export default function MinesOfDoom() {
               gemRollsLeft={adRewards.gemRollsLeft}
               dailyCapLeft={adRewards.dailyCapLeft}
               offlineDouble={offlineDouble}
+              offlineTopUp={offlineTopUp}
               claiming={adRewards.claiming}
               onClaim={adRewards.claim}
             />

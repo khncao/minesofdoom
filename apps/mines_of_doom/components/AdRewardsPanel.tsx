@@ -10,6 +10,7 @@ import {
   AD_GEM_ROLLS_PER_USE,
   AD_MAX_REWARDS_PER_DAY,
 } from "../ads";
+import { offlineTopUpTicks } from "../game";
 import { styles } from "../styles";
 
 /**
@@ -29,6 +30,7 @@ function AdRewardsPanel({
   gemRollsLeft,
   dailyCapLeft,
   offlineDouble,
+  offlineTopUp,
   claiming,
   onClaim,
 }: {
@@ -37,6 +39,8 @@ function AdRewardsPanel({
   gemRollsLeft: number;
   dailyCapLeft: number;
   offlineDouble: number | null;
+  /** Minerals withheld beyond the 8h cap that a completed ad would grant. */
+  offlineTopUp: number | null;
   claiming: AdKind | null;
   onClaim: (kind: AdKind) => void;
 }) {
@@ -96,6 +100,30 @@ function AdRewardsPanel({
             }
             title={claiming === "offlineDouble" ? "Playing…" : "Watch"}
             onPress={() => onClaim("offlineDouble")}
+          />
+        </View>
+
+        <View style={styles.flexCenteredRow}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={styles.text}>
+              ⏱️ Offline top-up (+{offlineTopUpTicks / 3600}h)
+            </Text>
+            <Text style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}>
+              {offlineTopUp != null && offlineTopUp > 0
+                ? `The 8h cap withheld your last haul — ` +
+                  `watch to earn the next ${offlineTopUpTicks / 3600}h: ` +
+                  `+${formatNumber(offlineTopUp)} ${emojis.mineral}`
+                : "Available when an offline haul hits the 8h cap."}
+            </Text>
+          </View>
+          <Button
+            disabled={
+              claiming != null ||
+              (offlineTopUp ?? 0) <= 0 ||
+              dailyCapLeft <= 0
+            }
+            title={claiming === "offlineTopUp" ? "Playing…" : "Watch"}
+            onPress={() => onClaim("offlineTopUp")}
           />
         </View>
 

@@ -83,6 +83,17 @@ describe("computeAdEligibility", () => {
       computeAdEligibility(rollsExhausted, "offlineDouble", day(10)),
     ).toEqual({ eligible: true, gems: 0 });
   });
+
+  it("lets offlineTopUp through and caps it like the other kinds", () => {
+    expect(computeAdEligibility(null, "offlineTopUp", day(10))).toEqual({
+      eligible: true,
+      gems: 0,
+    });
+    const atCap = state(getLocalDayKey(day(10)), 0, AD_MAX_REWARDS_PER_DAY);
+    expect(
+      computeAdEligibility(atCap, "offlineTopUp", day(10)).eligible,
+    ).toBe(false);
+  });
 });
 
 describe("applyAdReward", () => {
@@ -94,11 +105,16 @@ describe("applyAdReward", () => {
 
   it("counts each reward once and only the right kind toward rollsUsed", () => {
     let s: AdRewardsState | null = null;
-    const kinds: AdKind[] = ["gemRolls", "offlineDouble", "gemRolls"];
+    const kinds: AdKind[] = [
+      "gemRolls",
+      "offlineDouble",
+      "offlineTopUp",
+      "gemRolls",
+    ];
     for (const kind of kinds) {
       s = applyAdReward(s, kind, day(10));
     }
-    expect(s).toEqual(state(getLocalDayKey(day(10)), 2, 3));
+    expect(s).toEqual(state(getLocalDayKey(day(10)), 2, 4));
   });
 
   it("rolls over from an earlier day instead of accumulating", () => {
