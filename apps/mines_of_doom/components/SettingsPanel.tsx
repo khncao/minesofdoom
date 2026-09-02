@@ -44,6 +44,10 @@ const TIMED_MODE_HELP =
 const STREAK_MODE_HELP =
   "Answer 5 equations correctly in a row and the streak ignites: every correct answer after that pays ×2 on top of everything else (it stacks with the operator, hard-mode, and timed-mode bonuses). One wrong answer — or a timed-mode timeout — breaks the run and the streak starts over at 0. Unlike your combo, holding the cave does NOT break the streak: the rule is simply no wrong answers.";
 
+/** Emoji-art (low-end) switch tooltip (long-press). */
+const EMOJI_ART_HELP =
+  "Off (default): miners, currency icons, debris and the cave backdrop are procedural pixel sprites. On: plain emoji instead — lighter on low-end devices where PNG decode/render is the bottleneck. Purely visual; gameplay is unchanged.";
+
 /** Show-all-purchases switch tooltip (long-press). */
 const SHOW_ALL_PURCHASES_HELP =
   "Off (default): each upgrade button appears only once you've ever had enough minerals or gems to buy its first level — the screen stays uncluttered as the shop grows. The three core buttons (upgrade power, buy a miner, buy a gem) are always visible. On: every upgrade button is shown at all times, locked or not.";
@@ -230,6 +234,28 @@ const SettingsContent = memo(function SettingsContent({
               onChangeEquationSettings({
                 ...equationSettings,
                 timedMode: newVal,
+              });
+            }}
+          />
+        </View>
+      </Tooltip>
+      <Tooltip label="Emoji art (low-end mode)" content={EMOJI_ART_HELP}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Text style={{ ...styles.text, fontSize: 11 }}>
+            Emoji art (low-end mode):
+          </Text>
+          <Switch
+            value={settingsData.emojiArt}
+            onValueChange={(newVal) => {
+              onChangeSettingsData({
+                ...settingsData,
+                emojiArt: newVal,
               });
             }}
           />

@@ -916,6 +916,10 @@ describe("getVisiblePurchases", () => {
     expect(defaultSettingsData.showAllPurchases).toBe(false);
   });
 
+  test("settings default keeps pixel-sprite art (emoji fallback is opt-in)", () => {
+    expect(defaultSettingsData.emojiArt).toBe(false);
+  });
+
   test("mineral-cost buttons reveal once lifetime minerals reach the base cost", () => {
     const minerPowerBase = getMinerPowerUpgradeCost(1);
     const below: Lifetime = {

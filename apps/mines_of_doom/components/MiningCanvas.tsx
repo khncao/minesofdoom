@@ -11,14 +11,15 @@ import FloatingTextLayer, {
 } from "./FloatingTextLayer";
 import { formatNumber } from "apps/utils/format";
 import { gemSpriteUri, mineralChunkSpriteUri } from "apps/utils/graphics/pixelArt";
+import { emojis } from "apps/utils/graphics/emojis";
 import { rosterSeed } from "../cosmetics";
 import { styles } from "../styles";
 
-// Pixel-art currency icons (plan §4.5), cached PNG data URIs — replaces the
-// old 🪨/💎 emoji display. Module-level so the strings are built once.
-const MINERAL_URI = mineralChunkSpriteUri();
-const GEM_URI = gemSpriteUri();
+// Pixel-art currency icons (plan §4.5) — replaces the old 🪨/💎 emoji
+// display. Call the (internally cached) getters lazily so emoji mode never
+// even bakes the PNGs.
 const CURRENCY_ICON = { width: 20, height: 20 };
+const CURRENCY_EMOJI = { fontSize: 20 };
 
 /**
  * Minimum press duration for a cave press to count as a mine (plan §2.1
@@ -45,6 +46,7 @@ const MiningCanvas = memo(function MiningCanvas({
   outfitId,
   pickaxeId,
   reduceMotion,
+  emojiArt,
 }: {
   depth: number;
   /** Cave background tint for the current depth tier. */
@@ -64,6 +66,8 @@ const MiningCanvas = memo(function MiningCanvas({
   pickaxeId: string;
   /** OS reduce-motion preference: suppresses decorative effects. */
   reduceMotion: boolean;
+  /** Low-end fallback (plan §4.5): emoji instead of pixel sprites. */
+  emojiArt: boolean;
   debrisRef: RefObject<DebrisParticlesRef>;
   blockBreakRef: RefObject<BlockBreakRef>;
   floatingTextRef: RefObject<FloatingTextRef>;
@@ -96,17 +100,35 @@ const MiningCanvas = memo(function MiningCanvas({
       accessibilityRole="button"
       accessibilityLabel="Hold to mine"
     >
-      <CaveBackground depth={depth} tint={tint} />
+      <CaveBackground depth={depth} tint={tint} emojiArt={emojiArt} />
       <FloatingTextLayer ref={floatingTextRef} />
       <View style={{ alignItems: "center" }}>
         <View style={styles.flexCenteredRow}>
-          <Image source={{ uri: MINERAL_URI }} style={CURRENCY_ICON} />
+          {emojiArt ? (
+            <Text style={{ ...CURRENCY_EMOJI, userSelect: "none" }}>
+              {emojis.mineral}
+            </Text>
+          ) : (
+            <Image
+              source={{ uri: mineralChunkSpriteUri() }}
+              style={CURRENCY_ICON}
+            />
+          )}
           <Text style={{ ...styles.text, alignSelf: "center" }}>
             {formatNumber(minerals)}
           </Text>
         </View>
         <View style={styles.flexCenteredRow}>
-          <Image source={{ uri: GEM_URI }} style={CURRENCY_ICON} />
+          {emojiArt ? (
+            <Text style={{ ...CURRENCY_EMOJI, userSelect: "none" }}>
+              {emojis.gem}
+            </Text>
+          ) : (
+            <Image
+              source={{ uri: gemSpriteUri() }}
+              style={CURRENCY_ICON}
+            />
+          )}
           <Text style={{ ...styles.text, alignSelf: "center" }}>
             {formatNumber(gems)}
           </Text>
@@ -121,8 +143,9 @@ const MiningCanvas = memo(function MiningCanvas({
             outfitId={outfitId}
             pickaxeId={pickaxeId}
             reduceMotion={reduceMotion}
+            emojiArt={emojiArt}
           />
-          <DebrisParticles ref={debrisRef} reduceMotion={reduceMotion} />
+          <DebrisParticles ref={debrisRef} reduceMotion={reduceMotion} emojiArt={emojiArt} />
           <BlockBreak ref={blockBreakRef} />
         </View>
         <View
@@ -141,6 +164,7 @@ const MiningCanvas = memo(function MiningCanvas({
               outfitId={outfitId}
               pickaxeId={pickaxeId}
               reduceMotion={reduceMotion}
+              emojiArt={emojiArt}
             />
           ))}
           {/* Fast miners: smaller, seed offset by 1000 so their sprite
@@ -154,6 +178,7 @@ const MiningCanvas = memo(function MiningCanvas({
               outfitId={outfitId}
               pickaxeId={pickaxeId}
               reduceMotion={reduceMotion}
+              emojiArt={emojiArt}
             />
           ))}
           {/* Legendary miners (tier-5 endgame): the premium crew, seed
@@ -168,6 +193,7 @@ const MiningCanvas = memo(function MiningCanvas({
               outfitId={outfitId}
               pickaxeId={pickaxeId}
               reduceMotion={reduceMotion}
+              emojiArt={emojiArt}
             />
           ))}
         </View>

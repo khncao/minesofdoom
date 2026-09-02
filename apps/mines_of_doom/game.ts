@@ -82,6 +82,12 @@ export type SettingsData = {
    * reached the base cost of the first purchase (getVisiblePurchases).
    */
   showAllPurchases: boolean;
+  /**
+   * Low-end fallback (plan §4.5): render plain emoji instead of the
+   * procedural pixel-sprite PNGs (miners, currency icons, debris, cave
+   * strips) for devices where image decode/render is the bottleneck.
+   */
+  emojiArt: boolean;
 };
 
 // TODO: number to bigint
@@ -594,6 +600,7 @@ export function lifetimeDelta(
 export const defaultSettingsData = {
   autosave: 30,
   showAllPurchases: false,
+  emojiArt: false,
 };
 
 /** Every purchase button id (see PurchaseId). */

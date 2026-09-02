@@ -514,6 +514,7 @@ export default function MinesOfDoom() {
           outfitId={gameState.selectedOutfit}
           pickaxeId={gameState.selectedPickaxe}
           reduceMotion={reduceMotion}
+          emojiArt={settingsData.emojiArt}
         />
         {showMessage && (
           <View style={styles.messageOverlay} pointerEvents="none">

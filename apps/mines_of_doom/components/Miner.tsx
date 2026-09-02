@@ -1,5 +1,5 @@
 import React, { MutableRefObject, useContext, useEffect, useMemo, useRef } from "react";
-import { Animated, Image } from "react-native";
+import { Animated, Image, Text } from "react-native";
 import { Context } from "../Context";
 import { getPickaxe, rollMinerLook } from "../cosmetics";
 import { minerSpriteUri, pickaxeSpriteUri } from "apps/utils/graphics/pixelArt";
@@ -17,7 +17,13 @@ export interface MinerProps {
   pickaxeId: string;
   /** OS reduce-motion preference: suppresses the idle bob. */
   reduceMotion?: boolean;
+  /** Low-end fallback (plan §4.5): emoji instead of pixel sprites. */
+  emojiArt?: boolean;
 }
+
+// Emoji bodies for the low-end fallback (plan §4.5): seeded so a miner keeps
+// a stable face across remounts, without any sprite decoding.
+const EMOJI_BODIES = ["👷", "👷‍♂️", "🧑‍🏭", "👨‍🔧"] as const;
 
 // Minimum time between pickaxe swings so fast tapping doesn't queue up
 // unbounded animations (which triggers "Excessive number of pending callbacks").
@@ -113,17 +119,53 @@ function Miner({ scale = 1, ...props }: MinerProps) {
 
   // Programmatic pixel sprites: deterministic per (seed, outfit) / theme,
   // cached as PNG data URIs so all same-variant miners share one image.
+  // Skipped (and never baked) in emoji mode — the return value is unused
+  // there, so "" is a safe placeholder.
   const bodyUri = useMemo(
-    () => minerSpriteUri(rollMinerLook(props.seed, props.outfitId)),
-    [props.seed, props.outfitId],
+    () =>
+      props.emojiArt
+        ? ""
+        : minerSpriteUri(rollMinerLook(props.seed, props.outfitId)),
+    [props.seed, props.outfitId, props.emojiArt],
   );
   const pickaxeUri = useMemo(
-    () => pickaxeSpriteUri(getPickaxe(props.pickaxeId).theme),
-    [props.pickaxeId],
+    () =>
+      props.emojiArt ? "" : pickaxeSpriteUri(getPickaxe(props.pickaxeId).theme),
+    [props.pickaxeId, props.emojiArt],
   );
 
   const bodySize = props.isPlayer ? 44 : 24;
   const pickaxeSize = props.isPlayer ? 36 : 20;
+
+  // Low-end fallback (plan §4.5): plain emoji, no PNG decode/render.
+  if (props.emojiArt) {
+    return (
+      <Animated.View
+        style={{
+          alignItems: "center",
+          transform:
+            bob == null
+              ? [{ translateY: bounceAnim }, { scale }]
+              : [{ translateY: bob }, { translateY: bounceAnim }, { scale }],
+        }}
+      >
+        <Text style={{ fontSize: bodySize * 0.72, userSelect: "none" }}>
+          {EMOJI_BODIES[Math.abs(props.seed) % EMOJI_BODIES.length]}
+        </Text>
+        <Animated.Text
+          style={{
+            fontSize: pickaxeSize * 0.9,
+            marginTop: props.isPlayer ? -14 : -7,
+            marginLeft: props.isPlayer ? 10 : 6,
+            userSelect: "none",
+            transform: [{ rotate: spin }],
+          }}
+        >
+          ⛏️
+        </Animated.Text>
+      </Animated.View>
+    );
+  }
 
   return (
     <Animated.View

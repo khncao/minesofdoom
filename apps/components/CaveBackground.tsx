@@ -15,9 +15,15 @@ interface CaveBackgroundProps {
   depth: number;
   /** Tint for the current depth tier (theme-aware, see `cosmetics.ts`). */
   tint?: string;
+  /** Low-end fallback (plan §4.5): flat tinted rows, no PNG strips. */
+  emojiArt?: boolean;
 }
 
-function CaveBackground({ depth, tint = "#a0856a" }: CaveBackgroundProps) {
+function CaveBackground({
+  depth,
+  tint = "#a0856a",
+  emojiArt = false,
+}: CaveBackgroundProps) {
   const scrollAnim = useRef(new Animated.Value(0)).current;
   const scrollAnimRunRef = useRef<Animated.CompositeAnimation | null>(null);
   const scrollOffset = useRef(0);
@@ -46,12 +52,15 @@ function CaveBackground({ depth, tint = "#a0856a" }: CaveBackgroundProps) {
     [],
   );
 
+  // Skipped entirely in emoji mode — no PNG baking either, not just no render.
   const rows = useMemo(
     () =>
-      Array.from({ length: ROWS + 1 }, (_, i) =>
-        caveRowUri({ depth: depth + i, tint }),
-      ),
-    [depth, tint],
+      emojiArt
+        ? []
+        : Array.from({ length: ROWS + 1 }, (_, i) =>
+            caveRowUri({ depth: depth + i, tint }),
+          ),
+    [depth, tint, emojiArt],
   );
 
   const translateY = scrollAnim.interpolate({
@@ -62,14 +71,23 @@ function CaveBackground({ depth, tint = "#a0856a" }: CaveBackgroundProps) {
   return (
     <View style={styles.container} pointerEvents="none">
       <Animated.View style={{ transform: [{ translateY }] }}>
-        {rows.map((uri, i) => (
-          <Image
-            key={i}
-            source={{ uri }}
-            style={styles.row}
-            resizeMode="stretch"
-          />
-        ))}
+        {emojiArt
+          ? // Flat tinted rows (alternating lightness) — same scroll animation,
+            // zero image decode (plan §4.5 low-end fallback).
+            Array.from({ length: ROWS + 1 }, (_, i) => (
+              <View
+                key={i}
+                style={[styles.row, { backgroundColor: tint, opacity: i % 2 === 0 ? 0.9 : 0.45 }]}
+              />
+            ))
+          : rows.map((uri, i) => (
+              <Image
+                key={i}
+                source={{ uri }}
+                style={styles.row}
+                resizeMode="stretch"
+              />
+            ))}
       </Animated.View>
     </View>
   );
