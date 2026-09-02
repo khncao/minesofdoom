@@ -55,7 +55,14 @@ export function useDailyBonus({
     const claimInfo = computeDailyClaim(current, now);
     if (!claimInfo.claimable) return;
     grantMinerals(claimInfo.bonus);
-    setState(applyDailyClaim(current, now));
+    const next = applyDailyClaim(current, now);
+    // Publish the new state to the ref synchronously: setState only takes
+    // effect on the next render, and a fast second tap before that render
+    // would otherwise see the stale "claimable" state and pay the bonus
+    // again (the unlimited-claim bug on Android). The render assignment
+    // below re-sets the ref to the same value once the state lands.
+    stateRef.current = next;
+    setState(next);
     displayMessage(
       `Daily bonus: +${formatNumber(claimInfo.bonus)} minerals` +
         (claimInfo.nextStreak > 1

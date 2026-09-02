@@ -12,6 +12,10 @@ export function useLocalStorage<T>(
   // so the setter below can be stable.
   const setItemRef = useRef(setItem);
   setItemRef.current = setItem;
+  // True once the setter has run: the in-memory value is then newer than
+  // whatever the initial load finds, so the load must not clobber it with
+  // the stale stored copy.
+  const dirtyRef = useRef(false);
 
   // useAsyncStorage returns new function identities every render, so
   // depending on getItem directly would re-run this effect (and its
@@ -25,6 +29,10 @@ export function useLocalStorage<T>(
     getItemRef.current()
       .then((val) => {
         if (cancelled) return;
+        // A write happened while the load was in flight (slow cold start):
+        // the in-memory state is the source of truth now, and the value
+        // being written is already what we want persisted.
+        if (dirtyRef.current) return;
         if (val != null) {
           try {
             setValue(JSON.parse(val) as T);
@@ -47,6 +55,12 @@ export function useLocalStorage<T>(
 
   const setter = useCallback(
     (newVal: T) => {
+      // Update the in-memory state too: before this, the setter was
+      // write-only, so consumers kept reading the stale initial value until
+      // a reload (mute toggle looked stuck; the daily bonus button stayed
+      // claimable forever, allowing unlimited claims on fast taps).
+      dirtyRef.current = true;
+      setValue(newVal);
       setPending(true);
       setItemRef.current(JSON.stringify(newVal))
         .catch((e) => console.warn(`Failed to write "${key}"`, e))
