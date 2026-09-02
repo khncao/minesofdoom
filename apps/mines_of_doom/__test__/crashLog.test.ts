@@ -14,6 +14,7 @@ const makeEntry = (
   message: "boom",
   stack: "Error: boom\n    at foo",
   count: 1,
+  source: "render",
   ...over,
 });
 
@@ -28,7 +29,14 @@ describe("serializeCrash", () => {
       message: "kaboom",
       stack: "Error: kaboom\n    at mine",
       count: 1,
+      source: "render",
     });
+  });
+
+  it("tags the source layer (render default, global for the ErrorUtils net)", () => {
+    const err = new Error("outside react");
+    expect(serializeCrash(err).source).toBe("render");
+    expect(serializeCrash(err, null, 1, "global").source).toBe("global");
   });
 
   it("keeps a custom error name", () => {
@@ -106,9 +114,17 @@ describe("parseCrashLog", () => {
     expect(parseCrashLog(JSON.stringify({ a: 1 }))).toEqual([]);
   });
 
-  it("round-trips a valid log", () => {
-    const log = [makeEntry(), makeEntry({ ts: 2, message: "b" })];
+  it("round-trips a valid log, including the source layer", () => {
+    const log = [
+      makeEntry({ source: "global" }),
+      makeEntry({ ts: 2, message: "b", source: "render" }),
+    ];
     expect(parseCrashLog(JSON.stringify(log))).toEqual(log);
+  });
+
+  it("defaults a missing source to render (pre-source logs were boundary-only)", () => {
+    const out = parseCrashLog(JSON.stringify([{ message: "old" }]));
+    expect(out[0].source).toBe("render");
   });
 
   it("coerces missing fields to safe defaults", () => {

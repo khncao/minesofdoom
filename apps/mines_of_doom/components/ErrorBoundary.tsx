@@ -35,10 +35,12 @@ type ErrorBoundaryState = {
  *
  * Scope note: this catches render/lifecycle errors in the game screen
  * subtree (the suspected class — an expo-router/native-stack interaction).
- * Errors thrown outside React (e.g. in native module callbacks) still go
- * to the platform logger; capturing those would need ErrorUtils' global
- * handler, which RN 0.76 no longer exposes from the main entry and whose
- * deep import would break the web static export.
+ * Errors thrown OUTSIDE React (native-stack listeners, timers, native
+ * module callbacks) are additionally caught by the ErrorUtils global
+ * handler wrapper (hooks/useGlobalCrashCapture.ts, installed from
+ * apps/index.tsx) and recorded into the same crash log with
+ * source: "global" — that layer is the one that can see the suspected
+ * Android `describe` crash if it happens outside a render.
  */
 export default class ErrorBoundary extends Component<
   ErrorBoundaryProps,
@@ -63,8 +65,10 @@ export default class ErrorBoundary extends Component<
 
   componentDidCatch(error: unknown, errorInfo: ErrorInfo): void {
     // Persist BEFORE re-rendering the fallback: even if the process dies
-    // again immediately, the entry is already in AsyncStorage.
-    recordCrash(error, errorInfo.componentStack);
+    // again immediately, the entry is already in AsyncStorage. (Default
+    // source "render" distinguishes it from global-handler captures in
+    // the Settings list.)
+    recordCrash(error, errorInfo.componentStack, "render");
   }
 
   private handleTryAgain = () => {

@@ -11,6 +11,11 @@
  * save-code and analytics records — defensive on read, small on disk.
  */
 
+/** Which layer caught the crash: the React error boundary, or the global
+ *  (ErrorUtils) handler for errors thrown outside the render tree — e.g.
+ *  inside a native-stack listener, timers, or native module callbacks. */
+export type CrashSource = "render" | "global";
+
 /** One recorded crash. `count` > 1 means the same crash recurred. */
 export type CrashEntry = {
   /** Epoch ms of the most recent occurrence. */
@@ -23,6 +28,9 @@ export type CrashEntry = {
   stack: string;
   /** How many times this exact crash has been logged since it rotated out. */
   count: number;
+  /** Which layer caught it (absent in pre-source logs; parses as "render".
+   *  Old logs were boundary-only, so that default is correct). */
+  source: CrashSource;
 };
 
 /** AsyncStorage key for the crash-log ring buffer. */
@@ -52,6 +60,7 @@ export function serializeCrash(
   error: unknown,
   componentStack?: string | null,
   ts: number = Date.now(),
+  source: CrashSource = "render",
 ): CrashEntry {
   let name = "Error";
   let message = "";
@@ -72,6 +81,7 @@ export function serializeCrash(
     message: message.slice(0, MAX_MESSAGE_LENGTH),
     stack: truncateStack(stack),
     count: 1,
+    source,
   };
 }
 
@@ -129,5 +139,6 @@ function parseEntry(value: unknown): CrashEntry | null {
       typeof v.count === "number" && Number.isFinite(v.count) && v.count >= 1
         ? Math.floor(v.count)
         : 1,
+    source: v.source === "global" ? "global" : "render",
   };
 }

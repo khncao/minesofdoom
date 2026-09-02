@@ -395,6 +395,7 @@ function CrashLogSection() {
             selectable
           >
             {entry.name}: {entry.message}
+            {entry.source === "global" ? " (global)" : ""}
             {entry.count > 1 ? ` (×${entry.count})` : ""}
           </Text>
           <Text style={{ ...styles.text, fontSize: 10, color: "#aaa" }}>

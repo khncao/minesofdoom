@@ -1,15 +1,42 @@
-import { Dispatch, SetStateAction, memo, useRef } from "react";
+import {
+  ComponentType,
+  Dispatch,
+  ReactNode,
+  SetStateAction,
+  memo,
+  useRef,
+} from "react";
 import {
   Animated,
   KeyboardAvoidingView,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
+  type ViewStyle,
 } from "react-native";
 import { styles } from "../styles";
 import NumericKeypad from "apps/components/NumericKeypad";
+
+/**
+ * The OS-keyboard path (plan §2.1, web-parity item): on native the answer
+ * box sits in a KeyboardAvoidingView so the OS keyboard never covers it.
+ * On web the keyboard does not shift the page layout, so there is nothing
+ * to avoid — a plain View is the honest no-op (RNW's KeyboardAvoidingView
+ * is a no-op too, but not depending on it keeps the intent explicit and
+ * the web bundle free of that module).
+ */
+type AvoidingViewProps = {
+  children?: ReactNode;
+  style?: ViewStyle;
+  behavior?: "height" | "padding";
+};
+const AvoidingView: ComponentType<AvoidingViewProps> =
+  Platform.OS === "web"
+    ? (View as unknown as ComponentType<AvoidingViewProps>)
+    : (KeyboardAvoidingView as unknown as ComponentType<AvoidingViewProps>);
 
 // Answers are small integers; 12 digits is far beyond any equation, so
 // this just stops the display box from overflowing.
@@ -47,8 +74,9 @@ const AnswerInput = memo(function AnswerInput({
   const handleBackspace = () => setTextInput((old) => old.slice(0, -1));
   const handleClear = () => setTextInput("");
 
+  // `behavior` is a native-only KAV prop; the web View must not receive it.
   return (
-    <KeyboardAvoidingView behavior="padding">
+    <AvoidingView behavior={Platform.OS === "web" ? undefined : "padding"}>
       <Animated.View
         style={{
           transform: [{ translateX: shakeAnim }],
@@ -109,7 +137,7 @@ const AnswerInput = memo(function AnswerInput({
           />
         )}
       </Animated.View>
-    </KeyboardAvoidingView>
+    </AvoidingView>
   );
 });
 
