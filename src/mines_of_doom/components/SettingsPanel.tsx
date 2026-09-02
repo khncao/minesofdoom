@@ -10,6 +10,7 @@ import { SettingsData } from "../game";
 import { formatCrashContext } from "../crashContext";
 import { useCrashLog } from "../hooks/useCrashLog";
 import CosmeticsSection from "./CosmeticsSection";
+import LegalSection from "./LegalSection";
 import { styles } from "../styles";
 
 /**
@@ -355,6 +356,9 @@ const SettingsContent = memo(function SettingsContent({
       </View>
       <AnalyticsSection analytics={analytics} onClear={onClearAnalytics} />
       <CrashLogSection />
+      {/* Essential legal notices (todo): privacy policy + terms/disclaimer,
+          in-app links at the very bottom of settings. */}
+      <LegalSection />
       <View style={{ alignSelf: "center", margin: 10 }}>
         {showMessage && <Text style={{ ...styles.text }}>{showMessage}</Text>}
       </View>
