@@ -27,8 +27,12 @@ All commands run from the repo root:
 ## Architecture
 
 ```
-apps/                      # expo-router ROOT (set via expo-router plugin in app.config.ts)
-  index.tsx                # Root screen: renders <MinesOfDoom/> in a Stack.Screen
+src/                       # All source
+  app/                     # expo-router ROOT (set via expo-router plugin in app.config.ts).
+    index.tsx              # Root screen: renders <MinesOfDoom/> in a Stack.Screen.
+                           # ONLY route files belong under src/app — every file (any
+                           # extension, incl. tests/.d.ts) becomes a route, and the
+                           # static web export emits an HTML page per route.
   AppContext.ts            # App-level React context (tick callbacks)
   components/              # Shared UI components (Button, Tooltip, DropdownMenu,
                            # IntegerInput, NumericKeypad, etc.)
@@ -47,6 +51,7 @@ apps/                      # expo-router ROOT (set via expo-router plugin in app
     hooks/                 # useGameEngine, useEquations, useCombo, useSettings,
                            # useSounds, useMineTaps, useShakeInput, ...
     __test__/              # Unit tests for the pure logic modules
+  __test__/                # Cross-cutting test suites (e.g. nativeStackWiring)
 public/assets/             # Static assets (audio, icons, images) with index.ts barrel
 android/                   # Prebuilt native project (Expo prebuild)
 dist/                      # Web build output (generated, gitignored)
@@ -59,21 +64,22 @@ framework-free TypeScript modules (`game.ts`, `cosmetics.ts`, `achievements.ts`,
 Persistence goes through `hooks/useLocalStorage.ts` (AsyncStorage) with manual save +
 autosave and offline-progress computation on load. When adding gameplay logic, prefer
 extending the pure modules over embedding logic in components, and add/extend tests in
-`mines_of_doom/__test__/` or alongside `utils/*`.
+`mines_of_doom/__test__/` or alongside `utils/*`. Never add non-route files under
+`src/app/` (see the architecture note above).
 
 ## Module Resolution (important — easy to get wrong)
 
 This project uses **bare path-specifier imports** that resolve via three parallel
 configurations. If you add new import aliases, you must keep all three in sync:
 
-- `tsconfig.json` `paths`: `components/*` → `apps/components/*`, `hooks/*` → `apps/hooks/*`,
-  `assets/*` → `./public/assets/*` (plus standard relative imports and `apps/*` from root)
+- `tsconfig.json` `paths`: `src/*` → `src/*`, `components/*` → `src/components/*`,
+  `hooks/*` → `src/hooks/*`, `assets/*` → `./public/assets/*`
 - `metro.config.js`: maps bare `assets` → `public/assets` (Metro has no tsconfig-paths
   support here); `experiments.tsconfigPaths: true` in `app.config.ts` lets Metro honor
   the tsconfig paths
-- `jest.config.js` `moduleNameMapper`: `^apps/(.*)$` → `<rootDir>/apps/$1`
+- `jest.config.js` `moduleNameMapper`: `^src/(.*)$` → `<rootDir>/src/$1`
 
-So test/source files import like `import ... from "apps/mines_of_doom/game"` or
+So test/source files import like `import ... from "src/mines_of_doom/game"` or
 `from "assets/index"`. Metro also blocks `android/.gradle`, `android/build`, and
 `android/app/build` from watching (Windows file-watcher limit).
 

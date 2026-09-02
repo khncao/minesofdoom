@@ -10,7 +10,7 @@ TestFlight), since both need the same prebuilt native project.
 
 ## What's already in place (don't re-do)
 
-- **IAP** (`apps/mines_of_doom/iaps.ts`, `useIap.ts`, `IapPanel.tsx`):
+- **IAP** (`src/mines_of_doom/iaps.ts`, `useIap.ts`, `IapPanel.tsx`):
   tiny catalog, entitlement rules, device-local entitlement persistence
   (never in the save), restore merge, cosmetic-pack grants, analytics hook.
   Production runs `noopIapProvider` (panel hidden); dev builds run the
@@ -53,7 +53,7 @@ Steps:
      it means writing receipt validation per store yourself. The in-app side
      is identical either way — the provider interface doesn't care.
 4. Add the SDK + implement the provider (code change, ~1 provider file each):
-   - IAP: `RevenueCatIapProvider` in e.g. `apps/mines_of_doom/revenuecat.ts`
+   - IAP: `RevenueCatIapProvider` in e.g. `src/mines_of_doom/revenuecat.ts`
      implementing `IapProvider` — `purchase` maps
      `IAP_STORE_IDS[productId]` into the SDK call and translates
      success/cancel/error; `restore` maps `getEntitlements()`/purchases into

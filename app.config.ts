@@ -33,7 +33,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundler: "metro",
     output: "static",
   },
-  plugins: [["expo-router", { root: "apps" }]],
+  // ONLY route files live under src/app — everything else in src/ is plain
+  // source. (Previously the router root was the whole apps/ source tree, so
+  // the static export emitted an HTML page per source file, incl. tests.)
+  plugins: [["expo-router", { root: "src/app" }]],
   // Let Metro honor the tsconfig.json "paths" mapping (assets/* ->
   // dist/assets/*), otherwise "assets/index" imports don't resolve.
   experiments: {

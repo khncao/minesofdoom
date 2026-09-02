@@ -7,6 +7,8 @@ Legend: [-] deferred (decision noted), [ ] not started, [o] in progress
 
 Completed items are removed from this file (see git history); only remaining work is tracked here.
 
+Path note: source moved from `apps/` to `src/` (2026-09-02, web-export fix — see §4.4); bare import specifiers went from `apps/*` to `src/*`. Path references in the historical entries below that say `apps/...` mean `src/...`.
+
 ## Adjust
 
 (Crash-context tracing shipped: every crash entry now carries the session trail captured at crash time — `crashContext.ts` keeps a bounded in-memory ring of high-level transitions only (app start, save loaded, prestige, reset, save import, manual save, daily bonus, ad reward, IAP purchase/restore, equation-mode toggles — never per-tick/per-answer, so the trail can't be evicted by normal play) plus a small state snapshot (depth / prestiges / gems / platform / dev), snapshotted into `CrashEntry.context` by `recordCrash` and rendered both on the crash screen and in Settings → "Recent errors (debug)". The crash screen also gained a "Reload page" button on web. So when the `describe` crash next fires on-device, the trace reads as a story (what the game was doing) next to the stack — remaining: reproduce on device.)
@@ -97,6 +99,7 @@ Remaining: the external half of the runbook — store accounts, product creation
 
 ### 4.4 Platform
 
+(Web static export fixed: `expo export -p web` was emitting an HTML page for EVERY file under the expo-router root — and the router root WAS the whole source tree, so dist shipped 95 routes (one per source file: tests, hooks, utils, even `.d.ts` shims) when the app has exactly one screen. Root cause: expo-router treats every file under its root as a route (only `+html`/`+api` are filtered by default; the CLI's `extra.router.ignore` hook is not wired into the export path in this toolchain version). Fix: restructured so ONLY routes live in the router root — all source moved `apps/` → `src/` with `src/app/index.tsx` as the sole route (expo-router root is now `src/app`), bare specifiers renamed `apps/*` → `src/*` (tsconfig paths + jest moduleNameMapper, all import sites sed-updated). `npm run predeploy` now emits exactly 3 static routes (`/`, `/_sitemap`, `/+not-found`) and a 2.4 MB dist with no test modules in the bundle; guardrail 5 re-verified (no ad-SDK strings in the web bundle). AGENTS.md architecture/module-resolution sections updated.
 (Loading state shipped: `LoadingScreen` (pulsing ⛏️, native-driver loop, suppressed under reduce-motion) renders until `useGameEngine` reports the stored save is loaded — a slow AsyncStorage cold start no longer flashes the zeroed game state. Favicon/splash were already set in `app.config.ts`. Remaining "web polish" is open-ended; track concrete items here when found.)
 - **iOS build** is already scripted (`expo run:ios`) — verify `expo-av` audio and AsyncStorage work, then consider TestFlight. (Checklist for both — audio/playback + persistence smoke test, version-bump reminder, TestFlight internal-test track — is now §3 of `docs/store-integration.md`, bundled with the store work since both need the prebuilt native project on a device.)
 
