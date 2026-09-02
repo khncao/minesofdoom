@@ -1,78 +1,121 @@
-import React, { Dispatch, SetStateAction } from "react";
-import { Button, StyleSheet, View } from "react-native";
+import { memo } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 export interface NumericKeypadProps {
-  setText: Dispatch<SetStateAction<string>>;
-  submit: () => void;
+  onDigit: (digit: string) => void;
+  onBackspace: () => void;
+  onClear: () => void;
+  onSubmit: () => void;
 }
 
-// 1 2 3
-// 4 5 6
-// 7 8 9
-// x 0 >
-export default function NumericKeypad(props: NumericKeypadProps) {
-  function NumericButton(input: { value: number }) {
-    return (
-      <View style={styles.button}>
-        <Button
-          onPress={() => props.setText((old) => old + input.value.toString())}
-          title={input.value.toString()}
-        />
-      </View>
-    );
-  }
+const Key = ({
+  title,
+  onPress,
+  onLongPress,
+  accessibilityLabel,
+  accessibilityHint,
+  highlighted = false,
+}: {
+  title: string;
+  onPress: () => void;
+  onLongPress?: () => void;
+  accessibilityLabel: string;
+  accessibilityHint?: string;
+  highlighted?: boolean;
+}) => (
+  <Pressable
+    accessibilityRole="button"
+    accessibilityLabel={accessibilityLabel}
+    accessibilityHint={accessibilityHint}
+    style={({ pressed }) => [
+      styles.key,
+      highlighted ? styles.keyHighlighted : null,
+      pressed ? styles.keyPressed : null,
+    ]}
+    onPress={onPress}
+    onLongPress={onLongPress}
+  >
+    <Text
+      style={[styles.keyText, highlighted ? styles.keyTextHighlighted : null]}
+    >
+      {title}
+    </Text>
+  </Pressable>
+);
 
+/**
+ * On-screen numeric keypad (plan §2.1): lets the player type answers
+ * without ever summoning the OS keyboard. Grid:
+ *   1 2 3 / 4 5 6 / 7 8 9 / ⌫ 0 =
+ * ⌫ deletes one digit; holding it clears the whole answer.
+ */
+const NumericKeypad = memo(function NumericKeypad({
+  onDigit,
+  onBackspace,
+  onClear,
+  onSubmit,
+}: NumericKeypadProps) {
   return (
-    <View>
-      <View style={styles.column}>
-        <View style={styles.row}>
-          <NumericButton value={1} />
-          <NumericButton value={2} />
-          <NumericButton value={3} />
-        </View>
-        <View style={styles.row}>
-          <NumericButton value={4} />
-          <NumericButton value={5} />
-          <NumericButton value={6} />
-        </View>
-        <View style={styles.row}>
-          <NumericButton value={7} />
-          <NumericButton value={8} />
-          <NumericButton value={9} />
-        </View>
-        <View style={styles.row}>
-          <View style={styles.button}>
-            <Button title="C" onPress={() => props.setText("")} />
-          </View>
-          <NumericButton value={0} />
-          <View style={styles.button}>
-            <Button title="OK" onPress={() => props.submit()} />
-          </View>
-        </View>
-      </View>
+    <View style={styles.keypad}>
+      {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
+        <Key
+          key={d}
+          title={d}
+          accessibilityLabel={`Digit ${d}`}
+          onPress={() => onDigit(d)}
+        />
+      ))}
+      <Key
+        title="⌫"
+        accessibilityLabel="Backspace"
+        accessibilityHint="Hold to clear the whole answer"
+        onPress={onBackspace}
+        onLongPress={onClear}
+      />
+      <Key title="0" accessibilityLabel="Digit 0" onPress={() => onDigit("0")} />
+      <Key
+        title="="
+        accessibilityLabel="Submit answer"
+        highlighted
+        onPress={onSubmit}
+      />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
-  column: {
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 3,
-  },
-  row: {
+  keypad: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-  },
-  button: {
-    height: 50,
-    width: 40,
-    // marginHorizontal: 5,
+    flexWrap: "wrap",
+    gap: 4,
     alignSelf: "stretch",
-    justifyContent: "space-evenly",
-    alignContent: "stretch",
-    alignItems: "stretch",
+    maxWidth: 300,
+    marginHorizontal: 8,
+  },
+  key: {
+    flex: 1,
+    // 44px tap target (plan §2.2).
+    height: 44,
+    borderRadius: 6,
+    backgroundColor: "#503121",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  keyPressed: {
+    opacity: 0.65,
+  },
+  keyHighlighted: {
+    backgroundColor: "#ffaa44",
+  },
+  keyText: {
+    color: "#fff",
+    fontSize: 18,
+    userSelect: "none",
+  },
+  keyTextHighlighted: {
+    color: "#1f1f1f",
+    fontWeight: "bold",
   },
 });
+
+export default NumericKeypad;

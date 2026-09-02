@@ -41,7 +41,7 @@ Completed items are removed from this file (see git history); only remaining wor
 
 ### 2.1 Layout & input
 
-- **Keyboard handling.** `TextInput` with `autoFocus` + `clearTextOnFocus` is still in use (the `NumericKeypad` component exists in `apps/components/` but isn't wired up). Either wire it in so the game never depends on the OS keyboard, or at least: don't auto-focus on web/desktop, and keep the equation + input visible above the keyboard.
+- **Keyboard handling.** On-screen keypad shipped: `NumericKeypad` (digits, ⌫ with hold-to-clear, highlighted `=` submit) is wired into `AnswerInput` behind a 🔢/⌨️ toggle next to the answer box, persisted in the `onScreenKeypad` storage key (off by default). In keypad mode no `TextInput` is mounted at all, so the game never depends on the OS keyboard (also the web-parity path — `inputMode="numeric"` is ignored in browsers). Remaining: verify `KeyboardAvoidingView` behavior in browser for the OS-keyboard path (`AnswerInput` still relies on it there — it is a no-op on web).
 - **Canvas tap vs. equation submit.** Tapping the cave resets the combo — easy to do accidentally while playing fast. Options: require a short hold, or make the canvas a secondary "slow" action and move it below the fold / behind a button.
 - **Button hierarchy.** All three purchase buttons look identical. Visually distinguish: upgrade (minerals), miner (gems), gem (minerals→gems). Consider grouping by currency with headers.
 - **Settings modal discoverability.** Add a labeled icon or a "Settings" pill. Also add a visible "Save" affordance outside the modal (e.g., a small save indicator that pulses when the save is stale).

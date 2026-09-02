@@ -61,6 +61,14 @@ export default function MinesOfDoom() {
   // currently doesn't mute android touch sounds, but can in the future
   const [mute, setMute] = useLocalStorage<boolean>("mute", false);
 
+  // On-screen keypad (plan §2.1): replaces the OS keyboard for typing
+  // answers. Off by default to keep the existing input flow for players
+  // who prefer the device keyboard.
+  const [useKeypad, setUseKeypad] = useLocalStorage<boolean>(
+    "onScreenKeypad",
+    false,
+  );
+
   // First-run onboarding (plan §2.1): shown until dismissed; the flag
   // persists in AsyncStorage so a skip/finish never resurfaces. The
   // loading flag hides the overlay until the stored value has been read,
@@ -413,9 +421,11 @@ export default function MinesOfDoom() {
         />
         <AnswerInput
           value={textInput}
-          onChangeText={setTextInput}
+          setTextInput={setTextInput}
           onSubmit={handleSubmit}
           shakeAnim={shakeAnim}
+          useKeypad={useKeypad}
+          onToggleKeypad={() => setUseKeypad(!useKeypad)}
         />
         <ComboIndicator
           combo={combo}
