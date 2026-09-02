@@ -72,6 +72,7 @@ export const en = {
     "Ad finished: offline haul doubled (+{count} 🪨)",
   "toast.adFinishedTopUp":
     "Ad finished: +2h offline top-up (+{count} 🪨)",
+  "toast.adFinishedCombo": "Ad finished: combo restored to {combo}",
   "toast.adClosedEarly": "Ad closed early — no reward this time.",
 
   // --- Combo indicator ----------------------------------------------------
@@ -292,6 +293,9 @@ export const en = {
   "ads.gemRolls": "💎 Gem rolls — +{count} 💎 per watch",
   "ads.leftToday": "{left} of {total} left today",
   "ads.backTomorrow": "Back tomorrow.",
+  "ads.comboSave": "🔥 Save a lost combo",
+  "ads.comboSaveDetail": "Restore a combo of {combo} — expires in {time}",
+  "ads.comboSaveNone": "Available right after you lose a combo.",
   "ads.double": "🪨 Double offline earnings",
   "ads.doubleDetail": "Doubles your last haul: +{count} 🪨",
   "ads.doubleNone": "No offline haul to double yet.",

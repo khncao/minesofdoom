@@ -18,7 +18,7 @@
 import { getLocalDayKey } from "./dailyBonus";
 
 /** The kinds of rewards a completed ad can grant. */
-export type AdKind = "gemRolls" | "offlineDouble" | "offlineTopUp";
+export type AdKind = "gemRolls" | "offlineDouble" | "offlineTopUp" | "comboSave";
 
 /**
  * Outcome of a rewarded ad session. Only "rewarded" entitles the player to
@@ -95,6 +95,18 @@ export const AD_GEM_ROLLS_PER_USE = 5;
 /** Completed gem-roll ads per local day. */
 export const AD_GEM_ROLLS_PER_DAY = 3;
 /**
+ * Combo-save ads per local day. A combo save restores a lost combo in full
+ * (a multiplier recovery, the strongest of the ad rewards), so it gets the
+ * tightest per-kind allowance — one per day.
+ */
+export const AD_COMBO_SAVES_PER_DAY = 1;
+/**
+ * How long a lost combo stays restorable after the loss (a wrong answer or
+ * a mine tap). The save is an "undo" for the loss that just happened, not
+ * a banked reward — after the window it's gone.
+ */
+export const COMBO_SAVE_WINDOW_MS = 60_000;
+/**
  * Total completed-ad rewards per local day, all kinds combined — the fraud
  * cap (plan §5.1: "cap rewards per session, e.g. ≤10/day").
  */
@@ -113,6 +125,8 @@ export type AdRewardsState = {
   rollsUsed: number;
   /** ALL ad rewards granted on `dayKey` (the fraud-cap counter). */
   rewardsToday: number;
+  /** Combo-save ads granted on `dayKey` (absent in pre-comboSave saves). */
+  savesUsed?: number;
 };
 
 /**
@@ -123,13 +137,16 @@ export type AdRewardsState = {
 export function getAdRewardState(
   state: AdRewardsState | null,
   now: number,
-): { rollsUsed: number; rewardsToday: number } {
+): { rollsUsed: number; rewardsToday: number; savesUsed: number } {
   if (state == null || state.dayKey !== getLocalDayKey(now)) {
-    return { rollsUsed: 0, rewardsToday: 0 };
+    return { rollsUsed: 0, rewardsToday: 0, savesUsed: 0 };
   }
+  // `state.savesUsed` is absent from states persisted before combo saves
+  // shipped (optional in the type for exactly that reason).
   return {
     rollsUsed: Math.max(0, Math.floor(state.rollsUsed)),
     rewardsToday: Math.max(0, Math.floor(state.rewardsToday)),
+    savesUsed: Math.max(0, Math.floor(state.savesUsed ?? 0)),
   };
 }
 
@@ -142,9 +159,9 @@ export type AdEligibility = {
 
 /**
  * What a completed ad of `kind` would grant right now, without mutating
- * anything. `offlineDouble` and `offlineTopUp` additionally need their
- * pending offers (a haul to double / an 8h-cap top-up) — the caller (the
- * engine knows them) checks that; this covers the daily-cap side of
+ * anything. `offlineDouble`, `offlineTopUp` and `comboSave` additionally
+ * need their pending offers (a haul to double / an 8h-cap top-up / a recent
+ * combo loss) — the caller checks those; this covers the daily-cap side of
  * eligibility.
  */
 export function computeAdEligibility(
@@ -152,7 +169,7 @@ export function computeAdEligibility(
   kind: AdKind,
   now: number,
 ): AdEligibility {
-  const { rollsUsed, rewardsToday } = getAdRewardState(state, now);
+  const { rollsUsed, rewardsToday, savesUsed } = getAdRewardState(state, now);
   if (rewardsToday >= AD_MAX_REWARDS_PER_DAY) {
     return { eligible: false, gems: 0 };
   }
@@ -161,6 +178,12 @@ export function computeAdEligibility(
       return { eligible: false, gems: 0 };
     }
     return { eligible: true, gems: AD_GEM_ROLLS_PER_USE };
+  }
+  if (kind === "comboSave") {
+    if (savesUsed >= AD_COMBO_SAVES_PER_DAY) {
+      return { eligible: false, gems: 0 };
+    }
+    return { eligible: true, gems: 0 };
   }
   return { eligible: true, gems: 0 };
 }
@@ -180,5 +203,6 @@ export function applyAdReward(
     dayKey: getLocalDayKey(now),
     rollsUsed: cur.rollsUsed + (kind === "gemRolls" ? 1 : 0),
     rewardsToday: cur.rewardsToday + 1,
+    savesUsed: cur.savesUsed + (kind === "comboSave" ? 1 : 0),
   };
 }

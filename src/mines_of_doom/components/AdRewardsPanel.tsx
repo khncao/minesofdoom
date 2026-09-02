@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import BottomModal from "src/components/BottomModal";
 import Button from "src/components/Button";
@@ -12,6 +12,12 @@ import {
 } from "../ads";
 import { offlineTopUpTicks } from "../game";
 import { styles } from "../styles";
+
+/** m:ss for the combo-save window countdown ("1:00", "0:42", …). */
+function formatCountdown(totalSeconds: number): string {
+  const s = Math.max(0, Math.ceil(totalSeconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
 
 /**
  * Rewarded-ads panel (plan §5.1): the single opt-in entry point for ad
@@ -28,6 +34,8 @@ import { styles } from "../styles";
 function AdRewardsPanel({
   isDevSim,
   gemRollsLeft,
+  comboSave,
+  comboSaveUntil,
   dailyCapLeft,
   offlineDouble,
   offlineTopUp,
@@ -37,6 +45,10 @@ function AdRewardsPanel({
   /** Provider is the dev simulation (dev builds only). */
   isDevSim: boolean;
   gemRollsLeft: number;
+  /** Combo a completed ad would restore (null = no recent loss to save). */
+  comboSave: number | null;
+  /** When the pending save stops being restorable (ms epoch). */
+  comboSaveUntil: number | null;
   dailyCapLeft: number;
   offlineDouble: bigint | null;
   /** Minerals withheld beyond the 8h cap that a completed ad would grant. */
@@ -45,6 +57,17 @@ function AdRewardsPanel({
   onClaim: (kind: AdKind) => void;
 }) {
   const { t } = useI18n();
+  // 1s tick while a save is pending so the window countdown stays honest.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (comboSaveUntil == null) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [comboSaveUntil]);
+  const saveWindowLeft =
+    comboSave != null && comboSaveUntil != null
+      ? Math.max(0, (comboSaveUntil - now) / 1000)
+      : 0;
   return (
     <BottomModal
       pressable={<Text style={{ fontSize: 30 }}>🎬</Text>}
@@ -78,6 +101,34 @@ function AdRewardsPanel({
             disabled={claiming != null || gemRollsLeft <= 0 || dailyCapLeft <= 0}
             title={claiming === "gemRolls" ? t("ads.watching") : t("ads.watch")}
             onPress={() => onClaim("gemRolls")}
+          />
+        </View>
+
+        <View style={styles.flexCenteredRow}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={styles.text}>{t("ads.comboSave")}</Text>
+            <Text style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}>
+              {comboSave != null
+                ? t("ads.comboSaveDetail", {
+                    combo: formatNumber(comboSave),
+                    time: formatCountdown(saveWindowLeft),
+                  })
+                : t("ads.comboSaveNone")}
+            </Text>
+          </View>
+          <Button
+            tone="gem"
+            disabled={
+              claiming != null ||
+              comboSave == null ||
+              comboSaveUntil == null ||
+              saveWindowLeft <= 0 ||
+              dailyCapLeft <= 0
+            }
+            title={
+              claiming === "comboSave" ? t("ads.watching") : t("ads.watch")
+            }
+            onPress={() => onClaim("comboSave")}
           />
         </View>
 

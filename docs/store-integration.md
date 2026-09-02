@@ -16,8 +16,9 @@ TestFlight), since both need the same prebuilt native project.
   Production runs `noopIapProvider` (panel hidden); dev builds run the
   labeled `devSimIapProvider`.
 - **Rewarded ads** (`ads.ts`, `useAdRewards.ts`, `AdRewardsPanel.tsx`):
-  reward economy + daily fraud caps (pure rules), provider abstraction,
-  same noop/dev-sim pattern.
+  reward economy + daily fraud caps (pure rules) — gem rolls, offline
+  double/top-up, and combo saves (restore a just-lost combo, 60s window,
+  1/day) — provider abstraction, same noop/dev-sim pattern.
 - **The one-line swap points** — provider selection is a function, and
   swapping the real SDK in is editing ONE function body, not the UI:
   - `selectIapProvider(dev)` in `iaps.ts`
@@ -87,7 +88,7 @@ Steps:
       `__DEV__` is false. Re-verify when the real SDKs land.)*
 - [ ] Ads: test ad units only, test devices/numbers registered with AdMob;
       rewarded-only placements confirmed; caps still hit
-      (3 gem-roll watches/day, 10 rewards/day).
+      (3 gem-roll watches/day, 1 combo save/day, 10 rewards/day).
 - [ ] Compliance (guardrail 7): set the SDK's kid-safety flag
       (`TAG_FOR_CHILD_DIRECTED_TREATMENT` for AdMob) per the final age
       rating — math idle skews young.

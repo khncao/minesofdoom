@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import { MutableRefObject, useCallback, useEffect, useMemo, useRef } from "react";
+import { MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useContent, useI18n } from "src/hooks/useI18n";
 import { useLocalStorage } from "src/hooks/useLocalStorage";
@@ -64,7 +64,7 @@ import { noteCrashEvent, setCrashContextState } from "./crashContext";
 import { useDailyBonus } from "./hooks/useDailyBonus";
 import { useAnalytics } from "./hooks/useAnalytics";
 import { useAdRewards } from "./hooks/useAdRewards";
-import { selectAdProvider, type AdKind } from "./ads";
+import { selectAdProvider, COMBO_SAVE_WINDOW_MS, type AdKind } from "./ads";
 import { useIap } from "./hooks/useIap";
 import {
   IapProductId,
@@ -271,15 +271,47 @@ export default function MinesOfDoom() {
     flashAnim,
     increment: incrementCombo,
     reset: resetCombo,
+    restore: restoreCombo,
   } = useCombo(reduceMotion);
   // Combo resistance (tier-3 gem upgrade): the fraction of the combo a
   // wrong answer / mine tap keeps. Ref so the stable tap-reset callback
   // below always sees the current level without re-subscribing.
   const comboResistRatioRef = useRef(0);
   comboResistRatioRef.current = getComboRetention(gameState.comboResistLevels);
+  // Rewarded-ad combo save (todo: "Allow saving combo with rewarded-ad"):
+  // when a loss happens (wrong answer or mine tap), the pre-loss value is
+  // restorable for COMBO_SAVE_WINDOW_MS via a completed ad — an "undo" for
+  // the loss that just happened. Memory-only: it dies with the process, and
+  // it never travels in the save.
+  const [comboSave, setComboSave] = useState<{
+    combo: number;
+    until: number;
+  } | null>(null);
+  // Refs so the stable callbacks below (the tap reset, the ad claim) always
+  // see the latest value without re-subscribing on every combo change.
+  const comboRef = useRef(combo);
+  comboRef.current = combo;
+  const comboSaveRef = useRef(comboSave);
+  comboSaveRef.current = comboSave;
+  const noteComboLoss = useCallback((preLossCombo: number) => {
+    if (preLossCombo <= 0) return;
+    setComboSave({ combo: preLossCombo, until: Date.now() + COMBO_SAVE_WINDOW_MS });
+  }, []);
   const handleComboReset = useCallback(() => {
+    noteComboLoss(comboRef.current);
     resetCombo(comboResistRatioRef.current);
-  }, [resetCombo]);
+  }, [noteComboLoss, resetCombo]);
+
+  // Called by the ad hook after a completed comboSave ad: restore the saved
+  // value (or the current combo if the player already rebuilt past it) and
+  // clear the offer. No-ops if the offer is gone.
+  const claimComboSave = useCallback(() => {
+    const saved = comboSaveRef.current;
+    if (saved == null) return;
+    comboSaveRef.current = null;
+    setComboSave(null);
+    restoreCombo(Math.max(comboRef.current, saved.combo));
+  }, [restoreCombo]);
   const { shakeAnim, shake } = useShakeInput();
 
   const playerPickaxeAnimRef: MutableRefObject<() => void> = useRef<() => void>(
@@ -443,6 +475,7 @@ export default function MinesOfDoom() {
       shake();
       // Combo resistance (tier-3 gem upgrade): part of the combo survives.
       const retention = getComboRetention(gameState.comboResistLevels);
+      noteComboLoss(combo);
       if (combo > 0) {
         const kept = getResistantComboReset(combo, gameState.comboResistLevels);
         displayMessage(
@@ -564,9 +597,27 @@ export default function MinesOfDoom() {
     claimOfflineDouble,
     offlineTopUp,
     claimOfflineTopUp,
+    comboSave: comboSave?.combo ?? null,
+    claimComboSave,
     displayMessage,
     onAdView: onFirstAdView,
   });
+
+  // Let an expired combo save go (the panel's countdown and the claim guard
+  // the same `until`, so a save can at worst be restored a tick late, never
+  // resurrected long after the window). Skipped while the comboSave ad is
+  // mid-play: the player tapped "Watch" on this offer, so it must survive
+  // the ad even if the window runs out during it.
+  const comboSaveClaiming = adRewards.claiming === "comboSave";
+  useEffect(() => {
+    if (comboSave == null || comboSaveClaiming) return;
+    const id = setInterval(() => {
+      if (Date.now() >= (comboSaveRef.current?.until ?? 0)) {
+        setComboSave(null);
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [comboSave, comboSaveClaiming]);
 
   // In-app purchases (plan §5.2): production builds run the no-op provider
   // (no store SDK bundled — web stays 100% free, guardrail 5), so the
@@ -816,6 +867,8 @@ export default function MinesOfDoom() {
             <AdRewardsPanel
               isDevSim={adProvider.id === "dev-sim"}
               gemRollsLeft={adRewards.gemRollsLeft}
+              comboSave={comboSave?.combo ?? null}
+              comboSaveUntil={comboSave?.until ?? null}
               dailyCapLeft={adRewards.dailyCapLeft}
               offlineDouble={offlineDouble}
               offlineTopUp={offlineTopUp}

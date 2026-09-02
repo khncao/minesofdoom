@@ -57,6 +57,7 @@ export const es: Record<TranslationKey, string> = {
     "Anuncio terminado: botín offline doblado (+{count} 🪨)",
   "toast.adFinishedTopUp":
     "Anuncio terminado: recarga offline +2h (+{count} 🪨)",
+  "toast.adFinishedCombo": "Anuncio terminado: combo restaurado a {combo}",
   "toast.adClosedEarly": "Anuncio cerrado antes de tiempo — sin recompensa.",
 
   // --- Combo indicator ----------------------------------------------------
@@ -285,6 +286,10 @@ export const es: Record<TranslationKey, string> = {
   "ads.gemRolls": "💎 Sorteo de gemas — +{count} 💎 por anuncio",
   "ads.leftToday": "{left} de {total} restantes hoy",
   "ads.backTomorrow": "Vuelve mañana.",
+  "ads.comboSave": "🔥 Guardar un combo perdido",
+  "ads.comboSaveDetail":
+    "Restaura un combo de {combo} — expira en {time}",
+  "ads.comboSaveNone": "Disponible justo después de perder un combo.",
   "ads.double": "🪨 Duplicar ganancias offline",
   "ads.doubleDetail":
     "Duplica tu último botín: +{count} 🪨",

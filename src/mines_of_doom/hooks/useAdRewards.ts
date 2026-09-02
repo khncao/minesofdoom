@@ -6,6 +6,7 @@ import {
   AdKind,
   AdProvider,
   AdRewardsState,
+  AD_COMBO_SAVES_PER_DAY,
   AD_GEM_ROLLS_PER_DAY,
   AD_MAX_REWARDS_PER_DAY,
   applyAdReward,
@@ -32,6 +33,8 @@ export function useAdRewards({
   claimOfflineDouble,
   offlineTopUp,
   claimOfflineTopUp,
+  comboSave,
+  claimComboSave,
   displayMessage,
   onAdView,
 }: {
@@ -46,6 +49,13 @@ export function useAdRewards({
   offlineTopUp: bigint | null;
   /** Engine callback: consume the pending offline-top-up offer. */
   claimOfflineTopUp: () => void;
+  /**
+   * The combo value a completed ad would restore (the pre-loss value of the
+   * most recent loss inside its save window; null = nothing to save).
+   */
+  comboSave: number | null;
+  /** Engine callback: restore the pending combo save. */
+  claimComboSave: () => void;
   displayMessage: (message: string, timeout: number) => void;
   /** Fired when the player taps "watch" (analytics first-ad-view). */
   onAdView?: (kind: AdKind) => void;
@@ -66,8 +76,10 @@ export function useAdRewards({
   const claimingRef = useRef(false);
 
   const available = provider.isAvailable();
-  const { rollsUsed, rewardsToday } = getAdRewardState(state, Date.now());
+  const { rollsUsed, rewardsToday, savesUsed } =
+    getAdRewardState(state, Date.now());
   const gemRollsLeft = Math.max(0, AD_GEM_ROLLS_PER_DAY - rollsUsed);
+  const comboSavesLeft = Math.max(0, AD_COMBO_SAVES_PER_DAY - savesUsed);
   const dailyCapLeft = Math.max(0, AD_MAX_REWARDS_PER_DAY - rewardsToday);
 
   const claim = useCallback(
@@ -85,6 +97,9 @@ export function useAdRewards({
         (offlineTopUp == null || offlineTopUp <= 0n)
       ) {
         return; // nothing was withheld by the 8h cap — row disabled
+      }
+      if (kind === "comboSave" && (comboSave == null || comboSave <= 0)) {
+        return; // no recent loss to save — the row is disabled
       }
       const eligibility = computeAdEligibility(stateRef.current, kind, now);
       if (!eligibility.eligible) return;
@@ -110,6 +125,12 @@ export function useAdRewards({
                   count: formatNumber(offlineDouble ?? 0n),
                 }),
                 5000,
+              );
+            } else if (kind === "comboSave") {
+              claimComboSave();
+              displayMessage(
+                t("toast.adFinishedCombo", { combo: comboSave ?? 0 }),
+                4000,
               );
             } else {
               claimOfflineTopUp();
@@ -140,6 +161,8 @@ export function useAdRewards({
       claimOfflineDouble,
       offlineTopUp,
       claimOfflineTopUp,
+      comboSave,
+      claimComboSave,
       displayMessage,
       onAdView,
       setState,
@@ -154,6 +177,8 @@ export function useAdRewards({
     claiming,
     /** Gem-roll ads left today (the tight per-kind allowance). */
     gemRollsLeft,
+    /** Combo saves left today. */
+    comboSavesLeft,
     /** Rewards left under the total daily fraud cap. */
     dailyCapLeft,
     canClaimGemRolls: available && gemRollsLeft > 0 && dailyCapLeft > 0,
@@ -166,6 +191,12 @@ export function useAdRewards({
       available &&
       offlineTopUp != null &&
       offlineTopUp > 0 &&
+      dailyCapLeft > 0,
+    canClaimComboSave:
+      available &&
+      comboSave != null &&
+      comboSave > 0 &&
+      comboSavesLeft > 0 &&
       dailyCapLeft > 0,
     claim,
   };

@@ -34,5 +34,12 @@ export function useCombo(reduceMotion = false) {
     setCombo((c) => Math.max(0, Math.floor(c * ratio)));
   }, []);
 
-  return { combo, comboMultiplier, flashAnim, increment, reset };
+  // Rewarded-ad combo save: restore a previously lost combo. Never pushes
+  // the combo BELOW where the player already is (they may have rebuilt a
+  // chunk of it since the loss) — the restore is max(current, value).
+  const restore = useCallback((value: number) => {
+    setCombo((c) => Math.max(c, Math.max(0, Math.floor(value))));
+  }, []);
+
+  return { combo, comboMultiplier, flashAnim, increment, reset, restore };
 }
