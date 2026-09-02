@@ -169,8 +169,6 @@ The game has no long-term destination: everything buyable is buyable from minute
 
 F2P viability is a design constraint, not a marketing line — enforce it with a **free-path benchmark**: a pure free player should reach first prestige in a target time (e.g., ~7 days of normal idle+play). When tuning `balance.ts`, regression-check this path; if a change slows it, rebalance instead of selling the difference.
 
-Web/PWA build: 100% free, no ads, no IAP.
-
 ### 5.1 Rewarded video ads — strictly opt-in, reward-only
 
 Every ad is a bonus the player actively requests. No interstitials, no banners, no ads on the equation flow (they'd ruin the combo/tap rhythm).
@@ -186,7 +184,7 @@ Every ad is a bonus the player actively requests. No interstitials, no banners, 
 Deliberately tiny: two kinds of product, nothing else.
 
 - **Remove Ads** ($2.99–$4.99, one-time) — the anchor IAP. Disables all ad entry points.
-- **Cosmetic packs** ($1.99–$3.99 each) — cave themes (pairs with 4.3), miner skins, UI color themes. Purely visual, and **every pack is also earnable in-game** (depth unlocks / achievements), so buying is convenience, not access.
+- **Cosmetic packs** ($0.99–$3.99 each) — cave themes (pairs with 4.3), miner skins, UI color themes. Purely visual, and **every pack is also earnable in-game** (depth unlocks / achievements), so buying is convenience, not access.
 
 Explicitly out of scope (and why):
 - ~~Starter boost packs / mineral IAP~~ — selling currency in an idle game is a pay-to-speed backdoor; the early game should be a gentle onboarding, not a wall.
