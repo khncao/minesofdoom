@@ -102,7 +102,9 @@ Shipped: procedural pixel-art sprites for miners & pickaxes (`apps/utils/graphic
 
 **Core principle: the game is fully complete and winnable free.** Paid options only (a) remove ads and (b) sell cosmetics that the free player can also unlock through play. No stat-gated IAP, no pay-to-speed, no subscription, no dark patterns. Every "buy" offer must be skippable and the player must be able to finish the full loop (depth tiers → achievements → prestige) with minerals/gems earned in-game alone.
 
-F2P viability is a design constraint, not a marketing line — enforce it with a **free-path benchmark**: a pure free player should reach first prestige in a target time (e.g., ~7 days of normal idle+play). When tuning `balance.ts`, regression-check this path; if a change slows it, rebalance instead of selling the difference.
+F2P viability is a design constraint, not a marketing line — enforce it with a **free-path benchmark**: a pure free player should reach first prestige in a target time (e.g., ~7 days of normal idle+play).
+
+(Free-path benchmark shipped as a CI regression gate: `freePath.ts` — a free casual persona (2h active + 22h offline/day, answer every 10s at 90% accuracy, cave hold-tap every 4s, greedy "normal player" shopping with capped sinks) drives the SAME formulas, cost curves, and caps the engine uses (all imported from `game.ts`/`dailyBonus.ts`, nothing re-implemented) through a seeded PRNG. `freePath.test.ts` asserts a pure free player (no ads, no IAP) crosses first prestige (lifetime 5M) within the plan's ~7-day target (~5.3 days today, so the bound has real slack), plus determinism, an earned-breakdown conservation check, and that lighter play styles (45m and 30m active days) still arrive within relaxed horizons — so the free path can't quietly wall off on a cost-curve change. When tuning any cost curve or payout in `game.ts` (the balance lives there, not in a separate `balance.ts`), this test is the regression check: if it fails, rebalance instead of selling the difference.)
 
 ### 5.1 Rewarded video ads — strictly opt-in, reward-only
 
