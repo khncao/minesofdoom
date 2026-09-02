@@ -1,4 +1,9 @@
-import { SaveData, buildSaveData, migrateSaveData } from "./game";
+import {
+  SaveData,
+  buildSaveData,
+  migrateSaveData,
+  serializeSaveData,
+} from "./game";
 
 /**
  * Shareable save codes (plan §4.3): encode the whole save as a base64
@@ -132,7 +137,7 @@ function utf8Encode(str: string): number[] {
 
 /** Serialize the save into a prefixed base64 code. */
 export function encodeSaveCode(data: SaveData): string {
-  return `${SAVE_CODE_PREFIX}.${base64Encode(JSON.stringify(data))}`;
+  return `${SAVE_CODE_PREFIX}.${base64Encode(serializeSaveData(data))}`;
 }
 
 /**

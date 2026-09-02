@@ -75,8 +75,12 @@ export function getAchievementProgress(
   return {
     current,
     target: achievement.target,
+    // Number() for the float fraction only (metrics can be bigint); display
+    // keeps the exact value in `current`.
     fraction:
-      achievement.target > 0 ? Math.min(1, current / achievement.target) : 1,
+      achievement.target > 0
+        ? Math.min(1, Number(current) / achievement.target)
+        : 1,
   };
 }
 

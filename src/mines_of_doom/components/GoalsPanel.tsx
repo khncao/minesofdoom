@@ -64,7 +64,11 @@ const GoalsContent = memo(function GoalsContent({
                 <View key={goal.id} style={{ gap: 1, marginLeft: 22 }}>
                   <Text style={{ ...styles.text, fontSize: 11 }}>
                     {goal.label} —{" "}
-                    {formatNumber(Math.min(progress.current, progress.target))}
+                    {formatNumber(
+                      progress.current >= progress.target
+                        ? progress.target
+                        : progress.current,
+                    )}
                     /{formatNumber(progress.target)}
                   </Text>
                   <View
@@ -116,7 +120,9 @@ const GoalsContent = memo(function GoalsContent({
                 {done ? "✅" : a.icon} {a.label}
               </Text>
               <Text style={{ fontSize: 10, color: "#aaa" }}>
-                {formatNumber(Math.min(current, a.target))}/
+                {formatNumber(
+                  current >= a.target ? a.target : current,
+                )}/
                 {formatNumber(a.target)} · +{formatNumber(a.bonusMinerals)}{" "}
                 {emojis.mineral}
               </Text>

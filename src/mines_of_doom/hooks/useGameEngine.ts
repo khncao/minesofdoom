@@ -15,6 +15,7 @@ import {
   computeOfflineTopUpMinerals,
   createEmptySaveData,
   gemMineralCost,
+  mulFloats,
   getClickBoostCost,
   getClickBoostMultiplier,
   getClickUpgradeCost,
@@ -34,6 +35,7 @@ import {
   maxOfflineTicks,
   migrateSaveData,
   msPerTick,
+  serializeSaveData,
   rollGem,
   saveDataKey,
 } from "../game";
@@ -80,14 +82,14 @@ export function useGameEngine(
   // by the next load's haul. Ref + state: the ref lets the stable claim
   // callback consume it synchronously (a fast second tap can't pay twice),
   // the state drives the UI offer.
-  const offlineDoubleRef = useRef<number | null>(null);
-  const [offlineDouble, setOfflineDouble] = useState<number | null>(null);
+  const offlineDoubleRef = useRef<bigint | null>(null);
+  const [offlineDouble, setOfflineDouble] = useState<bigint | null>(null);
   // "Instant offline top-up" (plan §5.1): when the away time hit the 8h cap,
   // the minerals WITHHELD beyond it (themselves capped at +2h) are held as
   // a one-shot offer a completed ad can unlock — same ref+state pattern as
   // offlineDouble (ref for synchronous one-shot claiming, state for UI).
-  const offlineTopUpRef = useRef<number | null>(null);
-  const [offlineTopUp, setOfflineTopUp] = useState<number | null>(null);
+  const offlineTopUpRef = useRef<bigint | null>(null);
+  const [offlineTopUp, setOfflineTopUp] = useState<bigint | null>(null);
 
   // Mark dirty on any state change after load. setSaveDirty(true) is a
   // no-op re-render when the flag is already true (React bails out).
@@ -102,8 +104,8 @@ export function useGameEngine(
     (async () => {
       const finish = (
         data: SaveData | null,
-        offlineMinerals: number,
-        offlineTopUp: number,
+        offlineMinerals: bigint,
+        offlineTopUp: bigint,
       ) => {
         loadedRef.current = true;
         if (cancelled) return;
@@ -111,7 +113,7 @@ export function useGameEngine(
         if (data == null) return;
         setGameState(data);
         startTime.current = data.startTime;
-        if (offlineMinerals > 0) {
+        if (offlineMinerals > 0n) {
           offlineDoubleRef.current = offlineMinerals;
           setOfflineDouble(offlineMinerals);
           displayMessage(
@@ -121,7 +123,7 @@ export function useGameEngine(
             6000,
           );
         }
-        if (offlineTopUp > 0) {
+        if (offlineTopUp > 0n) {
           offlineTopUpRef.current = offlineTopUp;
           setOfflineTopUp(offlineTopUp);
         }
@@ -132,10 +134,10 @@ export function useGameEngine(
         raw = await getSaveData();
       } catch (e) {
         console.warn("Failed to read save data", e);
-        return finish(null, 0, 0);
+        return finish(null, 0n, 0n);
       }
       if (raw == null) {
-        return finish(null, 0, 0);
+        return finish(null, 0n, 0n);
       }
 
       let parsed: Partial<SaveData>;
@@ -151,10 +153,10 @@ export function useGameEngine(
         } catch (e) {
           console.warn("Failed to back up corrupt save", e);
         }
-        return finish(null, 0, 0);
+        return finish(null, 0n, 0n);
       }
       if (parsed == null || typeof parsed !== "object") {
-        return finish(null, 0, 0);
+        return finish(null, 0n, 0n);
       }
 
       // Run versioned migrations, then build the save defensively (see
@@ -202,7 +204,7 @@ export function useGameEngine(
 
   const saveGame = useCallback(() => {
     if (!loadedRef.current) return;
-    const data = JSON.stringify({
+    const data = serializeSaveData({
       ...gameStateRef.current,
       saveTime: Date.now(),
     });
@@ -270,11 +272,11 @@ export function useGameEngine(
         setGameState((n: SaveData) => {
           // The banked prestige multiplier applies to passive income too, so a
           // new run starts with a stronger crew (the whole point of prestige).
-          const income =
-            getMineralsPerSec(n.miners, n.minerPower, n.fastMiners, n.legendaryMiners) *
-            elapsed *
-            getPrestigeMultiplier(n.prestigeLevel);
-          if (income <= 0) return n;
+          const income = mulFloats(
+            BigInt(getMineralsPerSec(n.miners, n.minerPower, n.fastMiners, n.legendaryMiners)) * BigInt(elapsed),
+            [getPrestigeMultiplier(n.prestigeLevel)],
+          );
+          if (income <= 0n) return n;
           return {
             ...n,
             minerals: n.minerals + income,
@@ -302,8 +304,8 @@ export function useGameEngine(
 
   // Add a batch of minerals earned by rapid tapping (see useMineTaps).
   // `gain` is the effective (depth-tier-bonus-included) tap value.
-  const addTapGain = useCallback((gain: number) => {
-    if (gain > 0) {
+  const addTapGain = useCallback((gain: bigint) => {
+    if (gain > 0n) {
       setGameState((n: SaveData) => ({
         ...n,
         minerals: n.minerals + gain,
@@ -331,7 +333,7 @@ export function useGameEngine(
   // pending (offer already claimed, or no offline haul to double).
   const claimOfflineDouble = useCallback(() => {
     const pending = offlineDoubleRef.current;
-    if (pending == null || pending <= 0) return;
+    if (pending == null || pending <= 0n) return;
     offlineDoubleRef.current = null;
     setOfflineDouble(null);
     setGameState((s: SaveData) => ({
@@ -347,7 +349,7 @@ export function useGameEngine(
   // pending (offer already claimed, or the haul never hit the cap).
   const claimOfflineTopUp = useCallback(() => {
     const pending = offlineTopUpRef.current;
-    if (pending == null || pending <= 0) return;
+    if (pending == null || pending <= 0n) return;
     offlineTopUpRef.current = null;
     setOfflineTopUp(null);
     setGameState((s: SaveData) => ({
@@ -380,9 +382,16 @@ export function useGameEngine(
         const prestige = getPrestigeMultiplier(n.prestigeLevel);
         // Click x2 upgrade (tier 3): doubles tap/answer gains per level.
         const clickBoost = getClickBoostMultiplier(n.clickBoostLevels);
-        const gained =
-          Math.max(1, value) *
-          n.clickPower * comboMultiplier * bonus * prestige * clickBoost;
+        // Integer factors first (exact), then the float multipliers through
+        // mulFloats (see game.ts): value × click power × combo × boost ×
+        // depth bonus × prestige.
+        const gained = mulFloats(
+          BigInt(Math.max(1, value)) *
+            BigInt(n.clickPower) *
+            BigInt(comboMultiplier) *
+            BigInt(clickBoost),
+          [bonus, prestige],
+        );
         return {
           ...n,
           minerals: n.minerals + gained,
@@ -405,7 +414,7 @@ export function useGameEngine(
       return {
         ...n,
         clickPower: n.clickPower + 1,
-        minerals: n.minerals - getClickUpgradeCost(n.clickPower),
+        minerals: n.minerals - BigInt(getClickUpgradeCost(n.clickPower)),
       };
     });
   }, []);
@@ -475,7 +484,7 @@ export function useGameEngine(
     setGameState((n: SaveData) => {
       return {
         ...n,
-        minerals: n.minerals - gemMineralCost,
+        minerals: n.minerals - BigInt(gemMineralCost),
         gems: n.gems + 1,
         totalGemsMinted: n.totalGemsMinted + 1,
       };
@@ -486,11 +495,11 @@ export function useGameEngine(
   const upgradeMinerPower = useCallback(() => {
     setGameState((n: SaveData) => {
       const cost = getMinerPowerUpgradeCost(n.minerPower);
-      if (n.minerals < cost) return n;
+      if (n.minerals < BigInt(cost)) return n;
       return {
         ...n,
         minerPower: n.minerPower + 1,
-        minerals: n.minerals - cost,
+        minerals: n.minerals - BigInt(cost),
       };
     });
   }, []);
@@ -504,10 +513,11 @@ export function useGameEngine(
     setGameState((n: SaveData) => {
       const fresh = ids.filter((id) => !n.completedTiers.includes(id));
       if (fresh.length === 0) return n;
+      const bonus = BigInt(getTierBonus(fresh));
       return {
         ...n,
-        minerals: n.minerals + getTierBonus(fresh),
-        lifetimeMinerals: n.lifetimeMinerals + getTierBonus(fresh),
+        minerals: n.minerals + bonus,
+        lifetimeMinerals: n.lifetimeMinerals + bonus,
         completedTiers: [...n.completedTiers, ...fresh],
       };
     });
@@ -521,7 +531,7 @@ export function useGameEngine(
     setGameState((n: SaveData) => {
       const fresh = ids.filter((id) => !n.completedAchievements.includes(id));
       if (fresh.length === 0) return n;
-      const bonus = getAchievementBonus(fresh);
+      const bonus = BigInt(getAchievementBonus(fresh));
       return {
         ...n,
         minerals: n.minerals + bonus,
@@ -673,7 +683,7 @@ export function useGameEngine(
         ...n,
         prestigeLevel: available,
         totalPrestiges: n.totalPrestiges + 1,
-        minerals: 0,
+        minerals: 0n,
         miners: 0,
         fastMiners: 0,
         legendaryMiners: 0,
@@ -720,7 +730,7 @@ export function useGameEngine(
       minerals: decoded.minerals + offline,
       lifetimeMinerals: decoded.lifetimeMinerals + offline,
     });
-    if (topUp > 0) {
+    if (topUp > 0n) {
       offlineTopUpRef.current = topUp;
       setOfflineTopUp(topUp);
     }
@@ -743,13 +753,17 @@ export function useGameEngine(
     // spending minerals never scrolls it back up.
     depth: getDepth(gameState.lifetimeMinerals),
     isLoaded,
-    mineralsPerSec:
-      getMineralsPerSec(
-        gameState.miners,
-        gameState.minerPower,
-        gameState.fastMiners,
-        gameState.legendaryMiners,
-      ) * getPrestigeMultiplier(gameState.prestigeLevel),
+    mineralsPerSec: mulFloats(
+      BigInt(
+        getMineralsPerSec(
+          gameState.miners,
+          gameState.minerPower,
+          gameState.fastMiners,
+          gameState.legendaryMiners,
+        ),
+      ),
+      [getPrestigeMultiplier(gameState.prestigeLevel)],
+    ),
     saveGame,
     saveDirty,
     addTapGain,

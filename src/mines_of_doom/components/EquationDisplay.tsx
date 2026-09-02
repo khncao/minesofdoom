@@ -25,7 +25,7 @@ const EquationDisplay = memo(function EquationDisplay({
   multiplySymbol,
 }: {
   equation: Equation;
-  clickPower: number;
+  clickPower: bigint;
   comboMultiplier: number;
   /** "asterisk" → "7 * 2", "letter" → "7 x 2" (settings, iteration 11). */
   multiplySymbol: MultiplySymbol;
@@ -52,7 +52,7 @@ const EquationDisplay = memo(function EquationDisplay({
     timedActive,
     streakIgnited,
   );
-  const pendingGain = clickPower * comboMultiplier * payoutMultiplier;
+  const pendingGain = clickPower * BigInt(comboMultiplier) * BigInt(payoutMultiplier);
   const windowFraction =
     timedActive ? Math.max(0, Math.min(1, (timeLeftMs ?? 0) / TIMED_MODE_WINDOW_MS)) : 0;
   // Green while comfortable, red in the final third — at a glance.

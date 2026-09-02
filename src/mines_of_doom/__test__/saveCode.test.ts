@@ -54,7 +54,7 @@ describe("encodeSaveCode / decodeSaveCode", () => {
   it("round-trips a full save", () => {
     const save: SaveData = {
       ...createEmptySaveData(),
-      minerals: 123456789,
+      minerals: 123_456_789n,
       gems: 42,
       miners: 3,
       minerPower: 7,
@@ -63,10 +63,10 @@ describe("encodeSaveCode / decodeSaveCode", () => {
       prestigeLevel: 3,
       clickBoostLevels: 2,
       comboResistLevels: 1,
-      lifetimeMinerals: 999999999,
+      lifetimeMinerals: 999_999_999n,
       lifetimeCorrect: 555,
       maxCombo: 40,
-      maxDepth: 120,
+      maxDepth: 120n,
       minersOwnedEver: 5,
       totalGemsMinted: 10,
       totalGemsSpent: 6,
@@ -115,10 +115,10 @@ describe("encodeSaveCode / decodeSaveCode", () => {
     const decoded = decodeSaveCode(code, NOW);
     expect(decoded).not.toBeNull();
     expect(decoded!.saveVersion).toBe(saveVersion);
-    expect(decoded!.minerals).toBe(555);
+    expect(decoded!.minerals).toBe(555n);
     expect(decoded!.clickPower).toBe(2);
     // Pre-v2 stats folded in the same way the loader does.
-    expect(decoded!.lifetimeMinerals).toBe(555);
+    expect(decoded!.lifetimeMinerals).toBe(555n);
     expect(decoded!.minersOwnedEver).toBe(1);
     // Missing newer fields default.
     expect(decoded!.fastMiners).toBe(0);
@@ -140,7 +140,7 @@ describe("encodeSaveCode / decodeSaveCode", () => {
     const code = `${SAVE_CODE_PREFIX}.${base64Encode(JSON.stringify(bad))}`;
     const decoded = decodeSaveCode(code, NOW);
     expect(decoded).not.toBeNull();
-    expect(decoded!.minerals).toBe(0);
+    expect(decoded!.minerals).toBe(0n);
     expect(decoded!.miners).toBe(-3);
     expect(decoded!.fastMiners).toBe(0);
     expect(decoded!.gemChanceLevels).toBe(0);

@@ -1,4 +1,4 @@
-import { createEmptySaveData, SaveData } from "../game";
+import { createEmptySaveData, SaveData, serializeSaveData } from "../game";
 import { getRecords, RecordEntry } from "../records";
 import { GOAL_TIERS } from "../goals";
 import { ACHIEVEMENTS } from "../achievements";
@@ -29,9 +29,9 @@ describe("local records (plan §4.3 personal bests)", () => {
   test("rows carry the lifetime stats verbatim", () => {
     const records = getRecords(
       saveWith({
-        maxDepth: 1234,
+        maxDepth: 1234n,
         maxCombo: 45,
-        lifetimeMinerals: 5_000_000,
+        lifetimeMinerals: 5_000_000n,
         lifetimeCorrect: 1200,
         minersOwnedEver: 77,
         totalGemsMinted: 9,
@@ -53,7 +53,7 @@ describe("local records (plan §4.3 personal bests)", () => {
   test("tier/achievement rows derive completion from the stats, like the goals view", () => {
     // Meets every goal of t1 (depth 10, 50 answers, 1 miner) — the same
     // thresholds the goals panel uses, so both views can never disagree.
-    const save = saveWith({ maxDepth: 10, lifetimeCorrect: 50, minersOwnedEver: 1 });
+    const save = saveWith({ maxDepth: 10n, lifetimeCorrect: 50, minersOwnedEver: 1 });
     const records = getRecords(save);
     expect(byId(records, "tiers")?.value).toBe(`1/${GOAL_TIERS.length}`);
     // First achievement is the 10-answers badge: 50 answers clears it (and
@@ -67,8 +67,8 @@ describe("local records (plan §4.3 personal bests)", () => {
   });
 
   test("row order is stable and ids unique (UI is a dumb list renderer)", () => {
-    const a = getRecords(saveWith({ maxDepth: 99 }));
-    const b = getRecords(saveWith({ maxDepth: 1 }));
+    const a = getRecords(saveWith({ maxDepth: 99n }));
+    const b = getRecords(saveWith({ maxDepth: 1n }));
     expect(a.map((r) => r.id)).toEqual(b.map((r) => r.id));
     const ids = a.map((r) => r.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -81,12 +81,14 @@ describe("local records (plan §4.3 personal bests)", () => {
 
   test("pure: same save yields identical records and the input is untouched", () => {
     const save = saveWith({
-      maxDepth: 500,
-      lifetimeMinerals: 123456,
+      maxDepth: 500n,
+      lifetimeMinerals: 123_456n,
       totalPrestiges: 3,
     });
-    const before = JSON.stringify(save);
+    // serializeSaveData (not JSON.stringify, which throws on bigint) is
+    // the canonical JSON form of a save.
+    const before = serializeSaveData(save);
     expect(getRecords(save)).toEqual(getRecords(save));
-    expect(JSON.stringify(save)).toBe(before);
+    expect(serializeSaveData(save)).toBe(before);
   });
 });

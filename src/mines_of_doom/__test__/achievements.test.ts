@@ -27,7 +27,8 @@ describe("achievements catalog", () => {
       expect(a.bonusMinerals).toBeGreaterThan(0);
       // Metric must be a field on the save (GoalMetric union guarantees
       // this at compile time; assert runtime consistency too).
-      expect(baseSave()[a.metric]).toBe(0);
+      // Number(): mineral metrics are bigint (0n) in a fresh save.
+      expect(Number(baseSave()[a.metric])).toBe(0);
     }
   });
 });
@@ -72,13 +73,13 @@ describe("achievement derivation", () => {
   test("stats survive spending: completion derives from lifetime stats", () => {
     // Mining 1M lifetime then spending everything down to 0 keeps the badge.
     const save = saveWith({
-      lifetimeMinerals: 1_000_000_000,
+      lifetimeMinerals: 1_000_000_000n,
       lifetimeCorrect: 1000,
       minersOwnedEver: 25,
       maxCombo: 250,
       totalGemsMinted: 100,
-      maxDepth: 500,
-      minerals: 0,
+      maxDepth: 500n,
+      minerals: 0n,
     });
     expect(getCompletedAchievementIds(save)).toHaveLength(ACHIEVEMENTS.length);
   });

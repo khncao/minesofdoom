@@ -50,12 +50,12 @@ const MiningCanvas = memo(function MiningCanvas({
   reduceMotion,
   emojiArt,
 }: {
-  depth: number;
+  depth: bigint;
   /** Progress toward the next depth tier, 0..1 — the cave's continuous slide. */
   depthProgress: number;
   /** Cave background tint for the current depth tier. */
   tint: string;
-  minerals: number;
+  minerals: bigint;
   gems: number;
   miners: number;
   /** Tier-2 second miner type: rendered smaller, cheaper/weaker. */

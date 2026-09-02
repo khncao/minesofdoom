@@ -38,9 +38,9 @@ function AdRewardsPanel({
   isDevSim: boolean;
   gemRollsLeft: number;
   dailyCapLeft: number;
-  offlineDouble: number | null;
+  offlineDouble: bigint | null;
   /** Minerals withheld beyond the 8h cap that a completed ad would grant. */
-  offlineTopUp: number | null;
+  offlineTopUp: bigint | null;
   claiming: AdKind | null;
   onClaim: (kind: AdKind) => void;
 }) {
@@ -85,7 +85,7 @@ function AdRewardsPanel({
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={styles.text}>{t("ads.double")}</Text>
             <Text style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}>
-              {offlineDouble != null && offlineDouble > 0
+              {offlineDouble != null && offlineDouble > 0n
                 ? t("ads.doubleDetail", {
                     count: formatNumber(offlineDouble),
                   })
@@ -95,7 +95,7 @@ function AdRewardsPanel({
           <Button
             disabled={
               claiming != null ||
-              (offlineDouble ?? 0) <= 0 ||
+              (offlineDouble ?? 0n) <= 0n ||
               dailyCapLeft <= 0
             }
             title={claiming === "offlineDouble" ? t("ads.watching") : t("ads.watch")}
@@ -109,7 +109,7 @@ function AdRewardsPanel({
               {t("ads.topUp", { hours: offlineTopUpTicks / 3600 })}
             </Text>
             <Text style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}>
-              {offlineTopUp != null && offlineTopUp > 0
+              {offlineTopUp != null && offlineTopUp > 0n
                 ? t("ads.topUpDetail", {
                     hours: offlineTopUpTicks / 3600,
                     count: formatNumber(offlineTopUp),
@@ -120,7 +120,7 @@ function AdRewardsPanel({
           <Button
             disabled={
               claiming != null ||
-              (offlineTopUp ?? 0) <= 0 ||
+              (offlineTopUp ?? 0n) <= 0n ||
               dailyCapLeft <= 0
             }
             title={claiming === "offlineTopUp" ? t("ads.watching") : t("ads.watch")}

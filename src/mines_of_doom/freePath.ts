@@ -221,7 +221,9 @@ export function simulateFreePath(
       // Depth is lifetime-mining based in the engine, so the bonus reads
       // the lifetime total, not the spendable balance.
       const comboMult = getComboMultiplier(combo);
-      const depthBonus = getDepthTier(getDepth(lifetime)).clickBonus;
+      // floor: the simulation accumulates fractional minerals; the engine's
+      // getDepth runs on integer (bigint) minerals.
+      const depthBonus = getDepthTier(getDepth(Math.floor(lifetime))).clickBonus;
       addGain(
         Math.max(1, persona.expectedEquationValue) *
           clickPower *
@@ -250,7 +252,8 @@ export function simulateFreePath(
     // (with resistance) just like the real onResetCombo path. Depth bonus
     // is lifetime-mining based, mirroring the engine.
     combo = getResistantComboReset(combo, comboResistLevels);
-    const depthBonus = getDepthTier(getDepth(lifetime)).clickBonus;
+    // floor: see answer() above — the engine's getDepth takes integers.
+    const depthBonus = getDepthTier(getDepth(Math.floor(lifetime))).clickBonus;
     addGain(
       clickPower * depthBonus * prestige * getClickBoostMultiplier(clickBoostLevels),
       "taps",
@@ -264,14 +267,18 @@ export function simulateFreePath(
     addGain(getDailyBonus(dailyStreak), "daily");
 
     // Night: the app was closed — offline earnings at the game's cap.
-    const offline = computeOfflineMinerals(
-      miners,
-      minerPower,
-      fastMiners,
-      0,
-      persona.offlineSecondsPerDay,
-      prestige,
-      legendaryMiners,
+    // Number(): the simulation runs in number space (it's a reporting
+    // tool, and 30 days of a free persona can't reach bigint territory).
+    const offline = Number(
+      computeOfflineMinerals(
+        miners,
+        minerPower,
+        fastMiners,
+        0,
+        persona.offlineSecondsPerDay,
+        prestige,
+        legendaryMiners,
+      ),
     );
     if (offline > 0) addGain(offline, "offline");
 

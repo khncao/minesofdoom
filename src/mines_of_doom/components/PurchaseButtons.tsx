@@ -63,7 +63,7 @@ const PurchaseButtons = memo(function PurchaseButtons({
    * economy has reached their base cost (see getVisiblePurchases in game.ts).
    */
   visible: ReadonlySet<PurchaseId>;
-  minerals: number;
+  minerals: bigint;
   gems: number;
   clickPower: number;
   minerPower: number;
@@ -82,7 +82,7 @@ const PurchaseButtons = memo(function PurchaseButtons({
   /** Banked prestige level (save). */
   prestigeLevel: number;
   /** Lifetime minerals (drives which multiplier level is available to bank). */
-  lifetimeMinerals: number;
+  lifetimeMinerals: bigint;
   /** Tier-3 gem upgrade levels (both survive prestige). */
   clickBoostLevels: number;
   comboResistLevels: number;
@@ -141,7 +141,7 @@ const PurchaseButtons = memo(function PurchaseButtons({
       <PurchaseGroupHeader label={t("purchase.groupMinerals")} color="#8fbf8f" />
       <Button
         testId="btn-upgrade-power"
-        disabled={minerals < getClickUpgradeCost(clickPower)}
+        disabled={minerals < BigInt(getClickUpgradeCost(clickPower))}
         onPress={onUpgradePower}
         title={t("purchase.upgradePower", {
           cost: formatNumber(getClickUpgradeCost(clickPower)),
@@ -154,7 +154,7 @@ const PurchaseButtons = memo(function PurchaseButtons({
       {visible.has("minerPower") && (
         <Button
           onPress={onUpgradeMinerPower}
-          disabled={!minerPowerUnlocked || minerals < getMinerPowerUpgradeCost(minerPower)}
+          disabled={!minerPowerUnlocked || minerals < BigInt(getMinerPowerUpgradeCost(minerPower))}
           title={
             minerPowerUnlocked
               ? t("purchase.upgradeMiners", {
@@ -169,7 +169,7 @@ const PurchaseButtons = memo(function PurchaseButtons({
       <Button
         testId="btn-buy-gem"
         onPress={onBuyGem}
-        disabled={minerals < gemMineralCost}
+        disabled={minerals < BigInt(gemMineralCost)}
         title={t("purchase.buyGem", {
           cost: formatNumber(gemMineralCost),
         })}

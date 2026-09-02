@@ -21,14 +21,14 @@ describe("goal tier derivation", () => {
 
   test("tier 1 completes when all its goals are met", () => {
     const save = saveWith({
-      maxDepth: 10,
+      maxDepth: 10n,
       lifetimeCorrect: 50,
       minersOwnedEver: 1,
     });
     expect(getCompletedTierIds(save)).toEqual(["t1"]);
     // Not all of tier 1's goals met yet => no completion
     expect(
-      getCompletedTierIds(saveWith({ maxDepth: 10, lifetimeCorrect: 50 })),
+      getCompletedTierIds(saveWith({ maxDepth: 10n, lifetimeCorrect: 50 })),
     ).toEqual([]);
   });
 
@@ -36,18 +36,18 @@ describe("goal tier derivation", () => {
     // Depth 1500m and 500-combo clear tier 5's metrics, but without the
     // early-game goals (50 answers, a miner) nothing completes.
     const save = saveWith({
-      maxDepth: 1500,
+      maxDepth: 1500n,
       maxCombo: 500,
-      lifetimeMinerals: 1e9,
+      lifetimeMinerals: 1_000_000_000n,
     });
     expect(getCompletedTierIds(save)).toEqual([]);
   });
 
   test("all five tiers complete with maxed stats", () => {
     const save = saveWith({
-      maxDepth: 1500,
+      maxDepth: 1500n,
       lifetimeCorrect: 1000,
-      lifetimeMinerals: 1e9,
+      lifetimeMinerals: 1_000_000_000n,
       minersOwnedEver: 10,
       maxCombo: 500,
       totalGemsSpent: 10,
@@ -62,16 +62,16 @@ describe("goal tier derivation", () => {
     // maxDepth is a lifetime stat — mining to 1500m then buying things
     // back down to 0 minerals keeps the goal complete.
     const save = saveWith({
-      maxDepth: 1500,
+      maxDepth: 1500n,
       lifetimeCorrect: 1000,
-      lifetimeMinerals: 1e9,
+      lifetimeMinerals: 1_000_000_000n,
       minersOwnedEver: 10,
       maxCombo: 500,
       totalGemsSpent: 10,
       minerPower: 11,
       totalGemsMinted: 100,
       totalPrestiges: 3,
-      minerals: 0,
+      minerals: 0n,
     });
     expect(getCompletedTierIds(save)).toHaveLength(5);
   });

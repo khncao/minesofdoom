@@ -21,7 +21,7 @@ export function useDailyBonus({
   grantMinerals,
   displayMessage,
 }: {
-  grantMinerals: (minerals: number) => void;
+  grantMinerals: (minerals: bigint) => void;
   displayMessage: (message: string, timeout: number) => void;
 }) {
   const { t } = useI18n();
@@ -56,7 +56,9 @@ export function useDailyBonus({
     const current = stateRef.current;
     const claimInfo = computeDailyClaim(current, now);
     if (!claimInfo.claimable) return;
-    grantMinerals(claimInfo.bonus);
+    // claimInfo.bonus is a fixed, small number (see getDailyBonus) — safe to
+    // convert to the engine's bigint currency exactly.
+    grantMinerals(BigInt(claimInfo.bonus));
     const next = applyDailyClaim(current, now);
     // Publish the new state to the ref synchronously: setState only takes
     // effect on the next render, and a fast second tap before that render

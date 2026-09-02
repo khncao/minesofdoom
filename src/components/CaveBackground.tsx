@@ -17,7 +17,7 @@ const ROWS = 12;
  * the descent is continuous instead of a jump every tier.
  */
 interface CaveBackgroundProps {
-  depth: number;
+  depth: bigint;
   /** Tint for the current depth tier (theme-aware, see `cosmetics.ts`). */
   tint?: string;
   /**
@@ -78,7 +78,7 @@ function CaveBackground({
       emojiArt
         ? []
         : Array.from({ length: ROWS + 1 }, (_, i) =>
-            caveRowUri({ depth: depth + i, tint }),
+            caveRowUri({ depth: Number(depth) + i, tint }),
           ),
     [depth, tint, emojiArt],
   );

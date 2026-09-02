@@ -154,7 +154,10 @@ export function getGoalProgress(save: SaveData, goal: Goal) {
   return {
     current,
     target: goal.target,
-    fraction: goal.target > 0 ? Math.min(1, current / goal.target) : 1,
+    // Number() for the float fraction only (metrics can be bigint); display
+    // keeps the exact value in `current`.
+    fraction:
+      goal.target > 0 ? Math.min(1, Number(current) / goal.target) : 1,
   };
 }
 

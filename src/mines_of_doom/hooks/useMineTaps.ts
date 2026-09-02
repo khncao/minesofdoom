@@ -20,21 +20,21 @@ export function useMineTaps({
   onResetCombo,
   onGain,
 }: {
-  clickPower: number;
+  clickPower: bigint;
   play: (key: SoundKey, minInterval?: number) => void;
   playerPickaxeAnimRef: MutableRefObject<() => void>;
   debrisRef: RefObject<DebrisParticlesRef>;
   blockBreakRef: RefObject<BlockBreakRef>;
-  addTapGain: (gain: number) => void;
+  addTapGain: (gain: bigint) => void;
   onResetCombo: () => void;
   /** Optional per-tap feedback hook (e.g. floating "+N" text). */
-  onGain?: (gain: number) => void;
+  onGain?: (gain: bigint) => void;
 }) {
   // Rapid mine taps: accumulate gains in a ref and flush to state at a
   // fixed 20Hz rate, so fast tapping causes a handful of cheap re-renders
   // per second instead of one per tap (50ms display latency is imperceptible
   // for an idle-game counter).
-  const pendingTapGainRef = useRef(0);
+  const pendingTapGainRef = useRef(0n);
   const tapFlushScheduledRef = useRef(false);
   const lastTapFlushRef = useRef(0);
   const clickPowerRef = useRef(clickPower);
@@ -54,7 +54,7 @@ export function useMineTaps({
       tapFlushScheduledRef.current = false;
       lastTapFlushRef.current = now;
       const gain = pendingTapGainRef.current;
-      pendingTapGainRef.current = 0;
+      pendingTapGainRef.current = 0n;
       addTapGain(gain);
     };
     tapFlushScheduledRef.current = true;

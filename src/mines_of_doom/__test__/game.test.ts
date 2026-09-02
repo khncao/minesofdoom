@@ -404,8 +404,8 @@ describe("lifetimeDelta", () => {
 
   test("tracks gains and re-derives maxDepth", () => {
     const d = lifetimeDelta(save(), { minerals: 5500 });
-    expect(d.lifetimeMinerals).toBe(5500);
-    expect(d.maxDepth).toBe(11);
+    expect(d.lifetimeMinerals).toBe(5500n);
+    expect(d.maxDepth).toBe(11n);
   });
 
   test("maxCombo only ever increases", () => {
@@ -415,11 +415,11 @@ describe("lifetimeDelta", () => {
   });
 
   test("no deltas is a no-op", () => {
-    const s = { ...save(), maxCombo: 7, maxDepth: 3 };
+    const s = { ...save(), maxCombo: 7, maxDepth: 3n };
     const d = lifetimeDelta(s, {});
-    expect(d.lifetimeMinerals).toBe(0);
+    expect(d.lifetimeMinerals).toBe(0n);
     expect(d.maxCombo).toBe(7);
-    expect(d.maxDepth).toBe(3);
+    expect(d.maxDepth).toBe(3n);
     expect(d.minersOwnedEver).toBe(0);
     expect(d.totalGemsMinted).toBe(0);
   });
@@ -427,20 +427,20 @@ describe("lifetimeDelta", () => {
   test("maxDepth derives from lifetime mining, not the mineral balance", () => {
     // The player has mined 10,000 (depth 20) and spent all but 0 — the old
     // balance-based rule would have dropped the depth to 0 on the spend.
-    const spent = { ...save(), minerals: 0, lifetimeMinerals: 10_000 };
-    expect(lifetimeDelta(spent, {}).maxDepth).toBe(20);
+    const spent = { ...save(), minerals: 0n, lifetimeMinerals: 10_000n };
+    expect(lifetimeDelta(spent, {}).maxDepth).toBe(20n);
     // A further gain extends it from the lifetime total.
-    expect(lifetimeDelta(spent, { minerals: 500 }).maxDepth).toBe(21);
+    expect(lifetimeDelta(spent, { minerals: 500 }).maxDepth).toBe(21n);
   });
 });
 
 describe("getDepth", () => {
   test("depth = floor(minerals / 500)", () => {
-    expect(getDepth(0)).toBe(0);
-    expect(getDepth(499)).toBe(0);
-    expect(getDepth(500)).toBe(1);
-    expect(getDepth(1234)).toBe(2);
-    expect(getDepth(100000)).toBe(200);
+    expect(getDepth(0)).toBe(0n);
+    expect(getDepth(499)).toBe(0n);
+    expect(getDepth(500)).toBe(1n);
+    expect(getDepth(1234)).toBe(2n);
+    expect(getDepth(100000)).toBe(200n);
   });
 });
 
@@ -448,47 +448,47 @@ describe("computeOfflineMinerals", () => {
   const now = 1_000_000_000;
 
   test("no miners of any type / zero saveTime / no elapsed time => 0", () => {
-    expect(computeOfflineMinerals(0, 5, 0, now - 100_000, now)).toBe(0);
-    expect(computeOfflineMinerals(2, 3, 0, 0, now)).toBe(0);
-    expect(computeOfflineMinerals(2, 3, 0, now, now)).toBe(0);
-    expect(computeOfflineMinerals(2, 3, 0, now + 1000, now)).toBe(0);
+    expect(computeOfflineMinerals(0, 5, 0, now - 100_000, now)).toBe(0n);
+    expect(computeOfflineMinerals(2, 3, 0, 0, now)).toBe(0n);
+    expect(computeOfflineMinerals(2, 3, 0, now, now)).toBe(0n);
+    expect(computeOfflineMinerals(2, 3, 0, now + 1000, now)).toBe(0n);
   });
 
   test("miners x minerPower x elapsed ticks", () => {
     // 10 ticks elapsed: 2 miners * 3 power * 10 = 60
-    expect(computeOfflineMinerals(2, 3, 0, now - 10 * msPerTick, now)).toBe(60);
+    expect(computeOfflineMinerals(2, 3, 0, now - 10 * msPerTick, now)).toBe(60n);
   });
 
   test("fast miners contribute their (weaker) output", () => {
     // 10 ticks: 2 normal @ power 3 (6/s) + 3 fast @ output 1 (3/s) = 90
-    expect(computeOfflineMinerals(2, 3, 3, now - 10 * msPerTick, now)).toBe(90);
+    expect(computeOfflineMinerals(2, 3, 3, now - 10 * msPerTick, now)).toBe(90n);
   });
 
   test("legendary miners contribute their (double) output", () => {
     // 10 ticks: 1 normal @ power 3 (3/s) + 2 legendary @ output 6 (12/s) = 150
     expect(computeOfflineMinerals(1, 3, 0, now - 10 * msPerTick, now, 1, 2)).toBe(
-      150,
+      150n,
     );
     // Prestige multiplier and legendary miners compose.
     expect(computeOfflineMinerals(1, 3, 0, now - 10 * msPerTick, now, 2, 2)).toBe(
-      300,
+      300n,
     );
   });
 
   test("caps at maxOfflineTicks (8h)", () => {
     const nineHours = 9 * 3600 * 1000;
     expect(computeOfflineMinerals(2, 3, 3, now - nineHours, now, 1, 4)).toBe(
-      getMineralsPerSec(2, 3, 3, 4) * maxOfflineTicks,
+      BigInt(getMineralsPerSec(2, 3, 3, 4)) * BigInt(maxOfflineTicks),
     );
   });
 
   test("prestige multiplier scales the offline payout", () => {
     // 10 ticks: 2 miners * 3 power * 10 = 60, x2 banked = 120.
     expect(computeOfflineMinerals(2, 3, 0, now - 10 * msPerTick, now, 2)).toBe(
-      120,
+      120n,
     );
     // Default multiplier (no argument) is 1 — same as before.
-    expect(computeOfflineMinerals(2, 3, 0, now - 10 * msPerTick, now)).toBe(60);
+    expect(computeOfflineMinerals(2, 3, 0, now - 10 * msPerTick, now)).toBe(60n);
   });
 });
 
@@ -497,29 +497,29 @@ describe("computeOfflineTopUpMinerals", () => {
   const hour = 3600 * 1000;
 
   test("zero saveTime / no elapsed time => 0 (nothing to top up)", () => {
-    expect(computeOfflineTopUpMinerals(2, 3, 0, 0, now)).toBe(0);
-    expect(computeOfflineTopUpMinerals(2, 3, 0, now, now)).toBe(0);
-    expect(computeOfflineTopUpMinerals(2, 3, 0, now + 1000, now)).toBe(0);
+    expect(computeOfflineTopUpMinerals(2, 3, 0, 0, now)).toBe(0n);
+    expect(computeOfflineTopUpMinerals(2, 3, 0, now, now)).toBe(0n);
+    expect(computeOfflineTopUpMinerals(2, 3, 0, now + 1000, now)).toBe(0n);
   });
 
   test("0 while the away time never hit the 8h cap", () => {
     // 7h59m away — the cap never engaged, so nothing was withheld.
     expect(
       computeOfflineTopUpMinerals(2, 3, 0, now - (maxOfflineTicks - 60) * msPerTick, now),
-    ).toBe(0);
+    ).toBe(0n);
   });
 
   test("pays the withheld hours once the away time exceeds the cap", () => {
     // 9h away: 1h beyond the cap.
     expect(computeOfflineTopUpMinerals(2, 3, 0, now - 9 * hour, now)).toBe(
-      getMineralsPerSec(2, 3, 0) * 3600,
+      BigInt(getMineralsPerSec(2, 3, 0)) * 3600n,
     );
   });
 
   test("the top-up itself caps at offlineTopUpTicks (+2h)", () => {
     // 15h away: only 2h beyond the cap are granted.
     expect(computeOfflineTopUpMinerals(2, 3, 0, now - 15 * hour, now)).toBe(
-      getMineralsPerSec(2, 3, 0) * offlineTopUpTicks,
+      BigInt(getMineralsPerSec(2, 3, 0)) * BigInt(offlineTopUpTicks),
     );
   });
 
@@ -527,7 +527,7 @@ describe("computeOfflineTopUpMinerals", () => {
     // 10h away, 2h beyond the cap, x2 banked.
     expect(
       computeOfflineTopUpMinerals(2, 3, 3, now - 10 * hour, now, 2, 4),
-    ).toBe(getMineralsPerSec(2, 3, 3, 4) * offlineTopUpTicks * 2);
+    ).toBe(BigInt(getMineralsPerSec(2, 3, 3, 4)) * BigInt(offlineTopUpTicks) * 2n);
   });
 });
 
@@ -563,7 +563,7 @@ describe("migrateSaveData", () => {
     // Everything already mined counts toward lifetime minerals, current
     // roster toward miners-owned-ever, current gems toward gems minted.
     expect(migrated.lifetimeMinerals).toBe(2500);
-    expect(migrated.maxDepth).toBe(5); // floor(2500 / 500)
+    expect(migrated.maxDepth).toBe(5n); // floor(2500 / 500)
     expect(migrated.minersOwnedEver).toBe(4);
     expect(migrated.totalGemsMinted).toBe(3);
     expect(migrated.lifetimeCorrect).toBe(0);
@@ -971,12 +971,12 @@ const NO_PURCHASE_UNLOCKS = {
   prestigeUnlocked: false,
 };
 
-type Lifetime = { lifetimeMinerals: number; totalGemsMinted: number };
+type Lifetime = { lifetimeMinerals: bigint; totalGemsMinted: number };
 
 describe("getVisiblePurchases", () => {
   test("only the core buttons are visible on a fresh save", () => {
     const visible = getVisiblePurchases(
-      { lifetimeMinerals: 0, totalGemsMinted: 0 },
+      { lifetimeMinerals: 0n, totalGemsMinted: 0 },
       NO_PURCHASE_UNLOCKS,
     );
     expect([...visible].sort()).toEqual(
@@ -1002,7 +1002,7 @@ describe("getVisiblePurchases", () => {
   test("mineral-cost buttons reveal once lifetime minerals reach the base cost", () => {
     const minerPowerBase = getMinerPowerUpgradeCost(1);
     const below: Lifetime = {
-      lifetimeMinerals: minerPowerBase - 1,
+      lifetimeMinerals: BigInt(minerPowerBase) - 1n,
       totalGemsMinted: 0,
     };
     expect(getVisiblePurchases(below, NO_PURCHASE_UNLOCKS).has("minerPower")).toBe(
@@ -1010,7 +1010,7 @@ describe("getVisiblePurchases", () => {
     );
     expect(
       getVisiblePurchases(
-        { lifetimeMinerals: minerPowerBase, totalGemsMinted: 0 },
+        { lifetimeMinerals: BigInt(minerPowerBase), totalGemsMinted: 0 },
         NO_PURCHASE_UNLOCKS,
       ).has("minerPower"),
     ).toBe(true);
@@ -1018,13 +1018,13 @@ describe("getVisiblePurchases", () => {
     const firstPrestigeRung = PRESTIGE_LEVELS[1].at;
     expect(
       getVisiblePurchases(
-        { lifetimeMinerals: firstPrestigeRung - 1, totalGemsMinted: 0 },
+        { lifetimeMinerals: BigInt(firstPrestigeRung) - 1n, totalGemsMinted: 0 },
         NO_PURCHASE_UNLOCKS,
       ).has("prestige"),
     ).toBe(false);
     expect(
       getVisiblePurchases(
-        { lifetimeMinerals: firstPrestigeRung, totalGemsMinted: 0 },
+        { lifetimeMinerals: BigInt(firstPrestigeRung), totalGemsMinted: 0 },
         NO_PURCHASE_UNLOCKS,
       ).has("prestige"),
     ).toBe(true);
@@ -1041,13 +1041,13 @@ describe("getVisiblePurchases", () => {
     for (const [id, base] of baseCosts) {
       expect(
         getVisiblePurchases(
-          { lifetimeMinerals: 0, totalGemsMinted: base - 1 },
+          { lifetimeMinerals: 0n, totalGemsMinted: base - 1 },
           NO_PURCHASE_UNLOCKS,
         ).has(id),
       ).toBe(false);
       expect(
         getVisiblePurchases(
-          { lifetimeMinerals: 0, totalGemsMinted: base },
+          { lifetimeMinerals: 0n, totalGemsMinted: base },
           NO_PURCHASE_UNLOCKS,
         ).has(id),
       ).toBe(true);
@@ -1055,7 +1055,7 @@ describe("getVisiblePurchases", () => {
   });
 
   test("goal-tier unlocks reveal the matching button regardless of lifetime", () => {
-    const zero: Lifetime = { lifetimeMinerals: 0, totalGemsMinted: 0 };
+    const zero: Lifetime = { lifetimeMinerals: 0n, totalGemsMinted: 0 };
     expect(
       getVisiblePurchases(zero, {
         ...NO_PURCHASE_UNLOCKS,
@@ -1084,12 +1084,12 @@ describe("getVisiblePurchases", () => {
   });
 
   test("visibility is monotonic: it only ever turns on", () => {
-    const early: Lifetime = { lifetimeMinerals: 10, totalGemsMinted: 2 };
+    const early: Lifetime = { lifetimeMinerals: 10n, totalGemsMinted: 2 };
     const earlyVisible = new Set(
       getVisiblePurchases(early, NO_PURCHASE_UNLOCKS),
     );
     const lateVisible = getVisiblePurchases(
-      { lifetimeMinerals: 1e9, totalGemsMinted: 1e6 },
+      { lifetimeMinerals: 1_000_000_000n, totalGemsMinted: 1e6 },
       {
         minerPowerUnlocked: true,
         fastMinerUnlocked: true,
@@ -1107,7 +1107,7 @@ describe("getVisiblePurchases", () => {
     // getVisiblePurchases only reads lifetime stats by contract — a player
     // who spent everything must not lose buttons they've already unlocked.
     const visible = getVisiblePurchases(
-      { lifetimeMinerals: 1e9, totalGemsMinted: 1e6 },
+      { lifetimeMinerals: 1_000_000_000n, totalGemsMinted: 1e6 },
       NO_PURCHASE_UNLOCKS,
     );
     expect(visible.size).toBe(ALL_PURCHASE_IDS.length);

@@ -12,8 +12,18 @@ import {
 } from "./cosmetics";
 import { Equation, Ops } from "src/utils/math/equations";
 
+/**
+ * Save data model — the persisted game state.
+ *
+ * `minerals`, `lifetimeMinerals` and `maxDepth` are `bigint`: minerals grow
+ * unbounded (an idle game must never cap the counter) and a number would
+ * lose integer precision past 2^53. Everything else is plain JSON; the
+ * bigint fields travel as decimal strings (see `serializeSaveData` /
+ * `buildSaveData`), so the save still round-trips through AsyncStorage /
+ * JSON.parse without adapters.
+ */
 export type SaveData = {
-  minerals: number;
+  minerals: bigint;
   gems: number;
   clickPower: number;
   miners: number;
@@ -45,10 +55,10 @@ export type SaveData = {
   // Lifetime stats — never decrease, drive goal tiers/achievements/prestige
   // (see goals.ts). Tracked incrementally in the state updaters, not by
   // scanning history.
-  lifetimeMinerals: number;
+  lifetimeMinerals: bigint;
   lifetimeCorrect: number;
   maxCombo: number;
-  maxDepth: number;
+  maxDepth: bigint;
   minersOwnedEver: number;
   totalGemsMinted: number;
   totalGemsSpent: number;
@@ -90,9 +100,8 @@ export type SettingsData = {
   emojiArt: boolean;
 };
 
-// TODO: number to bigint
 export const saveDataKey = "save";
-export const saveVersion = 9;
+export const saveVersion = 10;
 export const settingsDataKey = "settings";
 export const equationSettingsKey = "equationSettings";
 
@@ -241,6 +250,10 @@ const migrations: Record<
       legendaryMiners: Math.max(0, Math.floor(num(data.legendaryMiners, 0))),
     };
   },
+  // 9 -> 10: minerals / lifetimeMinerals / maxDepth become bigint. The stored
+  // VALUES are unchanged (numbers here, strings once serialized post-10);
+  // buildSaveData parses them to bigint, so the migration is a no-op.
+  9: (data) => ({ ...data, saveVersion: 10 }),
   // 7 -> 8: tier-4 cosmetic line (cave themes). Old saves own just the free
   // default and haven't changed the cave look; junk ids are dropped and the
   // free default is always kept owned, like every other cosmetic field.
@@ -283,8 +296,27 @@ export function buildSaveData(
 ): SaveData {
   const num = (v: unknown, fallback: number) =>
     typeof v === "number" && Number.isFinite(v) ? v : fallback;
+  // The bigint mineral counters: v10 serializes them as decimal strings, but
+  // a pre-v10 number (or a bigint, in-memory) is accepted the same way.
+  // Precision on a legacy numeric save was already number-precision — the
+  // value is what the player last saw, nothing can be recovered.
+  const mineral = (v: unknown, fallback: bigint): bigint => {
+    if (typeof v === "bigint") return v < 0n ? 0n : v;
+    if (typeof v === "string") {
+      try {
+        const n = BigInt(v);
+        return n < 0n ? 0n : n;
+      } catch {
+        return fallback;
+      }
+    }
+    if (typeof v === "number" && Number.isFinite(v) && v > 0) {
+      return BigInt(Math.floor(v));
+    }
+    return fallback;
+  };
   return {
-    minerals: num(migrated.minerals, 0),
+    minerals: mineral(migrated.minerals, 0n),
     gems: num(migrated.gems, 0),
     clickPower: num(migrated.clickPower, 1),
     miners: num(migrated.miners, 0),
@@ -310,10 +342,10 @@ export function buildSaveData(
     startTime: num(migrated.startTime, now),
     saveTime: num(migrated.saveTime, now),
     saveVersion: num(migrated.saveVersion, saveVersion),
-    lifetimeMinerals: num(migrated.lifetimeMinerals, 0),
+    lifetimeMinerals: mineral(migrated.lifetimeMinerals, 0n),
     lifetimeCorrect: num(migrated.lifetimeCorrect, 0),
     maxCombo: num(migrated.maxCombo, 0),
-    maxDepth: num(migrated.maxDepth, 0),
+    maxDepth: mineral(migrated.maxDepth, 0n),
     minersOwnedEver: num(migrated.minersOwnedEver, 0),
     totalGemsMinted: num(migrated.totalGemsMinted, 0),
     totalGemsSpent: num(migrated.totalGemsSpent, 0),
@@ -370,6 +402,44 @@ export function buildSaveData(
         ? migrated.selectedCaveTheme
         : DEFAULT_CAVE_THEME,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Exact float scaling (the bridge between the bigint mineral counters and
+// the float multipliers: prestige, depth-tier click bonus).
+//
+// Every multiplier in the game is an exact multiple of 0.01, so scale-100
+// integer arithmetic is lossless for one factor; two factors compose at
+// scale 10,000, still exact. The final division rounds half-up — minerals
+// are an idle counter, never a currency ledger, so a half mineral is worth
+// the determinism.
+// ---------------------------------------------------------------------------
+export const FLOAT_SCALE = 100n;
+
+/**
+ * Multiply a bigint by a list of float multipliers exactly (see above):
+ * `mulFloats(60n, [1.5]) === 90n`, `mulFloats(1n, [1.1, 1.5]) === 2n`.
+ */
+export function mulFloats(value: bigint, floats: readonly number[]): bigint {
+  if (value <= 0n) return 0n;
+  let num = 1n;
+  let den = 1n;
+  for (const f of floats) {
+    num *= BigInt(Math.round(f * 100));
+    den *= FLOAT_SCALE;
+  }
+  return (value * num + den / 2n) / den;
+}
+
+/**
+ * JSON-safe stringify for the save: bigint fields travel as decimal strings
+ * (plain JSON.stringify throws on bigint). Shared by the AsyncStorage save
+ * and the save-code encoder so both serializations stay identical.
+ */
+export function serializeSaveData(data: SaveData): string {
+  return JSON.stringify(data, (_k, v) =>
+    typeof v === "bigint" ? v.toString() : v,
+  );
 }
 
 /** Walk a parsed save through every migration up to the current version. */
@@ -477,10 +547,11 @@ export const DEPTH_TIERS: DepthTier[] = [
 ];
 
 /** Highest tier whose minimum depth has been reached. */
-export function getDepthTier(depth: number): DepthTier {
+export function getDepthTier(depth: number | bigint): DepthTier {
+  const d = BigInt(depth);
   let tier = DEPTH_TIERS[0];
   for (const t of DEPTH_TIERS) {
-    if (depth >= t.at) tier = t;
+    if (d >= BigInt(t.at)) tier = t;
   }
   return tier;
 }
@@ -504,12 +575,19 @@ export const FINAL_TIER_PROGRESS_SPAN = 350;
  * never slide the cave back up (todo: depth & scroll are lifetime-mining
  * based, so both only ever advance).
  */
-export function getDepthTierProgress(lifetimeMinerals: number): number {
+export function getDepthTierProgress(
+  lifetimeMinerals: number | bigint,
+): number {
   const depth = getDepth(lifetimeMinerals);
   const tier = getDepthTier(depth);
   const next = DEPTH_TIERS[tier.id + 1];
-  const span = next ? next.at - tier.at : FINAL_TIER_PROGRESS_SPAN;
-  return Math.min(1, Math.max(0, (depth - tier.at) / span));
+  const span = next
+    ? BigInt(next.at - tier.at)
+    : BigInt(FINAL_TIER_PROGRESS_SPAN);
+  const into = depth - BigInt(tier.at);
+  if (span <= 0n) return 1;
+  const clamped = into < 0n ? 0n : into > span ? span : into;
+  return Number(clamped) / Number(span);
 }
 
 /**
@@ -548,10 +626,11 @@ export const PRESTIGE_LEVELS: PrestigeLevel[] = [
  * This is the level the player could *bank* right now; the banked level on
  * the save only ever moves up toward it (see sinkNewShaft in the engine).
  */
-export function getPrestigeLevel(lifetimeMinerals: number): number {
+export function getPrestigeLevel(lifetimeMinerals: number | bigint): number {
+  const lifetime = BigInt(lifetimeMinerals);
   let level = 0;
   for (const p of PRESTIGE_LEVELS) {
-    if (lifetimeMinerals >= p.at) level = p.level;
+    if (lifetime >= BigInt(p.at)) level = p.level;
   }
   return level;
 }
@@ -569,7 +648,7 @@ export function getPrestigeMultiplier(prestigeLevel: number): number {
 // the object, and a shared mutable default would leak changes across resets.
 export function createEmptySaveData(): SaveData {
   return {
-    minerals: 0,
+    minerals: 0n,
     gems: 0,
     clickPower: 1,
     miners: 0,
@@ -583,10 +662,10 @@ export function createEmptySaveData(): SaveData {
     startTime: Date.now(),
     saveTime: 0,
     saveVersion,
-    lifetimeMinerals: 0,
+    lifetimeMinerals: 0n,
     lifetimeCorrect: 0,
     maxCombo: 0,
-    maxDepth: 0,
+    maxDepth: 0n,
     minersOwnedEver: 0,
     totalGemsMinted: 0,
     totalGemsSpent: 0,
@@ -612,21 +691,20 @@ export function createEmptySaveData(): SaveData {
 export function lifetimeDelta(
   n: SaveData,
   d: {
-    minerals?: number;
+    minerals?: number | bigint;
     correct?: number;
     combo?: number;
     newMiners?: number;
     gemsMinted?: number;
   },
 ): Partial<SaveData> {
+  const gained = d.minerals == null ? 0n : BigInt(d.minerals);
+  const newMaxDepth = getDepth(n.lifetimeMinerals + gained);
   return {
-    lifetimeMinerals: n.lifetimeMinerals + (d.minerals ?? 0),
+    lifetimeMinerals: n.lifetimeMinerals + gained,
     lifetimeCorrect: n.lifetimeCorrect + (d.correct ?? 0),
     maxCombo: Math.max(n.maxCombo, d.combo ?? 0),
-    maxDepth: Math.max(
-      n.maxDepth,
-      getDepth(n.lifetimeMinerals + (d.minerals ?? 0)),
-    ),
+    maxDepth: n.maxDepth > newMaxDepth ? n.maxDepth : newMaxDepth,
     minersOwnedEver:
       d.newMiners != null
         ? Math.max(n.minersOwnedEver, d.newMiners)
@@ -704,7 +782,7 @@ export function getVisiblePurchases(
   const { lifetimeMinerals, totalGemsMinted } = lifetime;
   if (
     unlocks.minerPowerUnlocked ||
-    lifetimeMinerals >= getMinerPowerUpgradeCost(1)
+    lifetimeMinerals >= BigInt(getMinerPowerUpgradeCost(1))
   ) {
     visible.add("minerPower");
   }
@@ -729,10 +807,7 @@ export function getVisiblePurchases(
   ) {
     visible.add("comboResist");
   }
-  if (
-    unlocks.prestigeUnlocked ||
-    lifetimeMinerals >= PRESTIGE_LEVELS[1].at
-  ) {
+  if (unlocks.prestigeUnlocked || lifetimeMinerals >= BigInt(PRESTIGE_LEVELS[1].at)) {
     visible.add("prestige");
   }
   return visible;
@@ -959,8 +1034,9 @@ export function getAnswerPayoutMultiplier(
  * it either (todo: "Depth and screen scrolling should be based on lifetime
  * mining").
  */
-export function getDepth(lifetimeMinerals: number): number {
-  return Math.floor(lifetimeMinerals / mineralsPerDepth);
+export function getDepth(lifetimeMinerals: number | bigint): bigint {
+  const lifetime = BigInt(lifetimeMinerals);
+  return lifetime / BigInt(mineralsPerDepth);
 }
 
 /**
@@ -976,19 +1052,16 @@ export function computeOfflineMinerals(
   now: number,
   multiplier = 1,
   legendaryMiners: number = 0,
-): number {
+): bigint {
   if (saveTime <= 0 || now <= saveTime) {
-    return 0;
+    return 0n;
   }
   const elapsedTicks = Math.min(
     Math.max(0, Math.floor((now - saveTime) / msPerTick)),
     maxOfflineTicks,
   );
-  return (
-    getMineralsPerSec(miners, minerPower, fastMiners, legendaryMiners) *
-    elapsedTicks *
-    multiplier
-  );
+  const base = BigInt(getMineralsPerSec(miners, minerPower, fastMiners, legendaryMiners)) * BigInt(elapsedTicks);
+  return mulFloats(base, [multiplier]);
 }
 
 /**
@@ -1006,18 +1079,17 @@ export function computeOfflineTopUpMinerals(
   now: number,
   multiplier = 1,
   legendaryMiners: number = 0,
-): number {
+): bigint {
   if (saveTime <= 0 || now <= saveTime) {
-    return 0;
+    return 0n;
   }
   const elapsedTicks = Math.floor((now - saveTime) / msPerTick);
   if (elapsedTicks <= maxOfflineTicks) {
-    return 0; // no cap was hit — nothing to top up
+    return 0n; // no cap was hit — nothing to top up
   }
   const extraTicks = Math.min(offlineTopUpTicks, elapsedTicks - maxOfflineTicks);
-  return (
-    getMineralsPerSec(miners, minerPower, fastMiners, legendaryMiners) *
-    extraTicks *
-    multiplier
-  );
+  const base =
+    BigInt(getMineralsPerSec(miners, minerPower, fastMiners, legendaryMiners)) *
+    BigInt(extraTicks);
+  return mulFloats(base, [multiplier]);
 }

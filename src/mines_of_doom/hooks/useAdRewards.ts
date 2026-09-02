@@ -39,11 +39,11 @@ export function useAdRewards({
   /** Engine callback: grant gems (ad gem rolls). */
   grantGems: (gems: number) => void;
   /** The pending "watch to double" haul from the last load (null = none). */
-  offlineDouble: number | null;
+  offlineDouble: bigint | null;
   /** Engine callback: consume the pending offline-double offer. */
   claimOfflineDouble: () => void;
   /** The pending "+2h offline top-up" haul from the last load (null = none). */
-  offlineTopUp: number | null;
+  offlineTopUp: bigint | null;
   /** Engine callback: consume the pending offline-top-up offer. */
   claimOfflineTopUp: () => void;
   displayMessage: (message: string, timeout: number) => void;
@@ -76,13 +76,13 @@ export function useAdRewards({
       const now = Date.now();
       if (
         kind === "offlineDouble" &&
-        (offlineDouble == null || offlineDouble <= 0)
+        (offlineDouble == null || offlineDouble <= 0n)
       ) {
         return; // no haul to double — the UI should have disabled the row
       }
       if (
         kind === "offlineTopUp" &&
-        (offlineTopUp == null || offlineTopUp <= 0)
+        (offlineTopUp == null || offlineTopUp <= 0n)
       ) {
         return; // nothing was withheld by the 8h cap — row disabled
       }
@@ -107,7 +107,7 @@ export function useAdRewards({
               claimOfflineDouble();
               displayMessage(
                 t("toast.adFinishedDouble", {
-                  count: formatNumber(offlineDouble ?? 0),
+                  count: formatNumber(offlineDouble ?? 0n),
                 }),
                 5000,
               );
@@ -115,7 +115,7 @@ export function useAdRewards({
               claimOfflineTopUp();
               displayMessage(
                 t("toast.adFinishedTopUp", {
-                  count: formatNumber(offlineTopUp ?? 0),
+                  count: formatNumber(offlineTopUp ?? 0n),
                 }),
                 5000,
               );

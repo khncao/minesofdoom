@@ -31,6 +31,7 @@ import {
   getVisiblePurchases,
   SettingsData,
   STREAK_MODE_THRESHOLD,
+  mulFloats,
 } from "./game";
 import {
   getAchievement,
@@ -157,11 +158,13 @@ export default function MinesOfDoom() {
   // x2 upgrade included: this is the value taps and answers actually pay
   // with (the engine applies the same multipliers authoritatively), so
   // pending-gain / floating text agree.
-  const effectiveClickPower =
-    gameState.clickPower *
-    depthTier.clickBonus *
-    getPrestigeMultiplier(gameState.prestigeLevel) *
-    getClickBoostMultiplier(gameState.clickBoostLevels);
+  // Integer factors first (click power × click-x2 boost), then the float
+  // multipliers through mulFloats — exactly what the engine's
+  // applyAnswerReward pays, so pending-gain / floating text agree.
+  const effectiveClickPower = mulFloats(
+    BigInt(gameState.clickPower) * BigInt(getClickBoostMultiplier(gameState.clickBoostLevels)),
+    [depthTier.clickBonus, getPrestigeMultiplier(gameState.prestigeLevel)],
+  );
   const {
     settingsData,
     setSettingsData,
@@ -291,8 +294,8 @@ export default function MinesOfDoom() {
   useEffect(() => {
     const prev = prevDepthRef.current;
     prevDepthRef.current = depth;
-    if (depth > prev && depth % 10 === 0) {
-      displayMessage(t("toast.depth", { depth }), 3000);
+    if (depth > prev && depth % 10n === 0n) {
+      displayMessage(t("toast.depth", { depth: formatNumber(depth) }), 3000);
     }
   }, [depth, displayMessage, t]);
 
@@ -361,7 +364,7 @@ export default function MinesOfDoom() {
 
   // Floating "+N" on canvas taps (stable so memoized consumers stay stable).
   const handleTapGain = useCallback(
-    (gain: number) => floatingTextRef.current?.spawn(`+${formatNumber(gain)}`),
+    (gain: bigint) => floatingTextRef.current?.spawn(`+${formatNumber(gain)}`),
     [],
   );
 
@@ -398,7 +401,9 @@ export default function MinesOfDoom() {
       incrementCombo();
       // Floating "+N" showing exactly what this answer was worth.
       const gain =
-        Math.max(1, value) * effectiveClickPower * comboMultiplier;
+        BigInt(Math.max(1, value)) *
+        BigInt(comboMultiplier) *
+        effectiveClickPower;
       floatingTextRef.current?.spawn(
         `+${formatNumber(gain)} ${emojis.mineral}`,
         "#8fbf8f",
@@ -458,7 +463,9 @@ export default function MinesOfDoom() {
 
   useEffect(() => {
     setCrashContextState({
-      depth,
+      // Number() is fine for a diagnostic: a huge depth only loses float
+      // precision in the crash log, never in the game.
+      depth: Number(depth),
       prestiges: gameState.totalPrestiges,
       gems: gameState.gems,
     });
