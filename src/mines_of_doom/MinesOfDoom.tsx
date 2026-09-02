@@ -1,7 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { MutableRefObject, useCallback, useEffect, useMemo, useRef } from "react";
 import { Platform, Pressable, ScrollView, Text, View } from "react-native";
-import { useI18n } from "src/hooks/useI18n";
+import { useContent, useI18n } from "src/hooks/useI18n";
 import { useLocalStorage } from "src/hooks/useLocalStorage";
 import type { DebrisParticlesRef } from "src/components/DebrisParticles";
 import type { BlockBreakRef } from "src/components/BlockBreak";
@@ -147,6 +147,7 @@ export default function MinesOfDoom() {
   // drives the live locale store, so every useT() consumer re-renders on a
   // change. The picker itself lives in Settings.
   const { t } = useI18n();
+  const content = useContent();
   const depthTier = getDepthTier(depth);
   // Tier-4 cave theme recolors the depth tint (the natural theme's palette
   // is exactly the depth tint, so it's the unchanged look by default).
@@ -307,13 +308,15 @@ export default function MinesOfDoom() {
     if (depthTier.id > prev) {
       displayMessage(
         t("toast.enteredTier", {
-          tier: depthTier.name,
+          tier: content("depthTier", String(depthTier.id), {
+            title: depthTier.name,
+          }).title,
           bonus: depthTier.clickBonus,
         }),
         3000,
       );
     }
-  }, [depthTier, displayMessage, t]);
+  }, [depthTier, displayMessage, t, content]);
 
   // Goal tier completions (plan §4.6): completion is derived from lifetime
   // stats, the save's completedTiers only records fired celebrations. The
@@ -326,16 +329,20 @@ export default function MinesOfDoom() {
     if (newly.length === 0) return;
     completeTiers(newly);
     for (const tier of GOAL_TIERS.filter((t) => newly.includes(t.id))) {
+      const tierText = content("goalTier", tier.id, {
+        title: tier.name,
+        detail: tier.unlock,
+      });
       displayMessage(
         t("toast.tierComplete", {
-          tier: tier.name,
+          tier: tierText.title,
           bonus: formatNumber(tier.bonusMinerals),
-          unlock: tier.unlock,
+          unlock: tierText.detail ?? tier.unlock,
         }),
         6000,
       );
     }
-  }, [gameState, completeTiers, displayMessage, t]);
+  }, [gameState, completeTiers, displayMessage, t, content]);
 
   // Achievements (plan §4.1): one-off bonus badges, kept distinct from the
   // goal tier gates above. Same derived-completion + idempotent-updater
@@ -348,7 +355,12 @@ export default function MinesOfDoom() {
     if (newly.length === 0) return;
     completeAchievements(newly);
     const names = newly
-      .map((id) => getAchievement(id)?.label ?? id)
+      .map((id) => {
+        const a = getAchievement(id);
+        return a
+          ? content("achievement", a.id, { title: a.label }).title
+          : id;
+      })
       .slice(0, 3);
     const extra = newly.length - names.length;
     const label =
@@ -360,7 +372,7 @@ export default function MinesOfDoom() {
       }),
       6000,
     );
-  }, [gameState, completeAchievements, displayMessage, t]);
+  }, [gameState, completeAchievements, displayMessage, t, content]);
 
   // Floating "+N" on canvas taps (stable so memoized consumers stay stable).
   const handleTapGain = useCallback(
@@ -656,7 +668,9 @@ export default function MinesOfDoom() {
         <DepthBanner
           depth={depth}
           mineralsPerSec={mineralsPerSec}
-          tierName={depthTier.name}
+          tierName={content("depthTier", String(depthTier.id), {
+            title: depthTier.name,
+          }).title}
           clickBonus={depthTier.clickBonus}
         />
         <EquationDisplay

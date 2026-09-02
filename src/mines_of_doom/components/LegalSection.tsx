@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Text, View } from "react-native";
 import BottomModal from "src/components/BottomModal";
-import { useI18n } from "src/hooks/useI18n";
+import { useContent, useI18n } from "src/hooks/useI18n";
 import { LEGAL_DOCS, type LegalDoc } from "../legal";
 import { styles } from "../styles";
 
@@ -18,39 +18,45 @@ import { styles } from "../styles";
  */
 const LegalSection = memo(function LegalSection() {
   const { t } = useI18n();
+  const content = useContent();
   return (
     <View style={{ gap: 4, marginTop: 10 }}>
       <Text style={{ ...styles.text, fontWeight: "bold" }}>
         {t("legal.heading")}
       </Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-        {LEGAL_DOCS.map((doc) => (
-          <BottomModal
-            key={doc.id}
-            pressable={
-              <Text
-                accessibilityRole="link"
-                style={{ ...styles.text, color: "#8ec5ff" }}
-              >
-                {doc.title}
-              </Text>
-            }
-            accessibilityLabel={doc.title}
-            scrollable
-          >
-            <LegalDocContent doc={doc} />
-          </BottomModal>
-        ))}
+        {LEGAL_DOCS.map((doc) => {
+          const text = content("legalDoc", doc.id, { title: doc.title });
+          return (
+            <BottomModal
+              key={doc.id}
+              pressable={
+                <Text
+                  accessibilityRole="link"
+                  style={{ ...styles.text, color: "#8ec5ff" }}
+                >
+                  {text.title}
+                </Text>
+              }
+              accessibilityLabel={text.title}
+              scrollable
+            >
+              <LegalDocContent doc={doc} />
+            </BottomModal>
+          );
+        })}
       </View>
     </View>
   );
 });
 
 function LegalDocContent({ doc }: { doc: LegalDoc }) {
+  const content = useContent();
+  const docText = content("legalDoc", doc.id, { title: doc.title });
   return (
     <View style={{ gap: 10, paddingHorizontal: 2, paddingTop: 4 }}>
       <Text style={{ ...styles.text, fontSize: 16, fontWeight: "bold" }}>
-        {doc.title}
+        {docText.title}
       </Text>
       <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
         {useI18n().t("legal.meta", {
@@ -61,7 +67,9 @@ function LegalDocContent({ doc }: { doc: LegalDoc }) {
       {doc.sections.map((section) => (
         <View key={section.heading} style={{ gap: 2 }}>
           <Text style={{ ...styles.text, fontWeight: "bold" }}>
-            {section.heading}
+            {content("legalSection", `${doc.id}:${section.heading}`, {
+              title: section.heading,
+            }).title}
           </Text>
           <Text
             selectable

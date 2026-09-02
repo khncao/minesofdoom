@@ -1,23 +1,13 @@
 # Mines of Doom — UX, Improvements & New Features Plan
 
-Status: planning draft
-Last updated: 2026-09-02 (iteration 13)
-
 Legend: [ ] not started, [o] in progress
-
 Completed items are removed from this file (see git history); only remaining work is tracked here.
 
-- [ ] On-device Android verification (blocked on a device/emulator): boot the debug build and confirm the hermes `describe` crash does not fire. Nets are in place for the next occurrence — crash boundary + persisted log (`crashLog.ts` / `crashLogging.ts`), the `ErrorUtils` global-handler net, the crash-context session trail (rendered on the crash screen and in Settings → "Recent errors (debug)"), and the jest regression net. Build workflow if it resurfaces: debug via `npx expo run:android`; release via EAS or `npx expo run:android --variant release`.
-- [o] **Add localizations** — Data-driven content names (cosmetics, goal tiers, achievements, records labels, IAP product labels, legal doc titles/sections, biome/tier names) still live in their data modules — follow-up is to give those tables a per-locale shape and thread the locale through.
-- [ ] Create E2E tests for Android on phone, 7 inch tablet, and 10 inch tablet and generate 4 in game screenshots in various states for each
-
+- [ ] Translate the legal document section BODIES per-locale (`legal.ts`): the data-driven content names (cosmetics, goal tiers/goals, achievements, records labels, IAP product labels, legal doc titles/section headings, biome names) shipped with the content-name i18n — data modules stay the English source of truth, per-locale tables in `src/utils/i18n/content-es.ts`, parity-pinned by walking the data modules in `content.test.ts`. Only the ~16 paragraph bodies in `legal.ts` remain English-only in every locale.
+- [ ] Create E2E tests for Android on phone, 7 inch tablet, and 10 inch tablet and generate 4 in-game screenshots in various states for each
 - [ ] **Rewarded-ads** — implement integrations
 - [ ] Allow saving combo with rewarded-ad
-- [ ] Optional ads to receive bonuses (daily, time away, etc.)
-
-- [ ] Add the real Google/Apple store SDK integrations behind the `IapProvider` interface (Google Play Billing / StoreKit, or RevenueCat for receipt validation) — everything in-repo is prepped: stable `storeId` per product, `selectIapProvider` as the one-line swap point, and the full runbook/verification checklist in `docs/store-integration.md`. Blocked on store accounts (Play Console + App Store Connect) and the SDK decision (RevenueCat recommended).
-
-- [ ] Cloud saves
-- [ ] **Leaderboard** (optional, needs a backend or integrate with app store cloud features): depth reached, minerals/sec. (Local personal-bests view shipped — see note above; the LIVE board is what's left, still backend-gated.)
-- [ ] **Achievements** store integrations
+- [ ] Optional ads to receive extra bonuses (daily, time away, etc.)
+- [ ] Add the real Google/Apple store SDK integrations behind the `IapProvider` interface — everything in-repo is prepped: stable `storeId` per product, `selectIapProvider` as the one-line swap point, and the full runbook/verification checklist in `docs/store-integration.md`. Use RevenueCat.
+- [ ] Store integrations: cloud saves, leaderboard, achievements
 - [ ] Cosmetic: skins for miners such as cute girls, animals, homages, etc.

@@ -2,7 +2,7 @@ import { memo } from "react";
 import { Text, View } from "react-native";
 import BottomModal from "src/components/BottomModal";
 import Button from "src/components/Button";
-import { useI18n } from "src/hooks/useI18n";
+import { useContent, useI18n } from "src/hooks/useI18n";
 import {
   IapProductId,
   IAP_PACK_GRANTS,
@@ -55,6 +55,7 @@ function IapPanel({
   onRestore: () => void;
 }) {
   const { t } = useI18n();
+  const content = useContent();
   return (
     <BottomModal
       pressable={<Text style={{ fontSize: 30 }}>🛍️</Text>}
@@ -70,6 +71,10 @@ function IapPanel({
         )}
 
         {IAP_PRODUCT_LIST.map((product) => {
+          const text = content("iap", product.id, {
+            title: product.label,
+            detail: product.blurb,
+          });
           const pack = getIapPackCosmetic(product.id);
           const grant = IAP_PACK_GRANTS[product.id];
           const owned =
@@ -81,11 +86,11 @@ function IapPanel({
             <View key={product.id} style={styles.flexCenteredRow}>
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={styles.text}>
-                  {product.id === "removeAds" ? "🚫" : "🎁"} {product.label} —{" "}
+                  {product.id === "removeAds" ? "🚫" : "🎁"} {text.title} —{" "}
                   {product.priceLabel}
                 </Text>
                 <Text style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}>
-                  {product.blurb}
+                  {text.detail ?? product.blurb}
                 </Text>
                 {pack != null && (
                   <Text

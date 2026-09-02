@@ -14,7 +14,7 @@ import {
   pickaxeSpriteUri,
 } from "src/utils/graphics/pixelArt";
 import { emojis } from "src/utils/graphics/emojis";
-import { useI18n } from "src/hooks/useI18n";
+import { useContent, useI18n } from "src/hooks/useI18n";
 import { styles } from "../styles";
 
 /**
@@ -73,6 +73,9 @@ function CosmeticsSection({
   onSelectCaveTheme: (id: string) => void;
 }) {
   const { t } = useI18n();
+  // Data-driven names: the data modules (cosmetics.ts) are the English
+  // source of truth; `content` overlays the locale's translation on top.
+  const content = useContent();
   const playerUri = useMemo(
     () => minerSpriteUri(rollMinerLook(playerSeed, selectedOutfit)),
     [playerSeed, selectedOutfit],
@@ -140,6 +143,10 @@ function CosmeticsSection({
   // (one tint per tier, shallow to deep) so players see the recolor before
   // buying.
   const renderTheme = (theme: CaveTheme) => {
+    const text = content("caveTheme", theme.id, {
+      title: theme.name,
+      detail: theme.blurb,
+    });
     const owned = ownedCaveThemes.includes(theme.id);
     const isSelected = selectedCaveTheme === theme.id;
     const affordable = gems >= theme.costGems;
@@ -148,7 +155,7 @@ function CosmeticsSection({
         key={theme.id}
         accessibilityRole="button"
         accessibilityLabel={t("cosmetics.a11yTheme", {
-          name: theme.name,
+          name: text.title,
           state: owned
             ? isSelected
               ? t("cosmetics.a11ySelected")
@@ -183,7 +190,7 @@ function CosmeticsSection({
             />
           ))}
         </View>
-        <NameCell name={theme.name} blurb={theme.blurb} />
+        <NameCell name={text.title} blurb={text.detail} />
         <Text
           style={{
             ...styles.text,
@@ -227,35 +234,40 @@ function CosmeticsSection({
       <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
         {t("cosmetics.outfits")}
       </Text>
-      {OUTFITS.map((o) =>
-        renderItem(
+      {OUTFITS.map((o) => {
+        const text = content("outfit", o.id, {
+          title: o.name,
+          detail: o.blurb,
+        });
+        return renderItem(
           o.id,
-          o.name,
+          text.title,
           o.costGems,
           o.id === selectedOutfit,
           <Image
             source={{ uri: minerSpriteUri(rollMinerLook(SAMPLE_SEED, o.id)) }}
             style={{ width: 18, height: 18 }}
           />,
-          o.blurb,
-        ),
-      )}
+          text.detail,
+        );
+      })}
 
       <Text style={{ ...styles.text, fontSize: 11, color: "#aaa", marginTop: 4 }}>
         {t("cosmetics.pickaxes")}
       </Text>
-      {PICKAXES.map((p) =>
-        renderItem(
+      {PICKAXES.map((p) => {
+        const text = content("pickaxe", p.id, { title: p.name });
+        return renderItem(
           p.id,
-          p.name,
+          text.title,
           p.costGems,
           p.id === selectedPickaxe,
           <Image
             source={{ uri: pickaxeSpriteUri(p.theme) }}
             style={{ width: 18, height: 18 }}
           />,
-        ),
-      )}
+        );
+      })}
 
       {/* Tier-4 unlock (plan §4.6): cave background recolors. Shown but
           locked (visible-but-locked rule) until Crystal Kingdom. */}

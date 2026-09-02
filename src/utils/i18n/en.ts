@@ -14,10 +14,13 @@
  *  - Emoji glyphs are inlined in the table (same glyphs in every locale)
  *    so a translation never depends on the component.
  *
- * Data-driven names (depth-tier names, goal/achievement labels, cosmetic
- * names, IAP product labels, legal documents) are NOT here yet — they live
- * in their data modules (game.ts, goals.ts, cosmetics.ts, iaps.ts,
- * legal.ts) and are a follow-up (see docs/todo.md).
+ * Data-driven names (depth-tier names, goal/achievement/record labels,
+ * cosmetic names, IAP product labels, legal doc titles & section headings)
+ * are NOT here — they live in their data modules (game.ts, goals.ts,
+ * cosmetics.ts, achievements.ts, records.ts, iaps.ts, legal.ts), which are
+ * the English source of truth, and get their per-locale shape from
+ * content.ts / content-es.ts (same dir). Legal document section BODIES
+ * are still English-only (docs/todo.md).
  */
 export const en = {
   // --- Loading & errors -------------------------------------------------

@@ -31,6 +31,11 @@ import {
   type TranslationKey,
   type Vars,
 } from "src/utils/i18n/i18n";
+import {
+  translateContent,
+  type ContentNamespace,
+  type ContentStrings,
+} from "src/utils/i18n/content";
 
 /** AsyncStorage key for the persisted language preference. */
 export const languageKey = "language";
@@ -43,6 +48,28 @@ export function useT(): Translator {
   const locale = useSyncExternalStore(subscribeI18n, getLocale);
   return useCallback(
     (key: TranslationKey, vars?: Vars) => translate(key, locale, vars),
+    [locale],
+  );
+}
+
+/** A content-name translator bound to the live locale. */
+export type ContentTranslator = (
+  ns: ContentNamespace,
+  id: string,
+  fallback: ContentStrings,
+) => ContentStrings;
+
+/**
+ * Translator for DATA-driven content names (cosmetics, goal tiers,
+ * achievements, records, IAP labels, legal titles, biomes — see
+ * utils/i18n/content.ts). Call sites pass the data-module value as the
+ * fallback, so English stays in the data modules and a missing translation
+ * degrades to English instead of crashing.
+ */
+export function useContent(): ContentTranslator {
+  const locale = useSyncExternalStore(subscribeI18n, getLocale);
+  return useCallback(
+    (ns, id, fallback) => translateContent(ns, id, locale, fallback),
     [locale],
   );
 }

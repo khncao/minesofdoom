@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Text, View } from "react-native";
 import { emojis } from "src/utils/graphics/emojis";
-import { useT } from "src/hooks/useI18n";
+import { useContent, useT } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
 import {
   GOAL_TIERS,
@@ -27,6 +27,7 @@ const GoalsContent = memo(function GoalsContent({
   stats: SaveData;
 }) {
   const t = useT();
+  const content = useContent();
   const completed = getCompletedTierIds(stats);
   const activeIndex = completed.length; // first uncompleted tier
 
@@ -35,6 +36,10 @@ const GoalsContent = memo(function GoalsContent({
       {GOAL_TIERS.map((tier, i) => {
         const done = completed.includes(tier.id);
         const active = i === activeIndex;
+        const tierText = content("goalTier", tier.id, {
+          title: tier.name,
+          detail: tier.unlock,
+        });
         return (
           <View key={tier.id} style={{ gap: 4 }}>
             <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
@@ -48,12 +53,12 @@ const GoalsContent = memo(function GoalsContent({
                   opacity: done ? 0.6 : 1,
                 }}
               >
-                {tier.name}
+                {tierText.title}
               </Text>
             </View>
             <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
               {t("goals.unlocks", {
-                unlock: tier.unlock,
+                unlock: tierText.detail ?? tier.unlock,
                 bonus: formatNumber(tier.bonusMinerals),
               })}
             </Text>
@@ -63,7 +68,7 @@ const GoalsContent = memo(function GoalsContent({
               return (
                 <View key={goal.id} style={{ gap: 1, marginLeft: 22 }}>
                   <Text style={{ ...styles.text, fontSize: 11 }}>
-                    {goal.label} —{" "}
+                    {content("goal", goal.id, { title: goal.label }).title} —{" "}
                     {formatNumber(
                       progress.current >= progress.target
                         ? progress.target
@@ -117,7 +122,7 @@ const GoalsContent = memo(function GoalsContent({
               }}
             >
               <Text style={{ fontSize: 12 }}>
-                {done ? "✅" : a.icon} {a.label}
+                {done ? "✅" : a.icon} {content("achievement", a.id, { title: a.label }).title}
               </Text>
               <Text style={{ fontSize: 10, color: "#aaa" }}>
                 {formatNumber(

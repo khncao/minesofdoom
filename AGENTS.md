@@ -108,7 +108,7 @@ So test/source files import like `import ... from "src/mines_of_doom/game"` or
   bumping, icons, router root, web static output. Bump `version` + `android.versionCode`
   together for new releases.
 - **Docs:** Update `docs/todo.md` when implementing
-  or deferring planned features.
+  or deferring planned features. Write to `docs/blockers.md` when anything needing a decision is blocking implementation 
 - **Platform:** portrait-only, light UI style. Web uses static export
   (`output: "static"` in `app.config.ts`), so routing/navigation must stay
   static-export-safe.

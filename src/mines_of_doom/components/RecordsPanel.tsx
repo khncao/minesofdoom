@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Text, View } from "react-native";
-import { useT } from "src/hooks/useI18n";
+import { useContent, useT } from "src/hooks/useI18n";
 import { SaveData } from "../game";
 import { getRecords } from "../records";
 import { styles } from "../styles";
@@ -17,6 +17,7 @@ const RecordsContent = memo(function RecordsContent({
   stats: SaveData;
 }) {
   const t = useT();
+  const content = useContent();
   const records = getRecords(stats);
   return (
     <View style={{ gap: 10, padding: 12 }}>
@@ -37,7 +38,7 @@ const RecordsContent = memo(function RecordsContent({
           }}
         >
           <Text style={{ ...styles.text, fontSize: 13 }}>
-            {r.icon} {r.label}
+            {r.icon} {content("record", r.id, { title: r.label }).title}
           </Text>
           <Text style={{ ...styles.text, fontSize: 13, fontWeight: "bold" }}>
             {r.value}
