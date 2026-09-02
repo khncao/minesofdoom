@@ -58,7 +58,11 @@ import { useMineTaps } from "./hooks/useMineTaps";
 import { useAccessibilityReduceMotion } from "./hooks/useAccessibilityReduceMotion";
 import { useEquations } from "./hooks/useEquations";
 import { useDailyBonus } from "./hooks/useDailyBonus";
+import { useAnalytics } from "./hooks/useAnalytics";
+import { useAdRewards } from "./hooks/useAdRewards";
+import { devSimAdProvider, noopAdProvider } from "./ads";
 import LoadingScreen from "./components/LoadingScreen";
+import AdRewardsPanel from "./components/AdRewardsPanel";
 
 export default function MinesOfDoom() {
   // currently doesn't mute android touch sounds, but can in the future
@@ -94,6 +98,9 @@ export default function MinesOfDoom() {
     saveDirty,
     addTapGain,
     applyAnswerReward,
+    grantGems,
+    offlineDouble,
+    claimOfflineDouble,
     upgradePower,
     buyMiner,
     buyFastMiner,
@@ -434,6 +441,39 @@ export default function MinesOfDoom() {
     displayMessage,
   });
 
+  // Local event logging (guardrail 6, "measure before scaling"): the
+  // app-open record happens inside the hook (after its stored record has
+  // loaded); the one-shot milestones are fired from the effects below.
+  const { onPrestige: onFirstPrestige, onAdView: onFirstAdView } =
+    useAnalytics();
+
+  // Rewarded ads (plan §5.1): production builds run the no-op provider,
+  // whose entry points stay hidden (no ad SDK is bundled; web remains 100%
+  // free). Dev builds run a clearly labeled simulation so the full flow —
+  // watch → reward → daily caps — can be exercised before the real SDK
+  // integration swaps in behind the same interface.
+  const adProvider = __DEV__ ? devSimAdProvider : noopAdProvider;
+  const adRewards = useAdRewards({
+    provider: adProvider,
+    grantGems,
+    offlineDouble,
+    claimOfflineDouble,
+    displayMessage,
+    onAdView: onFirstAdView,
+  });
+
+  // Free-path progress (guardrail 6): the player's FIRST prestige, observed
+  // live in this session. The ref starts null so a loaded save that already
+  // has prestiges isn't misread as a first one.
+  const prevPrestigesRef = useRef<number | null>(null);
+  useEffect(() => {
+    const prev = prevPrestigesRef.current;
+    prevPrestigesRef.current = gameState.totalPrestiges;
+    if (prev !== null && gameState.totalPrestiges > prev) {
+      onFirstPrestige();
+    }
+  }, [gameState.totalPrestiges, onFirstPrestige]);
+
   // Cold start (plan §4.4): hold the screen on a loading state until the
   // stored save is loaded, instead of flashing the zeroed state first.
   // All hooks above have already run, so an early return is safe here.
@@ -559,6 +599,16 @@ export default function MinesOfDoom() {
             streak={dailyBonus.streak}
             onClaim={dailyBonus.claim}
           />
+          {adRewards.available && (
+            <AdRewardsPanel
+              isDevSim={adProvider.id === "dev-sim"}
+              gemRollsLeft={adRewards.gemRollsLeft}
+              dailyCapLeft={adRewards.dailyCapLeft}
+              offlineDouble={offlineDouble}
+              claiming={adRewards.claiming}
+              onClaim={adRewards.claim}
+            />
+          )}
         </View>
 
         <StatusBar style="auto" />

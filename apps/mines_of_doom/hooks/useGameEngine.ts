@@ -72,6 +72,14 @@ export function useGameEngine(
   // absent). MinesOfDoom renders a loading state until this flips, so a
   // slow AsyncStorage cold start doesn't flash the zeroed game state.
   const [isLoaded, setIsLoaded] = useState(false);
+  // "Watch to double offline earnings" (plan §5.1): when a load produces a
+  // positive offline haul, the EXTRA half a rewarded ad would grant is held
+  // here as a one-shot offer — consumed by claimOfflineDouble, or replaced
+  // by the next load's haul. Ref + state: the ref lets the stable claim
+  // callback consume it synchronously (a fast second tap can't pay twice),
+  // the state drives the UI offer.
+  const offlineDoubleRef = useRef<number | null>(null);
+  const [offlineDouble, setOfflineDouble] = useState<number | null>(null);
 
   // Mark dirty on any state change after load. setSaveDirty(true) is a
   // no-op re-render when the flag is already true (React bails out).
@@ -92,6 +100,8 @@ export function useGameEngine(
         setGameState(data);
         startTime.current = data.startTime;
         if (offlineMinerals > 0) {
+          offlineDoubleRef.current = offlineMinerals;
+          setOfflineDouble(offlineMinerals);
           displayMessage(
             `Welcome back! Your miners collected ${formatNumber(offlineMinerals)} ${emojis.mineral} while you were away.`,
             6000,
@@ -272,6 +282,35 @@ export function useGameEngine(
         ...lifetimeDelta(n, { minerals: gain }),
       }));
     }
+  }, []);
+
+  // Grant gems outside the mineral economy (plan §5.1: rewarded-ad gem
+  // rolls). Flows through the same lifetime-stats path as other gem
+  // mints, so lifetime gem accounting stays exact.
+  const grantGems = useCallback((count: number) => {
+    const n = Math.max(0, Math.floor(count));
+    if (n <= 0) return;
+    setGameState((s: SaveData) => ({
+      ...s,
+      gems: s.gems + n,
+      ...lifetimeDelta(s, { gemsMinted: n }),
+    }));
+  }, []);
+
+  // Consume the pending "watch to double" offer (see offlineDoubleRef):
+  // grants the extra half of the last offline haul — the base amount was
+  // already paid at load — and clears the offer. No-op when nothing is
+  // pending (offer already claimed, or no offline haul to double).
+  const claimOfflineDouble = useCallback(() => {
+    const pending = offlineDoubleRef.current;
+    if (pending == null || pending <= 0) return;
+    offlineDoubleRef.current = null;
+    setOfflineDouble(null);
+    setGameState((s: SaveData) => ({
+      ...s,
+      minerals: s.minerals + pending,
+      ...lifetimeDelta(s, { minerals: pending }),
+    }));
   }, []);
 
   // Apply the reward for a correct equation answer in one atomic update
@@ -626,6 +665,9 @@ export function useGameEngine(
     saveGame,
     saveDirty,
     addTapGain,
+    grantGems,
+    offlineDouble,
+    claimOfflineDouble,
     applyAnswerReward,
     upgradePower,
     buyMiner,
