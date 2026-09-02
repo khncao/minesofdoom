@@ -1,0 +1,325 @@
+/**
+ * Spanish (es) translation table. Typed as `Record<TranslationKey, string>`
+ * against the English key set, so a missing or extra key is a compile
+ * error; `{placeholder}` parity is additionally pinned in i18n.test.ts.
+ * Same casing/emoji conventions as en.ts (ALL-CAPS button style).
+ */
+import type { TranslationKey } from "./en";
+
+export const es: Record<TranslationKey, string> = {
+  // --- Loading & errors -------------------------------------------------
+  "loading.mine": "cargando la mina…",
+  "error.title": "⛏️ Algo salió mal",
+  "error.body":
+    "El juego tuvo un error inesperado y dejó de mostrarse. Tu partida está " +
+    "a salvo: se guarda automáticamente en el dispositivo y estará aquí " +
+    "cuando el juego vuelva a abrir.",
+  "error.contextHeading": "lo que estaba pasando:",
+  "error.tryAgain": "Reintentar",
+  "error.reloadPage": "Recargar página",
+  "error.hint":
+    "Mantén pulsado el texto del error para copiarlo. Los errores " +
+    "recientes también quedan en menú → Ajustes → “Errores recientes (dep.)” " +
+    "tras un reinicio.",
+
+  // --- Main screen ------------------------------------------------------
+  "main.upgrades": "MEJORAS",
+  "main.a11yShowUpgrades": "Mostrar mejoras",
+  "main.a11yHideUpgrades": "Ocultar mejoras",
+  "main.a11yMenu": "Menú",
+
+  // --- Toasts / messages --------------------------------------------------
+  "toast.depth": "¡Profundidad {depth}m — cada vez más profundo en la cueva!",
+  "toast.enteredTier": "¡Entraste en {tier}! Poder de clic ×{bonus}",
+  "toast.tierComplete":
+    "🏆 ¡{tier} completado! +{bonus} 🪨 — desbloquea: {unlock}",
+  "toast.achievement": "🏅 {label}! +{bonus} 🪨",
+  "toast.vein": "¡Encontraste una veta! +1 💎",
+  "toast.comboUp": "¡Combo x{mult}!",
+  "toast.streakIgnited": "🔥 ¡Racha encendida — ×2 por respuesta!",
+  "toast.comboDropped": "¡El combo bajó a {combo}!",
+  "toast.comboLost": "¡Combo perdido!",
+  "toast.saved": "Partida guardada",
+  "toast.settingsSaved": "Guardado",
+  "toast.invalidSaveCode": "Código de guardado no válido.",
+  "toast.saveImported": "¡Guardado importado!",
+  "toast.welcomeBack":
+    "¡Bienvenido de nuevo! Tus mineros recogieron {count} 🪨 mientras no estabas.",
+  "toast.saveFailed": "Aviso: no se pudo guardar tu partida.",
+  "toast.dailyBonus": "Bonus diario: +{bonus} minerales",
+  "toast.dailyBonusStreak":
+    "Bonus diario: +{bonus} minerales (¡racha de {streak} días!)",
+  "toast.iapRemoveAds": "¡Anuncios eliminados! Gracias por apoyar el juego.",
+  "toast.iapPackUnlocked": "Desbloqueaste {name} — ¡búscalo en Cosméticos!",
+  "toast.iapComplete": "¡Compra completada!",
+  "toast.adFinishedGems": "Anuncio terminado: +{count} 💎",
+  "toast.adFinishedDouble":
+    "Anuncio terminado: botín offline doblado (+{count} 🪨)",
+  "toast.adFinishedTopUp":
+    "Anuncio terminado: recarga offline +2h (+{count} 🪨)",
+  "toast.adClosedEarly": "Anuncio cerrado antes de tiempo — sin recompensa.",
+
+  // --- Combo indicator ----------------------------------------------------
+  "combo.active": "🔥 combo de {combo}x",
+  "combo.untilNext": "{count} más → ×{mult}",
+
+  // --- Equation area ------------------------------------------------------
+  "equation.pending": "correcto: +{gain} 🪨",
+  "equation.detail": " (×{mult}{suffix})",
+  "equation.tagHard": "difícil",
+  "equation.tagTimed": "contrarreloj",
+  "equation.tagStreak": "racha",
+  "equation.streakProgress": "🔥 racha {n}/{threshold}",
+  "equation.streakIgnited": "🔥 racha ×2",
+  "equation.a11yTimed": "Modo contrarreloj: quedan {seconds} segundos",
+
+  // --- Purchase buttons ---------------------------------------------------
+  "purchase.groupMinerals": "GASTAR 🪨 MINERALES",
+  "purchase.groupGems": "GASTAR 💎 GEMAS",
+  "purchase.groupPrestige": "PRESTIGIO",
+  "purchase.nextCost": ", siguiente {cost}",
+  "purchase.upgradePower": "MEJORAR PODER (-{cost} 🪨) ({power})",
+  "purchase.upgradeMiners": "MEJORAR MINEROS (-{cost} 🪨) ({power})",
+  "purchase.upgradeMinersLocked":
+    "🔒 MEJORAR MINEROS (Prospector's License)",
+  "purchase.buyGem": "COMPRAR UNA GEMA (-{cost} 🪨)",
+  "purchase.buyMiner":
+    "COMPRAR UN MINERO (-{cost} 💎) ({count}{next})",
+  "purchase.buyFastMiner":
+    "COMPRAR UN MINERO RÁPIDO (-{cost} 💎) ({count}, {output}/s cada uno{next})",
+  "purchase.buyFastMinerLocked": "🔒 COMPRAR MINERO RÁPIDO (Deep Shaft)",
+  "purchase.buyLegendaryMiner":
+    "COMPRAR UN MINERO LEGENDARIO (-{cost} 💎) ({count}, {output}/s cada uno{next})",
+  "purchase.buyLegendaryMinerLocked":
+    "🔒 COMPRAR MINERO LEGENDARIO (Motherlode)",
+  "purchase.gemChanceLocked": "🔒 SUERTE DE GEMAS +1% (Deep Shaft)",
+  "purchase.gemChanceMaxed": "SUERTE DE GEMAS {pct}% (MÁX)",
+  "purchase.gemChance": "SUERTE DE GEMAS +1% (-{cost} 💎) (ahora {pct}%)",
+  "purchase.clickBoostLocked": "🔒 CLIC ×2 (Magma Frontier)",
+  "purchase.clickBoostMaxed": "PODER DE CLIC ×{mult} (MÁX)",
+  "purchase.clickBoost": "CLIC ×2 (-{cost} 💎) (ahora ×{mult})",
+  "purchase.comboResistLocked": "🔒 RESISTENCIA DE COMBO (Magma Frontier)",
+  "purchase.comboResistMaxed": "RESISTENCIA DE COMBO (conserva {pct}%) (MÁX)",
+  "purchase.comboResist":
+    "RESISTENCIA DE COMBO (-{cost} 💎) (conserva {pct}%)",
+  "purchase.sinkNewShaftLocked": "🔒 HUNDIR NUEVO POZÓ (Magma Frontier)",
+  "purchase.sinkNewShaftCanBank":
+    "⛏️ HUNDIR NUEVO POZÓ → ×{next} (ahora ×{banked})",
+  "purchase.sinkNewShaftNeed":
+    "⛏️ HUNDIR NUEVO POZÓ ×{banked} — hacen falta {at} 🪨 en total para ×{next}",
+  "purchase.sinkNewShaftMax": "⛏️ HUNDIR NUEVO POZÓ ×{banked} (MÁX)",
+
+  // --- Daily bonus --------------------------------------------------------
+  "a11y.dailyClaimable": "Reclamar bonus diario: +{bonus} minerales",
+  "a11y.dailyClaimableStreak":
+    "Reclamar bonus diario: +{bonus} minerales, inicia la racha del día {day}",
+  "a11y.dailyClaimed":
+    "Bonus diario reclamado hoy. Vuelve mañana para el siguiente bonus.",
+
+  // --- Save pill ----------------------------------------------------------
+  "save.pill": "Guardar",
+  "a11y.save": "Guardar partida",
+  "a11y.saveDirty": "Guardar partida (cambios sin guardar)",
+
+  // --- Onboarding ---------------------------------------------------------
+  "onboarding.1.title": "Extrae las cuentas",
+  "onboarding.1.body":
+    "Resuelve la ecuación de arriba para ganar minerales. Mantener pulsada " +
+    "la cueva (sostén largo) también funciona, pero es una forma más lenta " +
+    "de excavar.",
+  "onboarding.2.title": "Mantén el combo vivo",
+  "onboarding.2.body":
+    "Cada respuesta correcta suma a tu combo — cada 10 seguidas multiplica " +
+    "tus ganancias en +1. Las respuestas erradas y el sostén de la cueva lo " +
+    "rompen, así que responde rápido y no toques la cueva mientras escribes.",
+  "onboarding.3.title": "Contrata mineros",
+  "onboarding.3.body":
+    "Gasta minerales en mejoras y mineros abajo. Los mineros excavan por " +
+    "ti automáticamente — incluso con el juego cerrado. Mira los objetivos 🎯 " +
+    "para saber qué viene.",
+  "onboarding.skip": "Saltar",
+  "onboarding.next": "Siguiente",
+  "onboarding.start": "¡A minar! ⛏️",
+  "onboarding.a11ySkip": "Saltar tutorial",
+  "onboarding.a11yNext": "Siguiente paso",
+  "onboarding.a11yStart": "Empezar a minar",
+
+  // --- Menu ----------------------------------------------------------------
+  "menu.settings": "⚙️ Ajustes",
+  "menu.goals": "🎯 Objetivos",
+  "menu.records": "📊 Récords",
+
+  // --- Settings ------------------------------------------------------------
+  "settings.language": "🌐 Idioma:",
+  "lang.auto": "Automático",
+  "settings.autosave": "Intervalo de autoguardado (segundos): ",
+  "settings.maxNumber": "Valor máximo de la constante en ecuaciones: ",
+  "settings.operatorHelp":
+    "Mantén pulsado un operador para ver cuánto paga",
+  "settings.operatorEquations": "Ecuaciones de {name}",
+  "settings.tooltipHard": "Ecuaciones de modo difícil",
+  "settings.tooltipStreak": "Ecuaciones de modo racha",
+  "settings.tooltipTimed": "Ecuaciones de modo contrarreloj",
+  "settings.tooltipEmojiArt": "Arte de emoji (modo ligero)",
+  "settings.tooltipShowAll":
+    "Mostrar siempre todos los botones de mejora",
+  "settings.gainFormula":
+    "Minerales por respuesta correcta = respuesta × poder de clic × " +
+    "multiplicador de combo, más cualquier bonus de operador. Las ecuaciones " +
+    "de modo difícil pagan ×2; las de modo contrarreloj pagan ×2 más si se " +
+    "responde a tiempo; una racha encendida paga ×2 más por encima de todo.",
+  "settings.op.multiply": "Sin bonus de operador (×1).",
+  "settings.op.add": "Sin bonus de operador (×1).",
+  "settings.op.subtract":
+    "Bonus de operador ×2. Las respuestas siempre son enteras y no negativas.",
+  "settings.op.division":
+    "Bonus de operador ×10. La división siempre es exacta.",
+  "settings.hardMode": "Modo difícil (3 términos ×2): ",
+  "settings.hardModeLocked": "🔒 Modo difícil (Motherlode): ",
+  "settings.hardModeHelp":
+    "Ecuaciones de 3 términos (a ○ b ○ c, de izquierda a derecha) que pagan " +
+    "×2 lo normal. El bonus extra viene del tercer término: más aritmética, " +
+    "respuestas más grandes.",
+  "settings.streakMode": "Modo racha (5 seguidas por ×2): ",
+  "settings.streakModeHelp":
+    "Responde 5 ecuaciones seguidas y la racha se enciende: cada respuesta " +
+    "correcta después paga ×2 por encima de todo lo demás (se acumula con " +
+    "los bonuses de operador, modo difícil y contrarreloj). Una respuesta " +
+    "errada — o un tiempo agotado — rompe la racha y vuelve a empezar en 0. " +
+    "A diferencia del combo, mantener la cueva NO rompe la racha: la regla " +
+    "es simplemente no fallar.",
+  "settings.timedMode": "Modo contrarreloj (responde en 10s por ×2): ",
+  "settings.timedModeHelp":
+    "Cada ecuación tiene una ventana de 10 segundos: responde a tiempo y la " +
+    "recompensa se multiplica ×2 (se acumula con los bonuses de operador y " +
+    "modo difícil). Si se agota el tiempo cuenta como fallo — tu combo baja " +
+    "exactamente como con una respuesta errada (la resistencia de combo aún " +
+    "aplica) — y sale una nueva. Se acumula con modo difícil: una ecuación " +
+    "de 3 términos respondida a tiempo paga ×4 además del bonus de operador.",
+  "settings.emojiArt": "Arte de emoji (modo ligero): ",
+  "settings.emojiArtHelp":
+    "Desactivado (por defecto): mineros, monedas, escombros y el fondo de la " +
+    "cueva son sprites de píxeles generados. Activado: emojis planos en su " +
+    "lugar — más ligero en dispositivos modestos donde decodificar/renderizar " +
+    "PNGs es el cuello de botella. Puro visual; la jugada no cambia.",
+  "settings.showAllPurchases":
+    "Mostrar siempre todos los botones de mejora: ",
+  "settings.showAllPurchasesHelp":
+    "Desactivado (por defecto): cada botón de mejora aparece solo cuando " +
+    "tuviste suficientes minerales o gemas para comprar su primer nivel — la " +
+    "pantalla no se satura a medida que la tienda crece. Los tres botones " +
+    "básicos (mejorar poder, comprar un minero, comprar una gema) siempre se " +
+    "ven. Activado: se ven todos los botones siempre, bloqueados o no.",
+  "settings.saveCode": "Código de guardado (copia / compartir)",
+  "settings.export": "Exportar código",
+  "settings.import": "Importar código",
+  "settings.importPlaceholder":
+    "Pega un código de guardado para importarlo",
+  "settings.saveCodeHelp":
+    "Exportar te da un código para copiar y compartir; al importar un código " +
+    "se reemplaza tu guardado actual por el del código.",
+  "settings.saveButton": "Guardar",
+  "settings.resetButton": "Reiniciar",
+  "settings.resetDescription":
+    "Borrará el guardado actual y volverá al estado inicial.",
+  "settings.a11ySaveCode": "Tu código de guardado — selecciona para copiar",
+  "settings.analytics": "Estadísticas locales (dep.)",
+  "settings.clear": "Borrar",
+  "settings.analyticsNote":
+    "Guardado solo en este dispositivo — sin red, sin datos personales. " +
+    "Borrar lo elimina; un registro nuevo empieza en la próxima apertura.",
+  "settings.crash": "Errores recientes (dep.)",
+
+  // --- Cosmetics ------------------------------------------------------------
+  "cosmetics.header": "Cosméticos",
+  "cosmetics.reroll": "🎲 Nuevo aspecto",
+  "cosmetics.outfits": "Ropas (colores aleatorios por cada cambio)",
+  "cosmetics.pickaxes": "Picos",
+  "cosmetics.themes": "Temas de cueva",
+  "cosmetics.themesLocked": "🔒 Temas de cueva (Crystal Kingdom)",
+  "cosmetics.themesUnlockedAt": "Se desbloquea en Crystal Kingdom",
+  "cosmetics.owned": "Obtenido",
+  "cosmetics.a11ySelected": "seleccionado",
+  "cosmetics.a11yOwned": "obtenido",
+  "cosmetics.a11yGems": "{count} gemas",
+  "cosmetics.a11yTheme": "Tema de cueva {name}, {state}",
+
+  // --- Goals ----------------------------------------------------------------
+  "goals.unlocks":
+    "Desbloquea: {unlock} · Bonus: {bonus} 🪨",
+  "goals.achievements": "🏅 Logros",
+  "goals.achievementsNote":
+    "Bonos únicos — sin desbloqueos, solo confeti.",
+
+  // --- Records ---------------------------------------------------------------
+  "records.header":
+    "Récords personales, guardados en tu partida — sobreviven a los gastos " +
+    "y a los prestigio.",
+
+  // --- Legal section -----------------------------------------------------------
+  "legal.heading": "Legal y privacidad",
+  "legal.meta": "Versión {version} · Vigente {date}",
+
+  // --- Rewarded ads panel -------------------------------------------------------
+  "ads.a11y": "Anuncios recompensados",
+  "ads.title":
+    "🎬 Anuncios recompensados — mira un video, gana un bonus. Es opcional, " +
+    "y cerrar antes solo significa sin bonus.",
+  "ads.devSim":
+    "⚠️ Compilación de desarrollo: los anuncios son simulados y no se " +
+    "reproduce nada realmente.",
+  "ads.gemRolls": "💎 Sorteo de gemas — +{count} 💎 por anuncio",
+  "ads.leftToday": "{left} de {total} restantes hoy",
+  "ads.backTomorrow": "Vuelve mañana.",
+  "ads.double": "🪨 Duplicar ganancias offline",
+  "ads.doubleDetail":
+    "Duplica tu último botín: +{count} 🪨",
+  "ads.doubleNone": "Aún no hay botín offline para duplicar.",
+  "ads.topUp": "⏱️ Recarga offline (+{hours}h)",
+  "ads.topUpDetail":
+    "El tope de 8h retuvo tu último botín — mira para ganar las próximas " +
+    "{hours}h: +{count} 🪨",
+  "ads.topUpNone":
+    "Disponible cuando un botín offline alcance el tope de 8h.",
+  "ads.cap": "Hasta {count} recompensas al día en total.",
+  "ads.watching": "Reproduciendo…",
+  "ads.watch": "Ver",
+
+  // --- IAP panel -------------------------------------------------------------------
+  "iap.a11y": "Compras",
+  "iap.title":
+    "🛍️ Compras únicas — todas opcionales. El juego es totalmente gratis y " +
+    "completable sin ninguna de ellas.",
+  "iap.devSim":
+    "⚠️ Compilación de desarrollo: las compras son simuladas y no hay " +
+    "dinero de por medio.",
+  "iap.alsoEarnable":
+    "También se puede conseguir en el juego por {count} 💎 — comprar es " +
+    "comodidad, no acceso.",
+  "iap.owned": "Obtenido",
+  "iap.buy": "Comprar",
+  "iap.restore": "📦 Restaurar compras",
+  "iap.restoreDetail":
+    "Vuelve a aplicar las compras anteriores de la tienda en este dispositivo.",
+  "iap.restoreButton": "Restaurar",
+
+  // --- UI compartida ------------------------------------------------------------
+  "ui.close": "Cerrar",
+  "ui.areYouSure": "¿Estás seguro?",
+  "ui.confirm": "Confirmar",
+  "ui.cancel": "Cancelar",
+  "a11y.backspace": "Retroceso",
+  "a11y.submitAnswer": "Enviar respuesta",
+  "a11y.holdToMine": "Mantén pulsado para minar",
+  "a11y.digit": "Dígito {d}",
+  "a11y.holdToClear": "Mantén pulsado para borrar toda la respuesta",
+  "a11y.closeSettings": "Cerrar ajustes",
+  "a11y.settings": "Ajustes",
+
+  // --- Footer misc -------------------------------------------------------------------
+  "inquiries.subject": "Mines of Doom — comentarios de un jugador",
+  "a11y.inquiries":
+    "Consultas — abre tu app de correo para contactar al desarrollador",
+  "a11y.mute": "Silenciar sonido",
+  "a11y.unmute": "Activar sonido",
+};

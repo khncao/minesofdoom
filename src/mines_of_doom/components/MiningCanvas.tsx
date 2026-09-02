@@ -1,5 +1,6 @@
 import { memo, MutableRefObject, RefObject, useRef, useState } from "react";
 import { Image, Text, View } from "react-native";
+import { useT } from "src/hooks/useI18n";
 import Miner from "./Miner";
 import DebrisParticles, {
   DebrisParticlesRef,
@@ -81,6 +82,7 @@ const MiningCanvas = memo(function MiningCanvas({
   // per tick) flags the player Miner to pull the pickaxe back while the
   // hold is in flight; on release the snap-back + (mined?) swing play.
   const [holding, setHolding] = useState(false);
+  const t = useT();
   return (
     /*
       Plain View + responder system instead of Pressable.
@@ -109,7 +111,7 @@ const MiningCanvas = memo(function MiningCanvas({
       }}
       onResponderTerminationRequest={() => false}
       accessibilityRole="button"
-      accessibilityLabel="Hold to mine"
+      accessibilityLabel={t("a11y.holdToMine")}
     >
       <CaveBackground
         depth={depth}

@@ -1,6 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { MutableRefObject, useCallback, useEffect, useMemo, useRef } from "react";
 import { Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { useI18n } from "src/hooks/useI18n";
 import { useLocalStorage } from "src/hooks/useLocalStorage";
 import type { DebrisParticlesRef } from "src/components/DebrisParticles";
 import type { BlockBreakRef } from "src/components/BlockBreak";
@@ -142,6 +143,10 @@ export default function MinesOfDoom() {
     exportSaveCode,
     importSaveCode,
   } = useGameEngine(displayMessage, () => autosaveSecondsRef.current);
+  // Language: useI18n persists the player's choice ("auto" | locale) and
+  // drives the live locale store, so every useT() consumer re-renders on a
+  // change. The picker itself lives in Settings.
+  const { t } = useI18n();
   const depthTier = getDepthTier(depth);
   // Tier-4 cave theme recolors the depth tint (the natural theme's palette
   // is exactly the depth tint, so it's the unchanged look by default).
@@ -288,9 +293,9 @@ export default function MinesOfDoom() {
     const prev = prevDepthRef.current;
     prevDepthRef.current = depth;
     if (depth > prev && depth % 10 === 0) {
-      displayMessage(`Depth ${depth}m — deeper into the cave!`, 3000);
+      displayMessage(t("toast.depth", { depth }), 3000);
     }
-  }, [depth, displayMessage]);
+  }, [depth, displayMessage, t]);
 
   // Biome toast when a new depth tier (see DEPTH_TIERS in game.ts) is entered.
   const prevTierRef = useRef(depthTier.id);
@@ -299,10 +304,14 @@ export default function MinesOfDoom() {
     prevTierRef.current = depthTier.id;
     if (depthTier.id > prev) {
       displayMessage(
-        `Entered ${depthTier.name}! Click power ×${depthTier.clickBonus}`, 3000,
+        t("toast.enteredTier", {
+          tier: depthTier.name,
+          bonus: depthTier.clickBonus,
+        }),
+        3000,
       );
     }
-  }, [depthTier, displayMessage]);
+  }, [depthTier, displayMessage, t]);
 
   // Goal tier completions (plan §4.6): completion is derived from lifetime
   // stats, the save's completedTiers only records fired celebrations. The
@@ -316,11 +325,15 @@ export default function MinesOfDoom() {
     completeTiers(newly);
     for (const tier of GOAL_TIERS.filter((t) => newly.includes(t.id))) {
       displayMessage(
-        `🏆 ${tier.name} complete! +${formatNumber(tier.bonusMinerals)} ${emojis.mineral} — unlocks: ${tier.unlock}`,
+        t("toast.tierComplete", {
+          tier: tier.name,
+          bonus: formatNumber(tier.bonusMinerals),
+          unlock: tier.unlock,
+        }),
         6000,
       );
     }
-  }, [gameState, completeTiers, displayMessage]);
+  }, [gameState, completeTiers, displayMessage, t]);
 
   // Achievements (plan §4.1): one-off bonus badges, kept distinct from the
   // goal tier gates above. Same derived-completion + idempotent-updater
@@ -339,10 +352,13 @@ export default function MinesOfDoom() {
     const label =
       extra > 0 ? `${names.join(" · ")} +${extra} more` : names.join(" · ");
     displayMessage(
-      `🏅 ${label}! +${formatNumber(getAchievementBonus(newly))} ${emojis.mineral}`,
+      t("toast.achievement", {
+        label,
+        bonus: formatNumber(getAchievementBonus(newly)),
+      }),
       6000,
     );
-  }, [gameState, completeAchievements, displayMessage]);
+  }, [gameState, completeAchievements, displayMessage, t]);
 
   // Floating "+N" on canvas taps (stable so memoized consumers stay stable).
   const handleTapGain = useCallback(
@@ -390,12 +406,12 @@ export default function MinesOfDoom() {
       );
       if (gem) {
         floatingTextRef.current?.spawn(`+1 ${emojis.gem}`, "#7fd4ff");
-        displayMessage(`You struck a vein! +1 ${emojis.gem}`, 3000);
+        displayMessage(t("toast.vein"), 3000);
       }
       // Combo tier-up: the multiplier just stepped up.
       const nextMult = getComboMultiplier(combo + 1);
       if (nextMult > comboMultiplier) {
-        displayMessage(`Combo x${nextMult}!`, 2000);
+        displayMessage(t("toast.comboUp", { mult: nextMult }), 2000);
       }
       // Streak ignition (plan §4.2): this answer just reached the
       // threshold — from the NEXT answer on, each one pays ×2 more.
@@ -403,7 +419,7 @@ export default function MinesOfDoom() {
         equationSettings.streakMode &&
         streak === STREAK_MODE_THRESHOLD - 1
       ) {
-        displayMessage("🔥 Streak ignited — ×2 per answer!", 2500);
+        displayMessage(t("toast.streakIgnited"), 2500);
       }
     },
     onIncorrect: () => {
@@ -414,7 +430,9 @@ export default function MinesOfDoom() {
       if (combo > 0) {
         const kept = getResistantComboReset(combo, gameState.comboResistLevels);
         displayMessage(
-          kept > 0 ? `Combo dropped to ${kept}!` : "Combo lost!",
+          kept > 0
+            ? t("toast.comboDropped", { combo: kept })
+            : t("toast.comboLost"),
           1500,
         );
       }
@@ -462,15 +480,15 @@ export default function MinesOfDoom() {
     if (prev != null && prev !== modes) {
       noteCrashEvent(`equations: ${modes}`);
     }
-  }, [equationSettings]);
+  }, [equationSettings, t]);
 
   // Footer save pill (plan §2.1): saves immediately (autosave continues in
   // the background) and confirms with a toast so the tap has feedback.
   const handleSaveNow = useCallback(() => {
     noteCrashEvent("manual save");
     saveGame();
-    displayMessage("Game saved", 3000);
-  }, [saveGame, displayMessage]);
+    displayMessage(t("toast.saved"), 3000);
+  }, [saveGame, displayMessage, t]);
 
   // Save-code export/import (plan §4.3): the engine handles the state;
   // this layer only adds the toasts. The imported save persists via the
@@ -479,14 +497,14 @@ export default function MinesOfDoom() {
   const handleImportSaveCode = useCallback(
     (code: string): boolean => {
       if (!importSaveCode(code)) {
-        displayMessage("Invalid save code.", 3000);
+        displayMessage(t("toast.invalidSaveCode"), 3000);
         return false;
       }
-      displayMessage("Save imported!", 3000);
+      displayMessage(t("toast.saveImported"), 3000);
       noteCrashEvent("save imported");
       return true;
     },
-    [importSaveCode, displayMessage],
+    [importSaveCode, displayMessage, t],
   );
 
   // Daily bonus / login streak (plan §4.2): minerals flow through the
@@ -683,13 +701,16 @@ export default function MinesOfDoom() {
               testID="purchases-toggle"
               accessibilityRole="button"
               accessibilityLabel={
-                hidePurchases ? "Show upgrades" : "Hide upgrades"
+                hidePurchases
+                  ? t("main.a11yShowUpgrades")
+                  : t("main.a11yHideUpgrades")
               }
               onPress={() => setHidePurchases(!hidePurchases)}
               style={styles.purchasesToggle}
             >
               <Text style={styles.purchasesToggleText}>
-                {hidePurchases ? "▼ UPGRADES" : "▲ UPGRADES"}
+                {hidePurchases ? "▼ " : "▲ "}
+                {t("main.upgrades")}
               </Text>
             </Pressable>
           </View>

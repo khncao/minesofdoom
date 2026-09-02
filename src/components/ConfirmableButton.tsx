@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Modal, View, Text } from "react-native";
+import { useT } from "src/hooks/useI18n";
 
 export interface ConfirmableButtonProps {
   title: string;
@@ -9,6 +10,7 @@ export interface ConfirmableButtonProps {
 
 export default function ConfirmableButton(props: ConfirmableButtonProps) {
   const [isConfirming, setIsConfirming] = useState(false);
+  const t = useT();
 
   return (
     <View>
@@ -21,19 +23,19 @@ export default function ConfirmableButton(props: ConfirmableButtonProps) {
         <View style={styles.modal}>
           <View style={{ margin: 10 }}>
             <Text style={styles.text}>{props.description}</Text>
-            <Text style={styles.text}>Are you sure?</Text>
+            <Text style={styles.text}>{t("ui.areYouSure")}</Text>
           </View>
 
           <View style={styles.buttons}>
             <Button
-              title="Confirm"
+              title={t("ui.confirm")}
               onPress={() => {
                 props.onPress();
                 setIsConfirming(false);
               }}
             />
             <Button
-              title="Cancel"
+              title={t("ui.cancel")}
               onPress={() => {
                 setIsConfirming(false);
               }}

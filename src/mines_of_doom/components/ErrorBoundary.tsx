@@ -5,6 +5,8 @@ import {
 } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import Button from "src/components/Button";
+import { getLocale, translate } from "src/utils/i18n/i18n";
+import type { Vars } from "src/utils/i18n/en";
 import {
   formatCrashContext,
   snapshotCrashContext,
@@ -106,14 +108,15 @@ export default class ErrorBoundary extends Component<
       return children;
     }
     const { name, message, stack } = this.state;
+    // Class component: no hooks — translate directly against the current
+    // locale (the crash screen renders once; a language change can't
+    // happen while it's up without a restart).
+    const t = (key: Parameters<typeof translate>[0], vars?: Vars) =>
+      translate(key, getLocale(), vars);
     return (
       <View style={localStyles.container}>
-        <Text style={localStyles.title}>⛏️ Something went wrong</Text>
-        <Text style={localStyles.body}>
-          The game hit an unexpected error and stopped rendering. Your save
-          is safe — it is written to local storage automatically and will be
-          there when the game runs again.
-        </Text>
+        <Text style={localStyles.title}>{t("error.title")}</Text>
+        <Text style={localStyles.body}>{t("error.body")}</Text>
         <Text style={localStyles.heading}>
           {name}
           {message.length > 0 ? `: ${message}` : ""}
@@ -130,21 +133,17 @@ export default class ErrorBoundary extends Component<
         {this.state.context.length > 0 && (
           <View style={localStyles.stackBox}>
             <Text style={localStyles.contextText} selectable>
-              {`what was happening:\n${this.state.context}`}
+              {`${t("error.contextHeading")}\n${this.state.context}`}
             </Text>
           </View>
         )}
         <View style={localStyles.hintRow}>
-          <Button title="Try again" onPress={this.handleTryAgain} />
+          <Button title={t("error.tryAgain")} onPress={this.handleTryAgain} />
           {Platform.OS === "web" && (
-            <Button title="Reload page" onPress={this.handleReload} />
+            <Button title={t("error.reloadPage")} onPress={this.handleReload} />
           )}
         </View>
-        <Text style={localStyles.body}>
-          Long-press the error text above to copy it. Recent crashes also
-          stay in menu → Settings → “Recent errors (debug)” after a
-          restart.
-        </Text>
+        <Text style={localStyles.body}>{t("error.hint")}</Text>
       </View>
     );
   }

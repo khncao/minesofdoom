@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useT } from "src/hooks/useI18n";
 
 export interface NumericKeypadProps {
   onDigit: (digit: string) => void;
@@ -55,27 +56,32 @@ const NumericKeypad = memo(function NumericKeypad({
   onClear,
   onSubmit,
 }: NumericKeypadProps) {
+  const t = useT();
   return (
     <View style={styles.keypad}>
       {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
         <Key
           key={d}
           title={d}
-          accessibilityLabel={`Digit ${d}`}
+          accessibilityLabel={t("a11y.digit", { d })}
           onPress={() => onDigit(d)}
         />
       ))}
       <Key
         title="⌫"
-        accessibilityLabel="Backspace"
-        accessibilityHint="Hold to clear the whole answer"
+        accessibilityLabel={t("a11y.backspace")}
+        accessibilityHint={t("a11y.holdToClear")}
         onPress={onBackspace}
         onLongPress={onClear}
       />
-      <Key title="0" accessibilityLabel="Digit 0" onPress={() => onDigit("0")} />
+      <Key
+        title="0"
+        accessibilityLabel={t("a11y.digit", { d: "0" })}
+        onPress={() => onDigit("0")}
+      />
       <Key
         title="="
-        accessibilityLabel="Submit answer"
+        accessibilityLabel={t("a11y.submitAnswer")}
         highlighted
         onPress={onSubmit}
       />

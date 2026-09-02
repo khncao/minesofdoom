@@ -1,30 +1,30 @@
 # Mines of Doom — UX, Improvements & New Features Plan
 
 Status: planning draft
-Last updated: 2026-09-02 (iteration 3)
+Last updated: 2026-09-02 (iteration 9)
 
 Legend: [-] deferred (decision noted), [ ] not started, [o] in progress
 
 Completed items are removed from this file (see git history); only remaining work is tracked here.
 
-## General
-
 - [ ] On-device Android verification (blocked on a device/emulator): boot the debug build and confirm the hermes `describe` crash does not fire. Nets are in place for the next occurrence — crash boundary + persisted log (`crashLog.ts` / `crashLogging.ts`), the `ErrorUtils` global-handler net, the crash-context session trail (rendered on the crash screen and in Settings → "Recent errors (debug)"), and the jest regression net. Build workflow if it resurfaces: debug via `npx expo run:android`; release via EAS or `npx expo run:android --variant release`.
-- [x] ~~Extend `maestro/flows/` with deeper smoke coverage (mining tap, purchase, save/reload)~~ → shipped: three flows on top of `boot_up` — `mining.yaml` (5 hold-to-mines via touchDown/touchUp, asserts the mineral counter actually increases), `purchase.yaml` (earns minerals, buys UPGRADE POWER, asserts the pending per-answer gain rises), and `save_reload.yaml` (mines, saves via the footer pill, kills the process, relaunches, asserts the mineral count is byte-identical — miner-free so no offline income). New testID anchors added where missing (`mining-canvas`, `mineral-count`, `pending-gain`, `save-pill`, plus `testId` passthrough on `Button` → `btn-upgrade-power`/`btn-buy-gem`/`btn-buy-miner`). The CI job now runs the whole `maestro/flows/` dir (job renamed `e2e`, report `maestro-e2e-report`).
-- [x] ~~Increase gem cost of cosmetics~~ → shipped: full ~4–5× rebalance of the gem price curve (outfits 15–75, pickaxes 25–90, themes 25–170; full collection ≈1260 💎). Calibrated against the free-path benchmark's new gem-income instrumentation (`gemGains` + `stopAtFirstPrestige` in `freePath.ts`): a 30-day free player earns ~1900 💎 (collection stays earnable — guardrail 1) while a first-prestige run earns only ~240 💎 (cosmetics stay a late-game sink, not an early one). Regression net: `__test__/cosmeticsBalance.test.ts`.
-- [x] ~~Have cave background scroll/move as player mines deeper~~ → shipped: the cave now slides continuously while the player mines, not just one jump per tier threshold. Pure `getDepthTierProgress` (game.ts, 0→1 within the current tier, virtual span + cap in the final tier) feeds a new `progress` prop through MiningCanvas into `CaveBackground`, whose tier-change offset (one tile per threshold) hands off seamlessly from the gradual slide.
-- [x] ~~Add inquiries link to email "minus4kelvin@gmail.com"~~ → shipped: ✉️ button in the footer row (next to the daily bonus) that opens `mailto:minus4kelvin@gmail.com` via `Linking.openURL` — no SDK, works on web and native alike (`InquiriesButton.tsx`). hidden at the bottom of settings
-- [x] ~~Add privacy policy, disclaimer and other essential legal notices with links at the bottom of settings~~ → shipped: in-app legal documents in `legal.ts` (privacy policy + terms of use & disclaimer, written to match actual behavior: local-only storage, no ad SDK on web, store-processed IAP) opened from “Legal & privacy” links at the very bottom of Settings via scrollable BottomModals — in-app by design so the static web export and native builds need no external hosting. Contact section uses the same address as the inquiries button. Regression net: `__test__/legal.test.ts`.
-- [ ] Add localizations
+- [o] **Add localizations** — EN/ES UI strings shipped (iteration 9): `src/utils/i18n/` tables (en = source of truth, es typed against its key set, placeholder parity pinned in `i18n.test.ts`), `useI18n` hook (preference persisted in AsyncStorage key `language`, separate from the save), language picker in Settings (Auto/English/Español, each shown in its own name), device detection via `expo-localization` with a web `navigator.language` fallback. All screen UI, toasts, tooltips, a11y labels, onboarding, and the crash screen are translated. **Deferred:** data-driven content names (cosmetics, goal tiers, achievements, records labels, IAP product labels, legal doc titles/sections, biome/tier names) still live in their data modules — follow-up is to give those tables a per-locale shape and thread the locale through.
+- [ ] Depth and screen scrolling should be based on lifetime mining
+- [ ] Configurable equation display (7 * 2, 7 x 2)
+- [ ] More types of simple mental arithmetics for all ages
+- [ ] Create E2E tests for Android on phone, 7 inch tablet, and 10 inch tablet and generate 4 in game screenshots in various states for each
+- [ ] Fix settings not displaying
+- [ ] Move mailing inquiry link to inside settings menu
 
-- [-] **BigInt for minerals** — deferred. `formatNumber` covers up to Qi (1e30); switching needs a save-format migration + full audit. Revisit when `MAX_SAFE_INTEGER` is realistically in reach.
+- [ ] **BigInt for minerals** — `formatNumber` covers up to Qi (1e30). Implement as not fully released yet so no need for migrations
 
 - [ ] **Rewarded-ads** — implement integrations
+- [ ] Allowing saving combo with rewarded-ad
 - [ ] Optional ads to receive bonuses (daily, time away, etc.)
 
 - [ ] Add the real Google/Apple store SDK integrations behind the `IapProvider` interface (Google Play Billing / StoreKit, or RevenueCat for receipt validation) — everything in-repo is prepped: stable `storeId` per product, `selectIapProvider` as the one-line swap point, and the full runbook/verification checklist in `docs/store-integration.md`. Blocked on store accounts (Play Console + App Store Connect) and the SDK decision (RevenueCat recommended).
 
 - [ ] Cloud saves
 - [ ] **Leaderboard** (optional, needs a backend or integrate with app store cloud features): depth reached, minerals/sec. (Local personal-bests view shipped — see note above; the LIVE board is what's left, still backend-gated.)
-
-Note: the former "Achievements" item is done and removed per this file's convention — one-off bonus badges shipped long ago (`achievements.ts` + bonus grant in `useGameEngine`, badge list under Goals, progress row in Records, `__test__/achievements.test.ts`).
+- [ ] **Achievements** store integrations
+- [ ] Cosmetic: skins for miners such as cute girls, animals, homages, etc.

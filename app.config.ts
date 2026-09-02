@@ -7,9 +7,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: "minesofdoom",
   slug: "minesofdoom",
   scheme: "com.minus4kelvin.minesofdoom",
-  version: "1.0.7",
+  version: "1.0.8",
   android: {
-    versionCode: 7,
+    versionCode: 8,
     adaptiveIcon: {
       foregroundImage: pickaxePng,
       backgroundColor: "#ffffff",

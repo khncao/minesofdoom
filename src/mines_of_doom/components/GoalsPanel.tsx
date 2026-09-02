@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Text, View } from "react-native";
 import { emojis } from "src/utils/graphics/emojis";
+import { useT } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
 import {
   GOAL_TIERS,
@@ -25,6 +26,7 @@ const GoalsContent = memo(function GoalsContent({
 }: {
   stats: SaveData;
 }) {
+  const t = useT();
   const completed = getCompletedTierIds(stats);
   const activeIndex = completed.length; // first uncompleted tier
 
@@ -50,8 +52,10 @@ const GoalsContent = memo(function GoalsContent({
               </Text>
             </View>
             <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
-              Unlocks: {tier.unlock} · Bonus:{" "}
-              {formatNumber(tier.bonusMinerals)} {emojis.mineral}
+              {t("goals.unlocks", {
+                unlock: tier.unlock,
+                bonus: formatNumber(tier.bonusMinerals),
+              })}
             </Text>
             {tier.goals.map((goal) => {
               const progress = getGoalProgress(stats, goal);
@@ -86,10 +90,10 @@ const GoalsContent = memo(function GoalsContent({
         );
       })}
       <Text style={{ ...styles.text, fontWeight: "bold", fontSize: 14, marginTop: 4 }}>
-        🏅 Achievements
+        {t("goals.achievements")}
       </Text>
       <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
-        One-off bonuses — no unlocks, just confetti.
+        {t("goals.achievementsNote")}
       </Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
         {ACHIEVEMENTS.map((a) => {

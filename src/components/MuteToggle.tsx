@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
+import { useT } from "src/hooks/useI18n";
 
 export interface MuteToggleProps {
   init: boolean;
@@ -7,11 +8,14 @@ export interface MuteToggleProps {
 }
 
 function MuteToggle({ ...props }: MuteToggleProps) {
+  const t = useT();
   const [toggle, setToggle] = useState(props.init);
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={toggle ? "Unmute sound" : "Mute sound"}
+      accessibilityLabel={
+        toggle ? t("a11y.unmute") : t("a11y.mute")
+      }
       onPress={() => {
         setToggle(!toggle);
         props.onToggleChange(!toggle);

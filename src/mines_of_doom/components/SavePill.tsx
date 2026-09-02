@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef } from "react";
 import { Animated, Pressable, Text, View } from "react-native";
+import { useT } from "src/hooks/useI18n";
 import { styles } from "../styles";
 
 /**
@@ -20,6 +21,7 @@ const SavePill = memo(function SavePill({
   reduceMotion: boolean;
   onSave: () => void;
 }) {
+  const t = useT();
   const pulse = useRef(new Animated.Value(1));
 
   useEffect(() => {
@@ -50,7 +52,7 @@ const SavePill = memo(function SavePill({
       testID="save-pill"
       accessibilityRole="button"
       accessibilityLabel={
-        dirty ? "Save game (unsaved changes)" : "Save game"
+        dirty ? t("a11y.saveDirty") : t("a11y.save")
       }
       onPress={onSave}
       // Same 8px margin as the footer icon buttons so the row stays
@@ -68,7 +70,9 @@ const SavePill = memo(function SavePill({
       })}
     >
       <Text style={{ fontSize: 14, userSelect: "none" }}>💾</Text>
-      <Text style={{ ...styles.text, fontSize: 12, opacity: 0.9 }}>Save</Text>
+      <Text style={{ ...styles.text, fontSize: 12, opacity: 0.9 }}>
+        {t("save.pill")}
+      </Text>
       {dirty ? (
         <Animated.View
           style={{

@@ -14,6 +14,7 @@ import {
   pickaxeSpriteUri,
 } from "src/utils/graphics/pixelArt";
 import { emojis } from "src/utils/graphics/emojis";
+import { useI18n } from "src/hooks/useI18n";
 import { styles } from "../styles";
 
 /**
@@ -71,6 +72,7 @@ function CosmeticsSection({
   onBuyCaveTheme: (id: string) => void;
   onSelectCaveTheme: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const playerUri = useMemo(
     () => minerSpriteUri(rollMinerLook(playerSeed, selectedOutfit)),
     [playerSeed, selectedOutfit],
@@ -95,7 +97,11 @@ function CosmeticsSection({
         key={id}
         accessibilityRole="button"
         accessibilityLabel={`${name}, ${
-          owned ? (isSelected ? "selected" : "owned") : `${costGems} gems`
+          owned
+            ? isSelected
+              ? t("cosmetics.a11ySelected")
+              : t("cosmetics.a11yOwned")
+            : t("cosmetics.a11yGems", { count: costGems })
         }`}
         disabled={!owned && !affordable}
         onPress={() => (owned ? onSelect(id) : onBuy(id))}
@@ -124,7 +130,7 @@ function CosmeticsSection({
                   : "#666",
           }}
         >
-          {isSelected ? "✓" : owned ? "Owned" : `${costGems} ${emojis.gem}`}
+          {isSelected ? "✓" : owned ? t("cosmetics.owned") : `${costGems} ${emojis.gem}`}
         </Text>
       </Pressable>
     );
@@ -141,13 +147,14 @@ function CosmeticsSection({
       <Pressable
         key={theme.id}
         accessibilityRole="button"
-        accessibilityLabel={`Cave theme ${theme.name}, ${
-          owned
+        accessibilityLabel={t("cosmetics.a11yTheme", {
+          name: theme.name,
+          state: owned
             ? isSelected
-              ? "selected"
-              : "owned"
-            : `${theme.costGems} gems`
-        }`}
+              ? t("cosmetics.a11ySelected")
+              : t("cosmetics.a11yOwned")
+            : t("cosmetics.a11yGems", { count: theme.costGems }),
+        })}
         disabled={!owned && !affordable}
         onPress={() =>
           owned ? onSelectCaveTheme(theme.id) : onBuyCaveTheme(theme.id)
@@ -189,7 +196,7 @@ function CosmeticsSection({
                   : "#666",
           }}
         >
-          {isSelected ? "✓" : owned ? "Owned" : `${theme.costGems} ${emojis.gem}`}
+          {isSelected ? "✓" : owned ? t("cosmetics.owned") : `${theme.costGems} ${emojis.gem}`}
         </Text>
       </Pressable>
     );
@@ -197,7 +204,9 @@ function CosmeticsSection({
 
   return (
     <View style={{ gap: 2, marginTop: 12 }}>
-      <Text style={{ ...styles.text, fontWeight: "bold" }}>Cosmetics</Text>
+      <Text style={{ ...styles.text, fontWeight: "bold" }}>
+        {t("cosmetics.header")}
+      </Text>
 
       {/* Current look preview */}
       <View style={{ ...styles.flexCenteredRow, gap: 8, alignItems: "center" }}>
@@ -212,11 +221,11 @@ function CosmeticsSection({
             style={{ width: 24, height: 24, marginLeft: 4, marginBottom: -2 }}
           />
         </View>
-        <Button title="🎲 Reroll look" onPress={onReroll} />
+        <Button title={t("cosmetics.reroll")} onPress={onReroll} />
       </View>
 
       <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
-        Outfits (randomized colors per reroll)
+        {t("cosmetics.outfits")}
       </Text>
       {OUTFITS.map((o) =>
         renderItem(
@@ -233,7 +242,7 @@ function CosmeticsSection({
       )}
 
       <Text style={{ ...styles.text, fontSize: 11, color: "#aaa", marginTop: 4 }}>
-        Pickaxes
+        {t("cosmetics.pickaxes")}
       </Text>
       {PICKAXES.map((p) =>
         renderItem(
@@ -253,13 +262,15 @@ function CosmeticsSection({
       <Text
         style={{ ...styles.text, fontSize: 11, color: "#aaa", marginTop: 4 }}
       >
-        {caveThemesUnlocked ? "Cave themes" : "🔒 Cave themes (Crystal Kingdom)"}
+        {caveThemesUnlocked
+          ? t("cosmetics.themes")
+          : t("cosmetics.themesLocked")}
       </Text>
       {caveThemesUnlocked ? (
         CAVE_THEMES.map((theme) => renderTheme(theme))
       ) : (
         <Text style={{ ...styles.text, fontSize: 11, color: "#888" }}>
-          Unlocks at Crystal Kingdom
+          {t("cosmetics.themesUnlockedAt")}
         </Text>
       )}
     </View>

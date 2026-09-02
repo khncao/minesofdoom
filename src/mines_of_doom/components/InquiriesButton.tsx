@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { Linking, Pressable, Text } from "react-native";
+import { useT } from "src/hooks/useI18n";
 
 /**
  * Inquiries button: opens the player's mail app addressed to the developer.
@@ -9,14 +10,15 @@ import { Linking, Pressable, Text } from "react-native";
 const INQUIRIES_EMAIL = "minus4kelvin@gmail.com";
 
 const InquiriesButton = memo(function InquiriesButton() {
+  const t = useT();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Inquiries — opens your email app to contact the developer"
+      accessibilityLabel={t("a11y.inquiries")}
       onPress={() =>
         Linking.openURL(
           `mailto:${INQUIRIES_EMAIL}?subject=${encodeURIComponent(
-            "Mines of Doom inquiry",
+            t("inquiries.subject"),
           )}`,
         )
       }

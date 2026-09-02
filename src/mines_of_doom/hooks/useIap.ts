@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { useLocalStorage } from "src/hooks/useLocalStorage";
+import { useI18n } from "src/hooks/useI18n";
 import {
   IapEntitlements,
   IapProductId,
@@ -34,6 +35,7 @@ export function useIap({
   onPurchased?: (id: IapProductId) => void;
   displayMessage: (message: string, timeout: number) => void;
 }) {
+  const { t } = useI18n();
   const [entitlements, setEntitlements] = useLocalStorage<IapEntitlements>(
     iapEntitlementsKey,
     emptyIapEntitlements(),
@@ -69,10 +71,10 @@ export function useIap({
             const packCosmetic = getIapPackCosmetic(id);
             displayMessage(
               id === "removeAds"
-                ? "Ads removed — thanks for supporting the game!"
+                ? t("toast.iapRemoveAds")
                 : packCosmetic
-                  ? `Unlocked ${packCosmetic.name} — find it in Cosmetics!`
-                  : "Purchase complete!",
+                  ? t("toast.iapPackUnlocked", { name: packCosmetic.name })
+                  : t("toast.iapComplete"),
               4000,
             );
           }
@@ -86,7 +88,7 @@ export function useIap({
           setPurchasing(null);
         });
     },
-    [provider, onPurchased, displayMessage, setEntitlements],
+    [provider, onPurchased, displayMessage, setEntitlements, t],
   );
 
   const restore = useCallback(() => {

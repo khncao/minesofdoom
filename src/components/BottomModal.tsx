@@ -7,6 +7,7 @@ import {
   View,
   Text,
 } from "react-native";
+import { useT } from "src/hooks/useI18n";
 
 export interface BottomModalProps {
   pressable?: React.ReactNode;
@@ -23,10 +24,11 @@ export interface BottomModalProps {
 
 function BottomModal({ scrollable = false, ...props }: BottomModalProps) {
   const [showModal, setShowModal] = useState(false);
+  const t = useT();
   const toggle = (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={props.accessibilityLabel ?? "Settings"}
+      accessibilityLabel={props.accessibilityLabel ?? t("a11y.settings")}
       onPress={() => setShowModal(!showModal)}
       // 44×44 minimum tap target: 30px glyph + 8px padding either side.
       // Tight margins keep the footer compact (plan "Adjust"); the tap
@@ -57,7 +59,7 @@ function BottomModal({ scrollable = false, ...props }: BottomModalProps) {
         >
           <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Close settings"
+        accessibilityLabel={t("a11y.closeSettings")}
         style={styles.closeButton}
         onPress={() => setShowModal(false)}
       >

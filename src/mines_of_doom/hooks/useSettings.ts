@@ -2,6 +2,7 @@ import {
   useAsyncStorage,
 } from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useI18n } from "src/hooks/useI18n";
 import {
   EquationSettings,
   defaultEquationSettings,
@@ -20,6 +21,7 @@ export function useSettings({
   saveGame: () => void;
   displayMessage: (message: string, timeout: number) => void;
 }) {
+  const { t } = useI18n();
   const [settingsData, setSettingsData] = useState(defaultSettingsData);
   const [equationSettings, setEquationSettings] = useState(
     defaultEquationSettings,
@@ -86,8 +88,8 @@ export function useSettings({
     setEquationSettingsStoreRef.current(
       JSON.stringify(equationSettingsRef.current),
     );
-    displayMessage("Saved", 3000);
-  }, [displayMessage]);
+    displayMessage(t("toast.settingsSaved"), 3000);
+  }, [displayMessage, t]);
 
   return {
     settingsData,

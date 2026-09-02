@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalStorage } from "src/hooks/useLocalStorage";
+import { useI18n } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
 import {
   DailyBonusState,
@@ -23,6 +24,7 @@ export function useDailyBonus({
   grantMinerals: (minerals: number) => void;
   displayMessage: (message: string, timeout: number) => void;
 }) {
+  const { t } = useI18n();
   const [state, setState] = useLocalStorage<DailyBonusState | null>(
     dailyBonusKey,
     null,
@@ -64,13 +66,17 @@ export function useDailyBonus({
     stateRef.current = next;
     setState(next);
     displayMessage(
-      `Daily bonus: +${formatNumber(claimInfo.bonus)} minerals` +
-        (claimInfo.nextStreak > 1
-          ? ` (day ${claimInfo.nextStreak} streak!)`
-          : ""),
+      claimInfo.nextStreak > 1
+        ? t("toast.dailyBonusStreak", {
+            bonus: formatNumber(claimInfo.bonus),
+            streak: claimInfo.nextStreak,
+          })
+        : t("toast.dailyBonus", {
+            bonus: formatNumber(claimInfo.bonus),
+          }),
       4000,
     );
-  }, [grantMinerals, setState, displayMessage]);
+  }, [grantMinerals, setState, displayMessage, t]);
 
   return {
     claimable: info.claimable,

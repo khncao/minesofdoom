@@ -3,7 +3,7 @@ import AsyncStorage, {
   useAsyncStorage,
 } from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { emojis } from "src/utils/graphics/emojis";
+import { useI18n } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
 import {
   CLICK_BOOST_MAX_LEVELS,
@@ -48,6 +48,7 @@ export function useGameEngine(
 ) {
   const startTime = useRef(Date.now());
   const [gameState, setGameState] = useState<SaveData>(createEmptySaveData);
+  const { t } = useI18n();
   const { getItem: getSaveData, setItem: setSaveData } =
     useAsyncStorage(saveDataKey);
   // Gates saving until the stored save has finished loading, so an early
@@ -114,7 +115,9 @@ export function useGameEngine(
           offlineDoubleRef.current = offlineMinerals;
           setOfflineDouble(offlineMinerals);
           displayMessage(
-            `Welcome back! Your miners collected ${formatNumber(offlineMinerals)} ${emojis.mineral} while you were away.`,
+            t("toast.welcomeBack", {
+              count: formatNumber(offlineMinerals),
+            }),
             6000,
           );
         }
@@ -209,7 +212,7 @@ export function useGameEngine(
         // A failed write (quota, storage full, ...) would otherwise silently
         // lose everything since the last successful save.
         console.warn("Failed to save game", e);
-        displayMessage("Warning: failed to save your game.", 4000);
+        displayMessage(t("toast.saveFailed"), 4000);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setSaveData]);

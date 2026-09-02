@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useLocalStorage } from "src/hooks/useLocalStorage";
+import { useI18n } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
-import { emojis } from "src/utils/graphics/emojis";
 import {
   AdKind,
   AdProvider,
@@ -50,6 +50,7 @@ export function useAdRewards({
   /** Fired when the player taps "watch" (analytics first-ad-view). */
   onAdView?: (kind: AdKind) => void;
 }) {
+  const { t } = useI18n();
   const [state, setState] = useLocalStorage<AdRewardsState | null>(
     adRewardsKey,
     null,
@@ -97,27 +98,31 @@ export function useAdRewards({
             if (kind === "gemRolls") {
               grantGems(eligibility.gems);
               displayMessage(
-                `Ad finished: +${formatNumber(eligibility.gems)} ${emojis.gem}`,
+                t("toast.adFinishedGems", {
+                  count: formatNumber(eligibility.gems),
+                }),
                 4000,
               );
             } else if (kind === "offlineDouble") {
               claimOfflineDouble();
               displayMessage(
-                `Ad finished: offline haul doubled ` +
-                  `(+${formatNumber(offlineDouble ?? 0)} ${emojis.mineral})`,
+                t("toast.adFinishedDouble", {
+                  count: formatNumber(offlineDouble ?? 0),
+                }),
                 5000,
               );
             } else {
               claimOfflineTopUp();
               displayMessage(
-                `Ad finished: +2h offline top-up ` +
-                  `(+${formatNumber(offlineTopUp ?? 0)} ${emojis.mineral})`,
+                t("toast.adFinishedTopUp", {
+                  count: formatNumber(offlineTopUp ?? 0),
+                }),
                 5000,
               );
             }
             setState(applyAdReward(stateRef.current, kind, Date.now()));
           } else if (result === "closed") {
-            displayMessage("Ad closed early — no reward this time.", 3000);
+            displayMessage(t("toast.adClosedEarly"), 3000);
           }
           // "error" (no fill / no provider) gets no toast: the button
           // re-enables and that's the whole story.
@@ -138,6 +143,7 @@ export function useAdRewards({
       displayMessage,
       onAdView,
       setState,
+      t,
     ],
   );
 

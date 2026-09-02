@@ -1,9 +1,15 @@
 import { memo, useState, type ComponentProps } from "react";
-import { Switch, Text, TextInput, View } from "react-native";
+import { Pressable, Switch, Text, TextInput, View } from "react-native";
 import Button from "src/components/Button";
 import ConfirmableButton from "src/components/ConfirmableButton";
 import IntegerInput from "src/components/IntegerInput";
 import Tooltip from "src/components/Tooltip";
+import { useI18n } from "src/hooks/useI18n";
+import {
+  SUPPORTED_LOCALES,
+  type LanguagePref,
+  type TranslationKey,
+} from "src/utils/i18n/i18n";
 import { EquationSettings } from "src/utils/math/equations";
 import { AnalyticsState, summarizeAnalytics } from "../analytics";
 import { SettingsData } from "../game";
@@ -16,45 +22,23 @@ import { styles } from "../styles";
 /**
  * How a correct answer pays, per operator (kept in sync with useEquations:
  * gain = answer × clickPower × comboMultiplier, division ×10, subtraction ×2).
+ * The tooltip text is a translation key (settings.op.*).
  */
 const OPERATOR_HELP: Record<
   "multiply" | "add" | "subtract" | "division",
-  { symbol: string; note: string }
+  { symbol: string; noteKey: TranslationKey }
 > = {
-  multiply: { symbol: "*", note: "No operator bonus (×1)." },
-  add: { symbol: "+", note: "No operator bonus (×1)." },
+  multiply: { symbol: "*", noteKey: "settings.op.multiply" },
+  add: { symbol: "+", noteKey: "settings.op.add" },
   subtract: {
     symbol: "-",
-    note: "Operator bonus ×2. Answers are always whole & non-negative.",
+    noteKey: "settings.op.subtract",
   },
   division: {
     symbol: "/",
-    note: "Operator bonus ×10. Division is always exact.",
+    noteKey: "settings.op.division",
   },
 };
-
-const GAIN_FORMULA =
-  "Minerals mined per correct answer = answer × click power × combo multiplier, plus any operator bonus. Hard-mode equations pay ×2 on top; timed-mode equations pay ×2 more when answered inside the window; an ignited streak pays ×2 more on top of all of it.";
-
-/** Hard-mode switch tooltip (long-press). */
-const HARD_MODE_HELP =
-  "3-term equations (a ○ b ○ c, left to right) that pay ×2 the normal amount. The extra premium comes from the third term — more arithmetic, bigger answers.";
-
-/** Timed-mode switch tooltip (long-press). */
-const TIMED_MODE_HELP =
-  "Every equation gets a 10-second window: answer in time and the payout gets ×2 (it stacks with the operator and hard-mode bonuses). When the window runs out the equation counts as a miss — your combo drops exactly like a wrong answer (combo resistance still applies) — and a new one rolls. Stacks with hard mode: a 3-term equation answered in time pays ×4 on top of the operator bonus.";;
-
-/** Streak-mode switch tooltip (long-press). */
-const STREAK_MODE_HELP =
-  "Answer 5 equations correctly in a row and the streak ignites: every correct answer after that pays ×2 on top of everything else (it stacks with the operator, hard-mode, and timed-mode bonuses). One wrong answer — or a timed-mode timeout — breaks the run and the streak starts over at 0. Unlike your combo, holding the cave does NOT break the streak: the rule is simply no wrong answers.";
-
-/** Emoji-art (low-end) switch tooltip (long-press). */
-const EMOJI_ART_HELP =
-  "Off (default): miners, currency icons, debris and the cave backdrop are procedural pixel sprites. On: plain emoji instead — lighter on low-end devices where PNG decode/render is the bottleneck. Purely visual; gameplay is unchanged.";
-
-/** Show-all-purchases switch tooltip (long-press). */
-const SHOW_ALL_PURCHASES_HELP =
-  "Off (default): each upgrade button appears only once you've ever had enough minerals or gems to buy its first level — the screen stays uncluttered as the shop grows. The three core buttons (upgrade power, buy a miner, buy a gem) are always visible. On: every upgrade button is shown at all times, locked or not.";
 
 /**
  * The settings view (plan "Adjust"): rendered inside the footer menu sheet
@@ -99,10 +83,42 @@ const SettingsContent = memo(function SettingsContent({
 }) {
   const [exportedCode, setExportedCode] = useState<string | null>(null);
   const [importCode, setImportCode] = useState("");
+  // Language picker (todo: "Add localizations"): the persisted preference
+  // lives in useI18n (NOT in SettingsData — changing it must not wait for a
+  // Save tap); the chips show each language in its own name.
+  const { language, setLanguage, t } = useI18n();
+  const languagePrefs: readonly LanguagePref[] = ["auto", "en", "es"];
   return (
     <View style={{ gap: 2, marginTop: 5 }}>
+      <View style={styles.flexCenteredRow}>
+        <Text style={{ ...styles.text, fontSize: 11 }}>
+          {t("settings.language")}
+        </Text>
+        <View style={{ flexDirection: "row", gap: 4 }}>
+          {languagePrefs.map((pref) => (
+            <Pressable
+              key={pref}
+              accessibilityRole="button"
+              onPress={() => setLanguage(pref)}
+              style={{
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 6,
+                backgroundColor:
+                  language === pref ? "#555" : "#2a2a2a",
+              }}
+            >
+              <Text style={{ ...styles.text, fontSize: 11 }}>
+                {pref === "auto"
+                  ? t("lang.auto")
+                  : SUPPORTED_LOCALES[pref].nativeLabel}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
       <IntegerInput
-        label="Autosave interval (seconds): "
+        label={t("settings.autosave")}
         defaultValue={settingsData.autosave}
         onChangeValue={(newVal) =>
           onChangeSettingsData({
@@ -112,7 +128,7 @@ const SettingsContent = memo(function SettingsContent({
         }
       />
       <IntegerInput
-        label="Max constant value in equations: "
+        label={t("settings.maxNumber")}
         defaultValue={equationSettings.maxNumber}
         onChangeValue={(newVal) =>
           onChangeEquationSettings({
@@ -134,8 +150,8 @@ const SettingsContent = memo(function SettingsContent({
               style={{ flexDirection: "row", alignItems: "center", gap: 2 }}
             >
               <Tooltip
-                label={`${key} equations`}
-                content={`${OPERATOR_HELP[key].note} ${GAIN_FORMULA}`}
+                label={t("settings.operatorEquations", { name: key })}
+                content={`${t(OPERATOR_HELP[key].noteKey)} ${t("settings.gainFormula")}`}
               >
                 <Text style={styles.text}>{OPERATOR_HELP[key].symbol}</Text>
               </Tooltip>
@@ -154,10 +170,10 @@ const SettingsContent = memo(function SettingsContent({
       </View>
       <View style={styles.flexCenteredRow}>
         <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
-          Long-press an operator to see how it pays
+          {t("settings.operatorHelp")}
         </Text>
       </View>
-      <Tooltip label="Hard mode equations" content={HARD_MODE_HELP}>
+      <Tooltip label={t("settings.tooltipHard")} content={t("settings.hardModeHelp")}>
         <View
           style={{
             flexDirection: "row",
@@ -173,8 +189,8 @@ const SettingsContent = memo(function SettingsContent({
             }}
           >
             {hardModeUnlocked
-              ? "Hard mode (3-term ×2): "
-              : "🔒 Hard mode (Motherlode): "}
+              ? t("settings.hardMode")
+              : t("settings.hardModeLocked")}
           </Text>
           <Switch
             value={equationSettings.hardMode}
@@ -191,7 +207,7 @@ const SettingsContent = memo(function SettingsContent({
       {/* Always available (no tier gate): streak mode is opt-in risk/
           reward — the only cost of a broken streak is losing the premium,
           so it's strictly self-inflicted when off (the default). */}
-      <Tooltip label="Streak mode equations" content={STREAK_MODE_HELP}>
+      <Tooltip label={t("settings.tooltipStreak")} content={t("settings.streakModeHelp")}>
         <View
           style={{
             flexDirection: "row",
@@ -206,7 +222,7 @@ const SettingsContent = memo(function SettingsContent({
               color: "#fff",
             }}
           >
-            Streak mode (5 in a row for ×2): 
+            {t("settings.streakMode")}
           </Text>
           <Switch
             value={equationSettings.streakMode}
@@ -222,7 +238,7 @@ const SettingsContent = memo(function SettingsContent({
       {/* Always available (no tier gate): timed mode is opt-in risk/
           reward — the timeout penalty goes through the normal wrong-answer
           path, so it's strictly self-inflicted when off (the default). */}
-      <Tooltip label="Timed mode equations" content={TIMED_MODE_HELP}>
+      <Tooltip label={t("settings.tooltipTimed")} content={t("settings.timedModeHelp")}>
         <View
           style={{
             flexDirection: "row",
@@ -237,7 +253,7 @@ const SettingsContent = memo(function SettingsContent({
               color: "#fff",
             }}
           >
-            Timed mode (answer in 10s for ×2): 
+            {t("settings.timedMode")}
           </Text>
           <Switch
             value={equationSettings.timedMode}
@@ -250,7 +266,7 @@ const SettingsContent = memo(function SettingsContent({
           />
         </View>
       </Tooltip>
-      <Tooltip label="Emoji art (low-end mode)" content={EMOJI_ART_HELP}>
+      <Tooltip label={t("settings.tooltipEmojiArt")} content={t("settings.emojiArtHelp")}>
         <View
           style={{
             flexDirection: "row",
@@ -259,7 +275,7 @@ const SettingsContent = memo(function SettingsContent({
           }}
         >
           <Text style={{ ...styles.text, fontSize: 11 }}>
-            Emoji art (low-end mode):
+            {t("settings.emojiArt")}
           </Text>
           <Switch
             value={settingsData.emojiArt}
@@ -273,8 +289,8 @@ const SettingsContent = memo(function SettingsContent({
         </View>
       </Tooltip>
       <Tooltip
-        label="Always show all upgrade buttons"
-        content={SHOW_ALL_PURCHASES_HELP}
+        label={t("settings.tooltipShowAll")}
+        content={t("settings.showAllPurchasesHelp")}
       >
         <View
           style={{
@@ -284,7 +300,7 @@ const SettingsContent = memo(function SettingsContent({
           }}
         >
           <Text style={{ ...styles.text, fontSize: 11 }}>
-            Always show all upgrade buttons:
+            {t("settings.showAllPurchases")}
           </Text>
           <Switch
             value={settingsData.showAllPurchases}
@@ -300,12 +316,12 @@ const SettingsContent = memo(function SettingsContent({
       <CosmeticsSection {...cosmetics} />
       <View style={{ gap: 6, marginTop: 10 }}>
         <Text style={{ ...styles.text, fontWeight: "bold" }}>
-          Save code (backup / share)
+          {t("settings.saveCode")}
         </Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
-          <Button title="Export code" onPress={() => setExportedCode(onExportSaveCode())} />
+          <Button title={t("settings.export")} onPress={() => setExportedCode(onExportSaveCode())} />
           <Button
-            title="Import code"
+            title={t("settings.import")}
             disabled={importCode.trim().length === 0}
             onPress={() => {
               // Toasts (valid/invalid) come from the handler; on success
@@ -323,7 +339,7 @@ const SettingsContent = memo(function SettingsContent({
             multiline
             numberOfLines={3}
             style={styles.saveCodeInput}
-            accessibilityLabel="Your save code — select to copy"
+            accessibilityLabel={t("settings.a11ySaveCode")}
           />
         )}
         <TextInput
@@ -331,13 +347,12 @@ const SettingsContent = memo(function SettingsContent({
           onChangeText={setImportCode}
           multiline
           numberOfLines={3}
-          placeholder="Paste a save code to import it"
+          placeholder={t("settings.importPlaceholder")}
           placeholderTextColor="#999"
           style={styles.saveCodeInput}
         />
         <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
-          Export gives you a code to copy and share; importing a code
-          replaces your current save with the one in the code.
+          {t("settings.saveCodeHelp")}
         </Text>
       </View>
       <View
@@ -347,10 +362,10 @@ const SettingsContent = memo(function SettingsContent({
           marginTop: 10,
         }}
       >
-        <Button title="Save" onPress={onSave} />
+        <Button title={t("settings.saveButton")} onPress={onSave} />
         <ConfirmableButton
-          title="Reset"
-          description="Will delete current save data and reset to initial state."
+          title={t("settings.resetButton")}
+          description={t("settings.resetDescription")}
           onPress={onReset}
         />
       </View>
@@ -381,6 +396,7 @@ function AnalyticsSection({
   analytics: AnalyticsState | null;
   onClear: () => void;
 }) {
+  const { t } = useI18n();
   if (analytics == null) return null;
   return (
     <View style={{ gap: 6, marginTop: 10 }}>
@@ -392,9 +408,9 @@ function AnalyticsSection({
         }}
       >
         <Text style={{ ...styles.text, fontWeight: "bold" }}>
-          Local stats (debug)
+          {t("settings.analytics")}
         </Text>
-        <Button title="Clear" onPress={onClear} />
+        <Button title={t("settings.clear")} onPress={onClear} />
       </View>
       <Text
         selectable
@@ -403,8 +419,7 @@ function AnalyticsSection({
         {summarizeAnalytics(analytics)}
       </Text>
       <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
-        Stored on this device only — no network, no PII. Clear deletes
-        it; a fresh record starts on the next open.
+        {t("settings.analyticsNote")}
       </Text>
     </View>
   );
@@ -420,6 +435,7 @@ function AnalyticsSection({
  */
 function CrashLogSection() {
   const { entries, clear } = useCrashLog();
+  const { t } = useI18n();
   if (entries == null || entries.length === 0) return null;
   return (
     <View style={{ gap: 6, marginTop: 10 }}>
@@ -431,9 +447,9 @@ function CrashLogSection() {
         }}
       >
         <Text style={{ ...styles.text, fontWeight: "bold" }}>
-          Recent errors (debug)
+          {t("settings.crash")}
         </Text>
-        <Button title="Clear" onPress={clear} />
+        <Button title={t("settings.clear")} onPress={clear} />
       </View>
       {entries.slice(0, 3).map((entry, i) => {
         const contextText = formatCrashContext(entry.context);

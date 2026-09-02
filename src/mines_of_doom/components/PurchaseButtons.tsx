@@ -1,8 +1,9 @@
 import { memo } from "react";
 import { Text, View } from "react-native";
 import Button from "src/components/Button";
-import { emojis } from "src/utils/graphics/emojis";
+import { useT } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
+
 import {
   CLICK_BOOST_MAX_LEVELS,
   COMBO_RESIST_MAX_LEVELS,
@@ -96,6 +97,7 @@ const PurchaseButtons = memo(function PurchaseButtons({
   onUpgradeMinerPower: () => void;
   onSinkNewShaft: () => void;
 }) {
+  const t = useT();
   const fastCost = getFastMinerCost(fastMiners);
   const legendaryCost = getLegendaryMinerCost(legendaryMiners);
   // Cost-curve context (plan §2.1): once a type is owned, show the NEXT
@@ -103,15 +105,15 @@ const PurchaseButtons = memo(function PurchaseButtons({
   // player. Hidden at count 0 (next would just repeat the current cost).
   const minerNext =
     miners > 0
-      ? `, next ${formatNumber(getMinerUpgradeCost(miners + 1))}`
+      ? t("purchase.nextCost", { cost: formatNumber(getMinerUpgradeCost(miners + 1)) })
       : "";
   const fastNext =
     fastMiners > 0
-      ? `, next ${formatNumber(getFastMinerCost(fastMiners + 1))}`
+      ? t("purchase.nextCost", { cost: formatNumber(getFastMinerCost(fastMiners + 1)) })
       : "";
   const legendaryNext =
     legendaryMiners > 0
-      ? `, next ${formatNumber(getLegendaryMinerCost(legendaryMiners + 1))}`
+      ? t("purchase.nextCost", { cost: formatNumber(getLegendaryMinerCost(legendaryMiners + 1)) })
       : "";
   const gemCost = getGemChanceCost(gemChanceLevels);
   const gemChancePct = Math.round(getGemChance(gemChanceLevels) * 100);
@@ -136,14 +138,15 @@ const PurchaseButtons = memo(function PurchaseButtons({
       {/* Plan §2.1 "button hierarchy": buttons are grouped by the currency
           they spend, with a tinted header per group; gem buttons use the
           gem Button tone so the two groups read at a glance. */}
-      <PurchaseGroupHeader label={`SPEND ${emojis.mineral} MINERALS`} color="#8fbf8f" />
+      <PurchaseGroupHeader label={t("purchase.groupMinerals")} color="#8fbf8f" />
       <Button
         testId="btn-upgrade-power"
         disabled={minerals < getClickUpgradeCost(clickPower)}
         onPress={onUpgradePower}
-        title={`UPGRADE POWER (-${formatNumber(
-          getClickUpgradeCost(clickPower),
-        )} ${emojis.mineral}) (${clickPower})`}
+        title={t("purchase.upgradePower", {
+          cost: formatNumber(getClickUpgradeCost(clickPower)),
+          power: clickPower,
+        })}
       />
 
       {/* First goal-tier unlock (plan §4.6): shown but locked until the
@@ -154,10 +157,11 @@ const PurchaseButtons = memo(function PurchaseButtons({
           disabled={!minerPowerUnlocked || minerals < getMinerPowerUpgradeCost(minerPower)}
           title={
             minerPowerUnlocked
-              ? `UPGRADE MINERS (-${formatNumber(
-                  getMinerPowerUpgradeCost(minerPower),
-                )} ${emojis.mineral}) (${minerPower})`
-              : `🔒 UPGRADE MINERS (Prospector's License)`
+              ? t("purchase.upgradeMiners", {
+                  cost: formatNumber(getMinerPowerUpgradeCost(minerPower)),
+                  power: minerPower,
+                })
+              : t("purchase.upgradeMinersLocked")
           }
         />
       )}
@@ -166,18 +170,18 @@ const PurchaseButtons = memo(function PurchaseButtons({
         testId="btn-buy-gem"
         onPress={onBuyGem}
         disabled={minerals < gemMineralCost}
-        title={`BUY A GEM (-${formatNumber(gemMineralCost)} ${emojis.mineral})`}
+        title={t("purchase.buyGem", {
+          cost: formatNumber(gemMineralCost),
+        })}
       />
 
-      <PurchaseGroupHeader label={`SPEND ${emojis.gem} GEMS`} color="#7fd4ff" />
+      <PurchaseGroupHeader label={t("purchase.groupGems")} color="#7fd4ff" />
       <Button
         tone="gem"
         testId="btn-buy-miner"
         onPress={onBuyMiner}
         disabled={gems < getMinerUpgradeCost(miners)}
-        title={`BUY A MINER (-${formatNumber(
-          getMinerUpgradeCost(miners),
-        )} ${emojis.gem}) (${miners}${minerNext})`}
+        title={t("purchase.buyMiner", { cost: formatNumber(getMinerUpgradeCost(miners)), count: miners, next: minerNext })}
       />
 
       {/* Tier-2 unlock (plan §4.6): second miner type — cheaper gem curve,
@@ -189,10 +193,13 @@ const PurchaseButtons = memo(function PurchaseButtons({
           disabled={!fastMinerUnlocked || gems < fastCost}
           title={
             fastMinerUnlocked
-              ? `BUY A FAST MINER (-${formatNumber(fastCost)} ${emojis.gem}) (${
-                  fastMiners
-                }, ${getFastMinerOutput(minerPower)}/s each${fastNext})`
-              : `🔒 BUY FAST MINER (Deep Shaft)`
+              ? t("purchase.buyFastMiner", {
+                  cost: formatNumber(fastCost),
+                  count: fastMiners,
+                  output: getFastMinerOutput(minerPower),
+                  next: fastNext,
+                })
+              : t("purchase.buyFastMinerLocked")
           }
         />
       )}
@@ -207,10 +214,13 @@ const PurchaseButtons = memo(function PurchaseButtons({
           disabled={!legendaryMinerUnlocked || gems < legendaryCost}
           title={
             legendaryMinerUnlocked
-              ? `BUY A LEGENDARY MINER (-${formatNumber(legendaryCost)} ${
-                  emojis.gem
-                }) (${legendaryMiners}, ${getLegendaryMinerOutput(minerPower)}/s each${legendaryNext})`
-              : `🔒 BUY LEGENDARY MINER (Motherlode)`
+              ? t("purchase.buyLegendaryMiner", {
+                  cost: formatNumber(legendaryCost),
+                  count: legendaryMiners,
+                  output: getLegendaryMinerOutput(minerPower),
+                  next: legendaryNext,
+                })
+              : t("purchase.buyLegendaryMinerLocked")
           }
         />
       )}
@@ -225,10 +235,13 @@ const PurchaseButtons = memo(function PurchaseButtons({
           }
           title={
             !fastMinerUnlocked
-              ? `🔒 GEM CHANCE +1% (Deep Shaft)`
+              ? t("purchase.gemChanceLocked")
               : gemChanceMaxed
-                ? `GEM CHANCE ${gemChancePct}% (MAX)`
-                : `GEM CHANCE +1% (-${formatNumber(gemCost)} ${emojis.gem}) (now ${gemChancePct}%)`
+                ? t("purchase.gemChanceMaxed", { pct: gemChancePct })
+                : t("purchase.gemChance", {
+                    cost: formatNumber(gemCost),
+                    pct: gemChancePct,
+                  })
           }
         />
       )}
@@ -242,10 +255,13 @@ const PurchaseButtons = memo(function PurchaseButtons({
           disabled={!prestigeUnlocked || clickBoostMaxed || gems < clickBoostCost}
           title={
             !prestigeUnlocked
-              ? `🔒 CLICK ×2 (Magma Frontier)`
+              ? t("purchase.clickBoostLocked")
               : clickBoostMaxed
-                ? `CLICK POWER ×${clickBoostMult} (MAX)`
-                : `CLICK ×2 (-${formatNumber(clickBoostCost)} ${emojis.gem}) (now ×${clickBoostMult})`
+                ? t("purchase.clickBoostMaxed", { mult: clickBoostMult })
+                : t("purchase.clickBoost", {
+                    cost: formatNumber(clickBoostCost),
+                    mult: clickBoostMult,
+                  })
           }
         />
       )}
@@ -261,10 +277,10 @@ const PurchaseButtons = memo(function PurchaseButtons({
           }
           title={
             !prestigeUnlocked
-              ? `🔒 COMBO RESISTANCE (Magma Frontier)`
+              ? t("purchase.comboResistLocked")
               : comboResistMaxed
-                ? `COMBO RESISTANCE (keep ${comboKeepPct}%) (MAX)`
-                : `COMBO RESISTANCE (-${formatNumber(comboResistCost)} ${emojis.gem}) (keep ${comboKeepPct}%)`
+                ? t("purchase.comboResistMaxed", { pct: comboKeepPct })
+                : t("purchase.comboResist", { cost: formatNumber(comboResistCost), pct: comboKeepPct })
           }
         />
       )}
@@ -276,20 +292,25 @@ const PurchaseButtons = memo(function PurchaseButtons({
           both currency rows so it can't be mistaken for a purchase. */}
       {visible.has("prestige") && (
         <>
-          <PurchaseGroupHeader label="PRESTIGE" color="#ffaa44" />
+          <PurchaseGroupHeader label={t("purchase.groupPrestige")} color="#ffaa44" />
           <Button
             onPress={onSinkNewShaft}
             disabled={!prestigeUnlocked || !canBank}
             title={
               !prestigeUnlocked
-                ? `🔒 SINK NEW SHAFT (Magma Frontier)`
+                ? t("purchase.sinkNewShaftLocked")
                 : canBank
-                  ? `⛏️ SINK NEW SHAFT → ×${availableMult} (now ×${bankedMult})`
+                  ? t("purchase.sinkNewShaftCanBank", {
+                      next: availableMult,
+                      banked: bankedMult,
+                    })
                   : nextLevel
-                    ? `⛏️ SINK NEW SHAFT ×${bankedMult} — need ${formatNumber(
-                        nextLevel.at,
-                      )} ${emojis.mineral} total for ×${nextLevel.multiplier}`
-                    : `⛏️ SINK NEW SHAFT ×${bankedMult} (MAX)`
+                    ? t("purchase.sinkNewShaftNeed", {
+                        banked: bankedMult,
+                        at: formatNumber(nextLevel.at),
+                        next: nextLevel.multiplier,
+                      })
+                    : t("purchase.sinkNewShaftMax", { banked: bankedMult })
             }
           />
         </>

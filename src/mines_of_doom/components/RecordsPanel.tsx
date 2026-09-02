@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { Text, View } from "react-native";
+import { useT } from "src/hooks/useI18n";
 import { SaveData } from "../game";
 import { getRecords } from "../records";
 import { styles } from "../styles";
@@ -15,12 +16,12 @@ const RecordsContent = memo(function RecordsContent({
 }: {
   stats: SaveData;
 }) {
+  const t = useT();
   const records = getRecords(stats);
   return (
     <View style={{ gap: 10, padding: 12 }}>
       <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
-        Personal bests, kept on your save — they survive spending and
-        prestiges.
+        {t("records.header")}
       </Text>
       {records.map((r) => (
         <View

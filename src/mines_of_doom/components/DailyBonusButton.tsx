@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { Pressable, Text } from "react-native";
+import { useT } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
 
 /**
@@ -19,10 +20,15 @@ const DailyBonusButton = memo(function DailyBonusButton({
   streak: number;
   onClaim: () => void;
 }) {
+  const t = useT();
   const label = claimable
-    ? `Claim daily bonus: +${formatNumber(bonus)} minerals` +
-      (streak > 0 ? `, starts day ${streak + 1} streak` : "")
-    : "Daily bonus claimed today. Come back tomorrow for the next bonus.";
+    ? streak > 0
+      ? t("a11y.dailyClaimableStreak", {
+          bonus: formatNumber(bonus),
+          day: streak + 1,
+        })
+      : t("a11y.dailyClaimable", { bonus: formatNumber(bonus) })
+    : t("a11y.dailyClaimed");
   return (
     <Pressable
       accessibilityRole="button"

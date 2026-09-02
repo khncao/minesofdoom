@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { Animated, Text, View } from "react-native";
+import { useT } from "src/hooks/useI18n";
 import { getComboTierProgress } from "../game";
 import { styles } from "../styles";
 
@@ -12,6 +13,7 @@ const ComboIndicator = memo(function ComboIndicator({
   comboMultiplier: number;
   flashAnim: Animated.Value;
 }) {
+  const t = useT();
   const progress = getComboTierProgress(combo);
   return (
     <View style={styles.comboContainer}>
@@ -22,7 +24,7 @@ const ComboIndicator = memo(function ComboIndicator({
             { transform: [{ scale: flashAnim }] },
           ]}
         >
-          {combo > 0 ? `🔥 ${combo}x combo` : ""}
+          {combo > 0 ? t("combo.active", { combo }) : ""}
         </Animated.Text>
         {comboMultiplier > 1 && (
           <Text style={styles.multiplierText}> ×{comboMultiplier}</Text>
@@ -39,7 +41,10 @@ const ComboIndicator = memo(function ComboIndicator({
             />
           </View>
           <Text style={styles.comboProgressLabel}>
-            {progress.untilNext} more → ×{progress.nextMultiplier}
+            {t("combo.untilNext", {
+              count: progress.untilNext,
+              mult: progress.nextMultiplier,
+            })}
           </Text>
         </>
       )}

@@ -2,8 +2,8 @@ import { memo } from "react";
 import { Text, View } from "react-native";
 import BottomModal from "src/components/BottomModal";
 import Button from "src/components/Button";
+import { useI18n } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
-import { emojis } from "src/utils/graphics/emojis";
 import {
   AdKind,
   AD_GEM_ROLLS_PER_DAY,
@@ -44,52 +44,52 @@ function AdRewardsPanel({
   claiming: AdKind | null;
   onClaim: (kind: AdKind) => void;
 }) {
+  const { t } = useI18n();
   return (
     <BottomModal
       pressable={<Text style={{ fontSize: 30 }}>🎬</Text>}
-      accessibilityLabel="Rewarded ads"
+      accessibilityLabel={t("ads.a11y")}
       scrollable
     >
       <View style={{ gap: 8, padding: 4 }}>
-        <Text style={styles.text}>
-          🎬 Rewarded ads — watch a video, get a bonus. Optional, and closing
-          early just means no bonus.
-        </Text>
+        <Text style={styles.text}>{t("ads.title")}</Text>
         {isDevSim && (
           <Text style={{ ...styles.text, color: "#ffaa44" }}>
-            ⚠️ Development build: ads are simulated and nothing is actually
-            played.
+            {t("ads.devSim")}
           </Text>
         )}
 
         <View style={styles.flexCenteredRow}>
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={styles.text}>
-              💎 Gem rolls — +{AD_GEM_ROLLS_PER_USE} {emojis.gem} per watch
+              {t("ads.gemRolls", { count: AD_GEM_ROLLS_PER_USE })}
             </Text>
             <Text style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}>
               {gemRollsLeft > 0
-                ? `${gemRollsLeft} of ${AD_GEM_ROLLS_PER_DAY} left today`
-                : "Back tomorrow."}
+                ? t("ads.leftToday", {
+                    left: gemRollsLeft,
+                    total: AD_GEM_ROLLS_PER_DAY,
+                  })
+                : t("ads.backTomorrow")}
             </Text>
           </View>
           <Button
             tone="gem"
             disabled={claiming != null || gemRollsLeft <= 0 || dailyCapLeft <= 0}
-            title={claiming === "gemRolls" ? "Playing…" : "Watch"}
+            title={claiming === "gemRolls" ? t("ads.watching") : t("ads.watch")}
             onPress={() => onClaim("gemRolls")}
           />
         </View>
 
         <View style={styles.flexCenteredRow}>
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={styles.text}>
-              🪨 Double offline earnings
-            </Text>
+            <Text style={styles.text}>{t("ads.double")}</Text>
             <Text style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}>
               {offlineDouble != null && offlineDouble > 0
-                ? `Doubles your last haul: +${formatNumber(offlineDouble)} ${emojis.mineral}`
-                : "No offline haul to double yet."}
+                ? t("ads.doubleDetail", {
+                    count: formatNumber(offlineDouble),
+                  })
+                : t("ads.doubleNone")}
             </Text>
           </View>
           <Button
@@ -98,7 +98,7 @@ function AdRewardsPanel({
               (offlineDouble ?? 0) <= 0 ||
               dailyCapLeft <= 0
             }
-            title={claiming === "offlineDouble" ? "Playing…" : "Watch"}
+            title={claiming === "offlineDouble" ? t("ads.watching") : t("ads.watch")}
             onPress={() => onClaim("offlineDouble")}
           />
         </View>
@@ -106,14 +106,15 @@ function AdRewardsPanel({
         <View style={styles.flexCenteredRow}>
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={styles.text}>
-              ⏱️ Offline top-up (+{offlineTopUpTicks / 3600}h)
+              {t("ads.topUp", { hours: offlineTopUpTicks / 3600 })}
             </Text>
             <Text style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}>
               {offlineTopUp != null && offlineTopUp > 0
-                ? `The 8h cap withheld your last haul — ` +
-                  `watch to earn the next ${offlineTopUpTicks / 3600}h: ` +
-                  `+${formatNumber(offlineTopUp)} ${emojis.mineral}`
-                : "Available when an offline haul hits the 8h cap."}
+                ? t("ads.topUpDetail", {
+                    hours: offlineTopUpTicks / 3600,
+                    count: formatNumber(offlineTopUp),
+                  })
+                : t("ads.topUpNone")}
             </Text>
           </View>
           <Button
@@ -122,13 +123,13 @@ function AdRewardsPanel({
               (offlineTopUp ?? 0) <= 0 ||
               dailyCapLeft <= 0
             }
-            title={claiming === "offlineTopUp" ? "Playing…" : "Watch"}
+            title={claiming === "offlineTopUp" ? t("ads.watching") : t("ads.watch")}
             onPress={() => onClaim("offlineTopUp")}
           />
         </View>
 
         <Text style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}>
-          Up to {AD_MAX_REWARDS_PER_DAY} rewards a day, all of them.
+          {t("ads.cap", { count: AD_MAX_REWARDS_PER_DAY })}
         </Text>
       </View>
     </BottomModal>

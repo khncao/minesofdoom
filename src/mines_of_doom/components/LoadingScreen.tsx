@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
+import { useT } from "src/hooks/useI18n";
 
 /**
  * Shown until the stored save has been read, migrated and applied
@@ -13,6 +14,7 @@ const LoadingScreen = memo(function LoadingScreen({
 }: {
   reduceMotion: boolean;
 }) {
+  const t = useT();
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     if (reduceMotion) {
@@ -39,7 +41,7 @@ const LoadingScreen = memo(function LoadingScreen({
   return (
     <View style={styles.wrap} testID="loading-screen">
       <Animated.Text style={[styles.icon, { opacity: pulse }]}>⛏️</Animated.Text>
-      <Text style={styles.label}>loading the mine…</Text>
+      <Text style={styles.label}>{t("loading.mine")}</Text>
     </View>
   );
 });

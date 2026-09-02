@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Text, View } from "react-native";
 import BottomModal from "src/components/BottomModal";
+import { useI18n } from "src/hooks/useI18n";
 import { LEGAL_DOCS, type LegalDoc } from "../legal";
 import { styles } from "../styles";
 
@@ -16,10 +17,11 @@ import { styles } from "../styles";
  * only on the static legal.ts data, so this never re-renders on game ticks.
  */
 const LegalSection = memo(function LegalSection() {
+  const { t } = useI18n();
   return (
     <View style={{ gap: 4, marginTop: 10 }}>
       <Text style={{ ...styles.text, fontWeight: "bold" }}>
-        Legal & privacy
+        {t("legal.heading")}
       </Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
         {LEGAL_DOCS.map((doc) => (
@@ -51,7 +53,10 @@ function LegalDocContent({ doc }: { doc: LegalDoc }) {
         {doc.title}
       </Text>
       <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
-        Version {doc.version} · Effective {doc.effectiveDate}
+        {useI18n().t("legal.meta", {
+          version: doc.version,
+          date: doc.effectiveDate,
+        })}
       </Text>
       {doc.sections.map((section) => (
         <View key={section.heading} style={{ gap: 2 }}>

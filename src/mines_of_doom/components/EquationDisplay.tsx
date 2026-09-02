@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Text, View } from "react-native";
 import { Equation, Ops } from "src/utils/math/equations";
-import { emojis } from "src/utils/graphics/emojis";
+import { useT } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
 import {
   getAnswerPayoutMultiplier,
@@ -27,6 +27,7 @@ const EquationDisplay = memo(function EquationDisplay({
    *  null/undefined = streak mode off (nothing streak-related shown). */
   streak?: number | null;
 }) {
+  const t = useT();
   // Same multiplier the engine pays (getAnswerPayoutMultiplier): operator
   // bonus (÷ ×10, − ×2) × the hard-mode premium for 3-term equations
   // × the timed-mode premium while inside the window × the streak premium
@@ -62,9 +63,9 @@ const EquationDisplay = memo(function EquationDisplay({
             borderRadius: 3,
             overflow: "hidden",
           }}
-          accessibilityLabel={`Timed mode: ${Math.ceil(
-            (timeLeftMs ?? 0) / 1000,
-          )} seconds left`}
+          accessibilityLabel={t("equation.a11yTimed", {
+            seconds: Math.ceil((timeLeftMs ?? 0) / 1000),
+          })}
         >
           <View
             style={{
@@ -84,13 +85,21 @@ const EquationDisplay = memo(function EquationDisplay({
       {streakActive && (
         // Ignited: the premium is live; not yet: progress toward ignition.
         <Text style={styles.pendingGainText}>
-          🔥 streak {streakIgnited ? "×2" : `${streak!}/${STREAK_MODE_THRESHOLD}`}
+          {streakIgnited
+            ? t("equation.streakIgnited")
+            : t("equation.streakProgress", {
+                n: streak!,
+                threshold: STREAK_MODE_THRESHOLD,
+              })}
         </Text>
       )}
       <Text testID="pending-gain" style={styles.pendingGainText}>
-        correct: +{formatNumber(pendingGain)} {emojis.mineral}
+        {t("equation.pending", { gain: formatNumber(pendingGain) })}
         {payoutMultiplier > 1 &&
-          ` (×${payoutMultiplier}${opMultiplier > 1 ? ` ${equation.op}` : ""}${hardMode ? " hard" : ""}${timedActive ? " timed" : ""}${streakIgnited ? " streak" : ""})`}
+          t("equation.detail", {
+            mult: payoutMultiplier,
+            suffix: `${opMultiplier > 1 ? ` ${equation.op}` : ""}${hardMode ? ` ${t("equation.tagHard")}` : ""}${timedActive ? ` ${t("equation.tagTimed")}` : ""}${streakIgnited ? ` ${t("equation.tagStreak")}` : ""}`,
+          })}
       </Text>
     </>
   );

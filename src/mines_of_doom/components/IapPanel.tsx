@@ -2,6 +2,7 @@ import { memo } from "react";
 import { Text, View } from "react-native";
 import BottomModal from "src/components/BottomModal";
 import Button from "src/components/Button";
+import { useI18n } from "src/hooks/useI18n";
 import {
   IapProductId,
   IAP_PACK_GRANTS,
@@ -53,21 +54,18 @@ function IapPanel({
   onPurchase: (id: IapProductId) => void;
   onRestore: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <BottomModal
       pressable={<Text style={{ fontSize: 30 }}>🛍️</Text>}
-      accessibilityLabel="Purchases"
+      accessibilityLabel={t("iap.a11y")}
       scrollable
     >
       <View style={{ gap: 8, padding: 4 }}>
-        <Text style={styles.text}>
-          🛍️ One-time purchases — all optional. The game is fully free and
-          completable without any of them.
-        </Text>
+        <Text style={styles.text}>{t("iap.title")}</Text>
         {isDevSim && (
           <Text style={{ ...styles.text, color: "#ffaa44" }}>
-            ⚠️ Development build: purchases are simulated and no money is
-            involved.
+            {t("iap.devSim")}
           </Text>
         )}
 
@@ -93,8 +91,7 @@ function IapPanel({
                   <Text
                     style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}
                   >
-                    Also earnable in-game for {pack.costGems} 💎 — buying is
-                    convenience, not access.
+                    {t("iap.alsoEarnable", { count: pack.costGems })}
                   </Text>
                 )}
               </View>
@@ -103,10 +100,10 @@ function IapPanel({
                 disabled={owned || purchasing != null}
                 title={
                   owned
-                    ? "Owned"
+                    ? t("iap.owned")
                     : purchasing === product.id
                       ? "…"
-                      : "Buy"
+                      : t("iap.buy")
                 }
                 onPress={() => onPurchase(product.id)}
               />
@@ -116,15 +113,15 @@ function IapPanel({
 
         <View style={styles.flexCenteredRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.text}>📦 Restore purchases</Text>
+            <Text style={styles.text}>{t("iap.restore")}</Text>
             <Text style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}>
-              Re-apply the past store purchases on this device.
+              {t("iap.restoreDetail")}
             </Text>
           </View>
           <Button
             tone="gem"
             disabled={restoring}
-            title={restoring ? "…" : "Restore"}
+            title={restoring ? "…" : t("iap.restoreButton")}
             onPress={onRestore}
           />
         </View>

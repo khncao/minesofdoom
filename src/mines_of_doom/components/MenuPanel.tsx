@@ -1,6 +1,7 @@
 import { memo, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import BottomModal from "src/components/BottomModal";
+import { useT } from "src/hooks/useI18n";
 import MuteToggle from "src/components/MuteToggle";
 import { EquationSettings } from "src/utils/math/equations";
 import { AnalyticsState } from "../analytics";
@@ -60,6 +61,7 @@ function MenuPanel({
   /** Data-deletion path for the analytics record. */
   onClearAnalytics: () => void;
 }) {
+  const t = useT();
   const [view, setView] = useState<MenuView>("settings");
 
   // Stable elements so the memoized views skip re-rendering when only
@@ -107,7 +109,7 @@ function MenuPanel({
   return (
     <BottomModal
       pressable={<Text style={{ fontSize: 30 }}>☰</Text>}
-      accessibilityLabel="Menu"
+      accessibilityLabel={t("main.a11yMenu")}
       scrollable
     >
       <View style={{ gap: 4 }}>
@@ -121,17 +123,17 @@ function MenuPanel({
         >
           <MuteToggle init={mute} onToggleChange={onMuteChange} />
           <MenuNavButton
-            label="⚙️ Settings"
+            label={t("menu.settings")}
             active={view === "settings"}
             onPress={() => setView("settings")}
           />
           <MenuNavButton
-            label="🎯 Goals"
+            label={t("menu.goals")}
             active={view === "goals"}
             onPress={() => setView("goals")}
           />
           <MenuNavButton
-            label="📊 Records"
+            label={t("menu.records")}
             active={view === "records"}
             onPress={() => setView("records")}
           />
