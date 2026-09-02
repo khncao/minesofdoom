@@ -1,7 +1,7 @@
 import { Animated } from "react-native";
 import { useCallback, useRef, useState } from "react";
 
-export function useCombo() {
+export function useCombo(reduceMotion = false) {
   const [combo, setCombo] = useState(0);
   const comboMultiplier = 1 + Math.floor(combo / 10);
 
@@ -9,6 +9,10 @@ export function useCombo() {
   const springRef = useRef<Animated.CompositeAnimation | null>(null);
 
   const flash = useCallback(() => {
+    // Respect the OS reduce-motion preference: keep the indicator static.
+    if (reduceMotion) {
+      return;
+    }
     springRef.current?.stop();
     flashAnim.setValue(1.6);
     springRef.current = Animated.spring(flashAnim, {
@@ -16,7 +20,7 @@ export function useCombo() {
       useNativeDriver: true,
     });
     springRef.current.start();
-  }, [flashAnim]);
+  }, [flashAnim, reduceMotion]);
 
   const increment = useCallback(() => {
     flash();

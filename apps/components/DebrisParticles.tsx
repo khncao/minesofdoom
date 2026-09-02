@@ -29,15 +29,25 @@ function makeParticle(id: number) {
 // memo: parent re-renders on every tap flush; the only meaningful input is
   // the (stable) ref, so skip re-rendering unless our own state changes.
 const DebrisParticles = memo(
-  forwardRef<DebrisParticlesRef>(function DebrisParticles(_, ref) {
+  forwardRef<DebrisParticlesRef, { reduceMotion?: boolean }>(
+    function DebrisParticles(
+      { reduceMotion = false }: { reduceMotion?: boolean } = {},
+      ref,
+    ) {
   const [particles, setParticles] = useState<
     { id: number; emoji: string; tx: number; ty: number; anim: Animated.Value }[]
   >([]);
   const idRef = useRef(0);
   const lastTriggerRef = useRef(0);
+  const reduceMotionRef = useRef(reduceMotion);
+  reduceMotionRef.current = reduceMotion;
 
   useImperativeHandle(ref, () => ({
     trigger() {
+      // Respect the OS reduce-motion preference: no particle burst.
+      if (reduceMotionRef.current) {
+        return;
+      }
       const now = Date.now();
       if (now - lastTriggerRef.current < MIN_TRIGGER_INTERVAL) {
         return;
@@ -91,7 +101,8 @@ const DebrisParticles = memo(
       ))}
     </>
   );
-}),
+    },
+  ),
 );
 
 export default DebrisParticles;

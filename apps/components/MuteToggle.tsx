@@ -16,6 +16,8 @@ function MuteToggle({ ...props }: MuteToggleProps) {
         setToggle(!toggle);
         props.onToggleChange(!toggle);
       }}
+      // 44×44 minimum tap target: 30px glyph + 8px padding either side.
+      style={{ padding: 8 }}
     >
       {toggle ? (
         <Text style={styles.iconText}>🔇</Text>

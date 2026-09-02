@@ -14,7 +14,8 @@ function BottomModal(props: BottomModalProps) {
       accessibilityRole="button"
       accessibilityLabel={props.accessibilityLabel ?? "Settings"}
       onPress={() => setShowModal(!showModal)}
-      style={{ margin: 10 }}
+      // 44×44 minimum tap target: 30px glyph + 8px padding either side.
+      style={{ margin: 10, padding: 8 }}
     >
       {props.pressable ?? <Text style={{ fontSize: 30 }}>⚙️</Text>}
     </Pressable>

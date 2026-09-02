@@ -48,6 +48,7 @@ import { useSounds } from "./hooks/useSounds";
 import { useCombo } from "./hooks/useCombo";
 import { useShakeInput } from "./hooks/useShakeInput";
 import { useMineTaps } from "./hooks/useMineTaps";
+import { useAccessibilityReduceMotion } from "./hooks/useAccessibilityReduceMotion";
 import { useEquations } from "./hooks/useEquations";
 
 export default function MinesOfDoom() {
@@ -157,13 +158,14 @@ export default function MinesOfDoom() {
     autosaveSecondsRef.current = settingsData.autosave;
   }, [settingsData.autosave]);
   const { play } = useSounds(mute);
+  const reduceMotion = useAccessibilityReduceMotion();
   const {
     combo,
     comboMultiplier,
     flashAnim,
     increment: incrementCombo,
     reset: resetCombo,
-  } = useCombo();
+  } = useCombo(reduceMotion);
   // Combo resistance (tier-3 gem upgrade): the fraction of the combo a
   // wrong answer / mine tap keeps. Ref so the stable tap-reset callback
   // below always sees the current level without re-subscribing.
@@ -383,6 +385,7 @@ export default function MinesOfDoom() {
           playerSeed={gameState.playerSeed}
           outfitId={gameState.selectedOutfit}
           pickaxeId={gameState.selectedPickaxe}
+          reduceMotion={reduceMotion}
         />
         {showMessage && (
           <View style={styles.messageOverlay} pointerEvents="none">

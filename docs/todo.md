@@ -20,5 +20,5 @@ Legend: [x] done (with notes) · [-] deferred (decision noted) · [ ] not starte
 
 ## Accessibility (2.2)
 
-- [-] Reduce-motion (`useAccessibilityReduceMotion`) for debris/combo flash — small follow-up.
-- [-] 44×44 tap targets — gear/mute are ~30px text; bump padding in a follow-up.
+- [x] Reduce-motion (`useAccessibilityReduceMotion`) for debris/combo flash — done: web `matchMedia(prefers-reduced-motion)` hook; `useCombo` skips the flash spring and `DebrisParticles` skips bursts when set (no RN API on native; defaults to false there).
+- [x] 44×44 tap targets — gear (BottomModal) and mute toggle now have 8px padding around the 30px glyph (≈46px hit area).

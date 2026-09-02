@@ -30,6 +30,7 @@ const MiningCanvas = memo(function MiningCanvas({
   playerSeed,
   outfitId,
   pickaxeId,
+  reduceMotion,
 }: {
   depth: number;
   /** Cave background tint for the current depth tier. */
@@ -47,6 +48,8 @@ const MiningCanvas = memo(function MiningCanvas({
   playerSeed: number;
   outfitId: string;
   pickaxeId: string;
+  /** OS reduce-motion preference: suppresses decorative effects. */
+  reduceMotion: boolean;
   debrisRef: RefObject<DebrisParticlesRef>;
   blockBreakRef: RefObject<BlockBreakRef>;
   floatingTextRef: RefObject<FloatingTextRef>;
@@ -90,7 +93,7 @@ const MiningCanvas = memo(function MiningCanvas({
             outfitId={outfitId}
             pickaxeId={pickaxeId}
           />
-          <DebrisParticles ref={debrisRef} />
+          <DebrisParticles ref={debrisRef} reduceMotion={reduceMotion} />
           <BlockBreak ref={blockBreakRef} />
         </View>
         <View
