@@ -61,8 +61,11 @@ import { useDailyBonus } from "./hooks/useDailyBonus";
 import { useAnalytics } from "./hooks/useAnalytics";
 import { useAdRewards } from "./hooks/useAdRewards";
 import { devSimAdProvider, noopAdProvider } from "./ads";
+import { useIap } from "./hooks/useIap";
+import { devSimIapProvider, noopIapProvider } from "./iaps";
 import LoadingScreen from "./components/LoadingScreen";
 import AdRewardsPanel from "./components/AdRewardsPanel";
+import IapPanel from "./components/IapPanel";
 
 export default function MinesOfDoom() {
   // currently doesn't mute android touch sounds, but can in the future
@@ -446,8 +449,11 @@ export default function MinesOfDoom() {
   // Local event logging (guardrail 6, "measure before scaling"): the
   // app-open record happens inside the hook (after its stored record has
   // loaded); the one-shot milestones are fired from the effects below.
-  const { onPrestige: onFirstPrestige, onAdView: onFirstAdView } =
-    useAnalytics();
+  const {
+    onPrestige: onFirstPrestige,
+    onAdView: onFirstAdView,
+    onIapPurchase: onFirstIap,
+  } = useAnalytics();
 
   // Rewarded ads (plan §5.1): production builds run the no-op provider,
   // whose entry points stay hidden (no ad SDK is bundled; web remains 100%
@@ -464,6 +470,19 @@ export default function MinesOfDoom() {
     claimOfflineTopUp,
     displayMessage,
     onAdView: onFirstAdView,
+  });
+
+  // In-app purchases (plan §5.2): production builds run the no-op provider
+  // (no store SDK bundled — web stays 100% free, guardrail 5), so the
+  // purchase entry points stay hidden until a real store integration
+  // swaps in behind the same interface. Dev builds run a clearly labeled
+  // simulation. Entitlements are device-local and never travel in the
+  // save; the first validated purchase feeds the analytics record.
+  const iapProvider = __DEV__ ? devSimIapProvider : noopIapProvider;
+  const iap = useIap({
+    provider: iapProvider,
+    onPurchased: onFirstIap,
+    displayMessage,
   });
 
   // Free-path progress (guardrail 6): the player's FIRST prestige, observed
@@ -603,7 +622,7 @@ export default function MinesOfDoom() {
             streak={dailyBonus.streak}
             onClaim={dailyBonus.claim}
           />
-          {adRewards.available && (
+          {adRewards.available && !iap.removeAds && (
             <AdRewardsPanel
               isDevSim={adProvider.id === "dev-sim"}
               gemRollsLeft={adRewards.gemRollsLeft}
@@ -612,6 +631,17 @@ export default function MinesOfDoom() {
               offlineTopUp={offlineTopUp}
               claiming={adRewards.claiming}
               onClaim={adRewards.claim}
+            />
+          )}
+          {/* Remove Ads owned hides this panel too (plan §5.1: it
+              permanently disables even the opt-in entry points). */}
+          {iap.available && !iap.removeAds && (
+            <IapPanel
+              isDevSim={iapProvider.id === "dev-sim"}
+              purchasing={iap.purchasing}
+              restoring={iap.restoring}
+              onPurchase={iap.purchase}
+              onRestore={iap.restore}
             />
           )}
         </View>
