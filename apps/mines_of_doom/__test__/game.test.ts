@@ -34,6 +34,11 @@ import {
   saveVersion,
 } from "../game";
 import { DEFAULT_CAVE_THEME, DEFAULT_CAVE_TINTS } from "../cosmetics";
+import { Equation, Ops } from "apps/utils/math/equations";
+import {
+  HARD_MODE_PAYOUT,
+  getAnswerPayoutMultiplier,
+} from "../game";
 
 describe("cost curves", () => {
   test("click upgrade cost", () => {
@@ -709,5 +714,41 @@ describe("createEmptySaveData tier-5 fields", () => {
     const save = createEmptySaveData();
     expect(save.legendaryMiners).toBe(0);
     expect(save.saveVersion).toBe(saveVersion);
+  });
+});
+
+// Helper building an equation the same way getRandomEquation does: a 3-term
+// hard-mode shape has op2/c set, a soft-mode shape has them undefined.
+const mkEq = (op: string, op2?: string): Equation => ({
+  op,
+  a: 2,
+  b: 3,
+  c: op2 !== undefined ? 4 : undefined,
+  op2,
+  answer: 24,
+});
+
+describe("getAnswerPayoutMultiplier (hard mode, tier-5)", () => {
+  test("soft mode keeps the operator bonuses only", () => {
+    expect(getAnswerPayoutMultiplier(mkEq(Ops.mult))).toBe(1);
+    expect(getAnswerPayoutMultiplier(mkEq(Ops.add))).toBe(1);
+    expect(getAnswerPayoutMultiplier(mkEq(Ops.sub))).toBe(2);
+    expect(getAnswerPayoutMultiplier(mkEq(Ops.div))).toBe(10);
+  });
+
+  test("hard mode multiplies every operator bonus by HARD_MODE_PAYOUT (×2)", () => {
+    expect(HARD_MODE_PAYOUT).toBe(2);
+    expect(getAnswerPayoutMultiplier(mkEq(Ops.mult, Ops.mult))).toBe(
+      1 * HARD_MODE_PAYOUT,
+    );
+    expect(getAnswerPayoutMultiplier(mkEq(Ops.add, Ops.div))).toBe(
+      1 * HARD_MODE_PAYOUT,
+    );
+    expect(getAnswerPayoutMultiplier(mkEq(Ops.sub, Ops.add))).toBe(
+      2 * HARD_MODE_PAYOUT,
+    );
+    expect(getAnswerPayoutMultiplier(mkEq(Ops.div, Ops.mult))).toBe(
+      10 * HARD_MODE_PAYOUT,
+    );
   });
 });

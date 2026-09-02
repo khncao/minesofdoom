@@ -37,13 +37,6 @@ Last updated: 2026-08-31
   - Minimum tap target 44×44 for the settings gear and mute toggle.
 - **Web parity.** On web, `inputMode="numeric"` is ignored and the keyboard is the OS one; the custom keypad (above) fixes this. Also test `KeyboardAvoidingView` behavior in browser (it's a no-op on web).
 
-### 2.3 Juice / game feel
-- **Floating "+N" text** at the click point on correct answers and canvas taps.
-- **Milestone toasts** at depth thresholds (e.g., "Depth 10m — new cave layer") and first-purchase moments.
-- **Screen shake / flash** on gem roll success (5% chance is a rare event — make it land).
-- **Combo tier-up effect** when the multiplier increases (bigger flash + sound).
-- **Haptics** on mobile via `expo-haptics` for correct/wrong answers and purchases.
-
 ## 3. General (code/technical) Improvements
 
 ### 3.1 Save system
@@ -60,20 +53,6 @@ Last updated: 2026-08-31
 - `saveGame` mutates `gameState.saveTime` directly (mutation of state object) — move into the state update.
 - `onTick` ref array + Context is a fine pattern, but document it; currently only miners use it.
 
-### 3.3 Structure
-- **Split `MinesOfDoom.tsx`** (~500 lines, all-in-one). Extract:
-  - `useGameState` hook (save/load/tick/purchase logic)
-  - `useEquation` hook (equation state + submit)
-  - `useCombo` hook
-  - Presentational components: `PurchaseButtons`, `DepthBanner`, `MinerRoster`
-- **Centralize balance constants** (`gemChance`, `gemMineralCost`, cost functions, `msPerTick`) in one `balance.ts` module so tuning doesn't require hunting the component.
-- **Equation edge cases:**
-  - `getRandomEquation` can produce `0 * 0`, `a - a = 0`, and division with `a < b` producing fractional answers (answered via `Math.fround` — but the player has to type a decimal; decide if division should always be exact).
-  - `minNumber` setting exists but is unused in generation (always `getRandomInt(max)` from 0).
-  - With all operators off, `ops` is empty → `op` is `undefined` and `answer` is `undefined`; guard against it.
-- **Testing.** Add unit tests for: cost curves, `getRandomEquation` (per operator, edge cases), `approxeq`, offline progress calc, save migration. Jest + `jest-expo` fits the Expo stack.
-- **Lint/CI.** ESLint config exists; add a CI workflow (lint + typecheck + unit tests) and a `test` script in `package.json`.
-
 ### 3.4 Performance
 - The canvas re-renders every tick (minerals change) even when nothing visual changed. Memoize `CaveBackground` (keyed by depth) and the miner roster (keyed by count) so ticks only update the counters.
 - `DebrisParticles` and `Miner` animations: verify they run on the native driver / don't trigger React re-renders per frame.
@@ -85,13 +64,10 @@ Last updated: 2026-08-31
 - **Achievements.** One-time rewards (first gem, 100-combo, 10 miners, depth 100m). Small mineral bonuses + a badge list in settings.
 - **Prestige ("New Shaft").** Reset minerals/miners for a permanent multiplier based on lifetime minerals. Gives the idle loop a long-term goal.
 - **Miner upgrades.** Currently miners are identical and only count matters. Add: miner power upgrades (cost minerals), miner levels, or distinct miner types (slow/cheap, fast/expensive).
-- **Gem uses beyond miners.** Gems currently buy only miners. Add gem-spent upgrades: click power ×2, combo decay resistance, gem chance +1%.
 
 ### 4.2 Gameplay variety
 - **Equation modes.** Timed mode (answer within X seconds for bonus), streak mode (no wrong answers allowed, high reward), or "hard mode" with 3-term equations.
-- **Random events.** Occasional events on tick: "gold vein! next 10 answers ×2", "cave-in! miners paused 30s". Adds variety to the idle loop.
 - **Daily bonus / login streak.** Small mineral grant per day played; streak multiplier.
-- **Lucky pick.** Small chance per correct answer for a crit (×5) — complements the existing gem roll.
 
 ### 4.3 Meta / social
 - **Leaderboard** (optional, needs a backend or integrate with app store cloud features): depth reached, minerals/sec.
@@ -173,7 +149,6 @@ F2P viability is a design constraint, not a marketing line — enforce it with a
 
 Every ad is a bonus the player actively requests. No interstitials, no banners, no ads on the equation flow (they'd ruin the combo/tap rhythm).
 - **Offline earnings ×2** — the "welcome back" modal (3.1) is the perfect natural opt-in: "Watch to double your offline minerals." No other context converts better.
-- **Cave-in rescue** — when a negative random event fires (4.2), offer a rewarded video to cancel it.
 - **Gem rolls** — "watch for 5 free gem rolls" as a daily-limited reward (e.g., 3/day) instead of buying gems with minerals.
 - **Instant offline top-up** — once offline progress hits the cap, watching extends it by +2h.
 - Implementation: `expo-ad-adsense` or `react-native-ads-mediation` (AdMob/Unity). Gate behind a provider abstraction so web falls back to a no-op. Track impressions/rewards in-app to detect fraud (cap rewards per session, e.g., ≤10/day).
@@ -206,14 +181,3 @@ Store: RevenueCat (or `react-native-iap` directly) for receipts/entitlements acr
 5. **Platform gating** — Google Play requires IAP for digital goods; web build stays 100% free with no ad SDKs bundled at all.
 6. **Measure before scaling** — lightweight event logging (first-time-ad-view, IAP purchase, D1/D7 retention, free-path progress) before any UA spend.
 7. **Compliance** — math idle games skew young: plan for a kid-safe age rating, and since ads reward minerals (a game item, not a real product), verify the ad SDK's kid-safety/`TAG_FOR_CHILD_DIRECTED_TREATMENT` setting for the chosen rating.
-
-## 6. Suggested Order
-
-1. **Quick wins (UX):** number formatting, pending-gain display, wrong-answer shake, save-on-blur, offline cap + welcome-back modal.
-2. **Stability:** save migration + corrupt-save handling, tick drift fix, unit tests for math/save logic.
-3. **Structure:** split `MinesOfDoom.tsx` into hooks/components, `balance.ts`, CI.
-4. **Monetization (ethical):** daily bonus/streaks (retention first) → opt-in rewarded ads (offline ×2, cave-in rescue) → Remove Ads + earnable-also cosmetics. No pay-to-speed, web stays 100% free. Behind an ad/IAP provider abstraction so web never bundles an ad SDK.
-5. **Juice:** floating text, haptics, milestone toasts, combo tier effects.
-6. **Art:** pick sprite style (pixel art) → Skia `SpriteView`/shared-clock foundation → miner + mineral + gem sprites → cave tile layer → debris/depth variants.
-7. **Features:** depth tiers → lifetime stats + overarching goal tiers (unlocking miner upgrades → gem upgrades → prestige → cosmetics as tiers complete) → achievements.
-8. **Nice-to-have:** events, daily bonus, share codes, leaderboard.

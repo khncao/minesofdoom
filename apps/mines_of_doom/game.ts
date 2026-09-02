@@ -8,6 +8,7 @@ import {
   PICKAXES,
   isCaveThemeId,
 } from "./cosmetics";
+import { Equation, Ops } from "apps/utils/math/equations";
 
 export type SaveData = {
   minerals: number;
@@ -275,6 +276,14 @@ export function migrateSaveData(parsed: Record<string, unknown>): Record<
   return data;
 }
 export const msPerTick = 1000;
+/**
+ * Hard-mode premium (tier-5 "Motherlode", plan §4.2): every correct answer
+ * to a 3-term (hard-mode) equation pays ×HARD_MODE_PAYOUT. Applied in
+ * getAnswerPayoutMultiplier, keyed off the equation's shape (op2 present) —
+ * so a 2-term equation generated before the player toggled hard mode still
+ * pays the soft rate, and vice versa.
+ */
+export const HARD_MODE_PAYOUT = 2;
 export const gemChance = 0.05;
 /** Base gem chance added per level of the gem chance upgrade. */
 export const gemChancePerLevel = 0.01;
@@ -569,6 +578,19 @@ export function getResistantComboReset(combo: number, level: number): number {
 /** Gem cost of raising combo resistance from `level` to level + 1. */
 export function getComboResistCost(level: number): number {
   return 20 * (level + 1) * (level + 1);
+}
+
+/**
+ * Payout multiplier for a correct answer, folded onto the raw answer value
+ * before it reaches applyAnswerReward. Operator bonus (÷ ×10, − ×2, like
+ * the pre-hard-mode behavior) × the hard-mode premium when the equation has
+ * a second term. useEquations applies this; EquationDisplay folds the same
+ * number into the pending-gain readout so the UI and the reward agree.
+ */
+export function getAnswerPayoutMultiplier(equation: Equation): number {
+  const opBonus =
+    equation.op === Ops.div ? 10 : equation.op === Ops.sub ? 2 : 1;
+  return opBonus * (equation.op2 !== undefined ? HARD_MODE_PAYOUT : 1);
 }
 
 export function getDepth(minerals: number): number {

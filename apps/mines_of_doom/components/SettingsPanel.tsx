@@ -32,7 +32,11 @@ const OPERATOR_HELP: Record<
 };
 
 const GAIN_FORMULA =
-  "Minerals mined per correct answer = answer × click power × combo multiplier, plus any operator bonus.";
+  "Minerals mined per correct answer = answer × click power × combo multiplier, plus any operator bonus. Hard-mode equations pay ×2 on top.";
+
+/** Hard-mode switch tooltip (long-press). */
+const HARD_MODE_HELP =
+  "3-term equations (a ○ b ○ c, left to right) that pay ×2 the normal amount. The extra premium comes from the third term — more arithmetic, bigger answers.";
 
 // Memoized so re-renders from tapping the mine don't re-render the whole
 // settings UI (switches, inputs, modal) on every tap.
@@ -45,6 +49,7 @@ const SettingsContent = memo(function SettingsContent({
   onSave,
   onReset,
   cosmetics,
+  hardModeUnlocked,
 }: {
   settingsData: SettingsData;
   onChangeSettingsData: (newSettings: SettingsData) => void;
@@ -54,6 +59,9 @@ const SettingsContent = memo(function SettingsContent({
   onSave: () => void;
   onReset: () => void;
   cosmetics: ComponentProps<typeof CosmeticsSection>;
+  /** Tier-5 (Motherlode) complete → the switch is live, otherwise it
+   *  renders locked (visible-but-locked, plan §4.6). */
+  hardModeUnlocked: boolean;
 }) {
   return (
     <View style={{ gap: 2, marginTop: 5 }}>
@@ -113,6 +121,37 @@ const SettingsContent = memo(function SettingsContent({
           Long-press an operator to see how it pays
         </Text>
       </View>
+      <Tooltip label="Hard mode equations" content={HARD_MODE_HELP}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Text
+            style={{
+              ...styles.text,
+              fontSize: 11,
+              color: hardModeUnlocked ? "#fff" : "#aaa",
+            }}
+          >
+            {hardModeUnlocked
+              ? "Hard mode (3-term ×2): "
+              : "🔒 Hard mode (Motherlode): "}
+          </Text>
+          <Switch
+            value={equationSettings.hardMode}
+            disabled={!hardModeUnlocked}
+            onValueChange={(newVal) => {
+              onChangeEquationSettings({
+                ...equationSettings,
+                hardMode: newVal,
+              });
+            }}
+          />
+        </View>
+      </Tooltip>
       <CosmeticsSection {...cosmetics} />
       <View
         style={{
@@ -146,6 +185,7 @@ const SettingsPanel = ({
   cosmetics,
   mute,
   onMuteChange,
+  hardModeUnlocked,
 }: {
   settingsData: SettingsData;
   onChangeSettingsData: (newSettings: SettingsData) => void;
@@ -157,6 +197,7 @@ const SettingsPanel = ({
   cosmetics: ComponentProps<typeof CosmeticsSection>;
   mute: boolean;
   onMuteChange: (newVal: boolean) => void;
+  hardModeUnlocked: boolean;
 }) => {
   // Stable element so the memoized BottomModal can skip re-rendering on
   // every tap (it only changes when settings or the message actually change).
@@ -171,6 +212,7 @@ const SettingsPanel = ({
         onSave={onSave}
         onReset={onReset}
         cosmetics={cosmetics}
+        hardModeUnlocked={hardModeUnlocked}
       />
     ),
     [
@@ -182,6 +224,7 @@ const SettingsPanel = ({
       onSave,
       onReset,
       cosmetics,
+      hardModeUnlocked,
     ],
   );
 

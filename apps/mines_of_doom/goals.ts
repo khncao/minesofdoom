@@ -72,6 +72,13 @@ export const CAVE_THEME_UNLOCK_TIER = "t4";
 export const LEGENDARY_MINER_UNLOCK_TIER = "t5";
 
 /**
+ * The endgame tier that unlocks hard-mode equation modes (plan §4.2):
+ * 3-term equations paying HARD_MODE_PAYOUT (game.ts). Shared tier-5 gate
+ * with legendary miners — same unlock, two endgame lines.
+ */
+export const HARD_MODE_UNLOCK_TIER = "t5";
+
+/**
  * The tier chain (flavor from plan §4.6, tuned to the stats the game
  * actually tracks). Tiers are sequential: a tier only completes once every
  * earlier tier is complete.
@@ -127,7 +134,7 @@ export const GOAL_TIERS: GoalTier[] = [
     id: "t5",
     name: "Motherlode",
     bonusMinerals: 50_000_000,
-    unlock: "Legendary miners",
+    unlock: "Legendary miners + hard-mode equations",
     goals: [
       { id: "t5-prestige", metric: "totalPrestiges", target: 3, label: "Prestige 3 times" },
       { id: "t5-depth", metric: "maxDepth", target: 1500, label: "Reach depth 1500m" },

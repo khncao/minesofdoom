@@ -4,8 +4,8 @@ import {
   EquationSettings,
   getRandomEquation,
   approxeq,
-  Ops,
 } from "apps/utils/math/equations";
+import { getAnswerPayoutMultiplier } from "../game";
 
 export function useEquations({
   equationSettings,
@@ -30,14 +30,10 @@ export function useEquations({
     }
 
     if (approxeq(value, equation.answer)) {
-      // Answer-type bonus: divisions pay ×10, subtractions ×2 (answers are
-      // always integral & non-negative by construction, so no abs/fround).
-      if (equation.op === Ops.div) {
-        value *= 10;
-      }
-      if (equation.op === Ops.sub) {
-        value *= 2;
-      }
+      // Operator bonus (÷ ×10, − ×2) × hard-mode premium (×2 for 3-term
+      // equations) — see getAnswerPayoutMultiplier. Answers are always
+      // integral & non-negative by construction, so no abs/fround.
+      value *= getAnswerPayoutMultiplier(equation);
       onCorrect(Math.max(1, value));
     } else {
       onIncorrect();

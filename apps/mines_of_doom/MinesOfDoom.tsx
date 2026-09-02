@@ -33,6 +33,7 @@ import {
   CAVE_THEME_UNLOCK_TIER,
   FAST_MINER_UNLOCK_TIER,
   GOAL_TIERS,
+  HARD_MODE_UNLOCK_TIER,
   LEGENDARY_MINER_UNLOCK_TIER,
   MINER_POWER_UNLOCK_TIER,
   PRESTIGE_UNLOCK_TIER,
@@ -405,6 +406,9 @@ export default function MinesOfDoom() {
           cosmetics={cosmetics}
           mute={mute}
           onMuteChange={handleMuteChange}
+          hardModeUnlocked={gameState.completedTiers.includes(
+            HARD_MODE_UNLOCK_TIER,
+          )}
         />
           <GoalsPanel stats={gameState} />
         </View>
