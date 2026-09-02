@@ -33,10 +33,21 @@ describe("catalog", () => {
 
   test("every color is 6-digit hex (the PNG encoder requires it)", () => {
     for (const o of OUTFITS) {
-      for (const c of [...o.shirts, ...o.pants, ...o.boots, ...o.hats]) {
+      for (const c of [
+        ...o.shirts,
+        ...o.pants,
+        ...o.boots,
+        ...o.hats,
+        ...(o.fur ?? []),
+      ]) {
         expect(c).toMatch(HEX6);
       }
       expect(o.hatStyles.length).toBeGreaterThan(0);
+      // An animal body has no fur color of its own: the outfit MUST supply
+      // a pool (rollMinerLook only falls back to SKIN_TONES as a guard).
+      if (o.species === "animal") {
+        expect(o.fur?.length ?? 0).toBeGreaterThan(0);
+      }
     }
     for (const p of PICKAXES) {
       for (const c of [p.theme.head, p.theme.glow, p.theme.handle]) {
@@ -177,6 +188,47 @@ describe("homage line (plan §4.5 / art todo)", () => {
     for (const s of strings) {
       for (const b of brands) {
         expect(s.toLowerCase()).not.toContain(b);
+      }
+    }
+  });
+});
+
+describe("critter + hair line (mineral skins: animals & long hair)", () => {
+  test("the animal line exists: paid critter outfits with fur pools", () => {
+    const critters = OUTFITS.filter((o) => o.species === "animal");
+    expect(critters.length).toBeGreaterThanOrEqual(3);
+    for (const o of critters) {
+      expect(o.costGems).toBeGreaterThan(0);
+      expect(o.id).not.toBe(DEFAULT_OUTFIT);
+      expect(o.fur?.length ?? 0).toBeGreaterThan(0);
+      expect(o.blurb).toBeDefined();
+    }
+    // The critters cover distinct fur palettes (not one recolor).
+    const palettes = new Set(critters.map((o) => (o.fur ?? []).sort().join(",")));
+    expect(palettes.size).toBe(critters.length);
+  });
+
+  test("the hair line exists: a paid outfit wearing long hair", () => {
+    const haired = OUTFITS.filter((o) => o.hatStyles.includes("longhair"));
+    expect(haired.length).toBeGreaterThanOrEqual(1);
+    for (const o of haired) {
+      expect(o.costGems).toBeGreaterThan(0);
+      expect(o.species ?? "human").toBe("human");
+    }
+  });
+
+  test("rollMinerLook honors species: animal fur from the outfit pool", () => {
+    for (const o of OUTFITS) {
+      const species = o.species ?? "human";
+      for (let seed = 0; seed < 10; seed++) {
+        const look = rollMinerLook(seed, o.id);
+        expect(look.species).toBe(species);
+        if (species === "animal") {
+          expect(o.fur).toContain(look.skin);
+        } else {
+          expect(look.skin).toMatch(HEX6);
+        }
+        expect(o.hatStyles).toContain(look.hatStyle);
       }
     }
   });

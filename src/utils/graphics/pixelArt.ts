@@ -205,7 +205,14 @@ export function gridToPngDataUri(grid: PixelGrid): string {
 // Miner sprite
 // ---------------------------------------------------------------------------
 
-export type HatStyle = "helmet" | "beanie" | "cap" | "bandana";
+export type HatStyle = "helmet" | "beanie" | "cap" | "bandana" | "longhair";
+
+/**
+ * Body type of a miner (cosmetic line): "human" is the classic silhouette;
+ * "animal" is a round little critter (the look's fields map as
+ * skin=fur, shirt=vest, pants=lower fur, boots=feet).
+ */
+export type MinerSpecies = "human" | "animal";
 
 export type MinerLook = {
   skin: string;
@@ -214,47 +221,57 @@ export type MinerLook = {
   boots: string;
   hat: string;
   hatStyle: HatStyle;
+  /** Defaults to "human" (absent on looks rolled before the critter line). */
+  species?: MinerSpecies;
 };
 
 const EYES = "#1a1a1a";
 const BELT = "#2b2b2b";
+const MUZZLE = "#f2e6cf";
 
 /**
- * 16×16 front-facing miner. Layout (body centered on x 4..11):
+ * 16×16 front-facing miner. Human layout (body centered on x 4..11):
  * rows 0-2 hat (style-dependent), 3-6 face, 7-10 torso (+ arms at x3/x12),
- * 11 belt, 12-13 legs, 14 boots.
+ * 11 belt, 12-13 legs, 14 boots. Animal layout: rows 0-6 round head with
+ * ears (row 0), 7-11 vest, 12-13 fluffy lower half, 14 feet — plus a tail
+ * at x12-13. The hat (style-dependent) is drawn last for both, so a hat
+ * overwrites any head pixels it covers.
  */
 export function buildMinerGrid(look: MinerLook): PixelGrid {
   const g = createGrid(16, 16);
   const { skin, shirt, pants, boots, hat, hatStyle } = look;
 
-  // Face / head
-  hline(g, 5, 10, 3, skin);
-  hline(g, 5, 10, 4, skin);
-  setPixel(g, 6, 4, EYES);
-  setPixel(g, 9, 4, EYES);
-  hline(g, 5, 10, 5, skin);
-  hline(g, 5, 10, 6, skin);
+  if (look.species === "animal") {
+    buildAnimalBody(g, skin, shirt, pants, boots);
+  } else {
+    // Face / head
+    hline(g, 5, 10, 3, skin);
+    hline(g, 5, 10, 4, skin);
+    setPixel(g, 6, 4, EYES);
+    setPixel(g, 9, 4, EYES);
+    hline(g, 5, 10, 5, skin);
+    hline(g, 5, 10, 6, skin);
 
-  // Torso
-  hline(g, 5, 10, 7, shirt);
-  hline(g, 4, 11, 8, shirt);
-  hline(g, 4, 11, 9, shirt);
-  hline(g, 4, 11, 10, shirt);
-  // Arms / hands
-  setPixel(g, 3, 9, skin);
-  setPixel(g, 3, 10, skin);
-  setPixel(g, 12, 9, skin);
-  setPixel(g, 12, 10, skin);
-  // Belt
-  hline(g, 4, 11, 11, BELT);
-  // Legs + boots
-  hline(g, 5, 6, 12, pants);
-  hline(g, 9, 10, 12, pants);
-  hline(g, 5, 6, 13, pants);
-  hline(g, 9, 10, 13, pants);
-  hline(g, 4, 6, 14, boots);
-  hline(g, 9, 11, 14, boots);
+    // Torso
+    hline(g, 5, 10, 7, shirt);
+    hline(g, 4, 11, 8, shirt);
+    hline(g, 4, 11, 9, shirt);
+    hline(g, 4, 11, 10, shirt);
+    // Arms / hands
+    setPixel(g, 3, 9, skin);
+    setPixel(g, 3, 10, skin);
+    setPixel(g, 12, 9, skin);
+    setPixel(g, 12, 10, skin);
+    // Belt
+    hline(g, 4, 11, 11, BELT);
+    // Legs + boots
+    hline(g, 5, 6, 12, pants);
+    hline(g, 9, 10, 12, pants);
+    hline(g, 5, 6, 13, pants);
+    hline(g, 9, 10, 13, pants);
+    hline(g, 4, 6, 14, boots);
+    hline(g, 9, 11, 14, boots);
+  }
 
   // Hat (style-dependent crown + brim)
   switch (hatStyle) {
@@ -280,8 +297,75 @@ export function buildMinerGrid(look: MinerLook): PixelGrid {
       setPixel(g, 12, 2, hat); // knot
       setPixel(g, 13, 3, hat);
       break;
+    case "longhair":
+      // Hair, not a hat: full top + long side strands down to the shoulders
+      // (the human face is x 5..10, so the x4/x11 strands frame it).
+      hline(g, 5, 10, 0, hat);
+      hline(g, 4, 11, 1, hat);
+      hline(g, 4, 11, 2, hat);
+      for (let y = 3; y <= 7; y++) {
+        setPixel(g, 4, y, hat);
+        setPixel(g, 11, y, hat);
+      }
+      break;
   }
   return g;
+}
+
+/**
+ * The animal body (species === "animal"): a round fur head with pointy
+ * ears, a vest over a fluffy lower half, fur paws and a tail. `skin` is the
+ * fur color; `shirt` the vest; `pants` the lower-fur color; `boots` the
+ * feet. Ears are drawn first, so the head and hat overwrite any overlap —
+ * the ear TIPS (5,0)/(10,0) stay visible under every hat style.
+ */
+function buildAnimalBody(
+  g: PixelGrid,
+  fur: string,
+  vest: string,
+  lowerFur: string,
+  feet: string,
+): void {
+  // Ears (pointy, one pixel inside the head's edge)
+  setPixel(g, 5, 0, fur);
+  setPixel(g, 4, 1, fur);
+  setPixel(g, 10, 0, fur);
+  setPixel(g, 11, 1, fur);
+
+  // Round head
+  hline(g, 5, 10, 1, fur);
+  hline(g, 4, 11, 2, fur);
+  hline(g, 4, 11, 3, fur);
+  hline(g, 4, 11, 4, fur);
+  hline(g, 4, 11, 5, fur);
+  hline(g, 4, 11, 6, fur);
+  // Eyes + muzzle
+  setPixel(g, 6, 4, EYES);
+  setPixel(g, 9, 4, EYES);
+  hline(g, 7, 8, 5, MUZZLE);
+  hline(g, 7, 8, 6, MUZZLE);
+
+  // Vest (the "shirt" reads as a vest over the fur)
+  hline(g, 4, 11, 7, vest);
+  hline(g, 4, 11, 8, vest);
+  hline(g, 4, 11, 9, vest);
+  hline(g, 4, 11, 10, vest);
+  hline(g, 4, 11, 11, vest);
+  // Fur paws (same arm slots as the human hands)
+  setPixel(g, 3, 9, fur);
+  setPixel(g, 3, 10, fur);
+  setPixel(g, 12, 9, fur);
+  setPixel(g, 12, 10, fur);
+
+  // Fluffy lower half + feet
+  hline(g, 4, 11, 12, lowerFur);
+  hline(g, 4, 11, 13, lowerFur);
+  hline(g, 4, 6, 14, feet);
+  hline(g, 9, 11, 14, feet);
+
+  // Tail (right side, curling down)
+  setPixel(g, 12, 12, fur);
+  setPixel(g, 13, 13, fur);
 }
 
 // ---------------------------------------------------------------------------

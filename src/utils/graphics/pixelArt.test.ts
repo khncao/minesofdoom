@@ -195,13 +195,107 @@ describe("sprite URIs", () => {
   });
 
   test("every hat style builds a 16x16 grid with a hat on it", () => {
-    for (const hatStyle of ["helmet", "beanie", "cap", "bandana"] as const) {
+    for (const hatStyle of [
+      "helmet",
+      "beanie",
+      "cap",
+      "bandana",
+      "longhair",
+    ] as const) {
       const grid = buildMinerGrid({ ...lookA, hatStyle });
       expect(grid.length).toBe(16);
       expect(grid[0].length).toBe(16);
       const hasHat = grid.slice(0, 4).some((row) => row.includes(lookA.hat));
       expect(hasHat).toBe(true);
     }
+  });
+
+  test("longhair frames the face: top + side strands down to the shoulders", () => {
+    const g = buildMinerGrid({ ...lookA, hatStyle: "longhair" });
+    // Full top across the head
+    for (let x = 5; x <= 10; x++) expect(g[0][x]).toBe(lookA.hat);
+    for (let x = 4; x <= 11; x++) expect(g[1][x]).toBe(lookA.hat);
+    // Side strands at x4/x11 from the temples down to the shoulders,
+    // leaving the face (x5-10) and the shoulders (row 8+) untouched.
+    for (let y = 3; y <= 7; y++) {
+      expect(g[y][4]).toBe(lookA.hat);
+      expect(g[y][11]).toBe(lookA.hat);
+    }
+    expect(g[3][5]).toBe(lookA.skin);
+    expect(g[8][4]).toBe(lookA.shirt);
+    expect(g[8][11]).toBe(lookA.shirt);
+  });
+});
+
+describe("animal bodies (species: \"animal\")", () => {
+  // A marmot-ish look: brown fur, red vest, bandana. The field mapping is
+  // skin=fur, shirt=vest, pants=lower fur, boots=feet.
+  const fur = "#a08058";
+  const vest = "#d94f30";
+  const lowerFur = "#8a6b48";
+  const feet = "#5a4630";
+  const hat = "#e8c33d";
+  const animalLook = {
+    skin: fur,
+    shirt: vest,
+    pants: lowerFur,
+    boots: feet,
+    hat,
+    hatStyle: "bandana" as const,
+    species: "animal" as const,
+  };
+
+  test("has ears, eyes, muzzle, vest, paws, fluffy lower half, feet and tail", () => {
+    const g = buildMinerGrid(animalLook);
+    // Ear tips (visible under every hat style; drawn under the bandana row 1)
+    expect(g[0][5]).toBe(fur);
+    expect(g[0][10]).toBe(fur);
+    // Round fur head with eyes and a cream muzzle
+    expect(g[3][5]).toBe(fur);
+    expect(g[4][6]).toBe("#1a1a1a"); // eye
+    expect(g[4][9]).toBe("#1a1a1a"); // eye
+    expect(g[5][7]).toBe("#f2e6cf"); // muzzle
+    expect(g[5][8]).toBe("#f2e6cf"); // muzzle
+    // Vest (the "shirt" field) covers rows 7-11; fur paws at x3/x12
+    for (const y of [7, 8, 9, 10, 11]) expect(g[y][5]).toBe(vest);
+    expect(g[9][3]).toBe(fur);
+    expect(g[10][12]).toBe(fur);
+    // Fluffy lower half (the "pants" field) and feet (the "boots" field)
+    expect(g[12][5]).toBe(lowerFur);
+    expect(g[13][8]).toBe(lowerFur);
+    expect(g[14][4]).toBe(feet);
+    expect(g[14][11]).toBe(feet);
+    // Tail curling down the right side
+    expect(g[12][12]).toBe(fur);
+    expect(g[13][13]).toBe(fur);
+    // No belt on animals (the vest hem replaces it)
+    expect(g[11][5]).not.toBe("#2b2b2b");
+    // Still fully transparent elsewhere
+    expect(g[0][0]).toBe(null);
+  });
+
+  test("a hat over an animal still leaves the ear tips visible", () => {
+    for (const hatStyle of [
+      "helmet",
+      "beanie",
+      "cap",
+      "bandana",
+    ] as const) {
+      const g = buildMinerGrid({ ...animalLook, hatStyle });
+      expect(g[0][5]).toBe(fur);
+      expect(g[0][10]).toBe(fur);
+    }
+  });
+
+  test("encodes to a valid PNG and differs from the human look", () => {
+    const { px } = decodePng(minerSpriteUri(animalLook));
+    // Ear tip and eye read through the PNG
+    expect(px(5, 0)).toEqual([
+      0xa0, 0x80, 0x58, 255,
+    ]);
+    expect(px(6, 4)).toEqual([0x1a, 0x1a, 0x1a, 255]);
+    const human = { ...animalLook, species: "human" as const };
+    expect(minerSpriteUri(animalLook)).not.toBe(minerSpriteUri(human));
   });
 });
 

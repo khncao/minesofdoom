@@ -33,7 +33,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // Document title + PWA/browser description. (web.name defaults to the
     // outer "name" — the lowercase package slug — so set the display title
     // explicitly; the exported index.html previously had an empty <title>.)
-    name: "Mines of Doom",
+    name: "Mines of Idle Doomath",
     description:
       "Mines of Doom — an idle math-mining game. Solve equations, earn minerals, buy miners, sink new shafts.",
     bundler: "metro",

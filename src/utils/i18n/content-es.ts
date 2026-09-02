@@ -128,6 +128,22 @@ export const contentEs: ContentTable = {
     title: "Oni carmesí",
     detail: "un homenaje a la venganza de la era samurái",
   },
+  "outfit:marmot": {
+    title: "Marmota de la madriguera",
+    detail: "un roedor de bolsillo con una pico más grande que él",
+  },
+  "outfit:fox": {
+    title: "Zorro de la veta",
+    detail: "todo fuego y sin humo — el jugador habitual del equipo",
+  },
+  "outfit:otter": {
+    title: "Nutria del río",
+    detail: "la mejor del río — acumula tesoros brillantes en un nido de piedras",
+  },
+  "outfit:damsel": {
+    title: "Dama de las profundidades",
+    detail: "cabello largo, ropas más suaves, el mismo temple inquebrantable",
+  },
 
   "pickaxe:steel": { title: "Acero" },
   "pickaxe:gold": { title: "Oro" },

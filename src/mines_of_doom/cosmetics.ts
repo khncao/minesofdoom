@@ -1,5 +1,6 @@
 import {
   MinerLook,
+  MinerSpecies,
   PickaxeThemeDef,
   HatStyle,
   mulberry32,
@@ -20,12 +21,22 @@ export type OutfitCosmetic = {
   costGems: number;
   /** Optional one-line flavor/shown in the picker (e.g. homage credit). */
   blurb?: string;
+  /**
+   * Body type (plan §4.5): "human" (default) or "animal" (round critter —
+   * see buildAnimalBody in pixelArt.ts). Animal outfits must set `fur`.
+   */
+  species?: MinerSpecies;
   /** Color pools the randomizer draws from for this outfit. */
   shirts: string[];
   pants: string[];
   boots: string[];
   hats: string[];
   hatStyles: HatStyle[];
+  /**
+   * Fur pool for animal outfits (drives the look's `skin` field); human
+   * outfits draw skin from the shared SKIN_TONES pool.
+   */
+  fur?: string[];
 };
 
 /**
@@ -170,6 +181,61 @@ export const OUTFITS: OutfitCosmetic[] = [
     hats: ["#d8d0c0", "#b03030", "#4a4a5a"],
     hatStyles: ["bandana", "cap"],
   },
+  // Critter line (plan §4.5 / art todo): full animal bodies
+  // (species: "animal" — round heads, ears, vests, tails; see
+  // buildAnimalBody in pixelArt.ts). `fur` drives the look's skin field.
+  {
+    id: "marmot",
+    name: "Burrow Marmot",
+    costGems: 60,
+    blurb: "a pocket-sized rodent with a pickaxe bigger than it",
+    species: "animal",
+    fur: ["#a08058", "#8a6b48", "#b89868"],
+    shirts: ["#d94f30", "#e8a33d", "#5cb85c", "#4a90d9"],
+    pants: ["#8a6b48", "#a08058", "#7a5c3e"],
+    boots: ["#5a4630", "#4a3826"],
+    hats: ["#e8c33d", "#d9534f", "#5cb85c", "#4a90d9"],
+    hatStyles: ["bandana", "beanie"],
+  },
+  {
+    id: "fox",
+    name: "Fox of the Vein",
+    costGems: 70,
+    blurb: "all fire, no smoke — the crew's resident gambler",
+    species: "animal",
+    fur: ["#e07020", "#c85a18", "#f09040"],
+    shirts: ["#3a4a5a", "#2b3a5c", "#4a3a7a"],
+    pants: ["#c85a18", "#e07020", "#a84810"],
+    boots: ["#3a2a1a", "#2e2214"],
+    hats: ["#e8e8e8", "#d9534f", "#3a4a5a"],
+    hatStyles: ["bandana", "cap"],
+  },
+  {
+    id: "otter",
+    name: "Otter of the River",
+    costGems: 85,
+    blurb: "rivers' finest — hoards shiny things in a nest of pebbles",
+    species: "animal",
+    fur: ["#7a5a3a", "#6a4e32", "#8a6b4a"],
+    shirts: ["#4a90d9", "#3ac0c0", "#5cb85c"],
+    pants: ["#6a4e32", "#7a5a3a"],
+    boots: ["#3a2f22", "#2e251a"],
+    hats: ["#4a90d9", "#e8e8e8", "#e8c33d"],
+    hatStyles: ["beanie", "cap"],
+  },
+  // Hair line: the "cute girl" ask, done tastefully at 16×16 — long hair
+  // (a hat-style, not a hat) and softer palettes, same human body.
+  {
+    id: "damsel",
+    name: "Damsel of the Deep",
+    costGems: 75,
+    blurb: "long hair, softer clothes, the same unshakeable nerve",
+    shirts: ["#e070a0", "#d9534f", "#8e6fc0", "#e8a33d"],
+    pants: ["#3b4a6b", "#555b66"],
+    boots: ["#4a3524", "#333333"],
+    hats: ["#6a4a3a", "#3a2a20", "#8a5a4a", "#c8a060"],
+    hatStyles: ["longhair", "beanie"],
+  },
 ];
 
 export const PICKAXES: PickaxeCosmetic[] = [
@@ -248,18 +314,21 @@ export function getCostGems(id: string): number | undefined {
 /**
  * Deterministic player look: f(seed, outfit). Rerolling the seed reshuffles
  * the look; switching the outfit reshuffles it again (different palette).
+ * Animal outfits draw their fur from `fur` instead of SKIN_TONES.
  */
 export function rollMinerLook(seed: number, outfitId: string): MinerLook {
   const outfit = getOutfit(outfitId);
   const rng = mulberry32(seed);
   const pick = <T,>(arr: T[]): T => arr[Math.floor(rng() * arr.length) % arr.length];
+  const species: MinerSpecies = outfit.species ?? "human";
   return {
-    skin: pick(SKIN_TONES),
+    skin: pick(species === "animal" ? (outfit.fur ?? SKIN_TONES) : SKIN_TONES),
     shirt: pick(outfit.shirts),
     pants: pick(outfit.pants),
     boots: pick(outfit.boots),
     hat: pick(outfit.hats),
     hatStyle: pick(outfit.hatStyles),
+    species,
   };
 }
 
