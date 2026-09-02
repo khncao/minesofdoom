@@ -1,0 +1,68 @@
+# E2E screenshot flow (todo: "4 in-game screenshots in various states per
+# device"): drives a FRESH install through the four canonical UI states and
+# captures each with takeScreenshot.
+#
+# The filename is prefixed `00_` so Maestro runs this flow FIRST when given
+# the whole flows dir — the onboarding overlay only appears on the very first
+# launch of a fresh install, and shot 1 needs it. The repeat/while guard
+# keeps the flow safe on non-fresh installs (overlay already dismissed →
+# shot 1 is skipped, the other three are still captured).
+#
+# Screenshots land under build/maestro/screenshots/<test-name>/; the
+# e2e-android.yml matrix job uploads build/maestro per device (reports +
+# screenshots together).
+appId: com.minus4kelvin.minesofdoom
+---
+- launchApp: com.minus4kelvin.minesofdoom
+
+# State 1/4 — the onboarding overlay on a fresh install.
+- repeat:
+    while:
+      visible:
+        id: onboarding-overlay
+    times: 1
+    commands:
+      - takeScreenshot: 01_onboarding.png
+      - tapOn:
+          id: onboarding-skip
+
+- assertVisible:
+    id: equation-display
+- assertVisible:
+    id: mineral-count
+
+# State 2/4 — mid-mine: a few hold-to-mines so the counters read non-zero
+# (same touchDown/sleep/touchUp rationale as mining.yaml — a plain tapOn is
+# a deliberate no-op by design).
+- loop:
+    - touchDown:
+        id: mining-canvas
+    - sleep: 400
+    - touchUp:
+        id: mining-canvas
+  times: 3
+
+# Let the floating "+N" text and debris settle before the shot.
+- sleep: 500
+- takeScreenshot: 02_mining.png
+
+# State 3/4 — the upgrades panel (open by default; asserting a buy button
+# proves the section is actually rendered, not just its toggle header).
+- assertVisible:
+    id: btn-upgrade-power
+- takeScreenshot: 03_upgrades.png
+
+# State 4/4 — the settings sheet, open.
+- tapOn:
+    id: menu-button
+- assertVisible:
+    id: menu-sheet
+- assertVisible:
+    id: settings-view
+- takeScreenshot: 04_settings.png
+
+# Leave the sheet closed for the flows that run after this one.
+- tapOn:
+    id: menu-sheet-close
+- assertNotVisible:
+    id: menu-sheet

@@ -3,7 +3,6 @@
 Legend: [ ] not started, [o] in progress
 Completed items are removed from this file (see git history); only remaining work is tracked here.
 
-- [ ] Create E2E tests for Android on phone, 7 inch tablet, and 10 inch tablet and generate 4 in-game screenshots in various states for each
 - [ ] **Rewarded-ads** — implement integrations
 - [ ] Allow saving combo with rewarded-ad
 - [ ] Optional ads to receive extra bonuses (daily, time away, etc.)

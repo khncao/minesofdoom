@@ -6,9 +6,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# The debug APK is a full RN gradle build — build it once, share it as an
+# artifact, and fan out to one fresh emulator per device profile.
 jobs:
-  e2e:
-    name: E2E — Android emulator
+  build:
+    name: Build Android debug APK
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,30 +34,70 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      # Boots a fresh emulator (installs every **/*.apk in the workspace,
-      # i.e. android/app/build/outputs/apk/debug/app-debug.apk), runs the
-      # script with the device connected, then tears it down. Maestro is
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 1
+
+  # Full Maestro suite (all flows, including the 00_screenshots.yaml flow
+  # that captures the 4 in-game screenshots) on each of the three required
+  # device sizes: phone, 7" tablet, 10" tablet. Per-device artifacts carry
+  # the Maestro reports AND the screenshots (build/maestro).
+  e2e:
+    name: E2E — ${{ matrix.label }}
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: phone
+            profile: pixel_7
+          - label: tablet-7in
+            profile: tablet_7in
+          - label: tablet-10in
+            profile: tablet_10in
+    steps:
+      - uses: actions/checkout@v4
+
+      # `maestro test` auto-installs every **/*.apk in the workspace, so the
+      # shared artifact lands exactly where `gradlew assembleDebug` would
+      # have put it.
+      - name: Download debug APK
+        uses: actions/download-artifact@v4
+        with:
+          name: app-debug
+          path: android/app/build/outputs/apk/debug/
+
+      # Boots a fresh emulator (installs the APK via Maestro), runs the
+      # script with the device connected, then tears down. Maestro is
       # installed inside the script because the emulator only exists inside
       # this composite action's step.
-      - name: E2E flows (Maestro)
+      - name: E2E flows + screenshots (Maestro)
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
           arch: x86_64
           disable-animations: true
+          profile: ${{ matrix.profile }}
           script: |
             set -e
             curl -Ls https://get.maestro.mobile.dev | bash
             export PATH="$PWD/maestro/bin:$PATH"
             maestro --version
-            # Test the flows dir (not a single file) so maestro/maestro.config.yaml
-            # (appId + 60s timeout for cold CI boots) is picked up.
+            # Test the flows dir (not a single file) so
+            # maestro/maestro.config.yaml (appId + 60s timeout for cold CI
+            # boots) is picked up. 00_screenshots.yaml runs first on the
+            # fresh install and captures the 4 in-game screenshots for this
+            # device; the rest are the functional flows.
             maestro test maestro/flows
 
-      - name: Upload Maestro test reports
+      - name: Upload Maestro reports + screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: maestro-e2e-report
+          name: maestro-e2e-${{ matrix.label }}
           path: build/maestro
           retention-days: 7
