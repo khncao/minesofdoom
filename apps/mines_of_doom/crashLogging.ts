@@ -13,6 +13,7 @@
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { snapshotCrashContext } from "./crashContext";
 import {
   appendCrash,
   crashLogKey,
@@ -42,7 +43,16 @@ export function recordCrash(
 ): void {
   let entry: CrashEntry;
   try {
-    entry = serializeCrash(error, componentStack, undefined, source);
+    // snapshotCrashContext() never throws and is O(ring) — but it sits
+    // inside the same containment boundary: a context bug must not lose
+    // the crash itself.
+    entry = serializeCrash(
+      error,
+      componentStack,
+      undefined,
+      source,
+      snapshotCrashContext(),
+    );
   } catch (e) {
     // Even `String(error)` can throw on hostile objects (toString
     // getters). The global handler passes us raw uncaught values, so the

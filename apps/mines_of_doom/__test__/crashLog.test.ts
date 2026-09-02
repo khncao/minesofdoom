@@ -5,6 +5,14 @@ import {
   serializeCrash,
   type CrashEntry,
 } from "../crashLog";
+import type { CrashContext } from "../crashContext";
+
+const makeContext = () => ({
+  startedAt: 0,
+  at: 120000,
+  state: { depth: 4, platform: "android" },
+  events: [{ s: 0, label: "app start" }, { s: 90, label: "save loaded" }],
+});
 
 const makeEntry = (
   over: Partial<CrashEntry> = {},
@@ -15,6 +23,7 @@ const makeEntry = (
   stack: "Error: boom\n    at foo",
   count: 1,
   source: "render",
+  context: null,
   ...over,
 });
 
@@ -30,7 +39,14 @@ describe("serializeCrash", () => {
       stack: "Error: kaboom\n    at mine",
       count: 1,
       source: "render",
+      context: null,
     });
+  });
+
+  it("attaches the crash context when provided", () => {
+    const ctx = makeContext();
+    const entry = serializeCrash(new Error("boom"), null, 1, "render", ctx);
+    expect(entry.context).toEqual(ctx);
   });
 
   it("tags the source layer (render default, global for the ErrorUtils net)", () => {
@@ -105,6 +121,15 @@ describe("appendCrash", () => {
     expect(list[0].message).toBe(`m${CRASH_LOG_MAX_ENTRIES + 2}`);
     expect(list[list.length - 1].message).toBe(`m3`);
   });
+
+  it("keeps the NEWEST context on a repeated crash", () => {
+    const a = makeEntry({ ts: 1, context: makeContext() });
+    const aAgain = makeEntry({ ts: 2, context: makeContext() });
+    expect(appendCrash([a], aAgain)[0].context).toEqual(aAgain.context);
+    // ...and falls back to the head's context when the repeat carried none.
+    const bareRepeat = makeEntry({ ts: 3, context: null });
+    expect(appendCrash([a], bareRepeat)[0].context).toEqual(a.context);
+  });
 });
 
 describe("parseCrashLog", () => {
@@ -156,5 +181,43 @@ describe("parseCrashLog", () => {
     expect(parseCrashLog(JSON.stringify(big)).length).toBe(
       CRASH_LOG_MAX_ENTRIES,
     );
+  });
+
+  it("parses entries without a context as context: null (pre-context logs)", () => {
+    const out = parseCrashLog(JSON.stringify([{ message: "old" }]));
+    expect(out[0].context).toBeNull();
+  });
+
+  it("round-trips a crash context and drops junk inside it", () => {
+    const ctx = makeContext();
+    // Deliberately malformed (junk state value, junk event, bad times) —
+    // built as untyped JSON and cast in, since that's what parsing defends
+    // against.
+    const rawBad = {
+      startedAt: 0,
+      at: 5000,
+      state: { depth: 2, junk: true, platform: "android" },
+      events: [
+        { s: 0, label: "app start" },
+        { s: -5, label: "weird time" },
+        "junk",
+        { s: "nope", label: "bad number" },
+      ],
+    };
+    const out = parseCrashLog(
+      JSON.stringify([
+        makeEntry({ context: ctx }),
+        makeEntry({ message: "b", context: rawBad as unknown as CrashContext }),
+      ]),
+    );
+    expect(out[0].context).toEqual(ctx);
+    // non-string/number state value coerced away, bad event times clamped
+    // to 0, junk events dropped
+    expect(out[1].context?.state).toEqual({ depth: 2, platform: "android" });
+    expect(out[1].context?.events).toEqual([
+      { s: 0, label: "app start" },
+      { s: 0, label: "weird time" },
+      { s: 0, label: "bad number" },
+    ]);
   });
 });

@@ -6,6 +6,7 @@ import IntegerInput from "apps/components/IntegerInput";
 import Tooltip from "apps/components/Tooltip";
 import { EquationSettings } from "apps/utils/math/equations";
 import { SettingsData } from "../game";
+import { formatCrashContext } from "../crashContext";
 import { useCrashLog } from "../hooks/useCrashLog";
 import CosmeticsSection from "./CosmeticsSection";
 import { styles } from "../styles";
@@ -377,40 +378,51 @@ function CrashLogSection() {
         </Text>
         <Button title="Clear" onPress={clear} />
       </View>
-      {entries.slice(0, 3).map((entry, i) => (
-        <View
-          key={i}
-          style={{
-            backgroundColor: "#1f1f1f",
-            borderRadius: 6,
-            borderWidth: 1,
-            borderColor: "#444",
-            paddingHorizontal: 10,
-            paddingVertical: 6,
-            gap: 2,
-          }}
-        >
-          <Text
-            style={{ ...styles.text, fontSize: 12 }}
-            selectable
+      {entries.slice(0, 3).map((entry, i) => {
+        const contextText = formatCrashContext(entry.context);
+        return (
+          <View
+            key={i}
+            style={{
+              backgroundColor: "#1f1f1f",
+              borderRadius: 6,
+              borderWidth: 1,
+              borderColor: "#444",
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              gap: 2,
+            }}
           >
-            {entry.name}: {entry.message}
-            {entry.source === "global" ? " (global)" : ""}
-            {entry.count > 1 ? ` (×${entry.count})` : ""}
-          </Text>
-          <Text style={{ ...styles.text, fontSize: 10, color: "#aaa" }}>
-            {new Date(entry.ts).toLocaleString()}
-          </Text>
-          {entry.stack.length > 0 && (
             <Text
+              style={{ ...styles.text, fontSize: 12 }}
               selectable
-              style={{ color: "#9fd69f", fontSize: 9, lineHeight: 13 }}
             >
-              {entry.stack}
+              {entry.name}: {entry.message}
+              {entry.source === "global" ? " (global)" : ""}
+              {entry.count > 1 ? ` (×${entry.count})` : ""}
             </Text>
-          )}
-        </View>
-      ))}
+            <Text style={{ ...styles.text, fontSize: 10, color: "#aaa" }}>
+              {new Date(entry.ts).toLocaleString()}
+            </Text>
+            {entry.stack.length > 0 && (
+              <Text
+                selectable
+                style={{ color: "#9fd69f", fontSize: 9, lineHeight: 13 }}
+              >
+                {entry.stack}
+              </Text>
+            )}
+            {contextText.length > 0 && (
+              <Text
+                selectable
+                style={{ color: "#d6c48f", fontSize: 9, lineHeight: 13 }}
+              >
+                {contextText}
+              </Text>
+            )}
+          </View>
+        );
+      })}
     </View>
   );
 }

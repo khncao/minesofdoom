@@ -3,8 +3,12 @@ import {
   type ErrorInfo,
   type ReactNode,
 } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import Button from "apps/components/Button";
+import {
+  formatCrashContext,
+  snapshotCrashContext,
+} from "../crashContext";
 import { serializeCrash } from "../crashLog";
 import { recordCrash } from "../crashLogging";
 
@@ -19,6 +23,9 @@ type ErrorBoundaryState = {
   name: string;
   message: string;
   stack: string;
+  /** Formatted crash-context trail (what the game was doing), "" for
+   *  pre-context crashes. */
+  context: string;
 };
 
 /**
@@ -51,6 +58,7 @@ export default class ErrorBoundary extends Component<
     name: "",
     message: "",
     stack: "",
+    context: "",
   };
 
   static getDerivedStateFromError(error: unknown): ErrorBoundaryState {
@@ -60,6 +68,10 @@ export default class ErrorBoundary extends Component<
       name: entry.name,
       message: entry.message,
       stack: entry.stack,
+      // The trail at the moment of the crash — "what was happening" next
+      // to the trace is what makes the next on-device occurrence readable
+      // without a reproduction (the Android `describe` bug).
+      context: formatCrashContext(snapshotCrashContext()),
     };
   }
 
@@ -72,7 +84,20 @@ export default class ErrorBoundary extends Component<
   }
 
   private handleTryAgain = () => {
-    this.setState({ hasError: false, name: "", message: "", stack: "" });
+    this.setState({
+      hasError: false,
+      name: "",
+      message: "",
+      stack: "",
+      context: "",
+    });
+  };
+
+  // Native release builds can't restart themselves, but the web build is
+  // a static page — a full reload is the cleanest recovery after a caught
+  // crash (the save is already on disk).
+  private handleReload = () => {
+    if (typeof window !== "undefined") window.location.reload();
   };
 
   render() {
@@ -102,8 +127,18 @@ export default class ErrorBoundary extends Component<
             </Text>
           </View>
         )}
+        {this.state.context.length > 0 && (
+          <View style={localStyles.stackBox}>
+            <Text style={localStyles.contextText} selectable>
+              {`what was happening:\n${this.state.context}`}
+            </Text>
+          </View>
+        )}
         <View style={localStyles.hintRow}>
           <Button title="Try again" onPress={this.handleTryAgain} />
+          {Platform.OS === "web" && (
+            <Button title="Reload page" onPress={this.handleReload} />
+          )}
         </View>
         <Text style={localStyles.body}>
           Long-press the error text above to copy it. Recent crashes also
@@ -163,6 +198,12 @@ const localStyles = StyleSheet.create({
   hintRow: {
     flexDirection: "row",
     justifyContent: "center",
+    gap: 12,
     marginTop: 4,
+  },
+  contextText: {
+    color: "#d6c48f",
+    fontSize: 11,
+    lineHeight: 16,
   },
 });

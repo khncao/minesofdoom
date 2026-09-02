@@ -9,7 +9,17 @@
  * the pure, unit-tested half: the entry shape and the small persisted ring
  * buffer (AsyncStorage key "crashLog"). Same shape/parse conventions as the
  * save-code and analytics records — defensive on read, small on disk.
+ *
+ * Each entry also carries an optional `context` (crashContext.ts) — the
+ * session event trail + state snapshot taken at crash time, so the trace
+ * shows WHAT the game was doing, not just where it died.
  */
+
+import type {
+  CrashContext,
+  CrashContextEvent,
+  CrashContextState,
+} from "./crashContext";
 
 /** Which layer caught the crash: the React error boundary, or the global
  *  (ErrorUtils) handler for errors thrown outside the render tree — e.g.
@@ -31,6 +41,9 @@ export type CrashEntry = {
   /** Which layer caught it (absent in pre-source logs; parses as "render".
    *  Old logs were boundary-only, so that default is correct). */
   source: CrashSource;
+  /** Session trail + state snapshot at crash time (absent in pre-context
+   *  logs; parses as null). */
+  context: CrashContext | null;
 };
 
 /** AsyncStorage key for the crash-log ring buffer. */
@@ -61,6 +74,7 @@ export function serializeCrash(
   componentStack?: string | null,
   ts: number = Date.now(),
   source: CrashSource = "render",
+  context: CrashContext | null = null,
 ): CrashEntry {
   let name = "Error";
   let message = "";
@@ -82,6 +96,7 @@ export function serializeCrash(
     stack: truncateStack(stack),
     count: 1,
     source,
+    context,
   };
 }
 
@@ -102,7 +117,17 @@ export function appendCrash(
     head.message === entry.message &&
     head.stack === entry.stack
   ) {
-    return [{ ...head, ts: entry.ts, count: head.count + 1 }, ...list.slice(1)];
+    return [
+      {
+        ...head,
+        ts: entry.ts,
+        count: head.count + 1,
+        // The newest occurrence's trail is the freshest one; fall back to
+        // the head's when this occurrence carried none.
+        context: entry.context ?? head.context,
+      },
+      ...list.slice(1),
+    ];
   }
   return [entry, ...list].slice(0, CRASH_LOG_MAX_ENTRIES);
 }
@@ -140,5 +165,50 @@ function parseEntry(value: unknown): CrashEntry | null {
         ? Math.floor(v.count)
         : 1,
     source: v.source === "global" ? "global" : "render",
+    context: parseCrashContext(v.context),
   };
+}
+
+/** Defensively rebuild a context block from untrusted JSON (or null). */
+function parseCrashContext(value: unknown): CrashContext | null {
+  if (typeof value !== "object" || value == null) return null;
+  const v = value as Record<string, unknown>;
+  if (
+    typeof v.startedAt !== "number" ||
+    !Number.isFinite(v.startedAt) ||
+    typeof v.at !== "number" ||
+    !Number.isFinite(v.at)
+  ) {
+    return null;
+  }
+  const events: CrashContextEvent[] = [];
+  if (Array.isArray(v.events)) {
+    for (const item of v.events) {
+      if (typeof item !== "object" || item == null) continue;
+      const e = item as Record<string, unknown>;
+      if (typeof e.label !== "string" || e.label.trim().length === 0) continue;
+      events.push({
+        s:
+          typeof e.s === "number" && Number.isFinite(e.s) && e.s >= 0
+            ? Math.floor(e.s)
+            : 0,
+        label: e.label.slice(0, 40),
+      });
+      if (events.length >= 12) break;
+    }
+  }
+  const state: CrashContextState = {};
+  if (typeof v.state === "object" && v.state != null) {
+    for (const [key, raw] of Object.entries(v.state as Record<string, unknown>)) {
+      const k = key.trim().slice(0, 32);
+      if (k.length === 0) continue;
+      if (typeof raw === "number" && Number.isFinite(raw)) {
+        state[k] = raw;
+      } else if (typeof raw === "string") {
+        state[k] = raw.slice(0, 60);
+      }
+      if (Object.keys(state).length >= 24) break;
+    }
+  }
+  return { startedAt: v.startedAt, at: v.at, state, events };
 }

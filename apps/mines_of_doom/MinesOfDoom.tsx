@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import { MutableRefObject, useCallback, useEffect, useMemo, useRef } from "react";
-import { Text, View } from "react-native";
+import { Platform, Text, View } from "react-native";
 import { useLocalStorage } from "apps/hooks/useLocalStorage";
 import type { DebrisParticlesRef } from "apps/components/DebrisParticles";
 import type { BlockBreakRef } from "apps/components/BlockBreak";
@@ -57,10 +57,11 @@ import { useShakeInput } from "./hooks/useShakeInput";
 import { useMineTaps } from "./hooks/useMineTaps";
 import { useAccessibilityReduceMotion } from "./hooks/useAccessibilityReduceMotion";
 import { useEquations } from "./hooks/useEquations";
+import { noteCrashEvent, setCrashContextState } from "./crashContext";
 import { useDailyBonus } from "./hooks/useDailyBonus";
 import { useAnalytics } from "./hooks/useAnalytics";
 import { useAdRewards } from "./hooks/useAdRewards";
-import { devSimAdProvider, noopAdProvider } from "./ads";
+import { devSimAdProvider, noopAdProvider, type AdKind } from "./ads";
 import { useIap } from "./hooks/useIap";
 import {
   IapProductId,
@@ -424,9 +425,50 @@ export default function MinesOfDoom() {
 
   const handleMuteChange = useCallback((newVal: boolean) => setMute(newVal), [setMute]);
 
+  // Crash-context tracing (plan "Adjust"): the unreproducible Android
+  // `describe` crash is diagnosed from its next occurrence, and a stack
+  // alone doesn't say WHAT the game was doing. This records a bounded
+  // trail of high-level transitions (never per-tick / per-answer — those
+  // would evict the interesting events) plus a small state snapshot into
+  // crashContext.ts, which recordCrash snapshots into every crash entry.
+  useEffect(() => {
+    noteCrashEvent("app start");
+    setCrashContextState({ platform: Platform.OS, dev: __DEV__ ? "yes" : "no" });
+  }, []);
+
+  useEffect(() => {
+    if (isLoaded) noteCrashEvent("save loaded");
+  }, [isLoaded]);
+
+  useEffect(() => {
+    setCrashContextState({
+      depth,
+      prestiges: gameState.totalPrestiges,
+      gems: gameState.gems,
+    });
+  }, [depth, gameState.totalPrestiges, gameState.gems]);
+
+  const prevEquationModesRef = useRef<string | null>(null);
+  useEffect(() => {
+    const modes =
+      [
+        equationSettings.hardMode && "hard",
+        equationSettings.timedMode && "timed",
+        equationSettings.streakMode && "streak",
+      ]
+        .filter(Boolean)
+        .join("+") || "normal";
+    const prev = prevEquationModesRef.current;
+    prevEquationModesRef.current = modes;
+    if (prev != null && prev !== modes) {
+      noteCrashEvent(`equations: ${modes}`);
+    }
+  }, [equationSettings]);
+
   // Footer save pill (plan §2.1): saves immediately (autosave continues in
   // the background) and confirms with a toast so the tap has feedback.
   const handleSaveNow = useCallback(() => {
+    noteCrashEvent("manual save");
     saveGame();
     displayMessage("Game saved", 3000);
   }, [saveGame, displayMessage]);
@@ -442,6 +484,7 @@ export default function MinesOfDoom() {
         return false;
       }
       displayMessage("Save imported!", 3000);
+      noteCrashEvent("save imported");
       return true;
     },
     [importSaveCode, displayMessage],
@@ -453,6 +496,11 @@ export default function MinesOfDoom() {
     grantMinerals: addTapGain,
     displayMessage,
   });
+  const dailyClaim = dailyBonus.claim;
+  const handleDailyClaim = useCallback(() => {
+    noteCrashEvent("daily bonus claimed");
+    dailyClaim();
+  }, [dailyClaim]);
 
   // Local event logging (guardrail 6, "measure before scaling"): the
   // app-open record happens inside the hook (after its stored record has
@@ -536,9 +584,32 @@ export default function MinesOfDoom() {
     const prev = prevPrestigesRef.current;
     prevPrestigesRef.current = gameState.totalPrestiges;
     if (prev !== null && gameState.totalPrestiges > prev) {
+      noteCrashEvent("prestige");
       onFirstPrestige();
     }
   }, [gameState.totalPrestiges, onFirstPrestige]);
+
+  // Crash-context trails for the monetization actions (dev-sim or store,
+  // same paths).
+  const adClaim = adRewards.claim;
+  const handleAdClaim = useCallback((kind: AdKind) => {
+    noteCrashEvent(`ad reward: ${kind}`);
+    adClaim(kind);
+  }, [adClaim]);
+  const iapPurchase = iap.purchase;
+  const iapRestore = iap.restore;
+  const handleIapPurchase = useCallback((id: IapProductId) => {
+    noteCrashEvent(`iap purchase: ${id}`);
+    iapPurchase(id);
+  }, [iapPurchase]);
+  const handleIapRestore = useCallback(() => {
+    noteCrashEvent("iap restore");
+    iapRestore();
+  }, [iapRestore]);
+  const handleReset = useCallback(() => {
+    noteCrashEvent("reset");
+    resetGame();
+  }, [resetGame]);
 
   // Cold start (plan §4.4): hold the screen on a loading state until the
   // stored save is loaded, instead of flashing the zeroed state first.
@@ -648,7 +719,7 @@ export default function MinesOfDoom() {
             onChangeEquationSettings={setEquationSettings}
             showMessage={showMessage}
             onSave={handleSaveSettings}
-            onReset={resetGame}
+            onReset={handleReset}
             onExportSaveCode={exportSaveCode}
             onImportSaveCode={handleImportSaveCode}
             cosmetics={cosmetics}
@@ -663,7 +734,7 @@ export default function MinesOfDoom() {
             claimable={dailyBonus.claimable}
             bonus={dailyBonus.bonus}
             streak={dailyBonus.streak}
-            onClaim={dailyBonus.claim}
+            onClaim={handleDailyClaim}
           />
           {adRewards.available && !iap.removeAds && (
             <AdRewardsPanel
@@ -673,7 +744,7 @@ export default function MinesOfDoom() {
               offlineDouble={offlineDouble}
               offlineTopUp={offlineTopUp}
               claiming={adRewards.claiming}
-              onClaim={adRewards.claim}
+              onClaim={handleAdClaim}
             />
           )}
           {/* Remove Ads owned hides this panel too (plan §5.1: it
@@ -685,8 +756,8 @@ export default function MinesOfDoom() {
               restoring={iap.restoring}
               ownedPackIds={iapOwnedPackIds}
               saveOwnedCosmeticIds={saveOwnedCosmeticIds}
-              onPurchase={iap.purchase}
-              onRestore={iap.restore}
+              onPurchase={handleIapPurchase}
+              onRestore={handleIapRestore}
             />
           )}
         </View>
