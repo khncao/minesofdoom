@@ -1,6 +1,5 @@
-import { memo, useMemo } from "react";
+import { memo } from "react";
 import { Text, View } from "react-native";
-import BottomModal from "apps/components/BottomModal";
 import { emojis } from "apps/utils/graphics/emojis";
 import { formatNumber } from "apps/utils/format";
 import {
@@ -14,7 +13,8 @@ import { SaveData } from "../game";
 import { styles } from "../styles";
 
 /**
- * The "Goals" view (plan §4.6): every tier is listed with per-goal progress
+ * The "Goals" view (plan §4.6), rendered inside the footer menu sheet
+ * (MenuPanel): every tier is listed with per-goal progress
  * bars so players can see what's coming, and each completed tier shows what
  * it unlocked. Below the tiers, the achievements badge list (plan §4.1):
  * one-off bonuses, no gates. Completion is derived live from lifetime
@@ -124,20 +124,4 @@ const GoalsContent = memo(function GoalsContent({
   );
 });
 
-const GoalsPanel = memo(function GoalsPanel({ stats }: { stats: SaveData }) {
-  // Stable element so the memoized BottomModal can skip re-rendering when
-  // only unrelated state changed (mirrors the SettingsPanel pattern).
-  const goalsChildren = useMemo(() => <GoalsContent stats={stats} />, [stats]);
-
-  return (
-    <BottomModal
-      pressable={<Text style={{ fontSize: 30 }}>🎯</Text>}
-      accessibilityLabel="Goals"
-      scrollable
-    >
-      {goalsChildren}
-    </BottomModal>
-  );
-});
-
-export default GoalsPanel;
+export default GoalsContent;

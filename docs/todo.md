@@ -11,7 +11,6 @@ Completed items are removed from this file (see git history); only remaining wor
 
 - [ ] Fix lag and queued taps when tapping quickly (note: `useMineTaps` already batches rapid taps into a 20Hz state flush)
 - [ ] Fix ReferenceError: Property 'describe' doesn't exist, js engine: hermes on Android (not reproducible in web build; suspected expo-router/native-stack interaction — grab the full stack trace from the red box next time it appears)
-- [ ] Update UI/UX: footer is too big, footer icons are not uniform size and alignment, cave canvas should take up as much screen space as possible. Instead of a footer, change the settings button to a menu button and the settings menu should now contain the other buttons (except daily reward)
 
 ## Stability (§6.2)
 

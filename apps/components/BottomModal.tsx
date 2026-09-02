@@ -29,7 +29,9 @@ function BottomModal({ scrollable = false, ...props }: BottomModalProps) {
       accessibilityLabel={props.accessibilityLabel ?? "Settings"}
       onPress={() => setShowModal(!showModal)}
       // 44×44 minimum tap target: 30px glyph + 8px padding either side.
-      style={{ margin: 10, padding: 8 }}
+      // Tight margins keep the footer compact (plan "Adjust"); the tap
+      // target size is set by the padding, not the margin.
+      style={{ margin: 4, padding: 8 }}
     >
       {props.pressable ?? <Text style={{ fontSize: 30 }}>⚙️</Text>}
     </Pressable>

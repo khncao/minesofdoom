@@ -113,4 +113,13 @@ export const styles = StyleSheet.create({
     fontWeight: "bold",
     userSelect: "none",
   },
+  // Footer row (plan "Adjust"): uniform 46px-tall icon buttons (each
+  // BottomModal/DailyBonusButton is 30px glyph + 8px padding), bottom-
+  // aligned so the cave canvas keeps as much vertical space as possible.
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    alignSelf: "stretch",
+    paddingTop: 2,
+  },
 });

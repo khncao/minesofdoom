@@ -1,11 +1,9 @@
-import { memo, useMemo, useState, type ComponentProps } from "react";
+import { memo, useState, type ComponentProps } from "react";
 import { Switch, Text, TextInput, View } from "react-native";
 import Button from "apps/components/Button";
 import ConfirmableButton from "apps/components/ConfirmableButton";
 import IntegerInput from "apps/components/IntegerInput";
-import BottomModal from "apps/components/BottomModal";
 import Tooltip from "apps/components/Tooltip";
-import MuteToggle from "apps/components/MuteToggle";
 import { EquationSettings } from "apps/utils/math/equations";
 import { SettingsData } from "../game";
 import CosmeticsSection from "./CosmeticsSection";
@@ -42,8 +40,11 @@ const HARD_MODE_HELP =
 const SHOW_ALL_PURCHASES_HELP =
   "Off (default): each upgrade button appears only once you've ever had enough minerals or gems to buy its first level — the screen stays uncluttered as the shop grows. The three core buttons (upgrade power, buy a miner, buy a gem) are always visible. On: every upgrade button is shown at all times, locked or not.";
 
-// Memoized so re-renders from tapping the mine don't re-render the whole
-// settings UI (switches, inputs, modal) on every tap.
+/**
+ * The settings view (plan "Adjust"): rendered inside the footer menu sheet
+ * (MenuPanel) rather than behind its own button. Memoized so re-renders
+ * from tapping the mine don't re-render the settings UI on every tap.
+ */
 const SettingsContent = memo(function SettingsContent({
   settingsData,
   onChangeSettingsData,
@@ -253,83 +254,4 @@ const SettingsContent = memo(function SettingsContent({
   );
 });
 
-const SettingsPanel = ({
-  settingsData,
-  onChangeSettingsData,
-  equationSettings,
-  onChangeEquationSettings,
-  showMessage,
-  onSave,
-  onReset,
-  onExportSaveCode,
-  onImportSaveCode,
-  cosmetics,
-  mute,
-  onMuteChange,
-  hardModeUnlocked,
-}: {
-  settingsData: SettingsData;
-  onChangeSettingsData: (newSettings: SettingsData) => void;
-  equationSettings: EquationSettings;
-  onChangeEquationSettings: (newSettings: EquationSettings) => void;
-  showMessage: string | null;
-  onSave: () => void;
-  onReset: () => void;
-  onExportSaveCode: () => string;
-  onImportSaveCode: (code: string) => boolean;
-  cosmetics: ComponentProps<typeof CosmeticsSection>;
-  mute: boolean;
-  onMuteChange: (newVal: boolean) => void;
-  hardModeUnlocked: boolean;
-}) => {
-  // Stable element so the memoized BottomModal can skip re-rendering on
-  // every tap (it only changes when settings or the message actually change).
-  const settingsChildren = useMemo(
-    () => (
-      <SettingsContent
-        settingsData={settingsData}
-        onChangeSettingsData={onChangeSettingsData}
-        equationSettings={equationSettings}
-        onChangeEquationSettings={onChangeEquationSettings}
-        showMessage={showMessage}
-        onSave={onSave}
-        onReset={onReset}
-        onExportSaveCode={onExportSaveCode}
-        onImportSaveCode={onImportSaveCode}
-        cosmetics={cosmetics}
-        hardModeUnlocked={hardModeUnlocked}
-      />
-    ),
-    [
-      settingsData,
-      onChangeSettingsData,
-      equationSettings,
-      showMessage,
-      onChangeEquationSettings,
-      onSave,
-      onReset,
-      onExportSaveCode,
-      onImportSaveCode,
-      cosmetics,
-      hardModeUnlocked,
-    ],
-  );
-
-  return (
-    <View
-      style={{
-        alignSelf: "flex-start",
-        flexDirection: "row",
-        alignItems: "center",
-        margin: 10,
-      }}
-    >
-      {/* Scrollable: the panel is taller than a phone viewport with the
-          cosmetics + save-code sections (plan "Adjust"). */}
-      <BottomModal scrollable>{settingsChildren}</BottomModal>
-      <MuteToggle init={mute} onToggleChange={onMuteChange} />
-    </View>
-  );
-};
-
-export default SettingsPanel;
+export default SettingsContent;

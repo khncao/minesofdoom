@@ -13,8 +13,7 @@ import AnswerInput from "./components/AnswerInput";
 import ComboIndicator from "./components/ComboIndicator";
 import PurchaseButtons from "./components/PurchaseButtons";
 import MiningCanvas from "./components/MiningCanvas";
-import SettingsPanel from "./components/SettingsPanel";
-import GoalsPanel from "./components/GoalsPanel";
+import MenuPanel from "./components/MenuPanel";
 import DailyBonusButton from "./components/DailyBonusButton";
 import {
   ALL_PURCHASE_IDS,
@@ -465,32 +464,34 @@ export default function MinesOfDoom() {
             <Text style={styles.messageText}>{showMessage}</Text>
           </View>
         )}
-        <View style={{ flex: 4 }} />
-        <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
-          <SettingsPanel
-          settingsData={settingsData}
-          onChangeSettingsData={handleSettingsDataChange}
-          equationSettings={equationSettings}
-          onChangeEquationSettings={setEquationSettings}
-          showMessage={showMessage}
-          onSave={handleSaveSettings}
-          onReset={resetGame}
-          onExportSaveCode={exportSaveCode}
-          onImportSaveCode={handleImportSaveCode}
-          cosmetics={cosmetics}
-          mute={mute}
-          onMuteChange={handleMuteChange}
-          hardModeUnlocked={gameState.completedTiers.includes(
-            HARD_MODE_UNLOCK_TIER,
-          )}
-        />
+        {/* Plan "Adjust": the footer is one menu button (settings + goals
+            live inside it) plus the daily bonus; the freed space goes to
+            the cave canvas (its flex absorbs the removed spacer). */}
+        <View style={styles.footerRow}>
+          <MenuPanel
+            settingsData={settingsData}
+            onChangeSettingsData={handleSettingsDataChange}
+            equationSettings={equationSettings}
+            onChangeEquationSettings={setEquationSettings}
+            showMessage={showMessage}
+            onSave={handleSaveSettings}
+            onReset={resetGame}
+            onExportSaveCode={exportSaveCode}
+            onImportSaveCode={handleImportSaveCode}
+            cosmetics={cosmetics}
+            mute={mute}
+            onMuteChange={handleMuteChange}
+            hardModeUnlocked={gameState.completedTiers.includes(
+              HARD_MODE_UNLOCK_TIER,
+            )}
+            stats={gameState}
+          />
           <DailyBonusButton
             claimable={dailyBonus.claimable}
             bonus={dailyBonus.bonus}
             streak={dailyBonus.streak}
             onClaim={dailyBonus.claim}
           />
-          <GoalsPanel stats={gameState} />
         </View>
 
         <StatusBar style="auto" />

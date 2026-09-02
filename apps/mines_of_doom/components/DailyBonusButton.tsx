@@ -30,7 +30,9 @@ const DailyBonusButton = memo(function DailyBonusButton({
       disabled={!claimable}
       onPress={onClaim}
       // 44×44 minimum tap target: 30px glyph + 8px padding either side.
-      style={{ margin: 10, padding: 8 }}
+      // Matches the BottomModal menu-button metrics (margin 4 / padding 8)
+      // so the footer icons are uniform (plan "Adjust").
+      style={{ margin: 4, padding: 8 }}
     >
       <Text style={{ fontSize: 30, opacity: claimable ? 1 : 0.5 }}>
         {claimable ? "🎁" : "🌙"}
