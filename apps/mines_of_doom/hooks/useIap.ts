@@ -5,6 +5,7 @@ import {
   IapProductId,
   IapProvider,
   emptyIapEntitlements,
+  getIapPackCosmetic,
   grantIapEntitlement,
   hasIapEntitlement,
   mergeIapEntitlements,
@@ -65,10 +66,13 @@ export function useIap({
               grantIapEntitlement(entitlementsRef.current, id),
             );
             onPurchased?.(id);
+            const packCosmetic = getIapPackCosmetic(id);
             displayMessage(
               id === "removeAds"
                 ? "Ads removed — thanks for supporting the game!"
-                : "Purchase complete!",
+                : packCosmetic
+                  ? `Unlocked ${packCosmetic.name} — find it in Cosmetics!`
+                  : "Purchase complete!",
               4000,
             );
           }

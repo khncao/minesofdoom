@@ -593,6 +593,33 @@ export function useGameEngine(
     });
   }, []);
 
+  // IAP cosmetic packs (plan §5.2): the store validated the purchase, so
+  // the granted cosmetics join the save's owned lists at no gem cost and
+  // without touching the selection. Idempotent — re-grants (load, restore,
+  // save import, reset) are no-ops for ids the save already owns.
+  const grantIapCosmetics = useCallback(
+    (cosmeticIds: string[], caveThemeIds: string[]) => {
+      if (cosmeticIds.length === 0 && caveThemeIds.length === 0) return;
+      setGameState((n: SaveData) => {
+        const freshCosmetics = cosmeticIds.filter(
+          (id) => !n.ownedCosmetics.includes(id),
+        );
+        const freshThemes = caveThemeIds.filter(
+          (id) => !n.ownedCaveThemes.includes(id),
+        );
+        if (freshCosmetics.length === 0 && freshThemes.length === 0) {
+          return n;
+        }
+        return {
+          ...n,
+          ownedCosmetics: [...n.ownedCosmetics, ...freshCosmetics],
+          ownedCaveThemes: [...n.ownedCaveThemes, ...freshThemes],
+        };
+      });
+    },
+    [],
+  );
+
   // Tier-3 unlock: second gem upgrade line — each level doubles tap/answer
   // gains. Capped; over-cap purchases are no-ops.
   const buyClickBoost = useCallback(() => {
@@ -741,6 +768,7 @@ export function useGameEngine(
     rerollPlayerSeed,
     buyCaveTheme,
     selectCaveTheme,
+    grantIapCosmetics,
     sinkNewShaft,
     resetGame,
     exportSaveCode,

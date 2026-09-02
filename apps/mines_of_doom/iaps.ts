@@ -4,9 +4,10 @@
  *
  * Design rules (AGENTS.md guardrails, non-negotiable):
  *  - The catalog is deliberately tiny (plan §5.2: "two kinds of product,
- *    nothing else"): Remove Ads (one-time) plus, later, cosmetic packs —
- *    and every pack is also earnable in-game, so buying is convenience,
- *    never access (F2P viability, guardrail 1).
+ *    nothing else"): Remove Ads (one-time) plus one cosmetic pack per
+ *    cosmetic line (pickaxe / outfit / cave theme) — and every pack is
+ *    also earnable in-game, so buying is convenience, never access
+ *    (F2P viability, guardrail 1).
  *  - No store SDK is bundled yet: the production provider is a no-op whose
  *    entry points are hidden (`noopIapProvider`), mirroring the ads
  *    pattern in ads.ts. A real store integration (Google Play Billing /
@@ -19,9 +20,14 @@
  *  - Transparency (guardrail 4): the purchase page states plainly what
  *    each product is and that the game stays fully free without it.
  */
+import { getCaveTheme, getOutfit, getPickaxe, isOutfitId } from "./cosmetics";
 
 /** The kinds of store products the game knows about. */
-export type IapProductId = "removeAds";
+export type IapProductId =
+  | "removeAds"
+  | "packShadowPick"
+  | "packOniOutfit"
+  | "packCherryTheme";
 
 /**
  * Outcome of a purchase attempt. Only "purchased" grants the entitlement;
@@ -45,8 +51,10 @@ export interface IapProduct {
 }
 
 /**
- * The store catalog (plan §5.2): the anchor IAP. Cosmetic packs join this
- * record when the store SDK ships (they must remain earnable in-game too).
+ * The store catalog (plan §5.2). Deliberately tiny: the anchor IAP plus one
+ * cosmetic pack per cosmetic line (pickaxe, outfit, cave theme). Every pack
+ * grants a cosmetic that is ALSO gem-earnable in-game (the panel shows the
+ * gem price), so buying is convenience, never access (guardrail 1).
  */
 export const IAP_PRODUCTS: Record<IapProductId, IapProduct> = {
   removeAds: {
@@ -58,7 +66,92 @@ export const IAP_PRODUCTS: Record<IapProductId, IapProduct> = {
       "nothing else changes, and the game stays fully free and completable " +
       "without it.",
   },
+  packShadowPick: {
+    id: "packShadowPick",
+    label: "Shadow Pickaxe",
+    priceLabel: "$1.99",
+    blurb:
+      "One-time purchase. Unlocks the Shadow pickaxe — its own swing sound " +
+      "and the heaviest, most deliberate swing feel. Purely cosmetic.",
+  },
+  packOniOutfit: {
+    id: "packOniOutfit",
+    label: "Crimson Oni Outfit",
+    priceLabel: "$0.99",
+    blurb:
+      "One-time purchase. Unlocks the Crimson Oni outfit (a samurai-era " +
+      "vengeance tribute). Purely cosmetic.",
+  },
+  packCherryTheme: {
+    id: "packCherryTheme",
+    label: "Cherry & Indigo Theme",
+    priceLabel: "$2.99",
+    blurb:
+      "One-time purchase. Unlocks the Cherry & Indigo cave theme. Purely " +
+      "cosmetic.",
+  },
 };
+
+/** Products in display order (Remove Ads first, packs after). */
+export const IAP_PRODUCT_LIST: IapProduct[] = Object.values(IAP_PRODUCTS);
+
+/**
+ * Which cosmetic each pack grants. Pure catalog data: the pack id maps to
+ * a cosmetic id that already exists in the gem shop (cosmetics.ts), so
+ * the grant is just "add this id to the save's owned lists".
+ */
+export type IapPackGrant = {
+  readonly kind: "cosmetic" | "caveTheme";
+  readonly id: string;
+};
+
+export const IAP_PACK_GRANTS: Partial<
+  Record<IapProductId, IapPackGrant>
+> = {
+  packShadowPick: { kind: "cosmetic", id: "shadow" },
+  packOniOutfit: { kind: "cosmetic", id: "oni" },
+  packCherryTheme: { kind: "caveTheme", id: "cherry" },
+};
+
+/**
+ * The pack's granted cosmetic resolved against the live catalogs — name +
+ * gem price for the panel's "also earnable in-game" transparency line
+ * (guardrails 1 & 4). Undefined for non-pack products (Remove Ads).
+ */
+export function getIapPackCosmetic(
+  productId: IapProductId,
+): { name: string; costGems: number } | undefined {
+  const grant = IAP_PACK_GRANTS[productId];
+  if (!grant) return undefined;
+  if (grant.kind === "caveTheme") {
+    const theme = getCaveTheme(grant.id);
+    return { name: theme.name, costGems: theme.costGems };
+  }
+  if (isOutfitId(grant.id)) {
+    const outfit = getOutfit(grant.id);
+    return { name: outfit.name, costGems: outfit.costGems };
+  }
+  const pickaxe = getPickaxe(grant.id);
+  return { name: pickaxe.name, costGems: pickaxe.costGems };
+}
+
+/**
+ * Split the currently-owned packs' grants by save list, so a validated
+ * purchase / restore can join them to the save's owned lists at no gem
+ * cost (the engine's grant is idempotent).
+ */
+export function iapGrantCosmeticIds(
+  entitlements: IapEntitlements,
+): { cosmetics: string[]; caveThemes: string[] } {
+  const cosmetics: string[] = [];
+  const caveThemes: string[] = [];
+  for (const [productId, grant] of Object.entries(IAP_PACK_GRANTS)) {
+    if (!hasIapEntitlement(entitlements, productId as IapProductId)) continue;
+    if (grant?.kind === "cosmetic") cosmetics.push(grant.id);
+    else if (grant?.kind === "caveTheme") caveThemes.push(grant.id);
+  }
+  return { cosmetics, caveThemes };
+}
 
 /**
  * Provider abstraction (mirrors AdProvider in ads.ts): "gate behind a
@@ -128,7 +221,12 @@ export const devSimIapProvider: IapProvider = {
 export type IapEntitlements = Record<IapProductId, boolean>;
 
 export function emptyIapEntitlements(): IapEntitlements {
-  return { removeAds: false };
+  // Derived from the catalog, so a new product can't be forgotten here.
+  const empty = {} as IapEntitlements;
+  for (const id of Object.keys(IAP_PRODUCTS) as IapProductId[]) {
+    empty[id] = false;
+  }
+  return empty;
 }
 
 export function hasIapEntitlement(
@@ -143,6 +241,7 @@ export function grantIapEntitlement(
   entitlements: IapEntitlements,
   id: IapProductId,
 ): IapEntitlements {
+  if (entitlements[id] === true) return entitlements;
   return { ...entitlements, [id]: true };
 }
 

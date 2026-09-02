@@ -62,7 +62,14 @@ import { useAnalytics } from "./hooks/useAnalytics";
 import { useAdRewards } from "./hooks/useAdRewards";
 import { devSimAdProvider, noopAdProvider } from "./ads";
 import { useIap } from "./hooks/useIap";
-import { devSimIapProvider, noopIapProvider } from "./iaps";
+import {
+  IapProductId,
+  IAP_PRODUCTS,
+  devSimIapProvider,
+  hasIapEntitlement,
+  noopIapProvider,
+  iapGrantCosmeticIds,
+} from "./iaps";
 import LoadingScreen from "./components/LoadingScreen";
 import AdRewardsPanel from "./components/AdRewardsPanel";
 import IapPanel from "./components/IapPanel";
@@ -122,6 +129,7 @@ export default function MinesOfDoom() {
     rerollPlayerSeed,
     buyCaveTheme,
     selectCaveTheme,
+    grantIapCosmetics,
     sinkNewShaft,
     resetGame,
     exportSaveCode,
@@ -485,6 +493,41 @@ export default function MinesOfDoom() {
     displayMessage,
   });
 
+  // Cosmetic IAP packs (plan §5.2): a validated purchase (or a restore /
+  // a re-load on this device) permanently joins each owned pack's
+  // cosmetic to the CURRENT save's owned lists, at no gem cost — the
+  // engine grant is idempotent, and re-running it after a save import or
+  // reset re-grants (the pack belongs to the player, not to one save).
+  // The owned-list refs (not per-tick fields) are the effect deps: they
+  // change on buy/import/reset/load, never on the 1s tick.
+  useEffect(() => {
+    const { cosmetics, caveThemes } = iapGrantCosmeticIds(iap.entitlements);
+    if (cosmetics.length > 0 || caveThemes.length > 0) {
+      grantIapCosmetics(cosmetics, caveThemes);
+    }
+  }, [
+    iap.entitlements,
+    grantIapCosmetics,
+    gameState.ownedCosmetics,
+    gameState.ownedCaveThemes,
+  ]);
+
+  // IapPanel "Owned" states: entitled pack ids (device-local) and the
+  // cosmetic ids the current save already owns from any source (gems or a
+  // pack). Both are ref-stable across ticks, so the memoized panel's
+  // props only churn on real ownership changes.
+  const iapOwnedPackIds = useMemo(
+    () =>
+      (Object.keys(IAP_PRODUCTS) as IapProductId[]).filter((id) =>
+        hasIapEntitlement(iap.entitlements, id),
+      ),
+    [iap.entitlements],
+  );
+  const saveOwnedCosmeticIds = useMemo(
+    () => [...gameState.ownedCosmetics, ...gameState.ownedCaveThemes],
+    [gameState.ownedCosmetics, gameState.ownedCaveThemes],
+  );
+
   // Free-path progress (guardrail 6): the player's FIRST prestige, observed
   // live in this session. The ref starts null so a loaded save that already
   // has prestiges isn't misread as a first one.
@@ -640,6 +683,8 @@ export default function MinesOfDoom() {
               isDevSim={iapProvider.id === "dev-sim"}
               purchasing={iap.purchasing}
               restoring={iap.restoring}
+              ownedPackIds={iapOwnedPackIds}
+              saveOwnedCosmeticIds={saveOwnedCosmeticIds}
               onPurchase={iap.purchase}
               onRestore={iap.restore}
             />
