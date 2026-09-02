@@ -7,17 +7,18 @@ import { AnalyticsState } from "../analytics";
 import type { ComponentProps } from "react";
 import SettingsContent from "./SettingsPanel";
 import GoalsContent from "./GoalsPanel";
+import RecordsContent from "./RecordsPanel";
 import CosmeticsSection from "./CosmeticsSection";
 import { SaveData, SettingsData } from "../game";
 import { styles } from "../styles";
 
-type MenuView = "settings" | "goals";
+type MenuView = "settings" | "goals" | "records";
 
 /**
  * Footer menu (plan "Adjust"): one menu button replaces the old footer row
  * of settings + goals buttons. The sheet holds the mute toggle and a
- * settings/goals view switcher; the daily bonus button deliberately stays
- * outside on the footer so it's always one tap away.
+ * settings/goals/records view switcher; the daily bonus button deliberately
+ * stays outside on the footer so it's always one tap away.
  */
 function MenuPanel({
   settingsData,
@@ -98,6 +99,10 @@ function MenuPanel({
     ],
   );
   const goalsChildren = useMemo(() => <GoalsContent stats={stats} />, [stats]);
+  const recordsChildren = useMemo(
+    () => <RecordsContent stats={stats} />,
+    [stats],
+  );
 
   return (
     <BottomModal
@@ -110,6 +115,7 @@ function MenuPanel({
           style={{
             flexDirection: "row",
             alignItems: "center",
+            flexWrap: "wrap",
             gap: 2,
           }}
         >
@@ -124,15 +130,26 @@ function MenuPanel({
             active={view === "goals"}
             onPress={() => setView("goals")}
           />
+          <MenuNavButton
+            label="📊 Records"
+            active={view === "records"}
+            onPress={() => setView("records")}
+          />
         </View>
-        {view === "settings" ? settingsChildren : goalsChildren}
+        {view === "settings" ? (
+          settingsChildren
+        ) : view === "goals" ? (
+          goalsChildren
+        ) : (
+          recordsChildren
+        )}
       </View>
     </BottomModal>
   );
 }
 
-/** Settings/goals view switcher (also the only "back" affordance needed —
- *  both views are reachable at all times, so there's no dead end). */
+/** Settings/goals/records view switcher (also the only "back" affordance
+ *  needed — every view is reachable at all times, so there's no dead end). */
 function MenuNavButton({
   label,
   active,
@@ -150,7 +167,7 @@ function MenuNavButton({
       // 44px-tall target: 14px text + 12px vertical padding either side.
       style={{
         paddingVertical: 12,
-        paddingHorizontal: 10,
+        paddingHorizontal: 8,
         borderRadius: 6,
         backgroundColor: active ? "#555" : "#333",
       }}

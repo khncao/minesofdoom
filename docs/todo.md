@@ -88,7 +88,8 @@ Remaining: real ad SDK integration behind the same provider interface (expo-ad-a
 
 ### 4.3 Meta / social
 
-- **Leaderboard** (optional, needs a backend or integrate with app store cloud features): depth reached, minerals/sec.
+(Records shipped — the offline-first half of the leaderboard: a third view in the footer menu ("📊 Records") renders `getRecords` (pure, `records.ts`) — every row is a lifetime stat already on the save (deepest depth, longest combo, lifetime minerals/answers/miners, gems minted/spent, prestiges, goal tiers + achievements as done/total), so a record is genuinely personal-best and survives spending/prestige; the same metrics a future live leaderboard would submit. The rows come pre-formatted from the pure module, so `RecordsPanel` is a dumb list renderer, and `__test__/records.test.ts` pins zero-save values, stat pass-through, tier/achievement derivation (same thresholds as the goals view, so the two views can't disagree), and stable row order.)
+- **Leaderboard** (optional, needs a backend or integrate with app store cloud features): depth reached, minerals/sec. (Local personal-bests view shipped — see note above; the LIVE board is what's left, still backend-gated.)
 
 (Shareable save codes shipped in `saveCode.ts` — settings panel export/import, `MOD1.`-prefixed base64, decoded through the same migration pipeline as the storage loader.)
 
