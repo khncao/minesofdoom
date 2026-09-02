@@ -1,0 +1,61 @@
+name: E2E (Android)
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  boot-up:
+    name: Boot up — Android emulator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Expo SDK 52 / RN 0.76 native build.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - run: npm ci
+
+      - name: Build Android debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      # Boots a fresh emulator (installs every **/*.apk in the workspace,
+      # i.e. android/app/build/outputs/apk/debug/app-debug.apk), runs the
+      # script with the device connected, then tears it down. Maestro is
+      # installed inside the script because the emulator only exists inside
+      # this composite action's step.
+      - name: Boot test (Maestro)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          disable-animations: true
+          script: |
+            set -e
+            curl -Ls https://get.maestro.mobile.dev | bash
+            export PATH="$PWD/maestro/bin:$PATH"
+            maestro --version
+            # Test the flows dir (not a single file) so maestro/maestro.config.yaml
+            # (appId + 60s timeout for cold CI boots) is picked up.
+            maestro test maestro/flows
+
+      - name: Upload Maestro test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-boot-up-report
+          path: build/maestro
+          retention-days: 7

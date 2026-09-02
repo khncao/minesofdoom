@@ -11,6 +11,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "test": "jest",
+    "test:e2e": "maestro test maestro/flows",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
   },

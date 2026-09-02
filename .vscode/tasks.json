@@ -21,7 +21,7 @@
         {
             "label": "start expo android",
             "type": "shell",
-            "command": "npx expo run:android --port 8082"
+            "command": "npx expo run:android"
         }
     ]
 }

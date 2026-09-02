@@ -18,7 +18,7 @@ const DepthBanner = memo(function DepthBanner({
   clickBonus: number;
 }) {
   return (
-    <View style={styles.depthBanner}>
+    <View style={styles.depthBanner} testID="depth-banner">
       <Text style={styles.depthText}>
         ⛏ {depth}m · {tierName}
         {clickBonus > 1 ? ` (×${clickBonus} ⛏)` : ""}

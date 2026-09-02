@@ -75,7 +75,7 @@ const EquationDisplay = memo(function EquationDisplay({
           />
         </View>
       )}
-      <Text style={styles.text}>
+      <Text style={styles.text} testID="equation-display">
         {equation.a} {equation.op} {equation.b}
         {equation.op2 !== undefined && equation.c !== undefined
           ? ` ${equation.op2} ${equation.c}`

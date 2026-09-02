@@ -38,10 +38,11 @@ const OnboardingOverlay = memo(function OnboardingOverlay({
   const isLast = step === STEPS.length - 1;
   const current = STEPS[step];
   return (
-    <View style={styles.onboardingBackdrop}>
+    <View style={styles.onboardingBackdrop} testID="onboarding-overlay">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Skip tutorial"
+        testID="onboarding-skip"
         onPress={onDismiss}
         // 44×44 tap target: 16px text + 12px vertical / 14px horizontal pad.
         style={styles.onboardingSkip}

@@ -1,0 +1,6 @@
+# Maestro configuration (project root: maestro/maestro.config.yaml).
+# appId must match the Android package in app.config.ts (android.package).
+appId: com.minus4kelvin.minesofdoom
+# The loading screen + save read is fast, but a cold JS-bundle start on a
+# CI emulator can be slow; 60s keeps assertVisible from racing the boot.
+timeout: 60000

@@ -37,7 +37,7 @@ const LoadingScreen = memo(function LoadingScreen({
   }, [reduceMotion, pulse]);
 
   return (
-    <View style={styles.wrap}>
+    <View style={styles.wrap} testID="loading-screen">
       <Animated.Text style={[styles.icon, { opacity: pulse }]}>⛏️</Animated.Text>
       <Text style={styles.label}>loading the mine…</Text>
     </View>

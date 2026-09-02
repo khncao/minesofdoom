@@ -18,6 +18,11 @@ react {
     // works correctly with Expo projects.
     cliFile = new File(["node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })"].execute(null, rootDir).text.trim())
     bundleCommand = "export:embed"
+    // Embed the JS bundle in debuggable variants too, so debug APKs boot
+    // standalone (no Metro dev server required). This is what the e2e
+    // emulator tests rely on; dev mode (npm run android) still prefers the
+    // running Metro server and only falls back to the embedded bundle.
+    debuggableVariants = []
 
     /* Folders */
      //   The root of your project, i.e. where "package.json" lives. Default is '../..'

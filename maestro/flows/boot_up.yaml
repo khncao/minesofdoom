@@ -1,0 +1,35 @@
+# E2E boot-up check (Android): the app launches, the save loads, the main
+# game UI renders, and a crash/error screen is nowhere in sight.
+#
+# Selectors are testIDs added to the components (see src/mines_of_doom/
+# components/*). Text-based selectors can't be used for the equation (the
+# numbers are random) or most chrome (emoji), so testIDs are the anchors.
+appId: com.minus4kelvin.minesofdoom
+---
+- launchApp: com.minus4kelvin.minesofdoom
+
+# First launch shows the onboarding overlay; tap Skip to dismiss it.
+# `repeat`/`while` runs the block only while the overlay is visible (capped at
+# 1 iteration), so repeat launches — where the overlay never appears — pass
+# straight through instead of timing out on a missing element.
+- repeat:
+    while:
+      visible:
+        id: onboarding-overlay
+    times: 1
+    commands:
+      - tapOn:
+          id: onboarding-skip
+
+# Proper boot = past the loading screen, onto the main game UI.
+# (assertVisible waits, so these also cover the slow cold-bundle start.)
+- assertVisible:
+    id: equation-display
+- assertVisible:
+    id: depth-banner
+
+# ...and the loading / onboarding layers are gone.
+- assertNotVisible:
+    id: loading-screen
+- assertNotVisible:
+    id: onboarding-overlay
