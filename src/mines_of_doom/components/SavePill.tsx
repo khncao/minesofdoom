@@ -47,6 +47,7 @@ const SavePill = memo(function SavePill({
 
   return (
     <Pressable
+      testID="save-pill"
       accessibilityRole="button"
       accessibilityLabel={
         dirty ? "Save game (unsaved changes)" : "Save game"

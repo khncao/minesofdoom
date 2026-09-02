@@ -15,6 +15,8 @@ export interface ButtonProps {
   onPress?: () => void;
   title?: string;
   style?: StyleProp<FlexStyle>;
+  /** Optional automation/test anchor (Maestro e2e selectors). */
+  testId?: string;
   /**
    * Currency flavor (plan §2.1 "button hierarchy"): tints the button so
    * purchase rows grouped by currency read at a glance. "mineral" is the
@@ -34,10 +36,12 @@ export default function Button({
   title,
   style,
   tone = "mineral",
+  testId,
 }: ButtonProps) {
   const toneColors = TONE_COLORS[tone];
   return (
     <Pressable
+      testID={testId}
       accessibilityRole="button"
       accessibilityLabel={title}
       disabled={disabled}

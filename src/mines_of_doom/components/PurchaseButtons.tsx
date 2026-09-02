@@ -138,6 +138,7 @@ const PurchaseButtons = memo(function PurchaseButtons({
           gem Button tone so the two groups read at a glance. */}
       <PurchaseGroupHeader label={`SPEND ${emojis.mineral} MINERALS`} color="#8fbf8f" />
       <Button
+        testId="btn-upgrade-power"
         disabled={minerals < getClickUpgradeCost(clickPower)}
         onPress={onUpgradePower}
         title={`UPGRADE POWER (-${formatNumber(
@@ -162,6 +163,7 @@ const PurchaseButtons = memo(function PurchaseButtons({
       )}
 
       <Button
+        testId="btn-buy-gem"
         onPress={onBuyGem}
         disabled={minerals < gemMineralCost}
         title={`BUY A GEM (-${formatNumber(gemMineralCost)} ${emojis.mineral})`}
@@ -170,6 +172,7 @@ const PurchaseButtons = memo(function PurchaseButtons({
       <PurchaseGroupHeader label={`SPEND ${emojis.gem} GEMS`} color="#7fd4ff" />
       <Button
         tone="gem"
+        testId="btn-buy-miner"
         onPress={onBuyMiner}
         disabled={gems < getMinerUpgradeCost(miners)}
         title={`BUY A MINER (-${formatNumber(

@@ -87,7 +87,7 @@ const EquationDisplay = memo(function EquationDisplay({
           🔥 streak {streakIgnited ? "×2" : `${streak!}/${STREAK_MODE_THRESHOLD}`}
         </Text>
       )}
-      <Text style={styles.pendingGainText}>
+      <Text testID="pending-gain" style={styles.pendingGainText}>
         correct: +{formatNumber(pendingGain)} {emojis.mineral}
         {payoutMultiplier > 1 &&
           ` (×${payoutMultiplier}${opMultiplier > 1 ? ` ${equation.op}` : ""}${hardMode ? " hard" : ""}${timedActive ? " timed" : ""}${streakIgnited ? " streak" : ""})`}

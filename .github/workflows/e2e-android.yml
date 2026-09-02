@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  boot-up:
-    name: Boot up — Android emulator
+  e2e:
+    name: E2E — Android emulator
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,7 +37,7 @@ jobs:
       # script with the device connected, then tears it down. Maestro is
       # installed inside the script because the emulator only exists inside
       # this composite action's step.
-      - name: Boot test (Maestro)
+      - name: E2E flows (Maestro)
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -56,6 +56,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: maestro-boot-up-report
+          name: maestro-e2e-report
           path: build/maestro
           retention-days: 7

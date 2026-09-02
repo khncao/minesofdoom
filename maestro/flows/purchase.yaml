@@ -1,0 +1,70 @@
+# E2E purchase check (Android): the upgrades section renders, the core
+# purchase buttons are present, and buying UPGRADE POWER succeeds (the
+# pending per-answer gain goes up, proving the buy wired through the
+# engine) without crashing.
+#
+# The flow first earns enough minerals by hold-to-mining (see mining.yaml
+# for the touchDown/sleep/touchUp rationale) — a fresh install can afford
+# the level-1 power upgrade (cost = clickPower^4 = 1) after a few mines.
+appId: com.minus4kelvin.minesofdoom
+---
+- launchApp: com.minus4kelvin.minesofdoom
+
+- repeat:
+    while:
+      visible:
+        id: onboarding-overlay
+    times: 1
+    commands:
+      - tapOn:
+          id: onboarding-skip
+
+- assertVisible:
+    id: equation-display
+
+# The upgrades section is open by default; both core currency groups render
+# (the mineral-spend button and the gem-spend button are always visible).
+- assertVisible:
+    id: btn-upgrade-power
+- assertVisible:
+    id: btn-buy-gem
+- assertVisible:
+    id: btn-buy-miner
+
+# Earn minerals (5 holds × click power ≥ the first upgrade's cost of 1).
+- loop:
+    - touchDown:
+        id: mining-canvas
+    - sleep: 400
+    - touchUp:
+        id: mining-canvas
+  times: 5
+
+# The pending per-answer gain shows clickPower × combo × op bonus; tapping
+# the cave between reads resets the combo, so the button's effect is a
+# clean increase.
+- extract:
+    variable: gain_before
+    from:
+      id: pending-gain
+    regex: "correct: \\+([0-9][0-9,]*)"
+
+- tapOn:
+    id: btn-upgrade-power
+
+- extract:
+    variable: gain_after
+    from:
+      id: pending-gain
+    regex: "correct: \\+([0-9][0-9,]*)"
+
+- script: |
+    val before = (extract("gain_before") ?: "0").replace(",", "").toLong()
+    val after = (extract("gain_after") ?: "0").replace(",", "").toLong()
+    assert(after > before, "expected pending gain to increase from $before, got $after")
+
+# ...and the main UI is still alive.
+- assertVisible:
+    id: equation-display
+- assertVisible:
+    id: mineral-count

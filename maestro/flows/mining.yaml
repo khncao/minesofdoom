@@ -1,0 +1,64 @@
+# E2E mining check (Android): hold-to-mine on the cave canvas actually
+# credits minerals and the game UI stays stable (no crash screen).
+#
+# Mining is a >=300ms hold (MINE_HOLD_MS in MiningCanvas.tsx), so the flow
+# uses touchDown/sleep/touchUp instead of tapOn — a quick tapOn is a
+# deliberate no-op by design and would earn nothing.
+#
+# Selectors are testIDs added to the components (mineral-count in
+# MiningCanvas.tsx). Numbers are read via extract + a small script step
+# because the equation / mineral values are dynamic.
+appId: com.minus4kelvin.minesofdoom
+---
+- launchApp: com.minus4kelvin.minesofdoom
+
+# First launch shows the onboarding overlay; tap Skip to dismiss it.
+# `repeat`/`while` caps at 1 iteration so repeat launches pass straight
+# through instead of timing out on a missing element.
+- repeat:
+    while:
+      visible:
+        id: onboarding-overlay
+    times: 1
+    commands:
+      - tapOn:
+          id: onboarding-skip
+
+- assertVisible:
+    id: equation-display
+- assertVisible:
+    id: mineral-count
+
+# Baseline (a fresh install is 0; later flows on the same install may not
+# be, hence the numeric comparison instead of an equality assert).
+- extract:
+    variable: minerals_before
+    from:
+      id: mineral-count
+    regex: "([0-9][0-9,]*)"
+
+# 5 hold-to-mines in the cave.
+- loop:
+    - touchDown:
+        id: mining-canvas
+    - sleep: 400
+    - touchUp:
+        id: mining-canvas
+  times: 5
+
+- extract:
+    variable: minerals_after
+    from:
+      id: mineral-count
+    regex: "([0-9][0-9,]*)"
+
+- script: |
+    val before = (extract("minerals_before") ?: "0").replace(",", "").toLong()
+    val after = (extract("minerals_after") ?: "0").replace(",", "").toLong()
+    assert(after > before, "expected minerals to increase from $before, got $after")
+
+# ...and the main UI is still alive afterwards.
+- assertVisible:
+    id: equation-display
+- assertVisible:
+    id: depth-banner

@@ -88,6 +88,7 @@ const MiningCanvas = memo(function MiningCanvas({
       twice per tap, which dominated the cost of rapid tapping.
     */
     <View
+      testID="mining-canvas"
       style={{ ...styles.canvas, paddingTop: 10 }}
       onStartShouldSetResponder={() => true}
       onResponderStart={() => {
@@ -129,7 +130,10 @@ const MiningCanvas = memo(function MiningCanvas({
               style={CURRENCY_ICON}
             />
           )}
-          <Text style={{ ...styles.text, alignSelf: "center" }}>
+          <Text
+            testID="mineral-count"
+            style={{ ...styles.text, alignSelf: "center" }}
+          >
             {formatNumber(minerals)}
           </Text>
         </View>
