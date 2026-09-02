@@ -5,7 +5,11 @@ import {
   getRandomEquation,
   approxeq,
 } from "apps/utils/math/equations";
-import { getAnswerPayoutMultiplier, TIMED_MODE_WINDOW_MS } from "../game";
+import {
+  getAnswerPayoutMultiplier,
+  STREAK_MODE_THRESHOLD,
+  TIMED_MODE_WINDOW_MS,
+} from "../game";
 
 /**
  * Equation flow: generate, submit, score. Timed mode (plan §4.2): when
@@ -14,6 +18,15 @@ import { getAnswerPayoutMultiplier, TIMED_MODE_WINDOW_MS } from "../game";
  * and a window that runs out goes through the SAME onIncorrect path as a
  * wrong answer (so combo resistance, the shake, and the toast all apply),
  * with the half-typed answer discarded and a fresh equation rolled.
+ *
+ * Streak mode (plan §4.2): `streak` counts consecutive correct answers and
+ * only breaks on a wrong answer / timeout — a mine tap does NOT break it
+ * (unlike the combo, this is the mode's "no wrong answers" pitch). Once
+ * `streak >= STREAK_MODE_THRESHOLD` (exposed as `streakActive`), each
+ * correct answer additionally pays STREAK_MODE_PAYOUT via the streak
+ * branch of getAnswerPayoutMultiplier. The streak is session-scoped (like
+ * the combo — it does not survive an app restart) and resets to 0 when the
+ * setting is switched off.
  */
 export function useEquations({
   equationSettings,
@@ -30,8 +43,13 @@ export function useEquations({
   const [textInput, setTextInput] = useState("");
   // null = timed mode off (or no active window); the UI hides the bar.
   const [timeLeftMs, setTimeLeftMs] = useState<number | null>(null);
+  // Consecutive correct answers (streak mode, plan §4.2). Session-scoped;
+  // breaks on wrong answer / timeout only — NOT on a mine tap.
+  const [streak, setStreak] = useState(0);
 
   const timedMode = equationSettings.timedMode;
+  const streakMode = equationSettings.streakMode;
+  const streakActive = streakMode && streak >= STREAK_MODE_THRESHOLD;
 
   // The interval callback can't see the latest closures; the refs keep the
   // expiry path fresh without re-arming the timer every render.
@@ -39,6 +57,12 @@ export function useEquations({
   onIncorrectRef.current = onIncorrect;
   const equationSettingsRef = useRef(equationSettings);
   equationSettingsRef.current = equationSettings;
+
+  // Switching streak mode off drops the (unpaid) streak so re-enabling it
+  // never hands out a premium the player didn't earn in the new session.
+  useEffect(() => {
+    if (!streakMode) setStreak(0);
+  }, [streakMode]);
 
   useEffect(() => {
     if (!timedMode) {
@@ -56,7 +80,9 @@ export function useEquations({
           clearInterval(id);
           // Timeout = miss: same consequences as a wrong answer, so the
           // onIncorrect handler (combo reset + resistance, shake, toast)
-          // gets exactly one call per expired window.
+          // gets exactly one call per expired window. A wrong answer also
+          // breaks the streak-mode streak, so reset it on the same path.
+          if (equationSettingsRef.current.streakMode) setStreak(0);
           onIncorrectRef.current();
           setTextInput("");
           setEquation(getRandomEquation(equationSettingsRef.current));
@@ -80,13 +106,25 @@ export function useEquations({
     }
 
     if (approxeq(value, equation.answer)) {
+      // Streak as it stood BEFORE this answer: the threshold-th correct
+      // answer ignites the streak, the one after it is the first to pay.
+      const streakBonus = streakMode && streak >= STREAK_MODE_THRESHOLD;
+      if (streakMode) setStreak(streak + 1);
       // Operator bonus (÷ ×10, − ×2) × hard-mode premium (×2 for 3-term
-      // equations) × timed-mode premium (×2 for a within-window answer) —
-      // see getAnswerPayoutMultiplier. Answers are always integral &
+      // equations) × timed-mode premium (×2 for a within-window answer)
+      // × streak premium (×2 while the streak is ignited) — see
+      // getAnswerPayoutMultiplier. Answers are always integral &
       // non-negative by construction, so no abs/fround.
-      value *= getAnswerPayoutMultiplier(equation, timedMode && timeLeftMs !== null && timeLeftMs > 0);
+      value *= getAnswerPayoutMultiplier(
+        equation,
+        timedMode && timeLeftMs !== null && timeLeftMs > 0,
+        streakBonus,
+      );
       onCorrect(Math.max(1, value));
     } else {
+      // A wrong answer breaks the streak (mine taps don't — that's the
+      // mode's deal), then takes the normal wrong-answer path.
+      if (streakMode) setStreak(0);
       onIncorrect();
     }
     setTextInput("");
@@ -99,7 +137,17 @@ export function useEquations({
     onIncorrect,
     timedMode,
     timeLeftMs,
+    streakMode,
+    streak,
   ]);
 
-  return { equation, textInput, setTextInput, handleSubmit, timeLeftMs };
+  return {
+    equation,
+    textInput,
+    setTextInput,
+    handleSubmit,
+    timeLeftMs,
+    streak,
+    streakActive,
+  };
 }

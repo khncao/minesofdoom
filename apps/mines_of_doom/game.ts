@@ -407,6 +407,27 @@ export const HARD_MODE_PAYOUT = 2;
  */
 export const TIMED_MODE_WINDOW_MS = 10_000;
 export const TIMED_MODE_PAYOUT = 2;
+/**
+ * Streak mode (plan §4.2): a run of STREAK_MODE_THRESHOLD consecutive
+ * correct answers "ignites" the streak, and from then on every correct
+ * answer pays ×STREAK_MODE_PAYOUT on top of everything else — until a
+ * wrong answer (or a timed-mode timeout, which takes the same wrong-answer
+ * path) breaks the run. Unlike the combo, a mine tap does NOT break the
+ * streak: the mode is "no wrong answers allowed", and tapping the cave
+ * stays free. Stacks with the operator, hard-mode, and timed-mode bonuses.
+ */
+export const STREAK_MODE_THRESHOLD = 5;
+export const STREAK_MODE_PAYOUT = 2;
+
+/**
+ * The streak premium for a given streak count: ×STREAK_MODE_PAYOUT once the
+ * streak has reached the threshold, ×1 before it. (useEquations passes the
+ * streak as it stood BEFORE the answer being paid — so the first threshold
+ * answers build the streak, and the one after it is the first to pay.)
+ */
+export function getStreakPayoutMultiplier(streak: number): number {
+  return streak >= STREAK_MODE_THRESHOLD ? STREAK_MODE_PAYOUT : 1;
+}
 export const gemChance = 0.05;
 /** Base gem chance added per level of the gem chance upgrade. */
 export const gemChancePerLevel = 0.01;
@@ -836,19 +857,23 @@ export function getComboResistCost(level: number): number {
  * a second term × the timed-mode premium when the answer landed inside the
  * timed window (timedModeBonus — it's a property of HOW the equation was
  * answered, not its shape, so it's a parameter rather than read off the
- * equation). useEquations applies this; EquationDisplay folds the same
- * number into the pending-gain readout so the UI and the reward agree.
+ * equation) × the streak premium when the caller's answer-streak is ignited
+ * (streakModeBonus — likewise a property of the run, not the equation).
+ * useEquations applies this; EquationDisplay folds the same number into the
+ * pending-gain readout so the UI and the reward agree.
  */
 export function getAnswerPayoutMultiplier(
   equation: Equation,
   timedModeBonus = false,
+  streakModeBonus = false,
 ): number {
   const opBonus =
     equation.op === Ops.div ? 10 : equation.op === Ops.sub ? 2 : 1;
   return (
     opBonus *
     (equation.op2 !== undefined ? HARD_MODE_PAYOUT : 1) *
-    (timedModeBonus ? TIMED_MODE_PAYOUT : 1)
+    (timedModeBonus ? TIMED_MODE_PAYOUT : 1) *
+    (streakModeBonus ? STREAK_MODE_PAYOUT : 1)
   );
 }
 

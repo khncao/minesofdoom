@@ -69,7 +69,7 @@ Completed items are removed from this file (see git history); only remaining wor
 
 ### 4.2 Gameplay variety
 
-- **Equation modes.** Streak mode (no wrong answers allowed, high reward) is still open — hard mode (3-term equations, ×2 payout) and timed mode (10s window per equation, ×2 for a within-window answer, timeout = miss via the normal wrong-answer path so combo resistance applies) shipped in `equations.ts` (`timedMode` setting) + `useEquations` (countdown, `timeLeftMs`) + `EquationDisplay` (shrinking timer bar); premium in `game.ts` (`TIMED_MODE_PAYOUT`, stacked via `getAnswerPayoutMultiplier`).
+- **Equation modes.** All three shipped: hard mode (3-term equations, ×2 payout), timed mode (10s window per equation, ×2 for a within-window answer, timeout = miss via the normal wrong-answer path so combo resistance applies), and streak mode (5 consecutive correct answers ignite a ×2 premium that lasts until a wrong answer / timed-mode timeout breaks the run — mine taps do NOT break the streak, unlike the combo; session-scoped, like the combo). Toggles in `equations.ts` (`hardMode` / `timedMode` / `streakMode` settings, persisted under `equationSettingsKey`, no save bump), the streak counter in `useEquations` (`streak` / `streakActive`), the window bar + streak readout in `EquationDisplay`, and all premiums stack via `getAnswerPayoutMultiplier` in `game.ts` (`HARD_MODE_PAYOUT` / `TIMED_MODE_PAYOUT` / `STREAK_MODE_PAYOUT`).
 
 (Daily bonus / login streak shipped in `dailyBonus.ts` + `useDailyBonus` — 🎁 button next to the goals panel, streak-capped at ×7, persisted in its own `dailyBonus` storage key.)
 

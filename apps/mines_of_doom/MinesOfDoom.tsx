@@ -27,6 +27,7 @@ import {
   getClickBoostMultiplier,
   getVisiblePurchases,
   SettingsData,
+  STREAK_MODE_THRESHOLD,
 } from "./game";
 import {
   getAchievement,
@@ -337,6 +338,7 @@ export default function MinesOfDoom() {
     setTextInput,
     handleSubmit,
     timeLeftMs,
+    streak,
   } = useEquations({
     equationSettings,
     onCorrect: (value) => {
@@ -361,6 +363,14 @@ export default function MinesOfDoom() {
       const nextMult = getComboMultiplier(combo + 1);
       if (nextMult > comboMultiplier) {
         displayMessage(`Combo x${nextMult}!`, 2000);
+      }
+      // Streak ignition (plan §4.2): this answer just reached the
+      // threshold — from the NEXT answer on, each one pays ×2 more.
+      if (
+        equationSettings.streakMode &&
+        streak === STREAK_MODE_THRESHOLD - 1
+      ) {
+        displayMessage("🔥 Streak ignited — ×2 per answer!", 2500);
       }
     },
     onIncorrect: () => {
@@ -418,6 +428,7 @@ export default function MinesOfDoom() {
           clickPower={effectiveClickPower}
           comboMultiplier={comboMultiplier}
           timeLeftMs={timeLeftMs}
+          streak={equationSettings.streakMode ? streak : null}
         />
         <AnswerInput
           value={textInput}

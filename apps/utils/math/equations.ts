@@ -23,6 +23,14 @@ export type EquationSettings = {
    * pays ×HARD_MODE_PAYOUT ×TIMED_MODE_PAYOUT × operator bonus).
    */
   timedMode: boolean;
+  /**
+   * Streak mode (plan §4.2): STREAK_MODE_THRESHOLD consecutive correct
+   * answers ignite a streak that pays STREAK_MODE_PAYOUT (see game.ts) on
+   * every correct answer until a wrong answer (or a timed-mode timeout)
+   * breaks the run — mine taps do NOT break it (unlike the combo). Off by
+   * default; persisted like hardMode (no save bump).
+   */
+  streakMode: boolean;
 };
 
 export const defaultEquationSettings = {
@@ -34,6 +42,7 @@ export const defaultEquationSettings = {
   division: false,
   hardMode: false,
   timedMode: false,
+  streakMode: false,
 };
 
 export const Ops = {

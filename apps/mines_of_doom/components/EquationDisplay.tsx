@@ -5,6 +5,7 @@ import { emojis } from "apps/utils/graphics/emojis";
 import { formatNumber } from "apps/utils/format";
 import {
   getAnswerPayoutMultiplier,
+  STREAK_MODE_THRESHOLD,
   TIMED_MODE_WINDOW_MS,
 } from "../game";
 import { styles } from "../styles";
@@ -14,6 +15,7 @@ const EquationDisplay = memo(function EquationDisplay({
   clickPower,
   comboMultiplier,
   timeLeftMs,
+  streak,
 }: {
   equation: Equation;
   clickPower: number;
@@ -21,15 +23,26 @@ const EquationDisplay = memo(function EquationDisplay({
   /** Timed mode (plan §4.2): ms left on the current equation's window.
    *  null/undefined = timed mode off, hide the bar. */
   timeLeftMs?: number | null;
+  /** Streak mode (plan §4.2): consecutive correct answers, or
+   *  null/undefined = streak mode off (nothing streak-related shown). */
+  streak?: number | null;
 }) {
   // Same multiplier the engine pays (getAnswerPayoutMultiplier): operator
   // bonus (÷ ×10, − ×2) × the hard-mode premium for 3-term equations
-  // × the timed-mode premium while inside the window.
+  // × the timed-mode premium while inside the window × the streak premium
+  // while the streak is ignited.
   const opMultiplier =
     equation.op === Ops.div ? 10 : equation.op === Ops.sub ? 2 : 1;
   const hardMode = equation.op2 !== undefined;
   const timedActive = timeLeftMs !== null && timeLeftMs !== undefined;
-  const payoutMultiplier = getAnswerPayoutMultiplier(equation, timedActive);
+  const streakActive = streak !== null && streak !== undefined;
+  const streakIgnited =
+    streakActive && streak! >= STREAK_MODE_THRESHOLD;
+  const payoutMultiplier = getAnswerPayoutMultiplier(
+    equation,
+    timedActive,
+    streakIgnited,
+  );
   const pendingGain = clickPower * comboMultiplier * payoutMultiplier;
   const windowFraction =
     timedActive ? Math.max(0, Math.min(1, (timeLeftMs ?? 0) / TIMED_MODE_WINDOW_MS)) : 0;
@@ -68,10 +81,16 @@ const EquationDisplay = memo(function EquationDisplay({
           ? ` ${equation.op2} ${equation.c}`
           : null}?
       </Text>
+      {streakActive && (
+        // Ignited: the premium is live; not yet: progress toward ignition.
+        <Text style={styles.pendingGainText}>
+          🔥 streak {streakIgnited ? "×2" : `${streak!}/${STREAK_MODE_THRESHOLD}`}
+        </Text>
+      )}
       <Text style={styles.pendingGainText}>
         correct: +{formatNumber(pendingGain)} {emojis.mineral}
         {payoutMultiplier > 1 &&
-          ` (×${payoutMultiplier}${opMultiplier > 1 ? ` ${equation.op}` : ""}${hardMode ? " hard" : ""}${timedActive ? " timed" : ""})`}
+          ` (×${payoutMultiplier}${opMultiplier > 1 ? ` ${equation.op}` : ""}${hardMode ? " hard" : ""}${timedActive ? " timed" : ""}${streakIgnited ? " streak" : ""})`}
       </Text>
     </>
   );

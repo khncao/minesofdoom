@@ -30,7 +30,7 @@ const OPERATOR_HELP: Record<
 };
 
 const GAIN_FORMULA =
-  "Minerals mined per correct answer = answer × click power × combo multiplier, plus any operator bonus. Hard-mode equations pay ×2 on top; timed-mode equations pay ×2 more when answered inside the window.";
+  "Minerals mined per correct answer = answer × click power × combo multiplier, plus any operator bonus. Hard-mode equations pay ×2 on top; timed-mode equations pay ×2 more when answered inside the window; an ignited streak pays ×2 more on top of all of it.";
 
 /** Hard-mode switch tooltip (long-press). */
 const HARD_MODE_HELP =
@@ -39,6 +39,10 @@ const HARD_MODE_HELP =
 /** Timed-mode switch tooltip (long-press). */
 const TIMED_MODE_HELP =
   "Every equation gets a 10-second window: answer in time and the payout gets ×2 (it stacks with the operator and hard-mode bonuses). When the window runs out the equation counts as a miss — your combo drops exactly like a wrong answer (combo resistance still applies) — and a new one rolls. Stacks with hard mode: a 3-term equation answered in time pays ×4 on top of the operator bonus.";;
+
+/** Streak-mode switch tooltip (long-press). */
+const STREAK_MODE_HELP =
+  "Answer 5 equations correctly in a row and the streak ignites: every correct answer after that pays ×2 on top of everything else (it stacks with the operator, hard-mode, and timed-mode bonuses). One wrong answer — or a timed-mode timeout — breaks the run and the streak starts over at 0. Unlike your combo, tapping the cave does NOT break the streak: the rule is simply no wrong answers.";
 
 /** Show-all-purchases switch tooltip (long-press). */
 const SHOW_ALL_PURCHASES_HELP =
@@ -164,6 +168,37 @@ const SettingsContent = memo(function SettingsContent({
               onChangeEquationSettings({
                 ...equationSettings,
                 hardMode: newVal,
+              });
+            }}
+          />
+        </View>
+      </Tooltip>
+      {/* Always available (no tier gate): streak mode is opt-in risk/
+          reward — the only cost of a broken streak is losing the premium,
+          so it's strictly self-inflicted when off (the default). */}
+      <Tooltip label="Streak mode equations" content={STREAK_MODE_HELP}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Text
+            style={{
+              ...styles.text,
+              fontSize: 11,
+              color: "#fff",
+            }}
+          >
+            Streak mode (5 in a row for ×2): 
+          </Text>
+          <Switch
+            value={equationSettings.streakMode}
+            onValueChange={(newVal) => {
+              onChangeEquationSettings({
+                ...equationSettings,
+                streakMode: newVal,
               });
             }}
           />
