@@ -63,6 +63,17 @@ export function useGameEngine(
   // Total ticks elapsed since launch, used for autosave cadence.
   const tickCountRef = useRef(0);
   const lastSaveTickRef = useRef(0);
+  // Stale-save flag (plan §2.1 "save affordance"): true whenever state
+  // has changed since the last successful write. This is accurate, not
+  // aspirational — with miners running the state changes every tick, so
+  // the indicator stays "stale" until the next autosave/manual save.
+  const [saveDirty, setSaveDirty] = useState(false);
+
+  // Mark dirty on any state change after load. setSaveDirty(true) is a
+  // no-op re-render when the flag is already true (React bails out).
+  useEffect(() => {
+    if (loadedRef.current) setSaveDirty(true);
+  }, [gameState]);
 
   // Load stored data. Every step is defensive: a throw here used to become an
   // unhandled promise rejection and leave the game stuck on the empty state.
@@ -152,12 +163,14 @@ export function useGameEngine(
       ...gameStateRef.current,
       saveTime: Date.now(),
     });
-    setSaveData(data).catch((e) => {
-      // A failed write (quota, storage full, ...) would otherwise silently
-      // lose everything since the last successful save.
-      console.warn("Failed to save game", e);
-      displayMessage("Warning: failed to save your game.", 4000);
-    });
+    setSaveData(data)
+      .then(() => setSaveDirty(false))
+      .catch((e) => {
+        // A failed write (quota, storage full, ...) would otherwise silently
+        // lose everything since the last successful save.
+        console.warn("Failed to save game", e);
+        displayMessage("Warning: failed to save your game.", 4000);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setSaveData]);
 
@@ -605,6 +618,7 @@ export function useGameEngine(
         gameState.legendaryMiners,
       ) * getPrestigeMultiplier(gameState.prestigeLevel),
     saveGame,
+    saveDirty,
     addTapGain,
     applyAnswerReward,
     upgradePower,

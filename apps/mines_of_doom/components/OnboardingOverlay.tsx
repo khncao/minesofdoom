@@ -15,12 +15,12 @@ const STEPS: ReadonlyArray<{ icon: string; title: string; body: string }> = [
   {
     icon: "🧮",
     title: "Mine the math",
-    body: "Answer the equation at the top to earn minerals. Tapping the cave works too, but it's a slower way to dig.",
+    body: "Answer the equation at the top to earn minerals. Holding the cave (press and hold) works too, but it's a slower way to dig.",
   },
   {
     icon: "🔥",
     title: "Keep the combo alive",
-    body: "Every correct answer builds your combo — every 10 in a row multiplies your gains by +1. Wrong answers and cave taps break it, so answer fast and don't tap while typing.",
+    body: "Every correct answer builds your combo — every 10 in a row multiplies your gains by +1. Wrong answers and cave holds break it, so answer fast and don't touch the cave while typing.",
   },
   {
     icon: "👷",

@@ -42,7 +42,7 @@ const TIMED_MODE_HELP =
 
 /** Streak-mode switch tooltip (long-press). */
 const STREAK_MODE_HELP =
-  "Answer 5 equations correctly in a row and the streak ignites: every correct answer after that pays ×2 on top of everything else (it stacks with the operator, hard-mode, and timed-mode bonuses). One wrong answer — or a timed-mode timeout — breaks the run and the streak starts over at 0. Unlike your combo, tapping the cave does NOT break the streak: the rule is simply no wrong answers.";
+  "Answer 5 equations correctly in a row and the streak ignites: every correct answer after that pays ×2 on top of everything else (it stacks with the operator, hard-mode, and timed-mode bonuses). One wrong answer — or a timed-mode timeout — breaks the run and the streak starts over at 0. Unlike your combo, holding the cave does NOT break the streak: the rule is simply no wrong answers.";
 
 /** Show-all-purchases switch tooltip (long-press). */
 const SHOW_ALL_PURCHASES_HELP =

@@ -1,4 +1,4 @@
-import { memo, MutableRefObject, RefObject } from "react";
+import { memo, MutableRefObject, RefObject, useRef } from "react";
 import { Text, View } from "react-native";
 import Miner from "./Miner";
 import DebrisParticles, {
@@ -13,6 +13,14 @@ import { emojiText } from "apps/utils/graphics/emojis";
 import { formatNumber } from "apps/utils/format";
 import { rosterSeed } from "../cosmetics";
 import { styles } from "../styles";
+
+/**
+ * Minimum press duration for a cave press to count as a mine (plan §2.1
+ * "canvas tap vs. equation submit"). Quick taps used to reset the combo
+ * accidentally while players were answering equations — a short press is
+ * now a deliberate no-op, and mining is the cave's "slow" action.
+ */
+const MINE_HOLD_MS = 300;
 
 const MiningCanvas = memo(function MiningCanvas({
   depth,
@@ -54,6 +62,8 @@ const MiningCanvas = memo(function MiningCanvas({
   blockBreakRef: RefObject<BlockBreakRef>;
   floatingTextRef: RefObject<FloatingTextRef>;
 }) {
+  // Refs only — hold duration must not trigger re-renders per press.
+  const holdStartRef = useRef(0);
   return (
     /*
       Plain View + responder system instead of Pressable.
@@ -63,10 +73,22 @@ const MiningCanvas = memo(function MiningCanvas({
     <View
       style={{ ...styles.canvas, paddingTop: 10 }}
       onStartShouldSetResponder={() => true}
-      onResponderRelease={onTap}
+      onResponderStart={() => {
+        holdStartRef.current = Date.now();
+      }}
+      onResponderRelease={() => {
+        const held = Date.now() - holdStartRef.current;
+        holdStartRef.current = 0;
+        if (held >= MINE_HOLD_MS) {
+          onTap();
+        }
+      }}
+      onResponderTerminate={() => {
+        holdStartRef.current = 0;
+      }}
       onResponderTerminationRequest={() => false}
       accessibilityRole="button"
-      accessibilityLabel="Mine"
+      accessibilityLabel="Hold to mine"
     >
       <CaveBackground depth={depth} tint={tint} />
       <FloatingTextLayer ref={floatingTextRef} />
@@ -139,6 +161,16 @@ const MiningCanvas = memo(function MiningCanvas({
             />
           ))}
         </View>
+        <Text
+          style={{
+            ...styles.text,
+            opacity: 0.45,
+            fontSize: 11,
+            userSelect: "none",
+          }}
+        >
+          hold to mine
+        </Text>
       </View>
     </View>
   );

@@ -30,9 +30,9 @@ Completed items are removed from this file (see git history); only remaining wor
 ## 1. Current State (baseline)
 
 - Core loop: solve a math equation → gain minerals × click power × combo multiplier.
-- Tapping the cave canvas also mines (click power only, resets combo).
+- Holding the cave canvas (press-and-hold, ~300ms) also mines (click power only, resets combo); quick taps are no-ops.
 - Currency chain: minerals → gems (100k) → miners (quadratic-ish cost) → passive minerals/sec.
-- Combo: +1 per correct answer, resets on wrong answer or canvas tap; multiplier = 1 + floor(combo/10).
+- Combo: +1 per correct answer, resets on wrong answer or cave hold; multiplier = 1 + floor(combo/10).
 - Depth = floor(minerals / 500), drives cave background.
 - Save: manual save + autosave every 100 ticks (100s); offline progress computed on load.
 - Settings: equation difficulty (max number, enabled operators), mute toggle.
@@ -42,9 +42,12 @@ Completed items are removed from this file (see git history); only remaining wor
 ### 2.1 Layout & input
 
 - **Keyboard handling.** On-screen keypad shipped: `NumericKeypad` (digits, ⌫ with hold-to-clear, highlighted `=` submit) is wired into `AnswerInput` behind a 🔢/⌨️ toggle next to the answer box, persisted in the `onScreenKeypad` storage key (off by default). In keypad mode no `TextInput` is mounted at all, so the game never depends on the OS keyboard (also the web-parity path — `inputMode="numeric"` is ignored in browsers). Remaining: verify `KeyboardAvoidingView` behavior in browser for the OS-keyboard path (`AnswerInput` still relies on it there — it is a no-op on web).
-- **Canvas tap vs. equation submit.** Tapping the cave resets the combo — easy to do accidentally while playing fast. Options: require a short hold, or make the canvas a secondary "slow" action and move it below the fold / behind a button.
-- **Button hierarchy.** All three purchase buttons look identical. Visually distinguish: upgrade (minerals), miner (gems), gem (minerals→gems). Consider grouping by currency with headers.
-- **Settings modal discoverability.** Add a labeled icon or a "Settings" pill. Also add a visible "Save" affordance outside the modal (e.g., a small save indicator that pulses when the save is stale).
+
+(Canvas tap vs. equation submit shipped: the cave now requires a ~300ms press-and-hold to mine — a quick tap is a deliberate no-op, so accidental combo resets while answering are gone. `MiningCanvas` hold logic + "hold to mine" hint, onboarding copy updated.)
+
+(Button hierarchy shipped: `PurchaseButtons` groups rows by currency under tinted `SPEND ✦`/`SPEND ◈`/`PRESTIGE` headers, and the shared `Button` gained a `tone` prop (default `mineral` = historical brown, `gem` = steel blue) applied to the gem group.)
+
+(Settings discoverability shipped: footer `SavePill` — 💾 Save saves immediately with a toast, and a pulsing amber dot (native-driver opacity loop, suppressed under reduce-motion) shows while `saveDirty` is true; the flag flips on any state change after load and clears on a successful write, in `useGameEngine`.)
 - **Web parity.** On web, `inputMode="numeric"` is ignored and the keyboard is the OS one; the custom keypad (above) fixes this. Also test `KeyboardAvoidingView` behavior in browser (it is a no-op on web — `AnswerInput` currently relies on it).
 
 ## 3. General (code/technical) Improvements
@@ -55,7 +58,7 @@ Completed items are removed from this file (see git history); only remaining wor
 
 ### 3.2 Game loop
 
-- `onTick` ref array + Context is a fine pattern, but document it; currently only miners use it.
+(Documented: the ref-array + Context pattern is explained in `mines_of_doom/Context.tsx` — why a mutable ref array instead of state, the mount-push/unmount-splice contract, and the stable-identity memo in `MinesOfDoom.tsx`.)
 
 ### 3.4 Performance
 

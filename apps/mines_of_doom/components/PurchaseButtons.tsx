@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 import Button from "apps/components/Button";
 import { emojis } from "apps/utils/graphics/emojis";
 import { formatNumber } from "apps/utils/format";
@@ -133,6 +133,10 @@ const PurchaseButtons = memo(function PurchaseButtons({
   const comboKeepPct = Math.round(getComboRetention(comboResistLevels) * 100);
   return (
     <View style={{ gap: 5, marginTop: 8 }}>
+      {/* Plan §2.1 "button hierarchy": buttons are grouped by the currency
+          they spend, with a tinted header per group; gem buttons use the
+          gem Button tone so the two groups read at a glance. */}
+      <PurchaseGroupHeader label={`SPEND ${emojis.mineral} MINERALS`} color="#8fbf8f" />
       <Button
         disabled={minerals < getClickUpgradeCost(clickPower)}
         onPress={onUpgradePower}
@@ -140,47 +144,6 @@ const PurchaseButtons = memo(function PurchaseButtons({
           getClickUpgradeCost(clickPower),
         )} ${emojis.mineral}) (${clickPower})`}
       />
-
-      <Button
-        onPress={onBuyMiner}
-        disabled={gems < getMinerUpgradeCost(miners)}
-        title={`BUY A MINER (-${formatNumber(
-          getMinerUpgradeCost(miners),
-        )} ${emojis.gem}) (${miners}${minerNext})`}
-      />
-
-      {/* Tier-2 unlock (plan §4.6): second miner type — cheaper gem curve,
-          weaker per-miner output. Shown but locked until Deep Shaft. */}
-      {visible.has("fastMiner") && (
-        <Button
-          onPress={onBuyFastMiner}
-          disabled={!fastMinerUnlocked || gems < fastCost}
-          title={
-            fastMinerUnlocked
-              ? `BUY A FAST MINER (-${formatNumber(fastCost)} ${emojis.gem}) (${
-                  fastMiners
-                }, ${getFastMinerOutput(minerPower)}/s each${fastNext})`
-              : `🔒 BUY FAST MINER (Deep Shaft)`
-          }
-        />
-      )}
-
-      {/* Tier-5 endgame unlock (plan §4.6): third miner type — the premium
-          raw-output sink (double a normal miner's output, 2x the normal
-          miner's gem curve). Shown but locked until Motherlode. */}
-      {visible.has("legendaryMiner") && (
-        <Button
-          onPress={onBuyLegendaryMiner}
-          disabled={!legendaryMinerUnlocked || gems < legendaryCost}
-          title={
-            legendaryMinerUnlocked
-              ? `BUY A LEGENDARY MINER (-${formatNumber(legendaryCost)} ${
-                  emojis.gem
-                }) (${legendaryMiners}, ${getLegendaryMinerOutput(minerPower)}/s each${legendaryNext})`
-              : `🔒 BUY LEGENDARY MINER (Motherlode)`
-          }
-        />
-      )}
 
       {/* First goal-tier unlock (plan §4.6): shown but locked until the
           Prospector's License tier is complete, so players see it coming. */}
@@ -204,9 +167,55 @@ const PurchaseButtons = memo(function PurchaseButtons({
         title={`BUY A GEM (-${formatNumber(gemMineralCost)} ${emojis.mineral})`}
       />
 
+      <PurchaseGroupHeader label={`SPEND ${emojis.gem} GEMS`} color="#7fd4ff" />
+      <Button
+        tone="gem"
+        onPress={onBuyMiner}
+        disabled={gems < getMinerUpgradeCost(miners)}
+        title={`BUY A MINER (-${formatNumber(
+          getMinerUpgradeCost(miners),
+        )} ${emojis.gem}) (${miners}${minerNext})`}
+      />
+
+      {/* Tier-2 unlock (plan §4.6): second miner type — cheaper gem curve,
+          weaker per-miner output. Shown but locked until Deep Shaft. */}
+      {visible.has("fastMiner") && (
+        <Button
+          tone="gem"
+          onPress={onBuyFastMiner}
+          disabled={!fastMinerUnlocked || gems < fastCost}
+          title={
+            fastMinerUnlocked
+              ? `BUY A FAST MINER (-${formatNumber(fastCost)} ${emojis.gem}) (${
+                  fastMiners
+                }, ${getFastMinerOutput(minerPower)}/s each${fastNext})`
+              : `🔒 BUY FAST MINER (Deep Shaft)`
+          }
+        />
+      )}
+
+      {/* Tier-5 endgame unlock (plan §4.6): third miner type — the premium
+          raw-output sink (double a normal miner's output, 2x the normal
+          miner's gem curve). Shown but locked until Motherlode. */}
+      {visible.has("legendaryMiner") && (
+        <Button
+          tone="gem"
+          onPress={onBuyLegendaryMiner}
+          disabled={!legendaryMinerUnlocked || gems < legendaryCost}
+          title={
+            legendaryMinerUnlocked
+              ? `BUY A LEGENDARY MINER (-${formatNumber(legendaryCost)} ${
+                  emojis.gem
+                }) (${legendaryMiners}, ${getLegendaryMinerOutput(minerPower)}/s each${legendaryNext})`
+              : `🔒 BUY LEGENDARY MINER (Motherlode)`
+          }
+        />
+      )}
+
       {/* Tier-2 unlock: first gem upgrade — +1% base gem chance per level. */}
       {visible.has("gemChance") && (
         <Button
+          tone="gem"
           onPress={onBuyGemChance}
           disabled={
             !fastMinerUnlocked || gemChanceMaxed || gems < gemCost
@@ -225,6 +234,7 @@ const PurchaseButtons = memo(function PurchaseButtons({
           tap/answer gains (passive income is unaffected). */}
       {visible.has("clickBoost") && (
         <Button
+          tone="gem"
           onPress={onBuyClickBoost}
           disabled={!prestigeUnlocked || clickBoostMaxed || gems < clickBoostCost}
           title={
@@ -241,6 +251,7 @@ const PurchaseButtons = memo(function PurchaseButtons({
           a wrong answer / mine tap instead of losing it all. */}
       {visible.has("comboResist") && (
         <Button
+          tone="gem"
           onPress={onBuyComboResist}
           disabled={
             !prestigeUnlocked || comboResistMaxed || gems < comboResistCost
@@ -258,26 +269,54 @@ const PurchaseButtons = memo(function PurchaseButtons({
       {/* Tier-3 unlock (plan §4.1 "New Shaft"): reset the run for a permanent
           multiplier. Banked level is applied now; a higher level banks the
           moment lifetime minerals cross the next rung. Shown but locked until
-          Magma Frontier. */}
+          Magma Frontier. Consumes nothing — its own group, kept apart from
+          both currency rows so it can't be mistaken for a purchase. */}
       {visible.has("prestige") && (
-        <Button
-          onPress={onSinkNewShaft}
-          disabled={!prestigeUnlocked || !canBank}
-          title={
-            !prestigeUnlocked
-              ? `🔒 SINK NEW SHAFT (Magma Frontier)`
-              : canBank
-                ? `⛏️ SINK NEW SHAFT → ×${availableMult} (now ×${bankedMult})`
-                : nextLevel
-                  ? `⛏️ SINK NEW SHAFT ×${bankedMult} — need ${formatNumber(
-                      nextLevel.at,
-                    )} ${emojis.mineral} total for ×${nextLevel.multiplier}`
-                  : `⛏️ SINK NEW SHAFT ×${bankedMult} (MAX)`
-          }
-        />
+        <>
+          <PurchaseGroupHeader label="PRESTIGE" color="#ffaa44" />
+          <Button
+            onPress={onSinkNewShaft}
+            disabled={!prestigeUnlocked || !canBank}
+            title={
+              !prestigeUnlocked
+                ? `🔒 SINK NEW SHAFT (Magma Frontier)`
+                : canBank
+                  ? `⛏️ SINK NEW SHAFT → ×${availableMult} (now ×${bankedMult})`
+                  : nextLevel
+                    ? `⛏️ SINK NEW SHAFT ×${bankedMult} — need ${formatNumber(
+                        nextLevel.at,
+                      )} ${emojis.mineral} total for ×${nextLevel.multiplier}`
+                    : `⛏️ SINK NEW SHAFT ×${bankedMult} (MAX)`
+            }
+          />
+        </>
       )}
     </View>
   );
 });
+
+/** Small tinted divider labeling which currency a purchase group spends
+ *  (plan §2.1 "button hierarchy"). */
+function PurchaseGroupHeader({ label, color }: { label: string; color: string }) {
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        alignSelf: "stretch",
+        marginTop: 2,
+      }}
+    >
+      <View style={{ height: 1, flex: 1, backgroundColor: color, opacity: 0.5 }} />
+      <Text
+        style={{ color, fontSize: 11, fontWeight: "bold", userSelect: "none" }}
+      >
+        {label}
+      </Text>
+      <View style={{ height: 1, flex: 1, backgroundColor: color, opacity: 0.5 }} />
+    </View>
+  );
+}
 
 export default PurchaseButtons;

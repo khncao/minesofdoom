@@ -14,6 +14,7 @@ import ComboIndicator from "./components/ComboIndicator";
 import PurchaseButtons from "./components/PurchaseButtons";
 import MiningCanvas from "./components/MiningCanvas";
 import MenuPanel from "./components/MenuPanel";
+import SavePill from "./components/SavePill";
 import OnboardingOverlay from "./components/OnboardingOverlay";
 import DailyBonusButton from "./components/DailyBonusButton";
 import {
@@ -88,6 +89,7 @@ export default function MinesOfDoom() {
     depth,
     mineralsPerSec,
     saveGame,
+    saveDirty,
     addTapGain,
     applyAnswerReward,
     upgradePower,
@@ -391,6 +393,13 @@ export default function MinesOfDoom() {
 
   const handleMuteChange = useCallback((newVal: boolean) => setMute(newVal), [setMute]);
 
+  // Footer save pill (plan §2.1): saves immediately (autosave continues in
+  // the background) and confirms with a toast so the tap has feedback.
+  const handleSaveNow = useCallback(() => {
+    saveGame();
+    displayMessage("Game saved", 3000);
+  }, [saveGame, displayMessage]);
+
   // Save-code export/import (plan §4.3): the engine handles the state;
   // this layer only adds the toasts. The imported save persists via the
   // normal autosave / background-save path (saving immediately here would
@@ -502,6 +511,11 @@ export default function MinesOfDoom() {
             live inside it) plus the daily bonus; the freed space goes to
             the cave canvas (its flex absorbs the removed spacer). */}
         <View style={styles.footerRow}>
+          <SavePill
+            dirty={saveDirty}
+            reduceMotion={reduceMotion}
+            onSave={handleSaveNow}
+          />
           <MenuPanel
             settingsData={settingsData}
             onChangeSettingsData={handleSettingsDataChange}
