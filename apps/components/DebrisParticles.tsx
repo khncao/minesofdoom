@@ -1,11 +1,20 @@
 import React, { forwardRef, memo, useImperativeHandle, useRef, useState } from "react";
 import { Animated, StyleSheet } from "react-native";
+import {
+  DEBRIS_VARIANTS,
+  debrisSpriteUri,
+} from "apps/utils/graphics/pixelArt";
 
 export interface DebrisParticlesRef {
   trigger: () => void;
 }
 
-const PARTICLES = ["🪨", "🪨", "💫", "·", "·", "·"];
+// Pixel-shard sprites (plan §4.5) replacing the old emoji burst — each
+// variant is a cached PNG data URI shared by every particle that draws it.
+const DEBRIS_URIS: string[] = Array.from(
+  { length: DEBRIS_VARIANTS },
+  (_, i) => debrisSpriteUri(i),
+);
 const COUNT = 3;
 // Cap total live particles so rapid tapping can't stack unbounded
 // animations (which triggers "Excessive number of pending callbacks").
@@ -20,7 +29,7 @@ function makeParticle(id: number) {
   const dist = 40 + Math.random() * 40;
   return {
     id,
-    emoji: PARTICLES[Math.floor(Math.random() * PARTICLES.length)],
+    uri: DEBRIS_URIS[Math.floor(Math.random() * DEBRIS_URIS.length)],
     tx: Math.cos(angle) * dist,
     ty: Math.sin(angle) * dist - 20,
   };
@@ -35,7 +44,7 @@ const DebrisParticles = memo(
       ref,
     ) {
   const [particles, setParticles] = useState<
-    { id: number; emoji: string; tx: number; ty: number; anim: Animated.Value }[]
+    { id: number; uri: string; tx: number; ty: number; anim: Animated.Value }[]
   >([]);
   const idRef = useRef(0);
   const lastTriggerRef = useRef(0);
@@ -82,8 +91,9 @@ const DebrisParticles = memo(
   return (
     <>
       {particles.map((p) => (
-        <Animated.Text
+        <Animated.Image
           key={p.id}
+          source={{ uri: p.uri }}
           style={[
             styles.particle,
             {
@@ -95,9 +105,7 @@ const DebrisParticles = memo(
               ],
             },
           ]}
-        >
-          {p.emoji}
-        </Animated.Text>
+        />
       ))}
     </>
   );
@@ -110,7 +118,8 @@ export default DebrisParticles;
 const styles = StyleSheet.create({
   particle: {
     position: "absolute",
-    fontSize: 16,
+    width: 12,
+    height: 12,
     pointerEvents: "none",
   },
 });

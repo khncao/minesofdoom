@@ -1,10 +1,7 @@
-import { Text } from "react-native";
-
+// Text-only emoji constants used inline in button/label strings.
+// (Standalone currency icons are pixel sprites now — see `pixelArt.ts`:
+// `mineralChunkSpriteUri` / `gemSpriteUri`.)
 export const emojis = {
   gem: "💎",
   mineral: "🪨",
 };
-
-export const emojiText = (emoji: keyof typeof emojis) => (
-  <Text style={{ fontSize: 20, userSelect: "none" }}>{emojis[emoji]}</Text>
-);

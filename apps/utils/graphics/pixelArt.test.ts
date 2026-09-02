@@ -1,5 +1,8 @@
 import {
   adler32,
+  buildDebrisGrid,
+  buildGemGrid,
+  buildMineralChunkGrid,
   buildMinerGrid,
   crc32,
   gridToPngDataUri,
@@ -7,6 +10,10 @@ import {
   minerSpriteUri,
   mulberry32,
   pickaxeSpriteUri,
+  DEBRIS_VARIANTS,
+  debrisSpriteUri,
+  gemSpriteUri,
+  mineralChunkSpriteUri,
 } from "./pixelArt";
 
 const PREFIX = "data:image/png;base64,";
@@ -195,5 +202,60 @@ describe("sprite URIs", () => {
       const hasHat = grid.slice(0, 4).some((row) => row.includes(lookA.hat));
       expect(hasHat).toBe(true);
     }
+  });
+});
+
+describe("currency & debris sprites (§4.5)", () => {
+  test("mineral chunk: 12x12 rock with ore specks, valid PNG, cached", () => {
+    const uri = mineralChunkSpriteUri();
+    expect(uri).toBe(mineralChunkSpriteUri()); // cached
+    const { width, height, px } = decodePng(uri);
+    expect([width, height]).toEqual([12, 12]);
+    expect(px(0, 0)).toEqual([0, 0, 0, 0]); // transparent corner
+    expect(px(5, 3)).toEqual([0xe8, 0xc3, 0x3d, 255]); // gold ore speck
+    expect(px(4, 6)).toEqual([0xff, 0xf3, 0xb0, 255]); // ore glow speck
+    expect(px(4, 1)).toEqual([0x7a, 0x7a, 0x82, 255]); // rock base
+  });
+
+  test("gem: 12x12 faceted diamond, valid PNG, cached", () => {
+    const uri = gemSpriteUri();
+    expect(uri).toBe(gemSpriteUri());
+    const { width, height, px } = decodePng(uri);
+    expect([width, height]).toEqual([12, 12]);
+    expect(px(0, 0)).toEqual([0, 0, 0, 0]); // transparent corner
+    expect(px(4, 1)).toEqual([0x2b, 0x8f, 0xc0, 255]); // deep facet edge
+    expect(px(5, 5)).toEqual([0xff, 0xff, 0xff, 255]); // white glint
+    expect(px(6, 7)).toEqual([0x59, 0xc9, 0xf2, 255]); // base body
+  });
+
+  test("debris: all variants are distinct 6x6 sprites with valid PNGs", () => {
+    expect(DEBRIS_VARIANTS).toBe(3);
+    const uris: string[] = [];
+    for (let v = 0; v < DEBRIS_VARIANTS; v++) {
+      const uri = debrisSpriteUri(v);
+      expect(uri).toBe(debrisSpriteUri(v)); // cached per variant
+      uris.push(uri);
+      const { width, height, px } = decodePng(uri);
+      expect([width, height]).toEqual([6, 6]);
+      expect(px(0, 0)).toEqual([0, 0, 0, 0]);
+    }
+    expect(new Set(uris).size).toBe(DEBRIS_VARIANTS); // distinct images
+  });
+
+  test("debrisSpriteUri wraps/normalizes variants", () => {
+    expect(debrisSpriteUri(3)).toBe(debrisSpriteUri(0));
+    expect(debrisSpriteUri(-1)).toBe(debrisSpriteUri(DEBRIS_VARIANTS - 1));
+  });
+
+  test("grid builders return defensive copies", () => {
+    const a = buildMineralChunkGrid();
+    a[5][3] = "#ff00ff";
+    expect(buildMineralChunkGrid()[5][3]).not.toBe("#ff00ff");
+    const g1 = buildGemGrid();
+    g1[0][0] = "#ff00ff";
+    expect(buildGemGrid()[0][0]).not.toBe("#ff00ff");
+    const d = buildDebrisGrid(0);
+    d[2][2] = "#ff00ff";
+    expect(buildDebrisGrid(0)[2][2]).not.toBe("#ff00ff");
   });
 });

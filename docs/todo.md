@@ -89,9 +89,8 @@ Completed items are removed from this file (see git history); only remaining wor
 
 ### 4.5 Art: real animated sprites (replace emojis)
 
-Shipped: procedural pixel-art sprites for miners & pickaxes (`apps/utils/graphics/pixelArt.ts`, seeded cosmetic variants), plus the cave background as a memoized sprite tile layer (`apps/utils/graphics/caveTiles.ts` — per-tier 24px tile strips baked from the theme tint via the same runtime PNG pipeline, cached data URIs keyed by tint × tier × strip cycle; `CaveBackground` renders stretched `Image` rows over the existing native-driver scroll animation). Remaining:
+Shipped: procedural pixel-art sprites for miners & pickaxes (`apps/utils/graphics/pixelArt.ts`, seeded cosmetic variants), plus the cave background as a memoized sprite tile layer (`apps/utils/graphics/caveTiles.ts` — per-tier 24px tile strips baked from the theme tint via the same runtime PNG pipeline, cached data URIs keyed by tint × tier × strip cycle; `CaveBackground` renders stretched `Image` rows over the existing native-driver scroll animation). (Shipped: pixel sprites for mineral chunks, gems, and debris shards in `pixelArt.ts` (`mineralChunkSpriteUri` / `gemSpriteUri` / `debrisSpriteUri`, cached PNG data URIs) — the cave's currency display now draws chunk/gem sprites instead of the 🪨/💎 emoji, and `DebrisParticles` renders shard/spark `Animated.Image`s instead of emoji text. Plus a shared animation clock (`apps/utils/graphics/animationClock.ts` — one 1s native-driver 0→1 loop; each miner interpolates that single value with a deterministic seed-derived phase offset, so the whole roster idles from ONE frame driver instead of N independent animations, and `Miner`'s idle bob is suppressed under the OS reduce-motion preference). Remaining:
 
-- **Mineral chunk / gem / debris shard sprites** and a shared animation clock for miners.
 - Optional: `EMOJI_ART` fallback setting for low-end devices.
 
 ### 4.6 Overarching goals

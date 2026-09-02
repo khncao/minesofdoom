@@ -333,6 +333,106 @@ export function buildPickaxeGrid(theme: PickaxeThemeDef): PixelGrid {
 }
 
 // ---------------------------------------------------------------------------
+// Mineral chunk, gem & debris shard sprites (plan §4.5)
+// ---------------------------------------------------------------------------
+
+const ROCK_BASE = "#7a7a82";
+const ROCK_DARK = "#56565e";
+const ROCK_LIGHT = "#9a9aa4";
+const ORE_GOLD = "#e8c33d";
+const ORE_GLOW = "#fff3b0";
+
+const GEM_DEEP = "#2b8fc0";
+const GEM_BASE = "#59c9f2";
+const GEM_LIGHT = "#bdeeff";
+const GEM_WHITE = "#ffffff";
+
+const DEBRIS_LIGHT = "#8a8a92";
+const DEBRIS_LIGHT_HI = "#b6b6c0";
+const DEBRIS_DARK = "#56565e";
+const DEBRIS_DARK_HI = "#7a7a82";
+const SPARK = "#fff3b0";
+
+const N: Pixel = null;
+
+/** Irregular rock blob with gold ore specks — the cave display's stand-in for 🪨. */
+const MINERAL_CHUNK_ROWS: Pixel[][] = [
+  [N, N, N, N, N, N, N, N, N, N, N, N],
+  [N, N, N, N, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, N, N, N, N],
+  [N, N, N, ROCK_LIGHT, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, N, N, N],
+  [N, N, ROCK_BASE, ROCK_BASE, ROCK_BASE, ORE_GOLD, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, N, N],
+  [N, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, N, N],
+  [N, ROCK_BASE, ROCK_BASE, ORE_GOLD, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, N],
+  [N, ROCK_BASE, ROCK_BASE, ROCK_BASE, ORE_GLOW, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, N, N],
+  [N, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ORE_GOLD, ROCK_BASE, N, N],
+  [N, ROCK_DARK, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, N, N, N],
+  [N, N, ROCK_DARK, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_DARK, N, N, N, N],
+  [N, N, N, ROCK_DARK, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, N, N, N, N],
+  [N, N, N, N, ROCK_DARK, ROCK_BASE, ROCK_BASE, N, N, N, N, N],
+];
+
+/** Faceted diamond — the stand-in for 💎. */
+const GEM_ROWS: Pixel[][] = [
+  [N, N, N, N, N, N, N, N, N, N, N, N],
+  [N, N, N, N, GEM_DEEP, GEM_DEEP, GEM_DEEP, GEM_DEEP, N, N, N, N],
+  [N, N, N, GEM_DEEP, GEM_BASE, GEM_LIGHT, GEM_BASE, GEM_BASE, GEM_DEEP, N, N, N],
+  [N, N, GEM_DEEP, GEM_BASE, GEM_LIGHT, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_DEEP, N, N],
+  [N, GEM_DEEP, GEM_BASE, GEM_LIGHT, GEM_BASE, GEM_BASE, GEM_BASE, GEM_LIGHT, GEM_BASE, GEM_DEEP, N, N],
+  [N, GEM_BASE, GEM_LIGHT, GEM_BASE, GEM_BASE, GEM_WHITE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_DEEP, N],
+  [GEM_DEEP, GEM_BASE, GEM_BASE, GEM_BASE, GEM_WHITE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, N],
+  [N, GEM_DEEP, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_DEEP, N],
+  [N, N, GEM_DEEP, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_DEEP, N, N, N],
+  [N, N, N, GEM_DEEP, GEM_BASE, GEM_BASE, GEM_BASE, GEM_DEEP, N, N, N, N],
+  [N, N, N, N, GEM_DEEP, GEM_BASE, GEM_BASE, GEM_DEEP, N, N, N, N],
+  [N, N, N, N, N, N, N, N, N, N, N, N],
+];
+
+function shardRows(primary: Pixel, hi: Pixel): Pixel[][] {
+  return [
+    [N, N, N, N, N, N],
+    [N, primary, primary, N, N, N],
+    [primary, primary, hi, primary, N, N],
+    [N, primary, primary, N, N, N],
+    [N, N, primary, hi, N, N],
+    [N, N, N, primary, N, N],
+  ];
+}
+
+/** Debris burst sprites: two rock-shard palettes + a four-point spark. */
+const DEBRIS_ROWS: Pixel[][][] = [
+  shardRows(DEBRIS_LIGHT, DEBRIS_LIGHT_HI),
+  shardRows(DEBRIS_DARK, DEBRIS_DARK_HI),
+  [
+    [N, N, SPARK, N, N, N],
+    [N, N, SPARK, N, N, N],
+    [SPARK, SPARK, GEM_WHITE, SPARK, SPARK, SPARK],
+    [N, N, SPARK, N, N, N],
+    [N, N, SPARK, N, N, N],
+    [N, N, SPARK, N, N, N],
+  ],
+];
+
+/** How many distinct debris sprites exist (index space for `debrisSpriteUri`). */
+export const DEBRIS_VARIANTS = DEBRIS_ROWS.length;
+
+/** Defensive copy so callers can't mutate the canonical row tables. */
+function copyRows(rows: Pixel[][]): PixelGrid {
+  return rows.map((r) => [...r]);
+}
+
+export function buildMineralChunkGrid(): PixelGrid {
+  return copyRows(MINERAL_CHUNK_ROWS);
+}
+
+export function buildGemGrid(): PixelGrid {
+  return copyRows(GEM_ROWS);
+}
+
+export function buildDebrisGrid(variant: number): PixelGrid {
+  return copyRows(DEBRIS_ROWS[variant] ?? DEBRIS_ROWS[0]);
+}
+
+// ---------------------------------------------------------------------------
 // Caching
 // ---------------------------------------------------------------------------
 
@@ -340,6 +440,9 @@ export function buildPickaxeGrid(theme: PickaxeThemeDef): PixelGrid {
 // variant sharing one string (and one decoded image).
 const minerCache = new Map<string, string>();
 const pickaxeCache = new Map<string, string>();
+let mineralChunkUri: string | null = null;
+let gemUri: string | null = null;
+const debrisCache = new Map<number, string>();
 
 export function minerSpriteUri(look: MinerLook): string {
   const key = JSON.stringify(look);
@@ -357,6 +460,30 @@ export function pickaxeSpriteUri(theme: PickaxeThemeDef): string {
   if (uri == null) {
     uri = gridToPngDataUri(buildPickaxeGrid(theme));
     pickaxeCache.set(key, uri);
+  }
+  return uri;
+}
+
+export function mineralChunkSpriteUri(): string {
+  if (mineralChunkUri == null) {
+    mineralChunkUri = gridToPngDataUri(buildMineralChunkGrid());
+  }
+  return mineralChunkUri;
+}
+
+export function gemSpriteUri(): string {
+  if (gemUri == null) {
+    gemUri = gridToPngDataUri(buildGemGrid());
+  }
+  return gemUri;
+}
+
+export function debrisSpriteUri(variant: number): string {
+  const key = ((variant % DEBRIS_VARIANTS) + DEBRIS_VARIANTS) % DEBRIS_VARIANTS;
+  let uri = debrisCache.get(key);
+  if (uri == null) {
+    uri = gridToPngDataUri(buildDebrisGrid(key));
+    debrisCache.set(key, uri);
   }
   return uri;
 }

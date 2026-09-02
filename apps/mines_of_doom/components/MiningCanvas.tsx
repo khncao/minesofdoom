@@ -1,5 +1,5 @@
 import { memo, MutableRefObject, RefObject, useRef } from "react";
-import { Text, View } from "react-native";
+import { Image, Text, View } from "react-native";
 import Miner from "./Miner";
 import DebrisParticles, {
   DebrisParticlesRef,
@@ -9,10 +9,16 @@ import CaveBackground from "apps/components/CaveBackground";
 import FloatingTextLayer, {
   FloatingTextRef,
 } from "./FloatingTextLayer";
-import { emojiText } from "apps/utils/graphics/emojis";
 import { formatNumber } from "apps/utils/format";
+import { gemSpriteUri, mineralChunkSpriteUri } from "apps/utils/graphics/pixelArt";
 import { rosterSeed } from "../cosmetics";
 import { styles } from "../styles";
+
+// Pixel-art currency icons (plan §4.5), cached PNG data URIs — replaces the
+// old 🪨/💎 emoji display. Module-level so the strings are built once.
+const MINERAL_URI = mineralChunkSpriteUri();
+const GEM_URI = gemSpriteUri();
+const CURRENCY_ICON = { width: 20, height: 20 };
 
 /**
  * Minimum press duration for a cave press to count as a mine (plan §2.1
@@ -94,13 +100,13 @@ const MiningCanvas = memo(function MiningCanvas({
       <FloatingTextLayer ref={floatingTextRef} />
       <View style={{ alignItems: "center" }}>
         <View style={styles.flexCenteredRow}>
-          {emojiText("mineral")}
+          <Image source={{ uri: MINERAL_URI }} style={CURRENCY_ICON} />
           <Text style={{ ...styles.text, alignSelf: "center" }}>
             {formatNumber(minerals)}
           </Text>
         </View>
         <View style={styles.flexCenteredRow}>
-          {emojiText("gem")}
+          <Image source={{ uri: GEM_URI }} style={CURRENCY_ICON} />
           <Text style={{ ...styles.text, alignSelf: "center" }}>
             {formatNumber(gems)}
           </Text>
@@ -114,6 +120,7 @@ const MiningCanvas = memo(function MiningCanvas({
             seed={playerSeed}
             outfitId={outfitId}
             pickaxeId={pickaxeId}
+            reduceMotion={reduceMotion}
           />
           <DebrisParticles ref={debrisRef} reduceMotion={reduceMotion} />
           <BlockBreak ref={blockBreakRef} />
@@ -133,6 +140,7 @@ const MiningCanvas = memo(function MiningCanvas({
               seed={rosterSeed(playerSeed, idx)}
               outfitId={outfitId}
               pickaxeId={pickaxeId}
+              reduceMotion={reduceMotion}
             />
           ))}
           {/* Fast miners: smaller, seed offset by 1000 so their sprite
@@ -145,6 +153,7 @@ const MiningCanvas = memo(function MiningCanvas({
               seed={rosterSeed(playerSeed, 1000 + idx)}
               outfitId={outfitId}
               pickaxeId={pickaxeId}
+              reduceMotion={reduceMotion}
             />
           ))}
           {/* Legendary miners (tier-5 endgame): the premium crew, seed
@@ -158,6 +167,7 @@ const MiningCanvas = memo(function MiningCanvas({
               seed={rosterSeed(playerSeed, 2000 + idx)}
               outfitId={outfitId}
               pickaxeId={pickaxeId}
+              reduceMotion={reduceMotion}
             />
           ))}
         </View>

@@ -3,6 +3,7 @@ import { Animated, Image } from "react-native";
 import { Context } from "../Context";
 import { getPickaxe, rollMinerLook } from "../cosmetics";
 import { minerSpriteUri, pickaxeSpriteUri } from "apps/utils/graphics/pixelArt";
+import { clockPhase, getSharedClock } from "apps/utils/graphics/animationClock";
 
 export interface MinerProps {
   animateRef?: MutableRefObject<() => void>;
@@ -14,11 +15,20 @@ export interface MinerProps {
   seed: number;
   outfitId: string;
   pickaxeId: string;
+  /** OS reduce-motion preference: suppresses the idle bob. */
+  reduceMotion?: boolean;
 }
 
 // Minimum time between pickaxe swings so fast tapping doesn't queue up
 // unbounded animations (which triggers "Excessive number of pending callbacks").
 const MIN_PICKAXE_INTERVAL = 100;
+
+// Idle-bob amplitude (px) and bump width (share of the 1s clock cycle).
+// The bump is centered at 0.25 + 0.5*phase so its [center-0.25, center+0.25]
+// window always fits inside [0, 1] — no wrap-around, so a single plain
+// interpolate (which needs an increasing inputRange) is enough.
+const BOB_AMPLITUDE = -2;
+const BOB_WINDOW = 0.25;
 
 function Miner({ scale = 1, ...props }: MinerProps) {
   const appContext = useContext(Context);
@@ -71,6 +81,21 @@ function Miner({ scale = 1, ...props }: MinerProps) {
     outputRange: ["0deg", "90deg"],
   });
 
+  // Idle bob from the shared animation clock (plan §4.5): one 1s loop drives
+  // every miner; each gets a deterministic phase from its seed so the roster
+  // sways as a wave instead of moving in lockstep. Null under reduce-motion.
+  const bob = useMemo(() => {
+    if (props.reduceMotion) {
+      return null;
+    }
+    const clock = getSharedClock();
+    const center = 0.25 + 0.5 * clockPhase(props.seed, 17);
+    return clock.interpolate({
+      inputRange: [center - BOB_WINDOW, center, center + BOB_WINDOW],
+      outputRange: [0, BOB_AMPLITUDE, 0],
+    });
+  }, [props.seed, props.reduceMotion]);
+
   if (props.animateRef != null) {
     props.animateRef.current = pickaxeAnimate;
   }
@@ -104,7 +129,10 @@ function Miner({ scale = 1, ...props }: MinerProps) {
     <Animated.View
       style={{
         alignItems: "center",
-        transform: [{ translateY: bounceAnim }, { scale }],
+        transform:
+          bob == null
+            ? [{ translateY: bounceAnim }, { scale }]
+            : [{ translateY: bob }, { translateY: bounceAnim }, { scale }],
       }}
     >
       <Image
