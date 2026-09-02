@@ -44,17 +44,17 @@ export function createGrid(width: number, height: number): PixelGrid {
   );
 }
 
-function setPixel(grid: PixelGrid, x: number, y: number, color: Pixel): void {
+export function setPixel(grid: PixelGrid, x: number, y: number, color: Pixel): void {
   if (y >= 0 && y < grid.length && x >= 0 && x < grid[0].length) {
     grid[y][x] = color;
   }
 }
 
-function hline(grid: PixelGrid, x0: number, x1: number, y: number, color: Pixel): void {
+export function hline(grid: PixelGrid, x0: number, x1: number, y: number, color: Pixel): void {
   for (let x = x0; x <= x1; x++) setPixel(grid, x, y, color);
 }
 
-function hexToRgb(hex: string): [number, number, number] {
+export function hexToRgb(hex: string): [number, number, number] {
   const h = hex.startsWith("#") ? hex.slice(1) : hex;
   return [
     parseInt(h.slice(0, 2), 16),

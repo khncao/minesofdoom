@@ -1,32 +1,19 @@
-import React, { useEffect, useRef } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useMemo, useRef } from "react";
+import { Animated, Image, StyleSheet, View } from "react-native";
+import { caveRowUri } from "apps/utils/graphics/caveTiles";
 
 const TILE_HEIGHT = 24;
-const COLS = 20;
-
-// Row templates by depth band (bands line up with DEPTH_TIERS in game.ts:
-// rock below 10m, gems 10–49m, sparkles from 50m).
-function buildRow(depth: number, rowIdx: number): string {
-  const seed = depth * 1000 + rowIdx;
-  const pseudo = (n: number) => Math.abs(Math.sin(seed * 9301 + n * 49297 + 233995)) % 1;
-  const chars = Array.from({ length: COLS }, (_, c) => {
-    const v = pseudo(c);
-    if (depth < 10) {
-      return v < 0.06 ? "🪨" : v < 0.1 ? "·" : " ";
-    } else if (depth < 50) {
-      return v < 0.08 ? "💎" : v < 0.15 ? "🪨" : v < 0.2 ? "·" : " ";
-    } else {
-      return v < 0.05 ? "✨" : v < 0.12 ? "💎" : v < 0.2 ? "🪨" : v < 0.25 ? "·" : " ";
-    }
-  });
-  return chars.join("");
-}
-
 const ROWS = 12;
 
+/**
+ * Cave background (plan §4.5): each row is a pre-rendered tile strip
+ * (`caveTiles.ts`) stretched to full width. Strips are memoized PNG data URIs
+ * keyed by (tint, depth band, row cycle position), so a depth change only
+ * swaps cached `<Image>` sources — no per-frame React or PNG work.
+ */
 interface CaveBackgroundProps {
   depth: number;
-  /** Tint for the current depth tier (DEPTH_TIERS in game.ts). */
+  /** Tint for the current depth tier (theme-aware, see `cosmetics.ts`). */
   tint?: string;
 }
 
@@ -59,10 +46,13 @@ function CaveBackground({ depth, tint = "#a0856a" }: CaveBackgroundProps) {
     [],
   );
 
-  const rows = Array.from({ length: ROWS + 1 }, (_, i) => {
-    const rowDepth = depth + i;
-    return buildRow(rowDepth, i);
-  });
+  const rows = useMemo(
+    () =>
+      Array.from({ length: ROWS + 1 }, (_, i) =>
+        caveRowUri({ depth: depth + i, tint }),
+      ),
+    [depth, tint],
+  );
 
   const translateY = scrollAnim.interpolate({
     inputRange: [-1e6, 1e6],
@@ -72,10 +62,13 @@ function CaveBackground({ depth, tint = "#a0856a" }: CaveBackgroundProps) {
   return (
     <View style={styles.container} pointerEvents="none">
       <Animated.View style={{ transform: [{ translateY }] }}>
-        {rows.map((row, i) => (
-          <Text key={i} style={{ ...styles.row, color: tint }}>
-            {row}
-          </Text>
+        {rows.map((uri, i) => (
+          <Image
+            key={i}
+            source={{ uri }}
+            style={styles.row}
+            resizeMode="stretch"
+          />
         ))}
       </Animated.View>
     </View>
@@ -91,10 +84,7 @@ const styles = StyleSheet.create({
     opacity: 0.35,
   },
   row: {
+    width: "100%",
     height: TILE_HEIGHT,
-    fontSize: 14,
-    fontFamily: "monospace",
-    color: "#a0856a",
-    letterSpacing: 2,
   },
 });

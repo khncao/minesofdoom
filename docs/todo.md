@@ -89,9 +89,8 @@ Completed items are removed from this file (see git history); only remaining wor
 
 ### 4.5 Art: real animated sprites (replace emojis)
 
-Shipped: procedural pixel-art sprites for miners & pickaxes (`apps/utils/graphics/pixelArt.ts`, seeded cosmetic variants). Remaining:
+Shipped: procedural pixel-art sprites for miners & pickaxes (`apps/utils/graphics/pixelArt.ts`, seeded cosmetic variants), plus the cave background as a memoized sprite tile layer (`apps/utils/graphics/caveTiles.ts` — per-tier 24px tile strips baked from the theme tint via the same runtime PNG pipeline, cached data URIs keyed by tint × tier × strip cycle; `CaveBackground` renders stretched `Image` rows over the existing native-driver scroll animation). Remaining:
 
-- **Cave background** is still a text-grid `CaveBackground` (tier-tinted) — replace with a real tile layer (Skia or memoized sprite grid); the §4.5 Skia/sprite-sheet approach was not adopted.
 - **Mineral chunk / gem / debris shard sprites** and a shared animation clock for miners.
 - Optional: `EMOJI_ART` fallback setting for low-end devices.
 
