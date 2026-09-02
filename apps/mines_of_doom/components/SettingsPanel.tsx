@@ -1,5 +1,5 @@
-import { memo, useMemo, type ComponentProps } from "react";
-import { Switch, Text, View } from "react-native";
+import { memo, useMemo, useState, type ComponentProps } from "react";
+import { Switch, Text, TextInput, View } from "react-native";
 import Button from "apps/components/Button";
 import ConfirmableButton from "apps/components/ConfirmableButton";
 import IntegerInput from "apps/components/IntegerInput";
@@ -48,6 +48,8 @@ const SettingsContent = memo(function SettingsContent({
   showMessage,
   onSave,
   onReset,
+  onExportSaveCode,
+  onImportSaveCode,
   cosmetics,
   hardModeUnlocked,
 }: {
@@ -58,11 +60,17 @@ const SettingsContent = memo(function SettingsContent({
   showMessage: string | null;
   onSave: () => void;
   onReset: () => void;
+  /** Plan §4.3: returns the current save as a shareable base64 code. */
+  onExportSaveCode: () => string;
+  /** Plan §4.3: imports a save code; returns false (and toasts) on failure. */
+  onImportSaveCode: (code: string) => boolean;
   cosmetics: ComponentProps<typeof CosmeticsSection>;
   /** Tier-5 (Motherlode) complete → the switch is live, otherwise it
    *  renders locked (visible-but-locked, plan §4.6). */
   hardModeUnlocked: boolean;
 }) {
+  const [exportedCode, setExportedCode] = useState<string | null>(null);
+  const [importCode, setImportCode] = useState("");
   return (
     <View style={{ gap: 2, marginTop: 5 }}>
       <IntegerInput
@@ -153,6 +161,48 @@ const SettingsContent = memo(function SettingsContent({
         </View>
       </Tooltip>
       <CosmeticsSection {...cosmetics} />
+      <View style={{ gap: 6, marginTop: 10 }}>
+        <Text style={{ ...styles.text, fontWeight: "bold" }}>
+          Save code (backup / share)
+        </Text>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
+          <Button title="Export code" onPress={() => setExportedCode(onExportSaveCode())} />
+          <Button
+            title="Import code"
+            disabled={importCode.trim().length === 0}
+            onPress={() => {
+              // Toasts (valid/invalid) come from the handler; on success
+              // clear the field so it can't be re-imported by accident.
+              if (onImportSaveCode(importCode)) setImportCode("");
+            }}
+          />
+        </View>
+        {exportedCode != null && (
+          // Kept editable (with a no-op onChange) so the user can
+          // long-press to select + copy; the value can't actually change.
+          <TextInput
+            value={exportedCode}
+            onChangeText={() => {}}
+            multiline
+            numberOfLines={3}
+            style={styles.saveCodeInput}
+            accessibilityLabel="Your save code — select to copy"
+          />
+        )}
+        <TextInput
+          value={importCode}
+          onChangeText={setImportCode}
+          multiline
+          numberOfLines={3}
+          placeholder="Paste a save code to import it"
+          placeholderTextColor="#999"
+          style={styles.saveCodeInput}
+        />
+        <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+          Export gives you a code to copy and share; importing a code
+          replaces your current save with the one in the code.
+        </Text>
+      </View>
       <View
         style={{
           ...styles.flexCenteredRow,
@@ -182,6 +232,8 @@ const SettingsPanel = ({
   showMessage,
   onSave,
   onReset,
+  onExportSaveCode,
+  onImportSaveCode,
   cosmetics,
   mute,
   onMuteChange,
@@ -194,6 +246,8 @@ const SettingsPanel = ({
   showMessage: string | null;
   onSave: () => void;
   onReset: () => void;
+  onExportSaveCode: () => string;
+  onImportSaveCode: (code: string) => boolean;
   cosmetics: ComponentProps<typeof CosmeticsSection>;
   mute: boolean;
   onMuteChange: (newVal: boolean) => void;
@@ -211,6 +265,8 @@ const SettingsPanel = ({
         showMessage={showMessage}
         onSave={onSave}
         onReset={onReset}
+        onExportSaveCode={onExportSaveCode}
+        onImportSaveCode={onImportSaveCode}
         cosmetics={cosmetics}
         hardModeUnlocked={hardModeUnlocked}
       />
@@ -223,6 +279,8 @@ const SettingsPanel = ({
       onChangeEquationSettings,
       onSave,
       onReset,
+      onExportSaveCode,
+      onImportSaveCode,
       cosmetics,
       hardModeUnlocked,
     ],

@@ -23,6 +23,22 @@ export const styles = StyleSheet.create({
     borderColor: "white",
     borderWidth: 1,
   },
+  // Save-code fields (plan §4.3): small monospace-ish boxes. The exported
+  // code must stay user-selectable (long-press to copy), unlike the rest
+  // of the UI's userSelect: "none" text.
+  saveCodeInput: {
+    flex: 1,
+    textAlign: "center",
+    borderColor: "#555",
+    borderWidth: 1,
+    borderRadius: 5,
+    minHeight: 56,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    fontSize: 11,
+    color: "#8fbf8f",
+    userSelect: "auto",
+  },
   flexCenteredRow: {
     flexDirection: "row",
     justifyContent: "center",

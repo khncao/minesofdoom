@@ -11,6 +11,10 @@ Completed items are removed from this file (see git history); only remaining wor
 
 - [ ] Redesign purchaseable buttons so they don't take up the whole screen. Make them hideable/toggleable. Only show purchaseable when lifetime ever reached condition to purchase by default (allow certain options to always be visible)
 - [ ] Fix lag and queued taps when tapping quickly (note: `useMineTaps` already batches rapid taps into a 20Hz state flush)
+- [ ] Fix ReferenceError: Property 'describe' doesn't exist, js engine: hermes on Android
+- [ ] Add FlatList or ScrollView wherever there are a lot of elements such as purchaseables, progress tracker (not appearing), settings, etc.
+- [ ] Daily bonus can be clicked unlimited times on Android
+- [ ] Update UI/UX: footer is too big, footer icons are not uniform size and alignment, cave canvas should take up as much screen space as possible. Instead of a footer, change the settings button to a menu button and the settings menu should now contain the other buttons (except daily reward)
 
 ## Stability (§6.2)
 
@@ -71,12 +75,14 @@ Completed items are removed from this file (see git history); only remaining wor
 ### 4.2 Gameplay variety
 
 - **Equation modes.** Timed mode (answer within X seconds for bonus) and streak mode (no wrong answers allowed, high reward) are still open — hard mode (3-term equations, ×2 payout) shipped.
-- **Daily bonus / login streak.** Small mineral grant per day played; streak multiplier.
+
+(Daily bonus / login streak shipped in `dailyBonus.ts` + `useDailyBonus` — 🎁 button next to the goals panel, streak-capped at ×7, persisted in its own `dailyBonus` storage key.)
 
 ### 4.3 Meta / social
 
 - **Leaderboard** (optional, needs a backend or integrate with app store cloud features): depth reached, minerals/sec.
-- **Shareable save codes.** Encode save as a short base64 string for sharing/import (also enables backup without cloud).
+
+(Shareable save codes shipped in `saveCode.ts` — settings panel export/import, `MOD1.`-prefixed base64, decoded through the same migration pipeline as the storage loader.)
 
 ### 4.4 Platform
 

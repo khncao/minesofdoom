@@ -9,8 +9,8 @@ import {
   CLICK_BOOST_MAX_LEVELS,
   COMBO_RESIST_MAX_LEVELS,
   GEM_CHANCE_MAX_LEVELS,
-  PRESTIGE_LEVELS,
   SaveData,
+  buildSaveData,
   computeOfflineMinerals,
   createEmptySaveData,
   gemMineralCost,
@@ -35,24 +35,11 @@ import {
   msPerTick,
   rollGem,
   saveDataKey,
-  saveVersion,
 } from "../game";
 import { getAchievementBonus } from "../achievements";
 import { getTierBonus } from "../goals";
-import {
-  DEFAULT_OWNED,
-  DEFAULT_OUTFIT,
-  DEFAULT_PICKAXE,
-  DEFAULT_OWNED_CAVE_THEMES,
-  DEFAULT_CAVE_THEME,
-  OUTFITS,
-  PICKAXES,
-  getCaveThemeCost,
-  getCostGems,
-  isCaveThemeId,
-  isOutfitId,
-  isPickaxeId,
-} from "../cosmetics";
+import { getCaveThemeCost, getCostGems, isOutfitId, isPickaxeId } from "../cosmetics";
+import { decodeSaveCode, encodeSaveCode } from "../saveCode";
 
 export function useGameEngine(
   displayMessage: (message: string, timeout: number) => void,
@@ -126,103 +113,12 @@ export function useGameEngine(
         return finish(null, 0);
       }
 
-      // Run versioned migrations first, then build the save field by field
-      // (no blind spread) so fields removed in updates (e.g. the old "tick")
-      // are dropped on the next save instead of lingering forever, and reject
-      // non-finite numbers so a bad save can't poison the loop with NaN.
-      // Fallbacks mirror createEmptySaveData so older saves missing newer
-      // fields still load correctly.
+      // Run versioned migrations, then build the save defensively (see
+      // buildSaveData in game.ts; shared with the save-code importer so
+      // both entry points validate identically).
       const migrated = migrateSaveData(parsed as Record<string, unknown>);
-      const num = (v: unknown, fallback: number) =>
-        typeof v === "number" && Number.isFinite(v) ? v : fallback;
       const now = Date.now();
-      const saveData: SaveData = {
-        minerals: num(migrated.minerals, 0),
-        gems: num(migrated.gems, 0),
-        clickPower: num(migrated.clickPower, 1),
-        miners: num(migrated.miners, 0),
-        minerPower: num(migrated.minerPower, 1),
-        fastMiners: Math.max(0, Math.floor(num(migrated.fastMiners, 0))),
-        legendaryMiners: Math.max(0, Math.floor(num(migrated.legendaryMiners, 0))),
-        gemChanceLevels: Math.min(
-          GEM_CHANCE_MAX_LEVELS,
-          Math.max(0, Math.floor(num(migrated.gemChanceLevels, 0))),
-        ),
-        prestigeLevel: Math.min(
-          PRESTIGE_LEVELS.length - 1,
-          Math.max(0, Math.floor(num(migrated.prestigeLevel, 0))),
-        ),
-        clickBoostLevels: Math.min(
-          CLICK_BOOST_MAX_LEVELS,
-          Math.max(0, Math.floor(num(migrated.clickBoostLevels, 0))),
-        ),
-        comboResistLevels: Math.min(
-          COMBO_RESIST_MAX_LEVELS,
-          Math.max(0, Math.floor(num(migrated.comboResistLevels, 0))),
-        ),
-        startTime: num(migrated.startTime, now),
-        saveTime: num(migrated.saveTime, now),
-        saveVersion: num(migrated.saveVersion, saveVersion),
-        lifetimeMinerals: num(migrated.lifetimeMinerals, 0),
-        lifetimeCorrect: num(migrated.lifetimeCorrect, 0),
-        maxCombo: num(migrated.maxCombo, 0),
-        maxDepth: num(migrated.maxDepth, 0),
-        minersOwnedEver: num(migrated.minersOwnedEver, 0),
-        totalGemsMinted: num(migrated.totalGemsMinted, 0),
-        totalGemsSpent: num(migrated.totalGemsSpent, 0),
-        totalPrestiges: num(migrated.totalPrestiges, 0),
-        completedTiers: Array.isArray(migrated.completedTiers)
-          ? migrated.completedTiers.filter((t): t is string =>
-              typeof t === "string",
-            )
-          : [],
-        completedAchievements: Array.isArray(migrated.completedAchievements)
-          ? migrated.completedAchievements.filter(
-              (c): c is string => typeof c === "string",
-            )
-          : [],
-        playerSeed: num(migrated.playerSeed, 12345),
-        // Always keep the free defaults owned; drop unknown ids.
-        ownedCosmetics: [
-          ...new Set([
-            ...DEFAULT_OWNED,
-            ...(Array.isArray(migrated.ownedCosmetics)
-              ? migrated.ownedCosmetics.filter(
-                  (c): c is string =>
-                    typeof c === "string" &&
-                    (isOutfitId(c) || isPickaxeId(c)),
-                )
-              : []),
-          ]),
-        ],
-        selectedOutfit:
-          typeof migrated.selectedOutfit === "string" &&
-          OUTFITS.some((o) => o.id === migrated.selectedOutfit)
-            ? migrated.selectedOutfit
-            : DEFAULT_OUTFIT,
-        selectedPickaxe:
-          typeof migrated.selectedPickaxe === "string" &&
-          PICKAXES.some((p) => p.id === migrated.selectedPickaxe)
-            ? migrated.selectedPickaxe
-            : DEFAULT_PICKAXE,
-        // Always keep the free default cave theme owned; drop unknown ids.
-        ownedCaveThemes: [
-          ...new Set([
-            ...DEFAULT_OWNED_CAVE_THEMES,
-            ...(Array.isArray(migrated.ownedCaveThemes)
-              ? migrated.ownedCaveThemes.filter(
-                  (c): c is string =>
-                    typeof c === "string" && isCaveThemeId(c),
-                )
-              : []),
-          ]),
-        ],
-        selectedCaveTheme:
-          typeof migrated.selectedCaveTheme === "string" &&
-          isCaveThemeId(migrated.selectedCaveTheme)
-            ? migrated.selectedCaveTheme
-            : DEFAULT_CAVE_THEME,
-      };
+      const saveData = buildSaveData(migrated, now);
 
       const offlineMinerals = computeOfflineMinerals(
         saveData.miners,
@@ -657,6 +553,37 @@ export function useGameEngine(
     });
   }, []);
 
+  // Shareable save code (plan §4.3): the whole save serialized to a
+  // base64 string. Export reads the latest state from the ref so the
+  // callback stays stable; import validates through the same defensive
+  // builder the storage loader uses, and pays out the imported save's
+  // offline earnings up front (like a cold load would on next launch).
+  const exportSaveCode = useCallback((): string => {
+    return encodeSaveCode(gameStateRef.current);
+  }, []);
+
+  const importSaveCode = useCallback((code: string): boolean => {
+    if (!loadedRef.current) return false;
+    const now = Date.now();
+    const decoded = decodeSaveCode(code, now);
+    if (decoded == null) return false;
+    const offline = computeOfflineMinerals(
+      decoded.miners,
+      decoded.minerPower,
+      decoded.fastMiners,
+      decoded.saveTime,
+      now,
+      getPrestigeMultiplier(decoded.prestigeLevel),
+      decoded.legendaryMiners,
+    );
+    setGameState({
+      ...decoded,
+      minerals: decoded.minerals + offline,
+      lifetimeMinerals: decoded.lifetimeMinerals + offline,
+    });
+    return true;
+  }, []);
+
   const resetGame = useCallback(() => {
     setGameState(createEmptySaveData());
     // Clear async first; the next periodic save rewrites a fresh state, so
@@ -698,5 +625,7 @@ export function useGameEngine(
     selectCaveTheme,
     sinkNewShaft,
     resetGame,
+    exportSaveCode,
+    importSaveCode,
   };
 }

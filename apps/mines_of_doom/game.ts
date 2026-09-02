@@ -7,6 +7,8 @@ import {
   OUTFITS,
   PICKAXES,
   isCaveThemeId,
+  isOutfitId,
+  isPickaxeId,
 } from "./cosmetics";
 import { Equation, Ops } from "apps/utils/math/equations";
 
@@ -253,6 +255,110 @@ const migrations: Record<
     };
   },
 };
+
+/**
+ * Build a current-version SaveData from a migrated parsed record, field by
+ * field (no blind spread) so fields removed in updates are dropped on the
+ * next save instead of lingering forever, and non-finite numbers can't
+ * poison the loop with NaN. Fallbacks mirror createEmptySaveData so older
+ * saves missing newer fields still load correctly. Used by the engine's
+ * loader and by the save-code importer (saveCode.ts), so the two entry
+ * points can't drift apart in how they validate a save.
+ */
+export function buildSaveData(
+  migrated: Record<string, unknown>,
+  now: number,
+): SaveData {
+  const num = (v: unknown, fallback: number) =>
+    typeof v === "number" && Number.isFinite(v) ? v : fallback;
+  return {
+    minerals: num(migrated.minerals, 0),
+    gems: num(migrated.gems, 0),
+    clickPower: num(migrated.clickPower, 1),
+    miners: num(migrated.miners, 0),
+    minerPower: num(migrated.minerPower, 1),
+    fastMiners: Math.max(0, Math.floor(num(migrated.fastMiners, 0))),
+    legendaryMiners: Math.max(0, Math.floor(num(migrated.legendaryMiners, 0))),
+    gemChanceLevels: Math.min(
+      GEM_CHANCE_MAX_LEVELS,
+      Math.max(0, Math.floor(num(migrated.gemChanceLevels, 0))),
+    ),
+    prestigeLevel: Math.min(
+      PRESTIGE_LEVELS.length - 1,
+      Math.max(0, Math.floor(num(migrated.prestigeLevel, 0))),
+    ),
+    clickBoostLevels: Math.min(
+      CLICK_BOOST_MAX_LEVELS,
+      Math.max(0, Math.floor(num(migrated.clickBoostLevels, 0))),
+    ),
+    comboResistLevels: Math.min(
+      COMBO_RESIST_MAX_LEVELS,
+      Math.max(0, Math.floor(num(migrated.comboResistLevels, 0))),
+    ),
+    startTime: num(migrated.startTime, now),
+    saveTime: num(migrated.saveTime, now),
+    saveVersion: num(migrated.saveVersion, saveVersion),
+    lifetimeMinerals: num(migrated.lifetimeMinerals, 0),
+    lifetimeCorrect: num(migrated.lifetimeCorrect, 0),
+    maxCombo: num(migrated.maxCombo, 0),
+    maxDepth: num(migrated.maxDepth, 0),
+    minersOwnedEver: num(migrated.minersOwnedEver, 0),
+    totalGemsMinted: num(migrated.totalGemsMinted, 0),
+    totalGemsSpent: num(migrated.totalGemsSpent, 0),
+    totalPrestiges: num(migrated.totalPrestiges, 0),
+    completedTiers: Array.isArray(migrated.completedTiers)
+      ? migrated.completedTiers.filter((t): t is string =>
+          typeof t === "string",
+        )
+      : [],
+    completedAchievements: Array.isArray(migrated.completedAchievements)
+      ? migrated.completedAchievements.filter(
+          (c): c is string => typeof c === "string",
+        )
+      : [],
+    playerSeed: num(migrated.playerSeed, 12345),
+    // Always keep the free defaults owned; drop unknown ids.
+    ownedCosmetics: [
+      ...new Set([
+        ...DEFAULT_OWNED,
+        ...(Array.isArray(migrated.ownedCosmetics)
+          ? migrated.ownedCosmetics.filter(
+              (c): c is string =>
+                typeof c === "string" &&
+                (isOutfitId(c) || isPickaxeId(c)),
+            )
+          : []),
+      ]),
+    ],
+    selectedOutfit:
+      typeof migrated.selectedOutfit === "string" &&
+      OUTFITS.some((o) => o.id === migrated.selectedOutfit)
+        ? migrated.selectedOutfit
+        : DEFAULT_OUTFIT,
+    selectedPickaxe:
+      typeof migrated.selectedPickaxe === "string" &&
+      PICKAXES.some((p) => p.id === migrated.selectedPickaxe)
+        ? migrated.selectedPickaxe
+        : DEFAULT_PICKAXE,
+    // Always keep the free default cave theme owned; drop unknown ids.
+    ownedCaveThemes: [
+      ...new Set([
+        ...DEFAULT_OWNED_CAVE_THEMES,
+        ...(Array.isArray(migrated.ownedCaveThemes)
+          ? migrated.ownedCaveThemes.filter(
+              (c): c is string =>
+                typeof c === "string" && isCaveThemeId(c),
+            )
+          : []),
+      ]),
+    ],
+    selectedCaveTheme:
+      typeof migrated.selectedCaveTheme === "string" &&
+      isCaveThemeId(migrated.selectedCaveTheme)
+        ? migrated.selectedCaveTheme
+        : DEFAULT_CAVE_THEME,
+  };
+}
 
 /** Walk a parsed save through every migration up to the current version. */
 export function migrateSaveData(parsed: Record<string, unknown>): Record<

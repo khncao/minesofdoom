@@ -15,6 +15,7 @@ import PurchaseButtons from "./components/PurchaseButtons";
 import MiningCanvas from "./components/MiningCanvas";
 import SettingsPanel from "./components/SettingsPanel";
 import GoalsPanel from "./components/GoalsPanel";
+import DailyBonusButton from "./components/DailyBonusButton";
 import {
   defaultSettingsData,
   getComboMultiplier,
@@ -52,6 +53,7 @@ import { useShakeInput } from "./hooks/useShakeInput";
 import { useMineTaps } from "./hooks/useMineTaps";
 import { useAccessibilityReduceMotion } from "./hooks/useAccessibilityReduceMotion";
 import { useEquations } from "./hooks/useEquations";
+import { useDailyBonus } from "./hooks/useDailyBonus";
 
 export default function MinesOfDoom() {
   // currently doesn't mute android touch sounds, but can in the future
@@ -88,6 +90,8 @@ export default function MinesOfDoom() {
     selectCaveTheme,
     sinkNewShaft,
     resetGame,
+    exportSaveCode,
+    importSaveCode,
   } = useGameEngine(displayMessage, () => autosaveSecondsRef.current);
   const depthTier = getDepthTier(depth);
   // Tier-4 cave theme recolors the depth tint (the natural theme's palette
@@ -318,6 +322,29 @@ export default function MinesOfDoom() {
 
   const handleMuteChange = useCallback((newVal: boolean) => setMute(newVal), [setMute]);
 
+  // Save-code export/import (plan §4.3): the engine handles the state;
+  // this layer only adds the toasts. The imported save persists via the
+  // normal autosave / background-save path (saving immediately here would
+  // serialize the pre-import state, since the state ref updates on render).
+  const handleImportSaveCode = useCallback(
+    (code: string): boolean => {
+      if (!importSaveCode(code)) {
+        displayMessage("Invalid save code.", 3000);
+        return false;
+      }
+      displayMessage("Save imported!", 3000);
+      return true;
+    },
+    [importSaveCode, displayMessage],
+  );
+
+  // Daily bonus / login streak (plan §4.2): minerals flow through the
+  // same additive path as tap gains (lifetime stats included).
+  const dailyBonus = useDailyBonus({
+    grantMinerals: addTapGain,
+    displayMessage,
+  });
+
   return (
     <Context.Provider value={contextValue}>
       <View style={styles.container}>
@@ -404,6 +431,8 @@ export default function MinesOfDoom() {
           showMessage={showMessage}
           onSave={handleSaveSettings}
           onReset={resetGame}
+          onExportSaveCode={exportSaveCode}
+          onImportSaveCode={handleImportSaveCode}
           cosmetics={cosmetics}
           mute={mute}
           onMuteChange={handleMuteChange}
@@ -411,6 +440,12 @@ export default function MinesOfDoom() {
             HARD_MODE_UNLOCK_TIER,
           )}
         />
+          <DailyBonusButton
+            claimable={dailyBonus.claimable}
+            bonus={dailyBonus.bonus}
+            streak={dailyBonus.streak}
+            onClaim={dailyBonus.claim}
+          />
           <GoalsPanel stats={gameState} />
         </View>
 
