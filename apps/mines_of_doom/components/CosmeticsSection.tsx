@@ -27,6 +27,20 @@ import { styles } from "../styles";
 /** Fixed seed for per-outfit thumbnails (a representative look, not random). */
 const SAMPLE_SEED = 42;
 
+/** Name (+ optional one-line blurb) cell shared by every row. */
+function NameCell({ name, blurb }: { name: string; blurb?: string }) {
+  return (
+    <View style={{ flex: 1, flexDirection: "column" }}>
+      <Text style={{ ...styles.text, flexShrink: 1 }}>{name}</Text>
+      {blurb ? (
+        <Text style={{ ...styles.text, fontSize: 9, color: "#888" }}>
+          {blurb}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 function CosmeticsSection({
   gems,
   playerSeed,
@@ -72,6 +86,7 @@ function CosmeticsSection({
     costGems: number,
     isSelected: boolean,
     thumb: ReactNode,
+    blurb?: string,
   ) => {
     const owned = ownedCosmetics.includes(id);
     const affordable = gems >= costGems;
@@ -96,7 +111,7 @@ function CosmeticsSection({
         })}
       >
         {thumb}
-        <Text style={{ ...styles.text, flex: 1 }}>{name}</Text>
+        <NameCell name={name} blurb={blurb} />
         <Text
           style={{
             ...styles.text,
@@ -161,7 +176,7 @@ function CosmeticsSection({
             />
           ))}
         </View>
-        <Text style={{ ...styles.text, flex: 1 }}>{theme.name}</Text>
+        <NameCell name={theme.name} blurb={theme.blurb} />
         <Text
           style={{
             ...styles.text,
@@ -213,6 +228,7 @@ function CosmeticsSection({
             source={{ uri: minerSpriteUri(rollMinerLook(SAMPLE_SEED, o.id)) }}
             style={{ width: 18, height: 18 }}
           />,
+          o.blurb,
         ),
       )}
 

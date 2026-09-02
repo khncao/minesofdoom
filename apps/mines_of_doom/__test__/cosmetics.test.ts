@@ -139,6 +139,49 @@ describe("cave themes", () => {
   });
 });
 
+describe("homage line (plan §4.5 / art todo)", () => {
+  test("homage outfits exist, are paid, and carry a blurb credit", () => {
+    const homage = OUTFITS.filter((o) => o.blurb);
+    expect(homage.length).toBeGreaterThanOrEqual(5);
+    for (const o of homage) {
+      expect(o.costGems).toBeGreaterThan(0);
+      expect(o.id).not.toBe(DEFAULT_OUTFIT);
+    }
+  });
+
+  test("homage themes exist, are the premium tier, and carry a blurb credit", () => {
+    const paid = CAVE_THEMES.filter((t) => t.id !== DEFAULT_CAVE_THEME);
+    const homage = paid.filter((t) => t.blurb);
+    expect(homage.length).toBeGreaterThanOrEqual(5);
+    const maxBaseCost = Math.max(...paid.filter((t) => !t.blurb).map((t) => t.costGems));
+    for (const t of homage) {
+      // Homage themes sit strictly above the base line in price.
+      expect(t.costGems).toBeGreaterThan(maxBaseCost);
+    }
+  });
+
+  test("homage names are original (no game trademarks in names or blurbs)", () => {
+    const brands = [
+      "minecraft",
+      "terraria",
+      "dark souls",
+      "bloodborne",
+      "sekiro",
+      "mojang",
+      "fromsoftware",
+    ];
+    const strings = [
+      ...OUTFITS.flatMap((o) => [o.name, o.blurb ?? ""]),
+      ...CAVE_THEMES.flatMap((t) => [t.name, t.blurb ?? ""]),
+    ];
+    for (const s of strings) {
+      for (const b of brands) {
+        expect(s.toLowerCase()).not.toContain(b);
+      }
+    }
+  });
+});
+
 describe("rollMinerLook", () => {
   test("is deterministic per (seed, outfit)", () => {
     expect(rollMinerLook(7, "classic")).toEqual(rollMinerLook(7, "classic"));

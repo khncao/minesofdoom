@@ -18,6 +18,8 @@ export type OutfitCosmetic = {
   name: string;
   /** 0 = owned from the start, otherwise the gem price. */
   costGems: number;
+  /** Optional one-line flavor/shown in the picker (e.g. homage credit). */
+  blurb?: string;
   /** Color pools the randomizer draws from for this outfit. */
   shirts: string[];
   pants: string[];
@@ -109,6 +111,64 @@ export const OUTFITS: OutfitCosmetic[] = [
     boots: ["#2a1a10", "#3a251a"],
     hats: ["#f09030", "#e8e8e8", "#d94f30"],
     hatStyles: ["helmet", "cap"],
+  },
+  // Homage line (plan §4.5 / art todo): original palettes that evoke famous
+  // game worlds WITHOUT using any of their names, sprites, or assets — an
+  // homage, not a copy, so it stays clear of copyright/trademark.
+  {
+    id: "blocky",
+    name: "Blocky Adventurer",
+    costGems: 8,
+    blurb: "a voxel-sandbox tribute",
+    shirts: ["#2f88c4", "#35a0cc", "#2a6a98"],
+    pants: ["#3a5aa8", "#2a4a8a"],
+    boots: ["#565b6e", "#3a3f4e"],
+    hats: ["#2f88c4", "#e8e8e8", "#565b6e"],
+    hatStyles: ["cap", "bandana"],
+  },
+  {
+    id: "surface",
+    name: "Frontier Explorer",
+    costGems: 10,
+    blurb: "a surface-to-underground sandbox tribute",
+    shirts: ["#4a8a3a", "#6aa84a", "#3a7030"],
+    pants: ["#6a4a2a", "#5a3e20"],
+    boots: ["#4a3018", "#3a2810"],
+    hats: ["#7a5a3a", "#8a6a4a", "#4a8a3a"],
+    hatStyles: ["cap", "bandana"],
+  },
+  {
+    id: "knight",
+    name: "Ashen Knight",
+    costGems: 12,
+    blurb: "a dark-fantasy soulslike tribute",
+    shirts: ["#8a9099", "#6a707a", "#5a606a"],
+    pants: ["#4a4e58", "#3a3e48"],
+    boots: ["#33363e", "#262932"],
+    hats: ["#7a808a", "#9aa0aa", "#b8703a"],
+    hatStyles: ["helmet", "cap"],
+  },
+  {
+    id: "hunter",
+    name: "Wandering Hunter",
+    costGems: 15,
+    blurb: "a gothic hunt tribute",
+    shirts: ["#4a5a3a", "#3a4a2a", "#5a4a3a"],
+    pants: ["#3a3a2a", "#2e2e22"],
+    boots: ["#2a241a", "#1f1a12"],
+    hats: ["#5a4a3a", "#4a3a2a", "#6a5a4a"],
+    hatStyles: ["bandana", "cap", "beanie"],
+  },
+  {
+    id: "oni",
+    name: "Crimson Oni",
+    costGems: 18,
+    blurb: "a samurai-era vengeance tribute",
+    shirts: ["#b03030", "#8a2020", "#c04040"],
+    pants: ["#2a2a33", "#1f1f28"],
+    boots: ["#1a1a22", "#12121a"],
+    hats: ["#d8d0c0", "#b03030", "#4a4a5a"],
+    hatStyles: ["bandana", "cap"],
   },
 ];
 
@@ -222,6 +282,8 @@ export type CaveTheme = {
   name: string;
   /** 0 = owned from the start, otherwise the gem price. */
   costGems: number;
+  /** Optional one-line flavor/shown in the picker (e.g. homage credit). */
+  blurb?: string;
   /** One tint per depth tier (index-aligned with DEPTH_TIERS). */
   tints: string[];
 };
@@ -269,6 +331,44 @@ export const CAVE_THEMES: CaveTheme[] = [
     name: "Void Depths",
     costGems: 20,
     tints: ["#6a7a9a", "#5a6a8a", "#4a5a7a", "#5a4a7a", "#7a6aaa"],
+  },
+  // Homage line (plan §4.5 / art todo): palettes that evoke famous game
+  // worlds via color alone — no names, sprites, or assets, so it's an
+  // homage, not a copy (see the matching outfit line above).
+  {
+    id: "voxel",
+    name: "Blockfall Mines",
+    costGems: 25,
+    blurb: "dirt, grass & glowing ore — a voxel tribute",
+    tints: ["#8a6b45", "#5f7a3e", "#6e7686", "#3e7a8a", "#2a4a5a"],
+  },
+  {
+    id: "wilds",
+    name: "Wilds Below",
+    costGems: 30,
+    blurb: "from the grassy surface to hellstone — a sandbox tribute",
+    tints: ["#5f8a3e", "#8a6b45", "#5a6478", "#7a4a5e", "#33262e"],
+  },
+  {
+    id: "ashen",
+    name: "Ashen Depths",
+    costGems: 35,
+    blurb: "fog, grey stone & a single ember — a dark-fantasy tribute",
+    tints: ["#8a8f9a", "#6a7080", "#525868", "#6a4434", "#23262e"],
+  },
+  {
+    id: "gothic",
+    name: "Fog & Lantern",
+    costGems: 40,
+    blurb: "moonlit fog, lantern glow, one drop of blood — a gothic hunt tribute",
+    tints: ["#5a6a58", "#4a5a68", "#3a4a58", "#582828", "#1f2230"],
+  },
+  {
+    id: "cherry",
+    name: "Cherry & Indigo",
+    costGems: 45,
+    blurb: "blossom over indigo night, gold at the bottom — a samurai-era tribute",
+    tints: ["#c890a4", "#8a6a94", "#5a5a88", "#3a3a64", "#a89052"],
   },
 ];
 
