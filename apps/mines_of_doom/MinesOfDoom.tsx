@@ -14,6 +14,7 @@ import ComboIndicator from "./components/ComboIndicator";
 import PurchaseButtons from "./components/PurchaseButtons";
 import MiningCanvas from "./components/MiningCanvas";
 import MenuPanel from "./components/MenuPanel";
+import OnboardingOverlay from "./components/OnboardingOverlay";
 import DailyBonusButton from "./components/DailyBonusButton";
 import {
   ALL_PURCHASE_IDS,
@@ -59,6 +60,13 @@ import { useDailyBonus } from "./hooks/useDailyBonus";
 export default function MinesOfDoom() {
   // currently doesn't mute android touch sounds, but can in the future
   const [mute, setMute] = useLocalStorage<boolean>("mute", false);
+
+  // First-run onboarding (plan §2.1): shown until dismissed; the flag
+  // persists in AsyncStorage so a skip/finish never resurfaces. The
+  // loading flag hides the overlay until the stored value has been read,
+  // so returning players don't flash it for a frame on cold start.
+  const [onboardingDone, setOnboardingDone, onboardingLoading] =
+    useLocalStorage<boolean>("onboardingDone", false);
 
   const { showMessage, displayMessage } = useMessages();
   // Autosave cadence (seconds) read by the game loop; kept in a ref so the
@@ -465,6 +473,9 @@ export default function MinesOfDoom() {
           <View style={styles.messageOverlay} pointerEvents="none">
             <Text style={styles.messageText}>{showMessage}</Text>
           </View>
+        )}
+        {!onboardingLoading && onboardingDone !== true && (
+          <OnboardingOverlay onDismiss={() => setOnboardingDone(true)} />
         )}
         {/* Plan "Adjust": the footer is one menu button (settings + goals
             live inside it) plus the daily bonus; the freed space goes to

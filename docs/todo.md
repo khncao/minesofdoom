@@ -45,7 +45,6 @@ Completed items are removed from this file (see git history); only remaining wor
 - **Canvas tap vs. equation submit.** Tapping the cave resets the combo — easy to do accidentally while playing fast. Options: require a short hold, or make the canvas a secondary "slow" action and move it below the fold / behind a button.
 - **Button hierarchy.** All three purchase buttons look identical. Visually distinguish: upgrade (minerals), miner (gems), gem (minerals→gems). Consider grouping by currency with headers.
 - **Settings modal discoverability.** Add a labeled icon or a "Settings" pill. Also add a visible "Save" affordance outside the modal (e.g., a small save indicator that pulses when the save is stale).
-- **First-run onboarding.** A 3-step overlay: (1) solve equations to mine, (2) combos multiply gains, (3) buy miners for passive income. Dismissible, stored in AsyncStorage.
 - **Web parity.** On web, `inputMode="numeric"` is ignored and the keyboard is the OS one; the custom keypad (above) fixes this. Also test `KeyboardAvoidingView` behavior in browser (it is a no-op on web — `AnswerInput` currently relies on it).
 
 ## 3. General (code/technical) Improvements

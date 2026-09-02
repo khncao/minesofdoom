@@ -1,5 +1,9 @@
 import { StyleSheet } from "react-native";
 
+// Shared onboarding text base (can't reference `styles` inside its own
+// StyleSheet.create call, so the spread lives here).
+const onboardingText = { color: "#fff", userSelect: "none" as const };
+
 export const styles = StyleSheet.create({
   container: {
     backgroundColor: "#2f2f2f",
@@ -121,5 +125,87 @@ export const styles = StyleSheet.create({
     alignItems: "flex-end",
     alignSelf: "stretch",
     paddingTop: 2,
+  },
+  // First-run onboarding (plan §2.1): full-screen dimmed backdrop above
+  // everything (including toasts), centered card, top-right skip button.
+  onboardingBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+    zIndex: 100,
+  },
+  onboardingCard: {
+    backgroundColor: "#3a3a3a",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#555",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    width: "100%",
+    maxWidth: 360,
+  },
+  onboardingIcon: {
+    fontSize: 40,
+    userSelect: "none",
+  },
+  onboardingTitle: {
+    ...onboardingText,
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  onboardingBody: {
+    ...onboardingText,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    opacity: 0.9,
+  },
+  onboardingDots: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  onboardingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#666",
+  },
+  onboardingDotActive: {
+    backgroundColor: "#ffaa44",
+  },
+  onboardingSkip: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    // 44×44 tap target: 16px text + 12px vertical / 14px horizontal pad.
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  onboardingSkipText: {
+    ...onboardingText,
+    fontSize: 16,
+    opacity: 0.7,
+  },
+  onboardingNext: {
+    backgroundColor: "#ffaa44",
+    borderRadius: 8,
+    // 44px-tall target: 16px text + 12px vertical padding either side.
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  onboardingNextText: {
+    color: "#1f1f1f",
+    fontSize: 16,
+    fontWeight: "bold",
+    userSelect: "none",
   },
 });
