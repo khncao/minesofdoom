@@ -26,11 +26,28 @@ export type OutfitCosmetic = {
   hatStyles: HatStyle[];
 };
 
+/**
+ * Swing animation "feel" (plan §5.2 "unique ... animations"): how the
+ * equipped pickaxe swings when mining — heavier pickaxes swing slower and
+ * bounce harder. Pure animation data, no gameplay effect.
+ */
+export type PickaxeFeel = {
+  /** Swing-rotation duration in ms (lower = snappier). */
+  swingMs: number;
+  /** Body bounce depth in px on impact. */
+  bounceDepth: number;
+};
+
 export type PickaxeCosmetic = {
   id: string;
   name: string;
   costGems: number;
   theme: PickaxeThemeDef;
+  /** Unique swing sound, relative to public/assets (required in assets/index).
+   *  Synthesized by scripts/generate-pickaxe-sounds.mjs. */
+  soundFile: string;
+  /** Unique swing animation (plan §5.2 "unique ... animations"). */
+  feel: PickaxeFeel;
 };
 
 /** Shared skin-tone pool (all outfits). */
@@ -101,12 +118,17 @@ export const PICKAXES: PickaxeCosmetic[] = [
     name: "Steel",
     costGems: 0,
     theme: { head: "#9aa5b1", glow: "#d9e2ec", handle: "#8a5a2b" },
+    soundFile: "audio/pickaxe-steel.wav",
+    feel: { swingMs: 150, bounceDepth: 6 },
   },
   {
     id: "gold",
     name: "Gold",
     costGems: 5,
     theme: { head: "#e8c33d", glow: "#fff3b0", handle: "#8a5a2b" },
+    soundFile: "audio/pickaxe-gold.wav",
+    // Heavier metal: slower swing, deeper bounce.
+    feel: { swingMs: 190, bounceDepth: 8 },
   },
   {
     // id "frost" (not "crystal") to avoid colliding with the outfit id.
@@ -114,12 +136,18 @@ export const PICKAXES: PickaxeCosmetic[] = [
     name: "Crystal",
     costGems: 10,
     theme: { head: "#5ad8e8", glow: "#d0fbff", handle: "#3a2f5a" },
+    soundFile: "audio/pickaxe-frost.wav",
+    // Light and nimble: the fastest swing, the shallowest bounce.
+    feel: { swingMs: 110, bounceDepth: 4 },
   },
   {
     id: "shadow",
     name: "Shadow",
     costGems: 20,
     theme: { head: "#4a4a5a", glow: "#9a7fd0", handle: "#2a2233" },
+    soundFile: "audio/pickaxe-shadow.wav",
+    // Slow and heavy: the biggest, most deliberate swing.
+    feel: { swingMs: 230, bounceDepth: 10 },
   },
 ];
 
@@ -135,6 +163,11 @@ export function getOutfit(id: string): OutfitCosmetic {
 
 export function getPickaxe(id: string): PickaxeCosmetic {
   return PICKAXES.find((p) => p.id === id) ?? PICKAXES[0];
+}
+
+/** Swing feel of a pickaxe id (unknown ids fall back to the default). */
+export function getPickaxeFeel(id: string): PickaxeFeel {
+  return getPickaxe(id).feel;
 }
 
 export function isOutfitId(id: string): boolean {

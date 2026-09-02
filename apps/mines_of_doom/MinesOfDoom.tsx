@@ -233,7 +233,9 @@ export default function MinesOfDoom() {
   useEffect(() => {
     autosaveSecondsRef.current = settingsData.autosave;
   }, [settingsData.autosave]);
-  const { play } = useSounds(mute);
+  // The "pickaxe" sound is the equipped pickaxe's unique swing sound
+  // (falls back to the generic one for unknown ids, see useSounds).
+  const { play } = useSounds(mute, gameState.selectedPickaxe);
   const reduceMotion = useAccessibilityReduceMotion();
   const {
     combo,

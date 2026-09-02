@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import {
   CAVE_THEMES,
   DEFAULT_OWNED,
@@ -12,6 +14,7 @@ import {
   getCostGems,
   getOutfit,
   getPickaxe,
+  getPickaxeFeel,
   getThemeTint,
   isCaveThemeId,
   isOutfitId,
@@ -55,6 +58,43 @@ describe("catalog", () => {
     expect(isPickaxeId("nope")).toBe(false);
     expect(getCostGems("nope")).toBeUndefined();
     expect(getCostGems(DEFAULT_PICKAXE)).toBe(0);
+  });
+});
+
+describe("pickaxe feel + unique sounds (plan §5.2)", () => {
+  test("every feel is a positive, renderable animation value", () => {
+    for (const p of PICKAXES) {
+      expect(p.feel.swingMs).toBeGreaterThan(0);
+      expect(p.feel.bounceDepth).toBeGreaterThan(0);
+      // Bounce depth stays inside a body-sized range (sprites are 20–44px).
+      expect(p.feel.bounceDepth).toBeLessThanOrEqual(12);
+    }
+  });
+
+  test("the catalog has distinct swing speeds (unique animations)", () => {
+    const swings = new Set(PICKAXES.map((p) => p.feel.swingMs));
+    expect(swings.size).toBe(PICKAXES.length);
+  });
+
+  test("each pickaxe names a sound file that exists in public/assets", () => {
+    for (const p of PICKAXES) {
+      expect(p.soundFile).toBe(`audio/pickaxe-${p.id}.wav`);
+      const file = path.join(
+        __dirname,
+        "..",
+        "..",
+        "..",
+        "public",
+        "assets",
+        p.soundFile,
+      );
+      expect(fs.existsSync(file)).toBe(true);
+      expect(fs.statSync(file).size).toBeGreaterThan(100);
+    }
+  });
+
+  test("getPickaxeFeel falls back to the default pickaxe", () => {
+    expect(getPickaxeFeel("nope")).toEqual(getPickaxeFeel(DEFAULT_PICKAXE));
   });
 });
 

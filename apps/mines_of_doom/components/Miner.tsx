@@ -1,7 +1,7 @@
 import React, { MutableRefObject, useContext, useEffect, useMemo, useRef } from "react";
-import { Animated, Image, Text } from "react-native";
+import { Animated, Easing, Image, Text } from "react-native";
 import { Context } from "../Context";
-import { getPickaxe, rollMinerLook } from "../cosmetics";
+import { getPickaxe, getPickaxeFeel, rollMinerLook } from "../cosmetics";
 import { minerSpriteUri, pickaxeSpriteUri } from "apps/utils/graphics/pixelArt";
 import { clockPhase, getSharedClock } from "apps/utils/graphics/animationClock";
 
@@ -50,27 +50,31 @@ function Miner({ scale = 1, ...props }: MinerProps) {
       return;
     }
     lastPickaxeRef.current = now;
-    // Cancel the in-flight swing so fast taps don't run multiple springs on
-    // the same values concurrently (they fight each other and stack frame
+    // Cancel the in-flight swing so fast taps don't run multiple animations
+    // on the same values concurrently (they fight each other and stack frame
     // callbacks).
     activeAnimRef.current?.stop();
     pickaxeAnim.setValue(0);
     bounceAnim.setValue(0);
+    // Unique swing feel per pickaxe (plan §5.2 "unique ... animations"): the
+    // equipped pickaxe's speed + impact depth, scaled off its swing duration.
+    const feel = getPickaxeFeel(props.pickaxeId);
     activeAnimRef.current = Animated.parallel([
-      Animated.spring(pickaxeAnim, {
+      Animated.timing(pickaxeAnim, {
         toValue: 100,
-        velocity: 2000,
+        duration: feel.swingMs,
+        easing: Easing.inOut(Easing.ease),
         useNativeDriver: true,
       }),
       Animated.sequence([
         Animated.timing(bounceAnim, {
-          toValue: -6,
-          duration: 80,
+          toValue: -feel.bounceDepth,
+          duration: Math.round(feel.swingMs * 0.5),
           useNativeDriver: true,
         }),
         Animated.timing(bounceAnim, {
           toValue: 0,
-          duration: 120,
+          duration: Math.round(feel.swingMs * 0.75),
           useNativeDriver: true,
         }),
       ]),
