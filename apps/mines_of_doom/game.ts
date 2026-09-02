@@ -396,6 +396,17 @@ export const msPerTick = 1000;
  * pays the soft rate, and vice versa.
  */
 export const HARD_MODE_PAYOUT = 2;
+/**
+ * Timed mode (plan §4.2): each equation gets a TIMED_MODE_WINDOW_MS window.
+ * A correct answer submitted inside the window pays ×TIMED_MODE_PAYOUT on
+ * top of the operator bonus and any hard-mode premium; a window that runs
+ * out counts as a miss (useEquations fires the same onIncorrect path as a
+ * wrong answer). Both constants are tuned like the hard-mode premium:
+ * ×2 for roughly double the mental load, and 10s is comfortably enough for
+ * a 2- or 3-term equation at any difficulty the settings allow.
+ */
+export const TIMED_MODE_WINDOW_MS = 10_000;
+export const TIMED_MODE_PAYOUT = 2;
 export const gemChance = 0.05;
 /** Base gem chance added per level of the gem chance upgrade. */
 export const gemChancePerLevel = 0.01;
@@ -822,13 +833,23 @@ export function getComboResistCost(level: number): number {
  * Payout multiplier for a correct answer, folded onto the raw answer value
  * before it reaches applyAnswerReward. Operator bonus (÷ ×10, − ×2, like
  * the pre-hard-mode behavior) × the hard-mode premium when the equation has
- * a second term. useEquations applies this; EquationDisplay folds the same
+ * a second term × the timed-mode premium when the answer landed inside the
+ * timed window (timedModeBonus — it's a property of HOW the equation was
+ * answered, not its shape, so it's a parameter rather than read off the
+ * equation). useEquations applies this; EquationDisplay folds the same
  * number into the pending-gain readout so the UI and the reward agree.
  */
-export function getAnswerPayoutMultiplier(equation: Equation): number {
+export function getAnswerPayoutMultiplier(
+  equation: Equation,
+  timedModeBonus = false,
+): number {
   const opBonus =
     equation.op === Ops.div ? 10 : equation.op === Ops.sub ? 2 : 1;
-  return opBonus * (equation.op2 !== undefined ? HARD_MODE_PAYOUT : 1);
+  return (
+    opBonus *
+    (equation.op2 !== undefined ? HARD_MODE_PAYOUT : 1) *
+    (timedModeBonus ? TIMED_MODE_PAYOUT : 1)
+  );
 }
 
 export function getDepth(minerals: number): number {

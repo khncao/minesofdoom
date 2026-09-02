@@ -45,6 +45,8 @@ import { DEFAULT_CAVE_THEME, DEFAULT_CAVE_TINTS } from "../cosmetics";
 import { Equation, Ops } from "apps/utils/math/equations";
 import {
   HARD_MODE_PAYOUT,
+  TIMED_MODE_PAYOUT,
+  TIMED_MODE_WINDOW_MS,
   getAnswerPayoutMultiplier,
 } from "../game";
 
@@ -794,6 +796,39 @@ describe("getAnswerPayoutMultiplier (hard mode, tier-5)", () => {
     );
     expect(getAnswerPayoutMultiplier(mkEq(Ops.div, Ops.mult))).toBe(
       10 * HARD_MODE_PAYOUT,
+    );
+  });
+});
+
+describe("getAnswerPayoutMultiplier (timed mode)", () => {
+  test("defaults are sane: a 10-second window paying ×2", () => {
+    expect(TIMED_MODE_WINDOW_MS).toBe(10_000);
+    expect(TIMED_MODE_PAYOUT).toBe(2);
+  });
+
+  test("timed bonus is off by default (soft behavior unchanged)", () => {
+    expect(getAnswerPayoutMultiplier(mkEq(Ops.mult), false)).toBe(1);
+    expect(getAnswerPayoutMultiplier(mkEq(Ops.div))).toBe(10);
+  });
+
+  test("timed bonus multiplies the operator bonus", () => {
+    expect(getAnswerPayoutMultiplier(mkEq(Ops.mult), true)).toBe(
+      1 * TIMED_MODE_PAYOUT,
+    );
+    expect(getAnswerPayoutMultiplier(mkEq(Ops.sub), true)).toBe(
+      2 * TIMED_MODE_PAYOUT,
+    );
+    expect(getAnswerPayoutMultiplier(mkEq(Ops.div), true)).toBe(
+      10 * TIMED_MODE_PAYOUT,
+    );
+  });
+
+  test("timed bonus stacks on the hard-mode premium", () => {
+    expect(getAnswerPayoutMultiplier(mkEq(Ops.mult, Ops.mult), true)).toBe(
+      1 * HARD_MODE_PAYOUT * TIMED_MODE_PAYOUT,
+    );
+    expect(getAnswerPayoutMultiplier(mkEq(Ops.div, Ops.mult), true)).toBe(
+      10 * HARD_MODE_PAYOUT * TIMED_MODE_PAYOUT,
     );
   });
 });

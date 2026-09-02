@@ -320,6 +320,7 @@ export default function MinesOfDoom() {
     textInput,
     setTextInput,
     handleSubmit,
+    timeLeftMs,
   } = useEquations({
     equationSettings,
     onCorrect: (value) => {
@@ -400,6 +401,7 @@ export default function MinesOfDoom() {
           equation={equation}
           clickPower={effectiveClickPower}
           comboMultiplier={comboMultiplier}
+          timeLeftMs={timeLeftMs}
         />
         <AnswerInput
           value={textInput}

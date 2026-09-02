@@ -30,11 +30,15 @@ const OPERATOR_HELP: Record<
 };
 
 const GAIN_FORMULA =
-  "Minerals mined per correct answer = answer × click power × combo multiplier, plus any operator bonus. Hard-mode equations pay ×2 on top.";
+  "Minerals mined per correct answer = answer × click power × combo multiplier, plus any operator bonus. Hard-mode equations pay ×2 on top; timed-mode equations pay ×2 more when answered inside the window.";
 
 /** Hard-mode switch tooltip (long-press). */
 const HARD_MODE_HELP =
   "3-term equations (a ○ b ○ c, left to right) that pay ×2 the normal amount. The extra premium comes from the third term — more arithmetic, bigger answers.";
+
+/** Timed-mode switch tooltip (long-press). */
+const TIMED_MODE_HELP =
+  "Every equation gets a 10-second window: answer in time and the payout gets ×2 (it stacks with the operator and hard-mode bonuses). When the window runs out the equation counts as a miss — your combo drops exactly like a wrong answer (combo resistance still applies) — and a new one rolls. Stacks with hard mode: a 3-term equation answered in time pays ×4 on top of the operator bonus.";;
 
 /** Show-all-purchases switch tooltip (long-press). */
 const SHOW_ALL_PURCHASES_HELP =
@@ -160,6 +164,37 @@ const SettingsContent = memo(function SettingsContent({
               onChangeEquationSettings({
                 ...equationSettings,
                 hardMode: newVal,
+              });
+            }}
+          />
+        </View>
+      </Tooltip>
+      {/* Always available (no tier gate): timed mode is opt-in risk/
+          reward — the timeout penalty goes through the normal wrong-answer
+          path, so it's strictly self-inflicted when off (the default). */}
+      <Tooltip label="Timed mode equations" content={TIMED_MODE_HELP}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Text
+            style={{
+              ...styles.text,
+              fontSize: 11,
+              color: "#fff",
+            }}
+          >
+            Timed mode (answer in 10s for ×2): 
+          </Text>
+          <Switch
+            value={equationSettings.timedMode}
+            onValueChange={(newVal) => {
+              onChangeEquationSettings({
+                ...equationSettings,
+                timedMode: newVal,
               });
             }}
           />

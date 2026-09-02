@@ -12,6 +12,17 @@ export type EquationSettings = {
    * is persisted under the existing equationSettingsKey, so no save bump.
    */
   hardMode: boolean;
+  /**
+   * Timed mode (plan §4.2): each equation must be answered within
+   * TIMED_MODE_WINDOW_MS (game.ts) for the correct answer to pay
+   * TIMED_MODE_PAYOUT on top of everything else; when the window runs out
+   * the equation counts as a miss (the hook fires the same onIncorrect
+   * path as a wrong answer, so combo resistance applies) and a new one is
+   * rolled. Off by default; persisted like hardMode (no save bump).
+   * Stacks with hard mode (a 3-term equation answered inside the window
+   * pays ×HARD_MODE_PAYOUT ×TIMED_MODE_PAYOUT × operator bonus).
+   */
+  timedMode: boolean;
 };
 
 export const defaultEquationSettings = {
@@ -22,6 +33,7 @@ export const defaultEquationSettings = {
   subtract: false,
   division: false,
   hardMode: false,
+  timedMode: false,
 };
 
 export const Ops = {

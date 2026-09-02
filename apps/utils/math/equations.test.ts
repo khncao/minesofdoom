@@ -14,6 +14,7 @@ const ALL_ON: EquationSettings = {
   subtract: true,
   division: true,
   hardMode: false,
+  timedMode: false,
 };
 
 const ALL_ON_HARD: EquationSettings = { ...ALL_ON, hardMode: true };
@@ -127,6 +128,9 @@ describe("getRandomEquation", () => {
 describe("getRandomEquation hard mode (tier-5, 3-term ×2)", () => {
   test("soft mode is unchanged: no second term is ever emitted", () => {
     expect(defaultEquationSettings.hardMode).toBe(false);
+    // Timed mode is purely a scoring rule (window + payout), not a
+    // generator change: it's off by default and never alters equation shape.
+    expect(defaultEquationSettings.timedMode).toBe(false);
     for (let i = 0; i < 500; i++) {
       const eq = getRandomEquation(ALL_ON);
       expect(eq.op2).toBeUndefined();
