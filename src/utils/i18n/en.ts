@@ -181,6 +181,20 @@ export const en = {
     "Operator bonus ×2. Answers are always whole & non-negative.",
   "settings.op.division":
     "Operator bonus ×10. Division is always exact.",
+  "settings.op.percent":
+    "Operator bonus ×3. Only 10/25/50% — always exact.",
+  "settings.op.square":
+    "Operator bonus ×4. The answer is a².",
+  "settings.op.missing":
+    'Operator bonus ×3. Find the number that goes in the "?".',
+  "settings.opName.multiply": "multiplication",
+  "settings.opName.add": "addition",
+  "settings.opName.subtract": "subtraction",
+  "settings.opName.division": "division",
+  "settings.opName.percent": "percent",
+  "settings.opName.square": "square",
+  "settings.opName.missing": "missing number",
+  "settings.multiplySymbol": "Multiply display: ",
   "settings.hardMode": "Hard mode (3-term ×2): ",
   "settings.hardModeLocked": "🔒 Hard mode (Motherlode): ",
   "settings.hardModeHelp":

@@ -149,11 +149,11 @@ export function useEquations({
       // answer ignites the streak, the one after it is the first to pay.
       const streakBonus = streakMode && streak >= STREAK_MODE_THRESHOLD;
       if (streakMode) setStreak(streak + 1);
-      // Operator bonus (÷ ×10, − ×2) × hard-mode premium (×2 for 3-term
-      // equations) × timed-mode premium (×2 for a within-window answer)
-      // × streak premium (×2 while the streak is ignited) — see
-      // getAnswerPayoutMultiplier. Answers are always integral &
-      // non-negative by construction, so no abs/fround.
+      // Operator bonus (÷ ×10, ² ×4, %/missing ×3, − ×2) × hard-mode
+      // premium (×2 for 3-term equations) × timed-mode premium (×2 for a
+      // within-window answer) × streak premium (×2 while the streak is
+      // ignited) — see getAnswerPayoutMultiplier. Answers are always
+      // integral & non-negative by construction, so no abs/fround.
       value *= getAnswerPayoutMultiplier(
         equation,
         timedMode && timeLeftMs !== null && timeLeftMs > 0,

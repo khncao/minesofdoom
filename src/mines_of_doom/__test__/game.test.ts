@@ -54,6 +54,8 @@ import {
   TIMED_MODE_PAYOUT,
   TIMED_MODE_WINDOW_MS,
   getAnswerPayoutMultiplier,
+  getEquationOpBonus,
+  getOpPayoutMultiplier,
   getStreakPayoutMultiplier,
 } from "../game";
 
@@ -819,6 +821,31 @@ const mkEq = (op: string, op2?: string): Equation => ({
   c: op2 !== undefined ? 4 : undefined,
   op2,
   answer: 24,
+});
+
+describe("operator bonuses (iteration 11: new equation types)", () => {
+  test("per-op premiums keep their ordering (÷ ×10 > ² ×4 > % ×3 > − ×2 > +/* ×1)", () => {
+    expect(getOpPayoutMultiplier(Ops.div)).toBe(10);
+    expect(getOpPayoutMultiplier(Ops.sq)).toBe(4);
+    expect(getOpPayoutMultiplier(Ops.pct)).toBe(3);
+    expect(getOpPayoutMultiplier(Ops.sub)).toBe(2);
+    expect(getOpPayoutMultiplier(Ops.add)).toBe(1);
+    expect(getOpPayoutMultiplier(Ops.mult)).toBe(1);
+  });
+
+  test("missing-number equations pay a flat ×3 regardless of the base op", () => {
+    const mkMissing = (op: string): Equation => ({
+      ...mkEq(op),
+      missing: true,
+    });
+    expect(getEquationOpBonus(mkMissing(Ops.add))).toBe(3);
+    expect(getEquationOpBonus(mkMissing(Ops.mult))).toBe(3);
+    expect(getAnswerPayoutMultiplier(mkMissing(Ops.add))).toBe(3);
+    // ...and stack with the other premiums like any other bonus.
+    expect(getAnswerPayoutMultiplier(mkMissing(Ops.add), true, true)).toBe(
+      3 * TIMED_MODE_PAYOUT * STREAK_MODE_PAYOUT,
+    );
+  });
 });
 
 describe("getAnswerPayoutMultiplier (hard mode, tier-5)", () => {

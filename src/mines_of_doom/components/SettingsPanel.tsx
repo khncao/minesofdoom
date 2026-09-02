@@ -10,7 +10,14 @@ import {
   type LanguagePref,
   type TranslationKey,
 } from "src/utils/i18n/i18n";
-import { EquationSettings } from "src/utils/math/equations";
+import {
+  EquationSettings,
+  OPERATOR_KEYS,
+  Ops,
+  getOpDisplay,
+  type OperatorKey,
+  type MultiplySymbol,
+} from "src/utils/math/equations";
 import { AnalyticsState, summarizeAnalytics } from "../analytics";
 import { SettingsData } from "../game";
 import { formatCrashContext } from "../crashContext";
@@ -21,14 +28,12 @@ import LegalSection from "./LegalSection";
 import { styles } from "../styles";
 
 /**
- * How a correct answer pays, per operator (kept in sync with useEquations:
- * gain = answer × clickPower × comboMultiplier, division ×10, subtraction ×2).
- * The tooltip text is a translation key (settings.op.*).
+ * How a correct answer pays, per equation type (kept in sync with
+ * getEquationOpBonus: division ×10, square ×4, percent ×3, missing ×3,
+ * subtraction ×2, +/* ×1). The tooltip text is a translation key
+ * (settings.op.*).
  */
-const OPERATOR_HELP: Record<
-  "multiply" | "add" | "subtract" | "division",
-  { symbol: string; noteKey: TranslationKey }
-> = {
+const OPERATOR_HELP: Record<OperatorKey, { symbol: string; noteKey: TranslationKey }> = {
   multiply: { symbol: "*", noteKey: "settings.op.multiply" },
   add: { symbol: "+", noteKey: "settings.op.add" },
   subtract: {
@@ -39,6 +44,32 @@ const OPERATOR_HELP: Record<
     symbol: "/",
     noteKey: "settings.op.division",
   },
+  percent: {
+    symbol: "%",
+    noteKey: "settings.op.percent",
+  },
+  square: {
+    symbol: "²",
+    noteKey: "settings.op.square",
+  },
+  missing: {
+    symbol: "?",
+    noteKey: "settings.op.missing",
+  },
+};
+
+/**
+ * Human names for the operatorEquations label ("{name} equations") — the
+ * raw keys would otherwise render untranslated in every locale.
+ */
+const OP_NAME_KEYS: Record<OperatorKey, TranslationKey> = {
+  multiply: "settings.opName.multiply",
+  add: "settings.opName.add",
+  subtract: "settings.opName.subtract",
+  division: "settings.opName.division",
+  percent: "settings.opName.percent",
+  square: "settings.opName.square",
+  missing: "settings.opName.missing",
 };
 
 /**
@@ -142,19 +173,27 @@ const SettingsContent = memo(function SettingsContent({
         style={{
           ...styles.flexCenteredRow,
           gap: 4,
+          // 7 toggles (iteration 11) no longer fit a phone-width row —
+          // let them wrap instead of overflowing.
+          flexWrap: "wrap",
         }}
       >
-        {(Object.keys(OPERATOR_HELP) as Array<keyof typeof OPERATOR_HELP>).map(
-          (key) => (
+        {OPERATOR_KEYS.map((key) => (
             <View
               key={key}
               style={{ flexDirection: "row", alignItems: "center", gap: 2 }}
             >
               <Tooltip
-                label={t("settings.operatorEquations", { name: key })}
+                label={t("settings.operatorEquations", {
+                  name: t(OP_NAME_KEYS[key]),
+                })}
                 content={`${t(OPERATOR_HELP[key].noteKey)} ${t("settings.gainFormula")}`}
               >
-                <Text style={styles.text}>{OPERATOR_HELP[key].symbol}</Text>
+                <Text style={styles.text}>
+                  {key === "multiply"
+                    ? getOpDisplay(Ops.mult, equationSettings.multiplySymbol)
+                    : OPERATOR_HELP[key].symbol}
+                </Text>
               </Tooltip>
               <Switch
                 value={equationSettings[key]}
@@ -173,6 +212,41 @@ const SettingsContent = memo(function SettingsContent({
         <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
           {t("settings.operatorHelp")}
         </Text>
+      </View>
+      {/* Multiply-symbol display toggle (todo: "Configurable equation
+          display"): "7 * 2" vs "7 x 2". The previews are literal — they
+          are the two possible renderings, not translatable copy. */}
+      <View style={{ ...styles.flexCenteredRow, gap: 4 }}>
+        <Text style={{ ...styles.text, fontSize: 11 }}>
+          {t("settings.multiplySymbol")}
+        </Text>
+        <View style={{ flexDirection: "row", gap: 4 }}>
+          {(["asterisk", "letter"] as const).map((sym: MultiplySymbol) => (
+            <Pressable
+              key={sym}
+              accessibilityRole="button"
+              onPress={() =>
+                onChangeEquationSettings({
+                  ...equationSettings,
+                  multiplySymbol: sym,
+                })
+              }
+              style={{
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 6,
+                backgroundColor:
+                  equationSettings.multiplySymbol === sym
+                    ? "#555"
+                    : "#2a2a2a",
+              }}
+            >
+              <Text style={{ ...styles.text, fontSize: 11 }}>
+                {sym === "asterisk" ? "7 * 2" : "7 x 2"}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
       <Tooltip label={t("settings.tooltipHard")} content={t("settings.hardModeHelp")}>
         <View

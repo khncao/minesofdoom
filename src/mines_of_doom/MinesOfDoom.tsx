@@ -658,6 +658,7 @@ export default function MinesOfDoom() {
           comboMultiplier={comboMultiplier}
           timeLeftMs={timeLeftMs}
           streak={equationSettings.streakMode ? streak : null}
+          multiplySymbol={equationSettings.multiplySymbol}
         />
         <AnswerInput
           value={textInput}

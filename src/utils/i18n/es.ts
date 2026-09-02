@@ -174,6 +174,20 @@ export const es: Record<TranslationKey, string> = {
     "Bonus de operador ×2. Las respuestas siempre son enteras y no negativas.",
   "settings.op.division":
     "Bonus de operador ×10. La división siempre es exacta.",
+  "settings.op.percent":
+    "Bonus de operador ×3. Solo 10/25/50% — siempre exacto.",
+  "settings.op.square":
+    "Bonus de operador ×4. La respuesta es a².",
+  "settings.op.missing":
+    "Bonus de operador ×3. Encuentra el número que va en la «?».",
+  "settings.opName.multiply": "multiplicación",
+  "settings.opName.add": "suma",
+  "settings.opName.subtract": "resta",
+  "settings.opName.division": "división",
+  "settings.opName.percent": "porcentaje",
+  "settings.opName.square": "cuadrado",
+  "settings.opName.missing": "número que falta",
+  "settings.multiplySymbol": "Símbolo de multiplicación: ",
   "settings.hardMode": "Modo difícil (3 términos ×2): ",
   "settings.hardModeLocked": "🔒 Modo difícil (Motherlode): ",
   "settings.hardModeHelp":

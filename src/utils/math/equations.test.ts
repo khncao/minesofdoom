@@ -3,7 +3,9 @@ import {
   Ops,
   approxeq,
   defaultEquationSettings,
+  formatEquation,
   getRandomEquation,
+  getOpDisplay,
 } from "./equations";
 
 const ALL_ON: EquationSettings = {
@@ -13,12 +15,32 @@ const ALL_ON: EquationSettings = {
   add: true,
   subtract: true,
   division: true,
+  percent: false,
+  square: false,
+  missing: false,
   hardMode: false,
   timedMode: false,
   streakMode: false,
+  multiplySymbol: "asterisk",
 };
 
 const ALL_ON_HARD: EquationSettings = { ...ALL_ON, hardMode: true };
+
+const ALL_TYPES_ON: EquationSettings = {
+  ...ALL_ON,
+  percent: true,
+  square: true,
+  missing: true,
+};
+
+// Classic ops off — isolates one new type at a time.
+const ONLY: EquationSettings = {
+  ...ALL_ON,
+  multiply: false,
+  add: false,
+  subtract: false,
+  division: false,
+};
 
 /** Recompute a (possibly 3-term) equation left-to-right. */
 const evalEquation = (eq: { a: number; op: string; b: number; op2?: string; c?: number }): number => {
@@ -123,6 +145,128 @@ describe("getRandomEquation", () => {
     expect(approxeq(2.5, 2.5)).toBe(true);
     expect(approxeq(2.5, 2.505)).toBe(true);
     expect(approxeq(2.5, 2.6)).toBe(false);
+  });
+
+  test("defaults: new types are off and multiply displays as asterisk", () => {
+    expect(defaultEquationSettings.percent).toBe(false);
+    expect(defaultEquationSettings.square).toBe(false);
+    expect(defaultEquationSettings.missing).toBe(false);
+    expect(defaultEquationSettings.multiplySymbol).toBe("asterisk");
+  });
+});
+
+describe("soft-mode-only equation types (iteration 11, all ages)", () => {
+  test("percent: friendly %, exact integer answer, in-range base", () => {
+    const prefs: EquationSettings = { ...ONLY, percent: true };
+    const seen = new Set<number>();
+    for (let i = 0; i < 2000; i++) {
+      const eq = getRandomEquation(prefs);
+      expect(eq.op).toBe(Ops.pct);
+      expect([10, 25, 50]).toContain(eq.a); // a = the percent
+      const step = 100 / eq.a;
+      expect(eq.b % step).toBe(0); // exact base
+      expect(eq.b).toBeGreaterThanOrEqual(0);
+      expect(eq.b).toBeLessThan(12);
+      expect(Number.isInteger(eq.answer)).toBe(true);
+      expect(eq.answer).toBe((eq.b * eq.a) / 100);
+      expect(eq.answer).toBeGreaterThanOrEqual(1);
+      seen.add(eq.a);
+    }
+    expect(seen.size).toBeGreaterThan(1); // all three percents actually roll
+  });
+
+  test("percent falls back to multiply when no base fits maxNumber", () => {
+    const prefs: EquationSettings = {
+      ...ONLY,
+      percent: true,
+      maxNumber: 2, // no 10/25/50% base fits [0,2)
+    };
+    for (let i = 0; i < 200; i++) {
+      const eq = getRandomEquation(prefs);
+      expect(eq.op).toBe(Ops.mult);
+      expect(eq.answer).toBe(eq.a * eq.b);
+    }
+  });
+
+  test("square: a in range, answer = a²", () => {
+    const prefs: EquationSettings = { ...ONLY, square: true };
+    for (let i = 0; i < 500; i++) {
+      const eq = getRandomEquation(prefs);
+      expect(eq.op).toBe(Ops.sq);
+      expect(eq.a).toBeGreaterThanOrEqual(0);
+      expect(eq.a).toBeLessThan(12);
+      expect(eq.b).toBe(eq.a);
+      expect(eq.answer).toBe(eq.a * eq.a);
+    }
+  });
+
+  test("missing-number: whole answer >= 1, consistent with the shown values", () => {
+    const prefs: EquationSettings = { ...ONLY, missing: true };
+    for (let i = 0; i < 2000; i++) {
+      const eq = getRandomEquation(prefs);
+      expect(eq.missing).toBe(true);
+      expect([Ops.add, Ops.mult]).toContain(eq.op);
+      expect(Number.isInteger(eq.answer)).toBe(true);
+      expect(eq.answer).toBeGreaterThanOrEqual(1);
+      if (eq.op === Ops.add) {
+        expect(eq.a).toBeGreaterThanOrEqual(0);
+        expect(eq.a).toBeLessThan(12);
+        expect(eq.b).toBe(eq.a + eq.answer);
+      } else {
+        expect(eq.a).toBeGreaterThanOrEqual(2);
+        expect(eq.a).toBeLessThan(12);
+        expect(eq.answer).toBeLessThan(12);
+        expect(eq.b).toBe(eq.a * eq.answer);
+      }
+    }
+  });
+
+  test("new types appear with equal-ish frequency when enabled", () => {
+    const counts: Record<string, number> = {};
+    for (let i = 0; i < 6000; i++) {
+      const eq = getRandomEquation(ALL_TYPES_ON);
+      const key = eq.missing ? "missing" : eq.op;
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    // 7 kinds over 6000 rolls: every kind should show up hundreds of times.
+    for (const key of [Ops.mult, Ops.add, Ops.sub, Ops.div, Ops.pct, Ops.sq, "missing"]) {
+      expect(counts[key]).toBeGreaterThan(300);
+    }
+  });
+});
+
+describe("getOpDisplay / formatEquation (iteration 11)", () => {
+  test("multiply symbol is configurable, other ops are fixed", () => {
+    expect(getOpDisplay(Ops.mult, "asterisk")).toBe("*");
+    expect(getOpDisplay(Ops.mult, "letter")).toBe("x");
+    expect(getOpDisplay(Ops.add, "asterisk")).toBe("+");
+    expect(getOpDisplay(Ops.sub, "letter")).toBe("-");
+    expect(getOpDisplay(Ops.div, "asterisk")).toBe("/");
+    expect(getOpDisplay(Ops.pct, "asterisk")).toBe("%");
+    expect(getOpDisplay(Ops.sq, "asterisk")).toBe("²");
+  });
+
+  test("formats every shape", () => {
+    expect(
+      formatEquation({ op: Ops.mult, a: 7, b: 2, answer: 14 }, "asterisk"),
+    ).toBe("7 * 2");
+    expect(
+      formatEquation({ op: Ops.mult, a: 7, b: 2, answer: 14 }, "letter"),
+    ).toBe("7 x 2");
+    expect(
+      formatEquation(
+        { op: Ops.mult, a: 7, b: 2, answer: 42, op2: Ops.mult, c: 3 },
+        "asterisk",
+      ),
+    ).toBe("7 * 2 * 3");
+    expect(formatEquation({ op: Ops.pct, a: 25, b: 40, answer: 10 }, "asterisk")).toBe("25% of 40");
+    expect(formatEquation({ op: Ops.sq, a: 7, b: 7, answer: 49 }, "letter")).toBe("7²");
+    expect(
+      formatEquation({ op: Ops.add, a: 7, b: 12, answer: 5, missing: true }, "letter"),
+    ).toBe("7 + ? = 12");
+    expect(
+      formatEquation({ op: Ops.mult, a: 3, b: 24, answer: 8, missing: true }, "asterisk"),
+    ).toBe("3 * ? = 24");
   });
 });
 

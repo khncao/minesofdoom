@@ -888,11 +888,42 @@ export function getComboResistCost(level: number): number {
 }
 
 /**
+ * Operator premium, per op symbol. Division stays the top scorer (×10);
+ * the soft-mode-only extras (todo: "More types of simple mental
+ * arithmetics for all ages") sit in between: squares ×4 (a whole new
+ * fact table) and percentages ×3 (sight 10/25/50%); − ×2 as before.
+ */
+export function getOpPayoutMultiplier(op: string): number {
+  switch (op) {
+    case Ops.div:
+      return 10;
+    case Ops.sq:
+      return 4;
+    case Ops.pct:
+      return 3;
+    case Ops.sub:
+      return 2;
+    default:
+      return 1;
+  }
+}
+
+/**
+ * The operator-side premium for a WHOLE equation: missing-number
+ * equations ("a + ? = b" / "a * ? = b") pay a flat ×3 — the underlying
+ * op is always + or × (no bonus on its own), the premium is for working
+ * the op backwards.
+ */
+export function getEquationOpBonus(equation: Equation): number {
+  return equation.missing ? 3 : getOpPayoutMultiplier(equation.op);
+}
+
+/**
  * Payout multiplier for a correct answer, folded onto the raw answer value
- * before it reaches applyAnswerReward. Operator bonus (÷ ×10, − ×2, like
- * the pre-hard-mode behavior) × the hard-mode premium when the equation has
- * a second term × the timed-mode premium when the answer landed inside the
- * timed window (timedModeBonus — it's a property of HOW the equation was
+ * before it reaches applyAnswerReward. Operator bonus (÷ ×10, ² ×4, % ×3,
+ * missing ×3, − ×2) × the hard-mode premium when the equation has a second
+ * term × the timed-mode premium when the answer landed inside the timed
+ * window (timedModeBonus — it's a property of HOW the equation was
  * answered, not its shape, so it's a parameter rather than read off the
  * equation) × the streak premium when the caller's answer-streak is ignited
  * (streakModeBonus — likewise a property of the run, not the equation).
@@ -904,8 +935,7 @@ export function getAnswerPayoutMultiplier(
   timedModeBonus = false,
   streakModeBonus = false,
 ): number {
-  const opBonus =
-    equation.op === Ops.div ? 10 : equation.op === Ops.sub ? 2 : 1;
+  const opBonus = getEquationOpBonus(equation);
   return (
     opBonus *
     (equation.op2 !== undefined ? HARD_MODE_PAYOUT : 1) *

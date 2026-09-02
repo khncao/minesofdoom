@@ -1,10 +1,16 @@
 import { memo } from "react";
 import { Text, View } from "react-native";
-import { Equation, Ops } from "src/utils/math/equations";
+import {
+  Equation,
+  MultiplySymbol,
+  formatEquation,
+  getOpDisplay,
+} from "src/utils/math/equations";
 import { useT } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
 import {
   getAnswerPayoutMultiplier,
+  getEquationOpBonus,
   STREAK_MODE_THRESHOLD,
   TIMED_MODE_WINDOW_MS,
 } from "../game";
@@ -16,10 +22,13 @@ const EquationDisplay = memo(function EquationDisplay({
   comboMultiplier,
   timeLeftMs,
   streak,
+  multiplySymbol,
 }: {
   equation: Equation;
   clickPower: number;
   comboMultiplier: number;
+  /** "asterisk" → "7 * 2", "letter" → "7 x 2" (settings, iteration 11). */
+  multiplySymbol: MultiplySymbol;
   /** Timed mode (plan §4.2): ms left on the current equation's window.
    *  null/undefined = timed mode off, hide the bar. */
   timeLeftMs?: number | null;
@@ -29,11 +38,10 @@ const EquationDisplay = memo(function EquationDisplay({
 }) {
   const t = useT();
   // Same multiplier the engine pays (getAnswerPayoutMultiplier): operator
-  // bonus (÷ ×10, − ×2) × the hard-mode premium for 3-term equations
-  // × the timed-mode premium while inside the window × the streak premium
-  // while the streak is ignited.
-  const opMultiplier =
-    equation.op === Ops.div ? 10 : equation.op === Ops.sub ? 2 : 1;
+  // bonus (÷ ×10, ² ×4, % ×3, missing ×3, − ×2) × the hard-mode premium for
+  // 3-term equations × the timed-mode premium while inside the window × the
+  // streak premium while the streak is ignited.
+  const opMultiplier = getEquationOpBonus(equation);
   const hardMode = equation.op2 !== undefined;
   const timedActive = timeLeftMs !== null && timeLeftMs !== undefined;
   const streakActive = streak !== null && streak !== undefined;
@@ -77,10 +85,7 @@ const EquationDisplay = memo(function EquationDisplay({
         </View>
       )}
       <Text style={styles.text} testID="equation-display">
-        {equation.a} {equation.op} {equation.b}
-        {equation.op2 !== undefined && equation.c !== undefined
-          ? ` ${equation.op2} ${equation.c}`
-          : null}?
+        {formatEquation(equation, multiplySymbol)}?
       </Text>
       {streakActive && (
         // Ignited: the premium is live; not yet: progress toward ignition.
@@ -98,7 +103,7 @@ const EquationDisplay = memo(function EquationDisplay({
         {payoutMultiplier > 1 &&
           t("equation.detail", {
             mult: payoutMultiplier,
-            suffix: `${opMultiplier > 1 ? ` ${equation.op}` : ""}${hardMode ? ` ${t("equation.tagHard")}` : ""}${timedActive ? ` ${t("equation.tagTimed")}` : ""}${streakIgnited ? ` ${t("equation.tagStreak")}` : ""}`,
+            suffix: `${opMultiplier > 1 ? ` ${equation.missing ? "?" : getOpDisplay(equation.op, multiplySymbol)}` : ""}${hardMode ? ` ${t("equation.tagHard")}` : ""}${timedActive ? ` ${t("equation.tagTimed")}` : ""}${streakIgnited ? ` ${t("equation.tagStreak")}` : ""}`,
           })}
       </Text>
     </>
