@@ -80,6 +80,13 @@ export type FreePathPersona = {
   expectedEquationValue: number;
   /** RNG seed (deterministic simulation). */
   seed: number;
+  /**
+   * Stop the run the moment first prestige is bankable (the §5 target).
+   * Set false to let the persona keep playing past prestige — used to
+   * measure long-horizon gem income for balance questions (e.g. whether a
+   * free player can ever afford the full cosmetic collection).
+   */
+  stopAtFirstPrestige?: boolean;
 };
 
 export const DEFAULT_FREE_PATH_PERSONA: FreePathPersona = {
@@ -131,6 +138,9 @@ export function simulateFreePath(
     offline: 0,
     daily: 0,
   };
+  // Lifetime gem income by source (the benchmark's gem-sink pressure gauge —
+  // gem drops scale with the combo, mints scale with mineral throughput).
+  const gemGains = { drops: 0, mints: 0 };
   const perDay: FreePathDay[] = [];
 
   const addGain = (amount: number, source: keyof typeof earned) => {
@@ -173,6 +183,7 @@ export function simulateFreePath(
     if (gems < 40 && minerals >= gemMineralCost) {
       minerals -= gemMineralCost;
       gems += 1;
+      gemGains.mints += 1;
     }
     // 5. Gem upgrade lines & second/third miner types, in "when you meet
     //    them" order (fast miners first — cheapest per output, then the
@@ -222,6 +233,7 @@ export function simulateFreePath(
       // through the seeded RNG (rollGem's own roll is left to the app).
       if (rng() < getGemChance(gemChanceLevels) * comboMult) {
         gems += 1;
+        gemGains.drops += 1;
       }
       combo += 1;
     } else {
@@ -275,13 +287,17 @@ export function simulateFreePath(
       if (t % persona.secondsPerAnswer === 0) answer();
       shop();
 
-      if (lifetime >= FREE_PATH_TARGET.firstPrestigeLifetime) {
+      if (
+        (persona.stopAtFirstPrestige ?? true) &&
+        lifetime >= FREE_PATH_TARGET.firstPrestigeLifetime
+      ) {
         return {
           reached: true,
           days: (day - 1) + t / sessionSeconds,
           simulatedDays: maxDays,
           lifetimeMinerals: lifetime,
           earned,
+          gemGains,
           perDay,
         };
       }
@@ -305,6 +321,7 @@ export function simulateFreePath(
     simulatedDays: maxDays,
     lifetimeMinerals: lifetime,
     earned,
+    gemGains,
     perDay,
   };
 }
@@ -328,6 +345,14 @@ export type FreePathReport = {
   days: number;
   simulatedDays: number;
   lifetimeMinerals: number;
+  /**
+   * Total gems earned (dropped from the rock or minted from minerals), by
+   * source. Lifetime, not the end-of-run hoard (the hoard is spent).
+   */
+  gemGains: {
+    drops: number;
+    mints: number;
+  };
   /** Total lifetime minerals per source (should sum to lifetimeMinerals). */
   earned: {
     answers: number;

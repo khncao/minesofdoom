@@ -75,7 +75,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "night",
     name: "Night Shift",
-    costGems: 3,
+    costGems: 15,
     shirts: ["#3a4a7a", "#4a3a7a", "#2b3a5c", "#5a4a8a"],
     pants: ["#22283a", "#2a2f45"],
     boots: ["#1a1a24", "#333344"],
@@ -85,7 +85,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "goldrush",
     name: "Gold Rush",
-    costGems: 5,
+    costGems: 25,
     shirts: ["#e8c33d", "#d4a017", "#f0d060", "#c89010"],
     pants: ["#5a4a20", "#6b5a30"],
     boots: ["#4a3524", "#3a2a18"],
@@ -95,7 +95,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "crystal",
     name: "Crystal Miner",
-    costGems: 10,
+    costGems: 40,
     shirts: ["#3ac0c0", "#2a90d9", "#7fe0d0", "#40b0e0"],
     pants: ["#2a4a5a", "#1f3a4a"],
     boots: ["#1a2f3a", "#2a3f4a"],
@@ -105,7 +105,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "magma",
     name: "Lava Worker",
-    costGems: 15,
+    costGems: 50,
     shirts: ["#d94f30", "#e07020", "#b03020", "#f09030"],
     pants: ["#4a2a1a", "#3a2015"],
     boots: ["#2a1a10", "#3a251a"],
@@ -118,7 +118,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "blocky",
     name: "Blocky Adventurer",
-    costGems: 8,
+    costGems: 30,
     blurb: "a voxel-sandbox tribute",
     shirts: ["#2f88c4", "#35a0cc", "#2a6a98"],
     pants: ["#3a5aa8", "#2a4a8a"],
@@ -129,7 +129,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "surface",
     name: "Frontier Explorer",
-    costGems: 10,
+    costGems: 40,
     blurb: "a surface-to-underground sandbox tribute",
     shirts: ["#4a8a3a", "#6aa84a", "#3a7030"],
     pants: ["#6a4a2a", "#5a3e20"],
@@ -140,7 +140,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "knight",
     name: "Ashen Knight",
-    costGems: 12,
+    costGems: 50,
     blurb: "a dark-fantasy soulslike tribute",
     shirts: ["#8a9099", "#6a707a", "#5a606a"],
     pants: ["#4a4e58", "#3a3e48"],
@@ -151,7 +151,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "hunter",
     name: "Wandering Hunter",
-    costGems: 15,
+    costGems: 60,
     blurb: "a gothic hunt tribute",
     shirts: ["#4a5a3a", "#3a4a2a", "#5a4a3a"],
     pants: ["#3a3a2a", "#2e2e22"],
@@ -162,7 +162,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "oni",
     name: "Crimson Oni",
-    costGems: 18,
+    costGems: 75,
     blurb: "a samurai-era vengeance tribute",
     shirts: ["#b03030", "#8a2020", "#c04040"],
     pants: ["#2a2a33", "#1f1f28"],
@@ -184,7 +184,7 @@ export const PICKAXES: PickaxeCosmetic[] = [
   {
     id: "gold",
     name: "Gold",
-    costGems: 5,
+    costGems: 25,
     theme: { head: "#e8c33d", glow: "#fff3b0", handle: "#8a5a2b" },
     soundFile: "audio/pickaxe-gold.wav",
     // Heavier metal: slower swing, deeper bounce.
@@ -194,7 +194,7 @@ export const PICKAXES: PickaxeCosmetic[] = [
     // id "frost" (not "crystal") to avoid colliding with the outfit id.
     id: "frost",
     name: "Crystal",
-    costGems: 10,
+    costGems: 45,
     theme: { head: "#5ad8e8", glow: "#d0fbff", handle: "#3a2f5a" },
     soundFile: "audio/pickaxe-frost.wav",
     // Light and nimble: the fastest swing, the shallowest bounce.
@@ -203,7 +203,7 @@ export const PICKAXES: PickaxeCosmetic[] = [
   {
     id: "shadow",
     name: "Shadow",
-    costGems: 20,
+    costGems: 90,
     theme: { head: "#4a4a5a", glow: "#9a7fd0", handle: "#2a2233" },
     soundFile: "audio/pickaxe-shadow.wav",
     // Slow and heavy: the biggest, most deliberate swing.
@@ -311,25 +311,25 @@ export const CAVE_THEMES: CaveTheme[] = [
   {
     id: "amethyst",
     name: "Amethyst Cavern",
-    costGems: 5,
+    costGems: 25,
     tints: ["#c8a8e0", "#b090d8", "#9a7fc8", "#b88fe0", "#d8c0f0"],
   },
   {
     id: "verdant",
     name: "Verdant Hollow",
-    costGems: 8,
+    costGems: 35,
     tints: ["#a8c890", "#90b878", "#78a860", "#8fc85a", "#a8e878"],
   },
   {
     id: "solar",
     name: "Solar Vein",
-    costGems: 12,
+    costGems: 55,
     tints: ["#e8d8a8", "#e8c878", "#e8b050", "#e89838", "#f0d060"],
   },
   {
     id: "void",
     name: "Void Depths",
-    costGems: 20,
+    costGems: 75,
     tints: ["#6a7a9a", "#5a6a8a", "#4a5a7a", "#5a4a7a", "#7a6aaa"],
   },
   // Homage line (plan §4.5 / art todo): palettes that evoke famous game
@@ -338,35 +338,35 @@ export const CAVE_THEMES: CaveTheme[] = [
   {
     id: "voxel",
     name: "Blockfall Mines",
-    costGems: 25,
+    costGems: 90,
     blurb: "dirt, grass & glowing ore — a voxel tribute",
     tints: ["#8a6b45", "#5f7a3e", "#6e7686", "#3e7a8a", "#2a4a5a"],
   },
   {
     id: "wilds",
     name: "Wilds Below",
-    costGems: 30,
+    costGems: 110,
     blurb: "from the grassy surface to hellstone — a sandbox tribute",
     tints: ["#5f8a3e", "#8a6b45", "#5a6478", "#7a4a5e", "#33262e"],
   },
   {
     id: "ashen",
     name: "Ashen Depths",
-    costGems: 35,
+    costGems: 130,
     blurb: "fog, grey stone & a single ember — a dark-fantasy tribute",
     tints: ["#8a8f9a", "#6a7080", "#525868", "#6a4434", "#23262e"],
   },
   {
     id: "gothic",
     name: "Fog & Lantern",
-    costGems: 40,
+    costGems: 150,
     blurb: "moonlit fog, lantern glow, one drop of blood — a gothic hunt tribute",
     tints: ["#5a6a58", "#4a5a68", "#3a4a58", "#582828", "#1f2230"],
   },
   {
     id: "cherry",
     name: "Cherry & Indigo",
-    costGems: 45,
+    costGems: 170,
     blurb: "blossom over indigo night, gold at the bottom — a samurai-era tribute",
     tints: ["#c890a4", "#8a6a94", "#5a5a88", "#3a3a64", "#a89052"],
   },

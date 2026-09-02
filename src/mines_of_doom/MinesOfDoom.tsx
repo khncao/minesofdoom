@@ -17,12 +17,14 @@ import MenuPanel from "./components/MenuPanel";
 import SavePill from "./components/SavePill";
 import OnboardingOverlay from "./components/OnboardingOverlay";
 import DailyBonusButton from "./components/DailyBonusButton";
+import InquiriesButton from "./components/InquiriesButton";
 import {
   ALL_PURCHASE_IDS,
   defaultSettingsData,
   getComboMultiplier,
   getComboRetention,
   getDepthTier,
+  getDepthTierProgress,
   getPrestigeMultiplier,
   getResistantComboReset,
   getClickBoostMultiplier,
@@ -657,6 +659,7 @@ export default function MinesOfDoom() {
             collapsible, so no unlock count can ever push the canvas off. */}
         <MiningCanvas
           depth={depth}
+          depthProgress={getDepthTierProgress(gameState.minerals)}
           tint={caveTint}
           minerals={gameState.minerals}
           gems={gameState.gems}
@@ -761,6 +764,7 @@ export default function MinesOfDoom() {
             analytics={analytics}
             onClearAnalytics={onClearAnalytics}
           />
+          <InquiriesButton />
           <DailyBonusButton
             claimable={dailyBonus.claimable}
             bonus={dailyBonus.bonus}

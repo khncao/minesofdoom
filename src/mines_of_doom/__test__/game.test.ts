@@ -11,6 +11,8 @@ import {
   getClickUpgradeCost,
   getDepth,
   getDepthTier,
+  getDepthTierProgress,
+  FINAL_TIER_PROGRESS_SPAN,
   getFastMinerCost,
   getClickBoostCost,
   getClickBoostMultiplier,
@@ -1073,5 +1075,55 @@ describe("getVisiblePurchases", () => {
       NO_PURCHASE_UNLOCKS,
     );
     expect(visible.size).toBe(ALL_PURCHASE_IDS.length);
+  });
+});
+
+describe("getDepthTierProgress (cave continuous scroll)", () => {
+  const m = (depth: number) => depth * 500; // mineralsPerDepth = 500
+
+  it("is 0 exactly at each tier threshold", () => {
+    for (const t of DEPTH_TIERS) {
+      expect(getDepthTierProgress(m(t.at))).toBe(0);
+    }
+  });
+
+  it("is linear within a tier", () => {
+    // Tier 0 spans depth 0..10: depth 5 is halfway.
+    expect(getDepthTierProgress(m(5))).toBeCloseTo(0.5, 6);
+    // Tier 2 spans depth 50..150: depth 75 is a quarter in.
+    expect(getDepthTierProgress(m(75))).toBeCloseTo(0.25, 6);
+  });
+
+  it("approaches 1 just below the next threshold and caps at 1", () => {
+    // Depth 49 is the last integer depth of tier 1 (span 10..50).
+    const justBelow = getDepthTierProgress(m(50) - 1);
+    expect(justBelow).toBeCloseTo(0.975, 6);
+    expect(getDepthTierProgress(1e15)).toBe(1);
+  });
+
+  it("stays bounded, and the visual offset (tiers crossed + progress) is monotonic", () => {
+    // Progress itself resets to 0 at each tier threshold (the rows re-index
+    // one tile at the same moment), so the monotonically descending
+    // quantity is tiers-entered + progress — exactly what the cave renders.
+    let prev = 0;
+    for (let minerals = 0; minerals <= 400_000; minerals += 250) {
+      const p = getDepthTierProgress(minerals);
+      expect(p).toBeGreaterThanOrEqual(0);
+      expect(p).toBeLessThanOrEqual(1);
+      const tierId = getDepthTier(getDepth(minerals)).id;
+      const offset = tierId + p;
+      expect(offset).toBeGreaterThanOrEqual(prev - 1e-9);
+      prev = offset;
+    }
+  });
+
+  it("final tier advances across the virtual span and caps", () => {
+    const start = m(500); // depth 500, Crystal Kingdom
+    expect(getDepthTierProgress(start)).toBe(0);
+    const mid = start + ((FINAL_TIER_PROGRESS_SPAN / 2) * 500);
+    expect(getDepthTierProgress(mid)).toBeCloseTo(0.5, 6);
+    const end = start + FINAL_TIER_PROGRESS_SPAN * 500;
+    expect(getDepthTierProgress(end)).toBe(1);
+    expect(getDepthTierProgress(end + 10_000)).toBe(1);
   });
 });

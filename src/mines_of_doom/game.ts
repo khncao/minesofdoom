@@ -486,6 +486,29 @@ export function getDepthTier(depth: number): DepthTier {
 }
 
 /**
+ * Virtual span (in depth units) the progress bar covers inside the FINAL
+ * tier, which has no next threshold. Matches the widest real tier span
+ * (150→500) so the cave keeps scrolling at a familiar pace until it caps.
+ */
+export const FINAL_TIER_PROGRESS_SPAN = 350;
+
+/**
+ * Progress toward the next depth tier, 0..1, linear in depth.
+ *
+ * Drives the cave background's continuous scroll: the rock slides down
+ * slowly while the player mines within a tier and hands off seamlessly at
+ * each threshold (one tile of slide per tier, matching the row shift).
+ * The final tier advances across a fixed virtual span and caps at 1.
+ */
+export function getDepthTierProgress(minerals: number): number {
+  const depth = getDepth(minerals);
+  const tier = getDepthTier(depth);
+  const next = DEPTH_TIERS[tier.id + 1];
+  const span = next ? next.at - tier.at : FINAL_TIER_PROGRESS_SPAN;
+  return Math.min(1, Math.max(0, (depth - tier.at) / span));
+}
+
+/**
  * Prestige ("New Shaft", plan §4.1 / tier 3, §4.6). Sinking a new shaft
  * resets the run's mining operation (minerals, miners, fast miners, click &
  * miner power) but banks a permanent multiplier based on lifetime minerals.

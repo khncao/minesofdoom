@@ -31,6 +31,7 @@ const MINE_HOLD_MS = 300;
 
 const MiningCanvas = memo(function MiningCanvas({
   depth,
+  depthProgress,
   tint,
   minerals,
   gems,
@@ -49,6 +50,8 @@ const MiningCanvas = memo(function MiningCanvas({
   emojiArt,
 }: {
   depth: number;
+  /** Progress toward the next depth tier, 0..1 — the cave's continuous slide. */
+  depthProgress: number;
   /** Cave background tint for the current depth tier. */
   tint: string;
   minerals: number;
@@ -107,7 +110,12 @@ const MiningCanvas = memo(function MiningCanvas({
       accessibilityRole="button"
       accessibilityLabel="Hold to mine"
     >
-      <CaveBackground depth={depth} tint={tint} emojiArt={emojiArt} />
+      <CaveBackground
+        depth={depth}
+        progress={depthProgress}
+        tint={tint}
+        emojiArt={emojiArt}
+      />
       <FloatingTextLayer ref={floatingTextRef} />
       <View style={{ alignItems: "center" }}>
         <View style={styles.flexCenteredRow}>

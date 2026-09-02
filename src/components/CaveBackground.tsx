@@ -10,11 +10,21 @@ const ROWS = 12;
  * (`caveTiles.ts`) stretched to full width. Strips are memoized PNG data URIs
  * keyed by (tint, depth band, row cycle position), so a depth change only
  * swaps cached `<Image>` sources — no per-frame React or PNG work.
+ *
+ * Scroll: the strip is ROWS+1 tiles tall in a ROWS-tile window. While the
+ * player mines WITHIN a depth tier it slides down gradually (`progress`,
+ * 0..1) and at each tier threshold the rows re-index exactly one tile, so
+ * the descent is continuous instead of a jump every tier.
  */
 interface CaveBackgroundProps {
   depth: number;
   /** Tint for the current depth tier (theme-aware, see `cosmetics.ts`). */
   tint?: string;
+  /**
+   * Progress toward the next depth tier, 0..1 (game.ts
+   * `getDepthTierProgress`). Drives the gradual slide inside a tier.
+   */
+  progress?: number;
   /** Low-end fallback (plan §4.5): flat tinted rows, no PNG strips. */
   emojiArt?: boolean;
 }
@@ -22,6 +32,7 @@ interface CaveBackgroundProps {
 function CaveBackground({
   depth,
   tint = "#a0856a",
+  progress = 0,
   emojiArt = false,
 }: CaveBackgroundProps) {
   const scrollAnim = useRef(new Animated.Value(0)).current;
@@ -31,19 +42,27 @@ function CaveBackground({
 
   useEffect(() => {
     if (depth !== prevDepth.current) {
+      // Crossed a tier threshold: the rows re-indexed exactly one tile, so
+      // the base offset continues one tile further — seamless hand-off.
+      // (A big depth spike, e.g. offline earnings or a prestige reset,
+      // just lands further into the strip; the clamp below keeps the
+      // window covered.)
       prevDepth.current = depth;
       scrollOffset.current += TILE_HEIGHT;
-      // Cancel the in-flight scroll so depth changes during fast mining
-      // don't stack competing animations on the same value.
-      scrollAnimRunRef.current?.stop();
-      scrollAnimRunRef.current = Animated.timing(scrollAnim, {
-        toValue: scrollOffset.current,
-        duration: 400,
-        useNativeDriver: true,
-      });
-      scrollAnimRunRef.current.start();
     }
-  }, [depth, scrollAnim]);
+    // Clamp the base so the strip (ROWS+1 tiles) always covers the window
+    // even after repeated tier crossings / resets.
+    const base = Math.min(scrollOffset.current, 2 * TILE_HEIGHT);
+    // Cancel the in-flight scroll so depth changes during fast mining
+    // don't stack competing animations on the same value.
+    scrollAnimRunRef.current?.stop();
+    scrollAnimRunRef.current = Animated.timing(scrollAnim, {
+      toValue: base + progress * TILE_HEIGHT,
+      duration: 400,
+      useNativeDriver: true,
+    });
+    scrollAnimRunRef.current.start();
+  }, [depth, progress, scrollAnim]);
 
   useEffect(
     () => () => {
