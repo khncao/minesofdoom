@@ -504,11 +504,14 @@ export default function MinesOfDoom() {
 
   // Local event logging (guardrail 6, "measure before scaling"): the
   // app-open record happens inside the hook (after its stored record has
-  // loaded); the one-shot milestones are fired from the effects below.
+  // loaded); the milestones are fired from the effects below. The hook is
+  // the single owner of the record — Settings only displays it.
   const {
-    onPrestige: onFirstPrestige,
+    state: analytics,
+    onPrestige,
     onAdView: onFirstAdView,
     onIapPurchase: onFirstIap,
+    clear: onClearAnalytics,
   } = useAnalytics();
 
   // Rewarded ads (plan §5.1): production builds run the no-op provider,
@@ -576,18 +579,19 @@ export default function MinesOfDoom() {
     [gameState.ownedCosmetics, gameState.ownedCaveThemes],
   );
 
-  // Free-path progress (guardrail 6): the player's FIRST prestige, observed
-  // live in this session. The ref starts null so a loaded save that already
-  // has prestiges isn't misread as a first one.
+  // Free-path progress (guardrail 6): every prestige sunk live in this
+  // session (the record keeps both the count and the first-prestige day).
+  // The ref starts null so a loaded save that already has prestiges isn't
+  // miscounted on the first effect run.
   const prevPrestigesRef = useRef<number | null>(null);
   useEffect(() => {
     const prev = prevPrestigesRef.current;
     prevPrestigesRef.current = gameState.totalPrestiges;
     if (prev !== null && gameState.totalPrestiges > prev) {
       noteCrashEvent("prestige");
-      onFirstPrestige();
+      onPrestige();
     }
-  }, [gameState.totalPrestiges, onFirstPrestige]);
+  }, [gameState.totalPrestiges, onPrestige]);
 
   // Crash-context trails for the monetization actions (dev-sim or store,
   // same paths).
@@ -729,6 +733,8 @@ export default function MinesOfDoom() {
               HARD_MODE_UNLOCK_TIER,
             )}
             stats={gameState}
+            analytics={analytics}
+            onClearAnalytics={onClearAnalytics}
           />
           <DailyBonusButton
             claimable={dailyBonus.claimable}

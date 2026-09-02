@@ -2,10 +2,12 @@ import {
   D1_RETENTION_MS,
   D7_RETENTION_MS,
   emptyAnalyticsState,
+  parseAnalytics,
   recordAdView,
   recordAppOpen,
   recordIapPurchase,
   recordPrestige,
+  summarizeAnalytics,
 } from "../analytics";
 import { getLocalDayKey } from "../dailyBonus";
 
@@ -20,6 +22,7 @@ describe("emptyAnalyticsState", () => {
     expect(s.activeDays).toBe(1);
     expect(s.d1Retention).toBe(false);
     expect(s.firstAdViewDay).toBe("");
+    expect(s.prestiges).toBe(0);
   });
 });
 
@@ -98,5 +101,88 @@ describe("recordPrestige", () => {
     expect(recordPrestige(s, day(9)).firstPrestigeDay).toBe(
       getLocalDayKey(day(7)),
     );
+  });
+
+  it("counts every prestige, not just the first", () => {
+    let s = recordPrestige(null, day(7));
+    s = recordPrestige(s, day(9));
+    s = recordPrestige(s, day(20));
+    expect(s.prestiges).toBe(3);
+    expect(s.firstPrestigeDay).toBe(getLocalDayKey(day(7)));
+  });
+});
+
+describe("parseAnalytics", () => {
+  it("returns null for absent, corrupt, or non-object raw values", () => {
+    expect(parseAnalytics(null)).toBeNull();
+    expect(parseAnalytics("{not json")).toBeNull();
+    expect(parseAnalytics("42")).toBeNull();
+    expect(parseAnalytics(JSON.stringify([1, 2]))).toBeNull();
+  });
+
+  it("round-trips a full record", () => {
+    let s = emptyAnalyticsState(day(1));
+    s = recordAppOpen(s, day(2));
+    s = recordAdView(s, day(2));
+    s = recordIapPurchase(s, day(3));
+    s = recordPrestige(s, day(4));
+    const parsed = parseAnalytics(JSON.stringify(s));
+    expect(parsed).toEqual(s);
+  });
+
+  it("migrates a legacy record: missing counter defaults, stamped first day implies 1", () => {
+    const legacy = {
+      ...emptyAnalyticsState(day(1)),
+      firstPrestigeDay: getLocalDayKey(day(7)),
+    };
+    delete (legacy as { prestiges?: number }).prestiges;
+    const parsed = parseAnalytics(JSON.stringify(legacy));
+    expect(parsed).not.toBeNull();
+    expect(parsed!.prestiges).toBe(1);
+    expect(parsed!.firstPrestigeDay).toBe(getLocalDayKey(day(7)));
+    // and a legacy record that never prestiged stays at 0
+    const legacyFresh = { ...emptyAnalyticsState(day(1)) };
+    delete (legacyFresh as { prestiges?: number }).prestiges;
+    expect(parseAnalytics(JSON.stringify(legacyFresh))!.prestiges).toBe(0);
+  });
+
+  it("coerces garbage field types to safe defaults", () => {
+    const parsed = parseAnalytics(
+      JSON.stringify({
+        firstOpenMs: "nope",
+        activeDays: -3,
+        iapPurchases: 1.5,
+        d1Retention: "yes",
+      }),
+    );
+    expect(parsed).not.toBeNull();
+    expect(parsed!.activeDays).toBe(0);
+    expect(parsed!.iapPurchases).toBe(1);
+    expect(parsed!.d1Retention).toBe(false);
+    expect(parsed!.firstOpenDay).not.toBe("");
+  });
+});
+
+describe("summarizeAnalytics", () => {
+  it("renders one line per field, in a stable order", () => {
+    let s = emptyAnalyticsState(day(1));
+    s = recordAppOpen(s, day(3));
+    s = recordAdView(s, day(2));
+    s = recordPrestige(s, day(9));
+    const lines = summarizeAnalytics(s).split("\n");
+    expect(lines).toHaveLength(10);
+    expect(lines[0]).toContain(s.firstOpenDay);
+    expect(lines[2]).toContain(`active days     ${s.activeDays}`);
+    expect(lines[3]).toContain("d1 retention");
+    expect(lines[8]).toContain("prestiges       1");
+  });
+
+  it("says 'never' for un-fired one-shot fields and reflects counts", () => {
+    const fresh = emptyAnalyticsState(day(1));
+    const text = summarizeAnalytics(fresh);
+    expect(text).toContain("first ad view   never");
+    expect(text).toContain("iap purchases   0");
+    expect(text).toContain("first prestige  never");
+    expect(text).toContain("d1 retention    no");
   });
 });

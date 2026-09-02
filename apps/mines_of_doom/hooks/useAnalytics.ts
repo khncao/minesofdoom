@@ -3,6 +3,7 @@ import { useAsyncStorage } from "@react-native-async-storage/async-storage";
 import {
   AnalyticsState,
   analyticsKey,
+  parseAnalytics,
   recordAdView,
   recordAppOpen,
   recordIapPurchase,
@@ -24,11 +25,13 @@ import {
  * uses for the save itself.
  */
 export function useAnalytics() {
-  const { getItem, setItem } = useAsyncStorage(analyticsKey);
+  const { getItem, setItem, removeItem } = useAsyncStorage(analyticsKey);
   const setItemRef = useRef(setItem);
   setItemRef.current = setItem;
   const getItemRef = useRef(getItem);
   getItemRef.current = getItem;
+  const removeItemRef = useRef(removeItem);
+  removeItemRef.current = removeItem;
 
   const [state, setState] = useState<AnalyticsState | null>(null);
   const stateRef = useRef(state);
@@ -49,17 +52,9 @@ export function useAnalytics() {
         raw = null;
       }
       if (cancelled) return;
-      let stored: AnalyticsState | null = null;
-      if (raw != null) {
-        try {
-          stored = JSON.parse(raw) as AnalyticsState;
-        } catch (e) {
-          // Corrupt record: start fresh (analytics data is disposable by
-          // design; the game's save gets a backup, this one doesn't need
-          // one).
-          console.warn("Corrupt analytics record, starting fresh", e);
-        }
-      }
+      // parseAnalytics doubles as the corrupt-record guard (returns null)
+      // and the forward-compat migration for pre-`prestiges` records.
+      const stored = parseAnalytics(raw);
       setLoaded(true);
       const updated = recordAppOpen(stored, Date.now());
       setState(updated);
@@ -100,12 +95,24 @@ export function useAnalytics() {
     persist(recordPrestige(stateRef.current, now));
   }, [persist]);
 
+  // Data-deletion path (module docs: deletion is a removeItem). The next
+  // app open re-establishes a fresh record — that's the semantics of
+  // "delete my data", not "hide my data".
+  const clear = useCallback(() => {
+    stateRef.current = null;
+    setState(null);
+    removeItemRef.current().catch((e: unknown) =>
+      console.warn("Failed to clear analytics", e),
+    );
+  }, []);
+
   return {
-    /** The analytics record (null until the read completes). */
+    /** The analytics record (null until the read completes, or after clear). */
     state,
     loaded,
     onAdView,
     onIapPurchase,
     onPrestige,
+    clear,
   };
 }

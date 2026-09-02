@@ -3,6 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import BottomModal from "apps/components/BottomModal";
 import MuteToggle from "apps/components/MuteToggle";
 import { EquationSettings } from "apps/utils/math/equations";
+import { AnalyticsState } from "../analytics";
 import type { ComponentProps } from "react";
 import SettingsContent from "./SettingsPanel";
 import GoalsContent from "./GoalsPanel";
@@ -33,6 +34,8 @@ function MenuPanel({
   onMuteChange,
   hardModeUnlocked,
   stats,
+  analytics,
+  onClearAnalytics,
 }: {
   settingsData: SettingsData;
   onChangeSettingsData: (newSettings: SettingsData) => void;
@@ -49,6 +52,12 @@ function MenuPanel({
   hardModeUnlocked: boolean;
   /** Lifetime save data — feeds the goals view's derived progress. */
   stats: SaveData;
+  /** Guardrail 6: the local analytics record for the settings debug
+   *  section (single owner is MinesOfDoom's useAnalytics; this is a
+   *  read-through, not a second storage reader). */
+  analytics: AnalyticsState | null;
+  /** Data-deletion path for the analytics record. */
+  onClearAnalytics: () => void;
 }) {
   const [view, setView] = useState<MenuView>("settings");
 
@@ -68,6 +77,8 @@ function MenuPanel({
         onImportSaveCode={onImportSaveCode}
         cosmetics={cosmetics}
         hardModeUnlocked={hardModeUnlocked}
+        analytics={analytics}
+        onClearAnalytics={onClearAnalytics}
       />
     ),
     [
@@ -82,6 +93,8 @@ function MenuPanel({
       onImportSaveCode,
       cosmetics,
       hardModeUnlocked,
+      analytics,
+      onClearAnalytics,
     ],
   );
   const goalsChildren = useMemo(() => <GoalsContent stats={stats} />, [stats]);

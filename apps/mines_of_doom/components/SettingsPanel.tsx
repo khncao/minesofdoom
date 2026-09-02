@@ -5,6 +5,7 @@ import ConfirmableButton from "apps/components/ConfirmableButton";
 import IntegerInput from "apps/components/IntegerInput";
 import Tooltip from "apps/components/Tooltip";
 import { EquationSettings } from "apps/utils/math/equations";
+import { AnalyticsState, summarizeAnalytics } from "../analytics";
 import { SettingsData } from "../game";
 import { formatCrashContext } from "../crashContext";
 import { useCrashLog } from "../hooks/useCrashLog";
@@ -71,6 +72,8 @@ const SettingsContent = memo(function SettingsContent({
   onImportSaveCode,
   cosmetics,
   hardModeUnlocked,
+  analytics,
+  onClearAnalytics,
 }: {
   settingsData: SettingsData;
   onChangeSettingsData: (newSettings: SettingsData) => void;
@@ -87,6 +90,11 @@ const SettingsContent = memo(function SettingsContent({
   /** Tier-5 (Motherlode) complete → the switch is live, otherwise it
    *  renders locked (visible-but-locked, plan §4.6). */
   hardModeUnlocked: boolean;
+  /** Guardrail 6: the local analytics record (null until loaded, or after
+   *  the player clears it) — feeds the "Local stats (debug)" section. */
+  analytics: AnalyticsState | null;
+  /** Data-deletion path for the analytics record (module docs). */
+  onClearAnalytics: () => void;
 }) {
   const [exportedCode, setExportedCode] = useState<string | null>(null);
   const [importCode, setImportCode] = useState("");
@@ -345,6 +353,7 @@ const SettingsContent = memo(function SettingsContent({
           onPress={onReset}
         />
       </View>
+      <AnalyticsSection analytics={analytics} onClear={onClearAnalytics} />
       <CrashLogSection />
       <View style={{ alignSelf: "center", margin: 10 }}>
         {showMessage && <Text style={{ ...styles.text }}>{showMessage}</Text>}
@@ -352,6 +361,50 @@ const SettingsContent = memo(function SettingsContent({
     </View>
   );
 });
+
+/**
+ * Debug section (guardrail 6 "measure before scaling"): the local
+ * analytics record as a selectable, copyable summary — the measurement
+ * the UA-spend decision is based on, readable without pulling the app off
+ * the device. Rendered only while a record is loaded (the hook is the
+ * single writer, so there's no second storage reader to race it); after
+ * a Clear the section hides and a fresh record is established next open.
+ */
+function AnalyticsSection({
+  analytics,
+  onClear,
+}: {
+  analytics: AnalyticsState | null;
+  onClear: () => void;
+}) {
+  if (analytics == null) return null;
+  return (
+    <View style={{ gap: 6, marginTop: 10 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <Text style={{ ...styles.text, fontWeight: "bold" }}>
+          Local stats (debug)
+        </Text>
+        <Button title="Clear" onPress={onClear} />
+      </View>
+      <Text
+        selectable
+        style={{ color: "#d6c48f", fontSize: 10, lineHeight: 14 }}
+      >
+        {summarizeAnalytics(analytics)}
+      </Text>
+      <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+        Stored on this device only — no network, no PII. Clear deletes
+        it; a fresh record starts on the next open.
+      </Text>
+    </View>
+  );
+}
 
 /**
  * Debug section (plan "Adjust"): the persisted crash log from
