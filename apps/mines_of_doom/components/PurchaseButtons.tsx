@@ -90,6 +90,21 @@ const PurchaseButtons = memo(function PurchaseButtons({
 }) {
   const fastCost = getFastMinerCost(fastMiners);
   const legendaryCost = getLegendaryMinerCost(legendaryMiners);
+  // Cost-curve context (plan §2.1): once a type is owned, show the NEXT
+  // cost too, so the quartic ramp is visible before it surprises the
+  // player. Hidden at count 0 (next would just repeat the current cost).
+  const minerNext =
+    miners > 0
+      ? `, next ${formatNumber(getMinerUpgradeCost(miners + 1))}`
+      : "";
+  const fastNext =
+    fastMiners > 0
+      ? `, next ${formatNumber(getFastMinerCost(fastMiners + 1))}`
+      : "";
+  const legendaryNext =
+    legendaryMiners > 0
+      ? `, next ${formatNumber(getLegendaryMinerCost(legendaryMiners + 1))}`
+      : "";
   const gemCost = getGemChanceCost(gemChanceLevels);
   const gemChancePct = Math.round(getGemChance(gemChanceLevels) * 100);
   const gemChanceMaxed = gemChanceLevels >= GEM_CHANCE_MAX_LEVELS;
@@ -123,7 +138,7 @@ const PurchaseButtons = memo(function PurchaseButtons({
         disabled={gems < getMinerUpgradeCost(miners)}
         title={`BUY A MINER (-${formatNumber(
           getMinerUpgradeCost(miners),
-        )} ${emojis.gem}) (${miners})`}
+        )} ${emojis.gem}) (${miners}${minerNext})`}
       />
 
       {/* Tier-2 unlock (plan §4.6): second miner type — cheaper gem curve,
@@ -135,7 +150,7 @@ const PurchaseButtons = memo(function PurchaseButtons({
           fastMinerUnlocked
             ? `BUY A FAST MINER (-${formatNumber(fastCost)} ${emojis.gem}) (${
                 fastMiners
-              }, ${getFastMinerOutput(minerPower)}/s each)`
+              }, ${getFastMinerOutput(minerPower)}/s each${fastNext})`
             : `🔒 BUY FAST MINER (Deep Shaft)`
         }
       />
@@ -150,7 +165,7 @@ const PurchaseButtons = memo(function PurchaseButtons({
           legendaryMinerUnlocked
             ? `BUY A LEGENDARY MINER (-${formatNumber(legendaryCost)} ${
                 emojis.gem
-              }) (${legendaryMiners}, ${getLegendaryMinerOutput(minerPower)}/s each)`
+              }) (${legendaryMiners}, ${getLegendaryMinerOutput(minerPower)}/s each${legendaryNext})`
             : `🔒 BUY LEGENDARY MINER (Motherlode)`
         }
       />

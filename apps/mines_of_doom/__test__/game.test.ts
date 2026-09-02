@@ -1,6 +1,7 @@
 import {
   CLICK_BOOST_MAX_LEVELS,
   COMBO_RESIST_MAX_LEVELS,
+  COMBO_TIER_SIZE,
   DEPTH_TIERS,
   GEM_CHANCE_MAX_LEVELS,
   computeOfflineMinerals,
@@ -12,7 +13,9 @@ import {
   getFastMinerCost,
   getClickBoostCost,
   getClickBoostMultiplier,
+  getComboMultiplier,
   getComboResistCost,
+  getComboTierProgress,
   getComboRetention,
   getResistantComboReset,
   getFastMinerOutput,
@@ -243,6 +246,43 @@ describe("click boost upgrade (tier-3 gem line)", () => {
       prev = c;
     }
   });
+});
+
+describe("combo multiplier tiers", () => {
+  test("multiplier is 1 + floor(combo / tier size)", () => {
+    expect(getComboMultiplier(0)).toBe(1);
+    expect(getComboMultiplier(COMBO_TIER_SIZE - 1)).toBe(1);
+    expect(getComboMultiplier(COMBO_TIER_SIZE)).toBe(2);
+    expect(getComboMultiplier(2 * COMBO_TIER_SIZE + 3)).toBe(3);
+  });
+
+  test("tier progress: fraction in [0, 1), untilNext and next tier correct",
+    () => {
+      // Mid-tier: 7 of 10 in, 3 to go, next is x2.
+      expect(getComboTierProgress(7)).toEqual({
+        fraction: 0.7,
+        untilNext: 3,
+        nextMultiplier: 2,
+      });
+      // Tier boundary: 10 is the start of the x2 tier, full tier to go.
+      expect(getComboTierProgress(10)).toEqual({
+        fraction: 0,
+        untilNext: COMBO_TIER_SIZE,
+        nextMultiplier: 3,
+      });
+      // Zero combo: empty bar, first tier is x2.
+      expect(getComboTierProgress(0)).toEqual({
+        fraction: 0,
+        untilNext: COMBO_TIER_SIZE,
+        nextMultiplier: 2,
+      });
+      // One away from a step-up.
+      expect(getComboTierProgress(19)).toEqual({
+        fraction: 0.9,
+        untilNext: 1,
+        nextMultiplier: 3,
+      });
+    });
 });
 
 describe("combo resistance (tier-3 gem line)", () => {

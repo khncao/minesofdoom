@@ -1,13 +1,27 @@
 import React, { memo, useState } from "react";
-import { Modal, Pressable, StyleSheet, View, Text } from "react-native";
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  Text,
+} from "react-native";
 
 export interface BottomModalProps {
   pressable?: React.ReactNode;
   children?: React.ReactNode;
   accessibilityLabel?: string;
+  /**
+   * Wrap the children in a ScrollView and clamp the sheet to 90% of the
+   * viewport height. For long content (goals/achievements progress
+   * tracker) that would otherwise overflow the screen on small devices
+   * with no way to reach the bottom.
+   */
+  scrollable?: boolean;
 }
 
-function BottomModal(props: BottomModalProps) {
+function BottomModal({ scrollable = false, ...props }: BottomModalProps) {
   const [showModal, setShowModal] = useState(false);
   const toggle = (
     <Pressable
@@ -33,7 +47,12 @@ function BottomModal(props: BottomModalProps) {
       >
         <Pressable style={styles.backdrop} onPress={() => setShowModal(false)} />
 
-        <View style={styles.childrenContainer}>
+        <View
+          style={[
+            styles.childrenContainer,
+            scrollable && styles.scrollableContainer,
+          ]}
+        >
           <Pressable
         accessibilityRole="button"
         accessibilityLabel="Close settings"
@@ -42,7 +61,16 @@ function BottomModal(props: BottomModalProps) {
       >
             <Text style={styles.closeButtonText}>✕</Text>
           </Pressable>
-          {props.children}
+          {scrollable ? (
+            <ScrollView
+              style={styles.scrollContent}
+              contentContainerStyle={styles.scrollContentInner}
+            >
+              {props.children}
+            </ScrollView>
+          ) : (
+            props.children
+          )}
         </View>
       </Modal>
     </>
@@ -60,6 +88,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#404040",
     gap: 20,
     paddingBottom: 20,
+  },
+  scrollableContainer: {
+    // Clamp to the viewport so long content scrolls instead of overflowing.
+    maxHeight: "90%",
+  },
+  scrollContent: {
+    flex: 1,
+  },
+  scrollContentInner: {
+    paddingBottom: 4,
   },
   closeButton: {
     alignSelf: "flex-end",

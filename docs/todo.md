@@ -3,13 +3,12 @@
 Status: planning draft
 Last updated: 2026-09-01
 
-Legend: [x] done (with notes) · [-] deferred (decision noted) · [ ] not started · [o] in progress
+Legend: [-] deferred (decision noted), [ ] not started, [o] in progress
 
 Completed items are removed from this file (see git history); only remaining work is tracked here.
 
 ## Adjust
 
-- [ ] Add scrollview to progress tracker
 - [ ] Redesign purchaseable buttons so they don't take up the whole screen. Make them hideable/toggleable. Only show purchaseable when lifetime ever reached condition to purchase by default (allow certain options to always be visible)
 - [ ] Fix lag and queued taps when tapping quickly (note: `useMineTaps` already batches rapid taps into a 20Hz state flush)
 
@@ -40,11 +39,8 @@ Completed items are removed from this file (see git history); only remaining wor
 
 ## 2. UX Improvements
 
-### 2.1 Feedback & clarity
-- **Explain the combo.** Add a progress bar toward the next combo multiplier tier (tooltip/first-time hint already shipped; `ComboIndicator` still shows no tier progress).
-- **Show miner cost curve context.** Buttons show the next cost only; add "next: X" or a small progress indicator toward affordability (e.g., "62% to next miner").
+### 2.1 Layout & input
 
-### 2.2 Layout & input
 - **Keyboard handling.** `TextInput` with `autoFocus` + `clearTextOnFocus` is still in use (the `NumericKeypad` component exists in `apps/components/` but isn't wired up). Either wire it in so the game never depends on the OS keyboard, or at least: don't auto-focus on web/desktop, and keep the equation + input visible above the keyboard.
 - **Canvas tap vs. equation submit.** Tapping the cave resets the combo — easy to do accidentally while playing fast. Options: require a short hold, or make the canvas a secondary "slow" action and move it below the fold / behind a button.
 - **Button hierarchy.** All three purchase buttons look identical. Visually distinguish: upgrade (minerals), miner (gems), gem (minerals→gems). Consider grouping by currency with headers.
@@ -60,7 +56,6 @@ Completed items are removed from this file (see git history); only remaining wor
 
 ### 3.2 Game loop
 
-- `saveGame` mutates `gameState.saveTime` directly (mutation of state object) — move into the state update.
 - `onTick` ref array + Context is a fine pattern, but document it; currently only miners use it.
 
 ### 3.4 Performance
@@ -74,20 +69,24 @@ Completed items are removed from this file (see git history); only remaining wor
 (all items done — depth tiers, achievements, prestige, miner upgrades/types)
 
 ### 4.2 Gameplay variety
+
 - **Equation modes.** Timed mode (answer within X seconds for bonus) and streak mode (no wrong answers allowed, high reward) are still open — hard mode (3-term equations, ×2 payout) shipped.
 - **Daily bonus / login streak.** Small mineral grant per day played; streak multiplier.
 
 ### 4.3 Meta / social
+
 - **Leaderboard** (optional, needs a backend or integrate with app store cloud features): depth reached, minerals/sec.
 - **Shareable save codes.** Encode save as a short base64 string for sharing/import (also enables backup without cloud).
 
 ### 4.4 Platform
+
 - **PWA / web polish.** Add a proper loading state (favicon/splash already set in `app.config.ts`).
 - **iOS build** is already scripted (`expo run:ios`) — verify `expo-av` audio and AsyncStorage work, then consider TestFlight.
 
 ### 4.5 Art: real animated sprites (replace emojis)
 
 Shipped: procedural pixel-art sprites for miners & pickaxes (`apps/utils/graphics/pixelArt.ts`, seeded cosmetic variants). Remaining:
+
 - **Cave background** is still a text-grid `CaveBackground` (tier-tinted) — replace with a real tile layer (Skia or memoized sprite grid); the §4.5 Skia/sprite-sheet approach was not adopted.
 - **Mineral chunk / gem / debris shard sprites** and a shared animation clock for miners.
 - Optional: `EMOJI_ART` fallback setting for low-end devices.
@@ -105,6 +104,7 @@ F2P viability is a design constraint, not a marketing line — enforce it with a
 ### 5.1 Rewarded video ads — strictly opt-in, reward-only
 
 Every ad is a bonus the player actively requests. No interstitials, no banners, no ads on the equation flow (they'd ruin the combo/tap rhythm).
+
 - **Offline earnings ×2** — the "welcome back" toast is the natural opt-in: "Watch to double your offline minerals." No other context converts better.
 - **Gem rolls** — "watch for 5 free gem rolls" as a daily-limited reward (e.g., 3/day) instead of buying gems with minerals.
 - **Instant offline top-up** — once offline progress hits the cap, watching extends it by +2h.
@@ -119,6 +119,7 @@ Deliberately tiny: two kinds of product, nothing else.
 - **Cosmetic packs** ($0.99–$3.99 each) — cave themes (pairs with 4.3), miner skins, UI color themes. Purely visual, and **every pack is also earnable in-game** (depth unlocks / achievements), so buying is convenience, not access.
 
 Explicitly out of scope (and why):
+
 - ~~Starter boost packs / mineral IAP~~ — selling currency in an idle game is a pay-to-speed backdoor; the early game should be a gentle onboarding, not a wall.
 - ~~Timed power-up consumables ("Golden Pick")~~ — recurring consumption pressure on an idle loop is the main source of "predatory" perception; skip.
 - ~~Subscriptions~~ — wrong model for a one-purchase-lifetime-value game.
@@ -126,6 +127,7 @@ Explicitly out of scope (and why):
 Store: RevenueCat (or `react-native-iap` directly) for receipts/entitlements across Android/iOS. Requires receipt validation → keep the free build fully functional without it.
 
 ### 5.3 Retention & organic growth (ship before any monetization)
+
 - **Daily bonus / streaks** (4.2) — the retention surface that makes the rewarded ads worth their while.
 - **Share codes / achievements** — free word-of-mouth acquisition (lower CAC than paid UA).
 - If the game gets a meaningful audience: consider a **sponsorship/branding event** (e.g., a themed biome for a partner) instead of heavier ad loads.

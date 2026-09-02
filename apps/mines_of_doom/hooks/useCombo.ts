@@ -1,9 +1,10 @@
 import { Animated } from "react-native";
 import { useCallback, useRef, useState } from "react";
+import { getComboMultiplier } from "../game";
 
 export function useCombo(reduceMotion = false) {
   const [combo, setCombo] = useState(0);
-  const comboMultiplier = 1 + Math.floor(combo / 10);
+  const comboMultiplier = getComboMultiplier(combo);
 
   const flashAnim = useRef(new Animated.Value(1)).current;
   const springRef = useRef<Animated.CompositeAnimation | null>(null);

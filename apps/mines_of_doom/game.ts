@@ -544,6 +544,34 @@ export function getClickBoostCost(level: number): number {
   return 25 * (level + 1) * (level + 1);
 }
 
+// Combo multiplier: every COMBO_TIER_SIZE correct answers in a row raises
+// the multiplier by 1 (1 + floor(combo / 10)).
+/** Correct answers per combo multiplier tier. */
+export const COMBO_TIER_SIZE = 10;
+
+/** Combo multiplier for the given combo counter. */
+export function getComboMultiplier(combo: number): number {
+  return 1 + Math.floor(combo / COMBO_TIER_SIZE);
+}
+
+/**
+ * Progress within the current combo tier, for the ComboIndicator progress
+ * bar: `fraction` in [0, 1), `untilNext` correct answers until the
+ * multiplier steps up, `nextMultiplier` once it does.
+ */
+export function getComboTierProgress(combo: number): {
+  fraction: number;
+  untilNext: number;
+  nextMultiplier: number;
+} {
+  const untilNext = COMBO_TIER_SIZE - (combo % COMBO_TIER_SIZE);
+  return {
+    fraction: 1 - untilNext / COMBO_TIER_SIZE,
+    untilNext,
+    nextMultiplier: getComboMultiplier(combo) + 1,
+  };
+}
+
 // Tier-3 gem upgrade line: combo resistance. A wrong answer or mine tap
 // normally zeroes the combo; each level keeps 10% of it instead (floored).
 /** Max levels: 0% / 10% / ... / 50% of the combo survives a loss. */

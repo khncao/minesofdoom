@@ -58,6 +58,27 @@ export const styles = StyleSheet.create({
     fontWeight: "bold",
     userSelect: "none",
   },
+  comboContainer: {
+    alignItems: "center",
+    gap: 1,
+  },
+  comboProgressTrack: {
+    alignSelf: "stretch",
+    height: 4,
+    maxWidth: 120,
+    backgroundColor: "#1f1f1f",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  comboProgressFill: {
+    height: 4,
+    backgroundColor: "#ffaa44",
+  },
+  comboProgressLabel: {
+    color: "#aaa",
+    fontSize: 10,
+    userSelect: "none",
+  },
   messageOverlay: {
     position: "absolute",
     top: "38%",

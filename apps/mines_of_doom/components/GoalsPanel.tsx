@@ -133,6 +133,7 @@ const GoalsPanel = memo(function GoalsPanel({ stats }: { stats: SaveData }) {
     <BottomModal
       pressable={<Text style={{ fontSize: 30 }}>🎯</Text>}
       accessibilityLabel="Goals"
+      scrollable
     >
       {goalsChildren}
     </BottomModal>

@@ -17,6 +17,7 @@ import SettingsPanel from "./components/SettingsPanel";
 import GoalsPanel from "./components/GoalsPanel";
 import {
   defaultSettingsData,
+  getComboMultiplier,
   getComboRetention,
   getDepthTier,
   getPrestigeMultiplier,
@@ -294,9 +295,9 @@ export default function MinesOfDoom() {
         displayMessage(`You struck a vein! +1 ${emojis.gem}`, 3000);
       }
       // Combo tier-up: the multiplier just stepped up.
-      const nextCombo = combo + 1;
-      if (Math.floor(nextCombo / 10) > Math.floor(combo / 10)) {
-        displayMessage(`Combo x${Math.floor(nextCombo / 10) + 1}!`, 2000);
+      const nextMult = getComboMultiplier(combo + 1);
+      if (nextMult > comboMultiplier) {
+        displayMessage(`Combo x${nextMult}!`, 2000);
       }
     },
     onIncorrect: () => {
