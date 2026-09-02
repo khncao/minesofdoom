@@ -6,6 +6,7 @@ import IntegerInput from "apps/components/IntegerInput";
 import Tooltip from "apps/components/Tooltip";
 import { EquationSettings } from "apps/utils/math/equations";
 import { SettingsData } from "../game";
+import { useCrashLog } from "../hooks/useCrashLog";
 import CosmeticsSection from "./CosmeticsSection";
 import { styles } from "../styles";
 
@@ -343,11 +344,74 @@ const SettingsContent = memo(function SettingsContent({
           onPress={onReset}
         />
       </View>
+      <CrashLogSection />
       <View style={{ alignSelf: "center", margin: 10 }}>
         {showMessage && <Text style={{ ...styles.text }}>{showMessage}</Text>}
       </View>
     </View>
   );
 });
+
+/**
+ * Debug section (plan "Adjust"): the persisted crash log from
+ * crashLogging.ts. Rendered only when at least one crash has been
+ * recorded, so players who never crash never see it. The stack text is
+ * selectable so a full trace can be copied off-device — the whole point
+ * while chasing the unreproducible Android `describe` crash (release
+ * builds have no red box).
+ */
+function CrashLogSection() {
+  const { entries, clear } = useCrashLog();
+  if (entries == null || entries.length === 0) return null;
+  return (
+    <View style={{ gap: 6, marginTop: 10 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <Text style={{ ...styles.text, fontWeight: "bold" }}>
+          Recent errors (debug)
+        </Text>
+        <Button title="Clear" onPress={clear} />
+      </View>
+      {entries.slice(0, 3).map((entry, i) => (
+        <View
+          key={i}
+          style={{
+            backgroundColor: "#1f1f1f",
+            borderRadius: 6,
+            borderWidth: 1,
+            borderColor: "#444",
+            paddingHorizontal: 10,
+            paddingVertical: 6,
+            gap: 2,
+          }}
+        >
+          <Text
+            style={{ ...styles.text, fontSize: 12 }}
+            selectable
+          >
+            {entry.name}: {entry.message}
+            {entry.count > 1 ? ` (×${entry.count})` : ""}
+          </Text>
+          <Text style={{ ...styles.text, fontSize: 10, color: "#aaa" }}>
+            {new Date(entry.ts).toLocaleString()}
+          </Text>
+          {entry.stack.length > 0 && (
+            <Text
+              selectable
+              style={{ color: "#9fd69f", fontSize: 9, lineHeight: 13 }}
+            >
+              {entry.stack}
+            </Text>
+          )}
+        </View>
+      ))}
+    </View>
+  );
+}
 
 export default SettingsContent;

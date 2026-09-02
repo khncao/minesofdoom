@@ -10,7 +10,9 @@ Completed items are removed from this file (see git history); only remaining wor
 ## Adjust
 
 (Lag / queued taps shipped: mining is hold-gated (300ms) and `useMineTaps` batches rapid taps into a 20Hz state flush; on top of that `useEquations.handleSubmit` and the keypad toggle are now stable callbacks and `AnswerInput` is memoized, so the focused `TextInput` no longer re-renders on the 1s tick or on each tap flush — re-rendering a focused input was most of the perceived tap lag, especially on web.)
-- [ ] Fix ReferenceError: Property 'describe' doesn't exist, js engine: hermes on Android (not reproducible in web build; suspected expo-router/native-stack interaction — grab the full stack trace from the red box next time it appears)
+
+(Crash diagnostics shipped for the unreproducible Android crash below: `ErrorBoundary` (`mines_of_doom/components`) now wraps the game screen in `apps/index.tsx` — a render crash shows a crash screen with the full long-press-copyable stack instead of a silent white screen (release builds have no red box), and every crash is recorded into a persisted ring of 5 with consecutive-duplicate `×count` (`crashLog.ts` pure logic + unit tests, `crashLogging.ts` AsyncStorage `crashLog` key with serialized read-modify-write and an in-memory fallback) that also surfaces in Settings → “Recent errors (debug)” with a Clear button, so the trace survives a restart. Deliberately no `ErrorUtils` global handler: RN 0.76 dropped it from the main entry and the deep import would break the web static export — the boundary covers render/lifecycle crashes, the suspected class here.)
+- [ ] Fix ReferenceError: Property 'describe' doesn't exist, js engine: hermes on Android (not reproducible in web build; suspected expo-router/native-stack interaction — with the crash diagnostics above, the next occurrence now lands in Settings → “Recent errors (debug)” with a copyable full stack, even in release builds; remaining: reproduce on device and read the trace)
 
 ## Stability (§6.2)
 
