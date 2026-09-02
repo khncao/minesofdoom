@@ -38,6 +38,10 @@ const GAIN_FORMULA =
 const HARD_MODE_HELP =
   "3-term equations (a ○ b ○ c, left to right) that pay ×2 the normal amount. The extra premium comes from the third term — more arithmetic, bigger answers.";
 
+/** Show-all-purchases switch tooltip (long-press). */
+const SHOW_ALL_PURCHASES_HELP =
+  "Off (default): each upgrade button appears only once you've ever had enough minerals or gems to buy its first level — the screen stays uncluttered as the shop grows. The three core buttons (upgrade power, buy a miner, buy a gem) are always visible. On: every upgrade button is shown at all times, locked or not.";
+
 // Memoized so re-renders from tapping the mine don't re-render the whole
 // settings UI (switches, inputs, modal) on every tap.
 const SettingsContent = memo(function SettingsContent({
@@ -155,6 +159,31 @@ const SettingsContent = memo(function SettingsContent({
               onChangeEquationSettings({
                 ...equationSettings,
                 hardMode: newVal,
+              });
+            }}
+          />
+        </View>
+      </Tooltip>
+      <Tooltip
+        label="Always show all upgrade buttons"
+        content={SHOW_ALL_PURCHASES_HELP}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Text style={{ ...styles.text, fontSize: 11 }}>
+            Always show all upgrade buttons:
+          </Text>
+          <Switch
+            value={settingsData.showAllPurchases}
+            onValueChange={(newVal) => {
+              onChangeSettingsData({
+                ...settingsData,
+                showAllPurchases: newVal,
               });
             }}
           />
@@ -295,7 +324,9 @@ const SettingsPanel = ({
         margin: 10,
       }}
     >
-      <BottomModal>{settingsChildren}</BottomModal>
+      {/* Scrollable: the panel is taller than a phone viewport with the
+          cosmetics + save-code sections (plan "Adjust"). */}
+      <BottomModal scrollable>{settingsChildren}</BottomModal>
       <MuteToggle init={mute} onToggleChange={onMuteChange} />
     </View>
   );

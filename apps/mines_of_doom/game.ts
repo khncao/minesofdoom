@@ -76,6 +76,12 @@ export type SaveData = {
 // they must NOT be folded into this object.
 export type SettingsData = {
   autosave: number;
+  /**
+   * Show every purchase button at all times (default off). Off, the
+   * non-core buttons stay hidden until the player's lifetime economy has
+   * reached the base cost of the first purchase (getVisiblePurchases).
+   */
+  showAllPurchases: boolean;
 };
 
 // TODO: number to bigint
@@ -555,7 +561,105 @@ export function lifetimeDelta(
 
 export const defaultSettingsData = {
   autosave: 30,
+  showAllPurchases: false,
 };
+
+/** Every purchase button id (see PurchaseId). */
+export type PurchaseId =
+  | "power"
+  | "miner"
+  | "gem"
+  | "minerPower"
+  | "fastMiner"
+  | "legendaryMiner"
+  | "gemChance"
+  | "clickBoost"
+  | "comboResist"
+  | "prestige";
+
+export const ALL_PURCHASE_IDS: readonly PurchaseId[] = [
+  "power",
+  "miner",
+  "gem",
+  "minerPower",
+  "fastMiner",
+  "legendaryMiner",
+  "gemChance",
+  "clickBoost",
+  "comboResist",
+  "prestige",
+];
+
+/**
+ * Buttons that are always visible regardless of visibility state: the core
+ * loop (upgrade pick, buy a miner, buy a gem) is the onboarding surface and
+ * must never disappear.
+ */
+export const ALWAYS_VISIBLE_PURCHASES: readonly PurchaseId[] = [
+  "power",
+  "miner",
+  "gem",
+];
+
+/** Goal-tier unlock flags that force a button visible even pre-purchase. */
+export type PurchaseUnlocks = {
+  minerPowerUnlocked: boolean;
+  fastMinerUnlocked: boolean;
+  legendaryMinerUnlocked: boolean;
+  prestigeUnlocked: boolean;
+};
+
+/**
+ * Which purchase buttons to show (plan "Adjust": hide the wall of buttons).
+ * A non-core button appears once the player has EVER been able to afford its
+ * first purchase — measured with lifetime stats, so visibility can only ever
+ * turn on (no flicker as minerals come and go, and a sunk shaft doesn't hide
+ * buttons again). Goal-tier unlocks also reveal the matching button, since
+ * the tier bonus is the natural moment to meet the purchase. Lifetime gems
+ * proxy "ever held" via totalGemsMinted (current gems can never exceed the
+ * lifetime-minted count, so a button never appears before it could be bought).
+ */
+export function getVisiblePurchases(
+  lifetime: Pick<SaveData, "lifetimeMinerals" | "totalGemsMinted">,
+  unlocks: PurchaseUnlocks,
+): ReadonlySet<PurchaseId> {
+  const visible = new Set<PurchaseId>(ALWAYS_VISIBLE_PURCHASES);
+  const { lifetimeMinerals, totalGemsMinted } = lifetime;
+  if (
+    unlocks.minerPowerUnlocked ||
+    lifetimeMinerals >= getMinerPowerUpgradeCost(1)
+  ) {
+    visible.add("minerPower");
+  }
+  if (unlocks.fastMinerUnlocked || totalGemsMinted >= getFastMinerCost(0)) {
+    visible.add("fastMiner");
+  }
+  if (
+    unlocks.legendaryMinerUnlocked ||
+    totalGemsMinted >= getLegendaryMinerCost(0)
+  ) {
+    visible.add("legendaryMiner");
+  }
+  if (unlocks.fastMinerUnlocked || totalGemsMinted >= getGemChanceCost(0)) {
+    visible.add("gemChance");
+  }
+  if (unlocks.prestigeUnlocked || totalGemsMinted >= getClickBoostCost(0)) {
+    visible.add("clickBoost");
+  }
+  if (
+    unlocks.prestigeUnlocked ||
+    totalGemsMinted >= getComboResistCost(0)
+  ) {
+    visible.add("comboResist");
+  }
+  if (
+    unlocks.prestigeUnlocked ||
+    lifetimeMinerals >= PRESTIGE_LEVELS[1].at
+  ) {
+    visible.add("prestige");
+  }
+  return visible;
+}
 
 export function getClickUpgradeCost(level: number): number {
   return level * level * level * level;

@@ -17,6 +17,7 @@ import SettingsPanel from "./components/SettingsPanel";
 import GoalsPanel from "./components/GoalsPanel";
 import DailyBonusButton from "./components/DailyBonusButton";
 import {
+  ALL_PURCHASE_IDS,
   defaultSettingsData,
   getComboMultiplier,
   getComboRetention,
@@ -24,6 +25,7 @@ import {
   getPrestigeMultiplier,
   getResistantComboReset,
   getClickBoostMultiplier,
+  getVisiblePurchases,
   SettingsData,
 } from "./game";
 import {
@@ -121,6 +123,47 @@ export default function MinesOfDoom() {
   const handleSettingsDataChange = useCallback(
     (newSettings: SettingsData) => setSettingsData(newSettings),
     [setSettingsData],
+  );
+
+  // Purchase-button visibility (plan "Adjust"): by default only the core
+  // buttons + anything the lifetime economy has ever reached (a sunk shaft
+  // can't hide buttons again); the settings toggle forces the full list.
+  const minerPowerUnlocked = gameState.completedTiers.includes(
+    MINER_POWER_UNLOCK_TIER,
+  );
+  const fastMinerUnlocked = gameState.completedTiers.includes(
+    FAST_MINER_UNLOCK_TIER,
+  );
+  const legendaryMinerUnlocked = gameState.completedTiers.includes(
+    LEGENDARY_MINER_UNLOCK_TIER,
+  );
+  const prestigeUnlocked = gameState.completedTiers.includes(
+    PRESTIGE_UNLOCK_TIER,
+  );
+  const lifetimeMinerals = gameState.lifetimeMinerals;
+  const totalGemsMinted = gameState.totalGemsMinted;
+  const visiblePurchases = useMemo(
+    () =>
+      settingsData.showAllPurchases
+        ? new Set(ALL_PURCHASE_IDS)
+        : getVisiblePurchases(
+            { lifetimeMinerals, totalGemsMinted },
+            {
+              minerPowerUnlocked,
+              fastMinerUnlocked,
+              legendaryMinerUnlocked,
+              prestigeUnlocked,
+            },
+          ),
+    [
+      settingsData.showAllPurchases,
+      lifetimeMinerals,
+      totalGemsMinted,
+      minerPowerUnlocked,
+      fastMinerUnlocked,
+      legendaryMinerUnlocked,
+      prestigeUnlocked,
+    ],
   );
 
   // Cosmetics prop bundle: only changes on buy/select/reroll/gem-change,
@@ -371,6 +414,7 @@ export default function MinesOfDoom() {
           flashAnim={flashAnim}
         />
         <PurchaseButtons
+          visible={visiblePurchases}
           minerals={gameState.minerals}
           gems={gameState.gems}
           clickPower={gameState.clickPower}

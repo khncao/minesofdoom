@@ -35,7 +35,12 @@ import {
   migrateSaveData,
   msPerTick,
   saveVersion,
+  ALL_PURCHASE_IDS,
+  ALWAYS_VISIBLE_PURCHASES,
+  defaultSettingsData,
+  getVisiblePurchases,
 } from "../game";
+import type { PurchaseId } from "../game";
 import { DEFAULT_CAVE_THEME, DEFAULT_CAVE_TINTS } from "../cosmetics";
 import { Equation, Ops } from "apps/utils/math/equations";
 import {
@@ -790,5 +795,155 @@ describe("getAnswerPayoutMultiplier (hard mode, tier-5)", () => {
     expect(getAnswerPayoutMultiplier(mkEq(Ops.div, Ops.mult))).toBe(
       10 * HARD_MODE_PAYOUT,
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Purchase-button visibility (plan "Adjust": hide the wall of buttons)
+// ---------------------------------------------------------------------------
+
+const NO_PURCHASE_UNLOCKS = {
+  minerPowerUnlocked: false,
+  fastMinerUnlocked: false,
+  legendaryMinerUnlocked: false,
+  prestigeUnlocked: false,
+};
+
+type Lifetime = { lifetimeMinerals: number; totalGemsMinted: number };
+
+describe("getVisiblePurchases", () => {
+  test("only the core buttons are visible on a fresh save", () => {
+    const visible = getVisiblePurchases(
+      { lifetimeMinerals: 0, totalGemsMinted: 0 },
+      NO_PURCHASE_UNLOCKS,
+    );
+    expect([...visible].sort()).toEqual(
+      [...ALWAYS_VISIBLE_PURCHASES].sort(),
+    );
+  });
+
+  test("every catalog id is a known purchase id", () => {
+    expect(ALL_PURCHASE_IDS).toHaveLength(10);
+    expect(
+      ALWAYS_VISIBLE_PURCHASES.every((id) => ALL_PURCHASE_IDS.includes(id)),
+    ).toBe(true);
+  });
+
+  test("settings default keeps the auto-hiding behavior", () => {
+    expect(defaultSettingsData.showAllPurchases).toBe(false);
+  });
+
+  test("mineral-cost buttons reveal once lifetime minerals reach the base cost", () => {
+    const minerPowerBase = getMinerPowerUpgradeCost(1);
+    const below: Lifetime = {
+      lifetimeMinerals: minerPowerBase - 1,
+      totalGemsMinted: 0,
+    };
+    expect(getVisiblePurchases(below, NO_PURCHASE_UNLOCKS).has("minerPower")).toBe(
+      false,
+    );
+    expect(
+      getVisiblePurchases(
+        { lifetimeMinerals: minerPowerBase, totalGemsMinted: 0 },
+        NO_PURCHASE_UNLOCKS,
+      ).has("minerPower"),
+    ).toBe(true);
+
+    const firstPrestigeRung = PRESTIGE_LEVELS[1].at;
+    expect(
+      getVisiblePurchases(
+        { lifetimeMinerals: firstPrestigeRung - 1, totalGemsMinted: 0 },
+        NO_PURCHASE_UNLOCKS,
+      ).has("prestige"),
+    ).toBe(false);
+    expect(
+      getVisiblePurchases(
+        { lifetimeMinerals: firstPrestigeRung, totalGemsMinted: 0 },
+        NO_PURCHASE_UNLOCKS,
+      ).has("prestige"),
+    ).toBe(true);
+  });
+
+  test("gem-cost buttons reveal once lifetime-minted gems reach the base cost", () => {
+    const baseCosts: Array<[PurchaseId, number]> = [
+      ["fastMiner", getFastMinerCost(0)],
+      ["legendaryMiner", getLegendaryMinerCost(0)],
+      ["gemChance", getGemChanceCost(0)],
+      ["clickBoost", getClickBoostCost(0)],
+      ["comboResist", getComboResistCost(0)],
+    ];
+    for (const [id, base] of baseCosts) {
+      expect(
+        getVisiblePurchases(
+          { lifetimeMinerals: 0, totalGemsMinted: base - 1 },
+          NO_PURCHASE_UNLOCKS,
+        ).has(id),
+      ).toBe(false);
+      expect(
+        getVisiblePurchases(
+          { lifetimeMinerals: 0, totalGemsMinted: base },
+          NO_PURCHASE_UNLOCKS,
+        ).has(id),
+      ).toBe(true);
+    }
+  });
+
+  test("goal-tier unlocks reveal the matching button regardless of lifetime", () => {
+    const zero: Lifetime = { lifetimeMinerals: 0, totalGemsMinted: 0 };
+    expect(
+      getVisiblePurchases(zero, {
+        ...NO_PURCHASE_UNLOCKS,
+        minerPowerUnlocked: true,
+      }).has("minerPower"),
+    ).toBe(true);
+    const fastVisible = getVisiblePurchases(zero, {
+      ...NO_PURCHASE_UNLOCKS,
+      fastMinerUnlocked: true,
+    });
+    expect(fastVisible.has("fastMiner")).toBe(true);
+    expect(fastVisible.has("gemChance")).toBe(true);
+    expect(
+      getVisiblePurchases(zero, {
+        ...NO_PURCHASE_UNLOCKS,
+        legendaryMinerUnlocked: true,
+      }).has("legendaryMiner"),
+    ).toBe(true);
+    const prestigeVisible = getVisiblePurchases(zero, {
+      ...NO_PURCHASE_UNLOCKS,
+      prestigeUnlocked: true,
+    });
+    expect(prestigeVisible.has("prestige")).toBe(true);
+    expect(prestigeVisible.has("clickBoost")).toBe(true);
+    expect(prestigeVisible.has("comboResist")).toBe(true);
+  });
+
+  test("visibility is monotonic: it only ever turns on", () => {
+    const early: Lifetime = { lifetimeMinerals: 10, totalGemsMinted: 2 };
+    const earlyVisible = new Set(
+      getVisiblePurchases(early, NO_PURCHASE_UNLOCKS),
+    );
+    const lateVisible = getVisiblePurchases(
+      { lifetimeMinerals: 1e9, totalGemsMinted: 1e6 },
+      {
+        minerPowerUnlocked: true,
+        fastMinerUnlocked: true,
+        legendaryMinerUnlocked: true,
+        prestigeUnlocked: true,
+      },
+    );
+    for (const id of earlyVisible) {
+      expect(lateVisible.has(id)).toBe(true);
+    }
+    expect(lateVisible.size).toBe(ALL_PURCHASE_IDS.length);
+  });
+
+  test("ignores the current (spendable) balances entirely", () => {
+    // getVisiblePurchases only reads lifetime stats by contract — a player
+    // who spent everything must not lose buttons they've already unlocked.
+    const visible = getVisiblePurchases(
+      { lifetimeMinerals: 1e9, totalGemsMinted: 1e6 },
+      NO_PURCHASE_UNLOCKS,
+    );
+    expect(visible.size).toBe(ALL_PURCHASE_IDS.length);
   });
 });

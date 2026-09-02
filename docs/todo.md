@@ -9,11 +9,8 @@ Completed items are removed from this file (see git history); only remaining wor
 
 ## Adjust
 
-- [ ] Redesign purchaseable buttons so they don't take up the whole screen. Make them hideable/toggleable. Only show purchaseable when lifetime ever reached condition to purchase by default (allow certain options to always be visible)
 - [ ] Fix lag and queued taps when tapping quickly (note: `useMineTaps` already batches rapid taps into a 20Hz state flush)
-- [ ] Fix ReferenceError: Property 'describe' doesn't exist, js engine: hermes on Android
-- [ ] Add FlatList or ScrollView wherever there are a lot of elements such as purchaseables, progress tracker (not appearing), settings, etc.
-- [ ] Daily bonus can be clicked unlimited times on Android
+- [ ] Fix ReferenceError: Property 'describe' doesn't exist, js engine: hermes on Android (not reproducible in web build; suspected expo-router/native-stack interaction — grab the full stack trace from the red box next time it appears)
 - [ ] Update UI/UX: footer is too big, footer icons are not uniform size and alignment, cave canvas should take up as much screen space as possible. Instead of a footer, change the settings button to a menu button and the settings menu should now contain the other buttons (except daily reward)
 
 ## Stability (§6.2)

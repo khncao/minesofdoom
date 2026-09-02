@@ -8,6 +8,7 @@ import {
   COMBO_RESIST_MAX_LEVELS,
   GEM_CHANCE_MAX_LEVELS,
   PRESTIGE_LEVELS,
+  type PurchaseId,
   gemMineralCost,
   getClickBoostCost,
   getClickBoostMultiplier,
@@ -53,7 +54,14 @@ const PurchaseButtons = memo(function PurchaseButtons({
   onBuyComboResist,
   onUpgradeMinerPower,
   onSinkNewShaft,
+  visible,
 }: {
+  /**
+   * Which purchase buttons to render (plan "Adjust"): the core three are
+   * always in this set; the rest only appear once the player's lifetime
+   * economy has reached their base cost (see getVisiblePurchases in game.ts).
+   */
+  visible: ReadonlySet<PurchaseId>;
   minerals: number;
   gems: number;
   clickPower: number;
@@ -143,46 +151,52 @@ const PurchaseButtons = memo(function PurchaseButtons({
 
       {/* Tier-2 unlock (plan §4.6): second miner type — cheaper gem curve,
           weaker per-miner output. Shown but locked until Deep Shaft. */}
-      <Button
-        onPress={onBuyFastMiner}
-        disabled={!fastMinerUnlocked || gems < fastCost}
-        title={
-          fastMinerUnlocked
-            ? `BUY A FAST MINER (-${formatNumber(fastCost)} ${emojis.gem}) (${
-                fastMiners
-              }, ${getFastMinerOutput(minerPower)}/s each${fastNext})`
-            : `🔒 BUY FAST MINER (Deep Shaft)`
-        }
-      />
+      {visible.has("fastMiner") && (
+        <Button
+          onPress={onBuyFastMiner}
+          disabled={!fastMinerUnlocked || gems < fastCost}
+          title={
+            fastMinerUnlocked
+              ? `BUY A FAST MINER (-${formatNumber(fastCost)} ${emojis.gem}) (${
+                  fastMiners
+                }, ${getFastMinerOutput(minerPower)}/s each${fastNext})`
+              : `🔒 BUY FAST MINER (Deep Shaft)`
+          }
+        />
+      )}
 
       {/* Tier-5 endgame unlock (plan §4.6): third miner type — the premium
           raw-output sink (double a normal miner's output, 2x the normal
           miner's gem curve). Shown but locked until Motherlode. */}
-      <Button
-        onPress={onBuyLegendaryMiner}
-        disabled={!legendaryMinerUnlocked || gems < legendaryCost}
-        title={
-          legendaryMinerUnlocked
-            ? `BUY A LEGENDARY MINER (-${formatNumber(legendaryCost)} ${
-                emojis.gem
-              }) (${legendaryMiners}, ${getLegendaryMinerOutput(minerPower)}/s each${legendaryNext})`
-            : `🔒 BUY LEGENDARY MINER (Motherlode)`
-        }
-      />
+      {visible.has("legendaryMiner") && (
+        <Button
+          onPress={onBuyLegendaryMiner}
+          disabled={!legendaryMinerUnlocked || gems < legendaryCost}
+          title={
+            legendaryMinerUnlocked
+              ? `BUY A LEGENDARY MINER (-${formatNumber(legendaryCost)} ${
+                  emojis.gem
+                }) (${legendaryMiners}, ${getLegendaryMinerOutput(minerPower)}/s each${legendaryNext})`
+              : `🔒 BUY LEGENDARY MINER (Motherlode)`
+          }
+        />
+      )}
 
       {/* First goal-tier unlock (plan §4.6): shown but locked until the
           Prospector's License tier is complete, so players see it coming. */}
-      <Button
-        onPress={onUpgradeMinerPower}
-        disabled={!minerPowerUnlocked || minerals < getMinerPowerUpgradeCost(minerPower)}
-        title={
-          minerPowerUnlocked
-            ? `UPGRADE MINERS (-${formatNumber(
-                getMinerPowerUpgradeCost(minerPower),
-              )} ${emojis.mineral}) (${minerPower})`
-            : `🔒 UPGRADE MINERS (Prospector's License)`
-        }
-      />
+      {visible.has("minerPower") && (
+        <Button
+          onPress={onUpgradeMinerPower}
+          disabled={!minerPowerUnlocked || minerals < getMinerPowerUpgradeCost(minerPower)}
+          title={
+            minerPowerUnlocked
+              ? `UPGRADE MINERS (-${formatNumber(
+                  getMinerPowerUpgradeCost(minerPower),
+                )} ${emojis.mineral}) (${minerPower})`
+              : `🔒 UPGRADE MINERS (Prospector's License)`
+          }
+        />
+      )}
 
       <Button
         onPress={onBuyGem}
@@ -191,69 +205,77 @@ const PurchaseButtons = memo(function PurchaseButtons({
       />
 
       {/* Tier-2 unlock: first gem upgrade — +1% base gem chance per level. */}
-      <Button
-        onPress={onBuyGemChance}
-        disabled={
-          !fastMinerUnlocked || gemChanceMaxed || gems < gemCost
-        }
-        title={
-          !fastMinerUnlocked
-            ? `🔒 GEM CHANCE +1% (Deep Shaft)`
-            : gemChanceMaxed
-              ? `GEM CHANCE ${gemChancePct}% (MAX)`
-              : `GEM CHANCE +1% (-${formatNumber(gemCost)} ${emojis.gem}) (now ${gemChancePct}%)`
-        }
-      />
+      {visible.has("gemChance") && (
+        <Button
+          onPress={onBuyGemChance}
+          disabled={
+            !fastMinerUnlocked || gemChanceMaxed || gems < gemCost
+          }
+          title={
+            !fastMinerUnlocked
+              ? `🔒 GEM CHANCE +1% (Deep Shaft)`
+              : gemChanceMaxed
+                ? `GEM CHANCE ${gemChancePct}% (MAX)`
+                : `GEM CHANCE +1% (-${formatNumber(gemCost)} ${emojis.gem}) (now ${gemChancePct}%)`
+          }
+        />
+      )}
 
       {/* Tier-3 unlock: second gem upgrade line — each level doubles
           tap/answer gains (passive income is unaffected). */}
-      <Button
-        onPress={onBuyClickBoost}
-        disabled={!prestigeUnlocked || clickBoostMaxed || gems < clickBoostCost}
-        title={
-          !prestigeUnlocked
-            ? `🔒 CLICK ×2 (Magma Frontier)`
-            : clickBoostMaxed
-              ? `CLICK POWER ×${clickBoostMult} (MAX)`
-              : `CLICK ×2 (-${formatNumber(clickBoostCost)} ${emojis.gem}) (now ×${clickBoostMult})`
-        }
-      />
+      {visible.has("clickBoost") && (
+        <Button
+          onPress={onBuyClickBoost}
+          disabled={!prestigeUnlocked || clickBoostMaxed || gems < clickBoostCost}
+          title={
+            !prestigeUnlocked
+              ? `🔒 CLICK ×2 (Magma Frontier)`
+              : clickBoostMaxed
+                ? `CLICK POWER ×${clickBoostMult} (MAX)`
+                : `CLICK ×2 (-${formatNumber(clickBoostCost)} ${emojis.gem}) (now ×${clickBoostMult})`
+          }
+        />
+      )}
 
       {/* Tier-3 unlock: third gem upgrade line — keep part of the combo on
           a wrong answer / mine tap instead of losing it all. */}
-      <Button
-        onPress={onBuyComboResist}
-        disabled={
-          !prestigeUnlocked || comboResistMaxed || gems < comboResistCost
-        }
-        title={
-          !prestigeUnlocked
-            ? `🔒 COMBO RESISTANCE (Magma Frontier)`
-            : comboResistMaxed
-              ? `COMBO RESISTANCE (keep ${comboKeepPct}%) (MAX)`
-              : `COMBO RESISTANCE (-${formatNumber(comboResistCost)} ${emojis.gem}) (keep ${comboKeepPct}%)`
-        }
-      />
+      {visible.has("comboResist") && (
+        <Button
+          onPress={onBuyComboResist}
+          disabled={
+            !prestigeUnlocked || comboResistMaxed || gems < comboResistCost
+          }
+          title={
+            !prestigeUnlocked
+              ? `🔒 COMBO RESISTANCE (Magma Frontier)`
+              : comboResistMaxed
+                ? `COMBO RESISTANCE (keep ${comboKeepPct}%) (MAX)`
+                : `COMBO RESISTANCE (-${formatNumber(comboResistCost)} ${emojis.gem}) (keep ${comboKeepPct}%)`
+          }
+        />
+      )}
 
       {/* Tier-3 unlock (plan §4.1 "New Shaft"): reset the run for a permanent
           multiplier. Banked level is applied now; a higher level banks the
           moment lifetime minerals cross the next rung. Shown but locked until
           Magma Frontier. */}
-      <Button
-        onPress={onSinkNewShaft}
-        disabled={!prestigeUnlocked || !canBank}
-        title={
-          !prestigeUnlocked
-            ? `🔒 SINK NEW SHAFT (Magma Frontier)`
-            : canBank
-              ? `⛏️ SINK NEW SHAFT → ×${availableMult} (now ×${bankedMult})`
-              : nextLevel
-                ? `⛏️ SINK NEW SHAFT ×${bankedMult} — need ${formatNumber(
-                    nextLevel.at,
-                  )} ${emojis.mineral} total for ×${nextLevel.multiplier}`
-                : `⛏️ SINK NEW SHAFT ×${bankedMult} (MAX)`
-        }
-      />
+      {visible.has("prestige") && (
+        <Button
+          onPress={onSinkNewShaft}
+          disabled={!prestigeUnlocked || !canBank}
+          title={
+            !prestigeUnlocked
+              ? `🔒 SINK NEW SHAFT (Magma Frontier)`
+              : canBank
+                ? `⛏️ SINK NEW SHAFT → ×${availableMult} (now ×${bankedMult})`
+                : nextLevel
+                  ? `⛏️ SINK NEW SHAFT ×${bankedMult} — need ${formatNumber(
+                      nextLevel.at,
+                    )} ${emojis.mineral} total for ×${nextLevel.multiplier}`
+                  : `⛏️ SINK NEW SHAFT ×${bankedMult} (MAX)`
+          }
+        />
+      )}
     </View>
   );
 });
