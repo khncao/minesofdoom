@@ -138,6 +138,96 @@ function drawGem(
 }
 
 /**
+ * The mined path (plan "Adjust"): the two middle tiles of every strip, kept
+ * dug out (no rock, no gems) so the cave reads as one vertical shaft the
+ * player is mining down, with dark wall edges on the tiles flanking it.
+ */
+export const CAVE_PATH_TILES: readonly number[] = [5, 6];
+
+/** Dark wall edge drawn on the inner side of the tiles flanking the path. */
+export function pathEdgeColor(tint: string): string {
+  return mixHex(tint, "#000000", 0.55);
+}
+
+/** One vline (pixelArt only exports hline). */
+function vline(
+  grid: PixelGrid,
+  x: number,
+  y0: number,
+  y1: number,
+  color: Pixel,
+): void {
+  for (let y = y0; y <= y1; y++) setPixel(grid, x, y, color);
+}
+
+// ---------------------------------------------------------------------------
+// Easter eggs (plan "Adjust"): rare fixed objects sitting in the rock
+// OUTSIDE the mined path. Deterministic per (tier, strip) — deliberately
+// NOT seeded by the tint, so switching cave themes never relocates an egg
+// (the cave contents are the same mine, repainted).
+// ---------------------------------------------------------------------------
+
+export const CAVE_EGG_KINDS = ["spider", "princess", "chest"] as const;
+export type CaveEggKind = (typeof CAVE_EGG_KINDS)[number];
+
+/** Share of strips that carry an egg. */
+const EGG_CHANCE = 0.15;
+/** Egg placement space: every tile except the two path tiles. */
+const EGG_OUTER_TILES: readonly number[] = [0, 1, 2, 3, 8, 9, 10, 11];
+
+/**
+ * Deterministic per (tier, strip): the egg's tile + kind, or null. Rows
+ * cycle through the strips, so an egg reappears every CAVE_STRIPS_PER_TIER
+ * rows — same texture-cycle discipline as the rock strips themselves.
+ */
+export function eggForStrip(
+  tier: number,
+  strip: number,
+): { tile: number; kind: CaveEggKind } | null {
+  const seed = hashSeed(tier * 7919 + strip * 104729, 0x9e69);
+  const rng = mulberry32(seed);
+  if (rng() >= EGG_CHANCE) {
+    return null;
+  }
+  return {
+    tile: EGG_OUTER_TILES[Math.floor(rng() * EGG_OUTER_TILES.length)],
+    kind: CAVE_EGG_KINDS[Math.floor(rng() * CAVE_EGG_KINDS.length)],
+  };
+}
+
+/**
+ * Draw one egg into the tile at `x0` (its 24×24 area), centered. Colors are
+ * fixed (they're objects, not rock), so they don't depend on the tint.
+ */
+function drawEgg(grid: PixelGrid, x0: number, kind: CaveEggKind): void {
+  if (kind === "spider") {
+    // 4×3 dark body, red eyes, four leg stubs.
+    const body = "#202020";
+    for (let y = 11; y <= 13; y++) hline(grid, x0 + 10, x0 + 13, y, body);
+    setPixel(grid, x0 + 10, 11, "#e03030");
+    setPixel(grid, x0 + 13, 11, "#e03030");
+    hline(grid, x0 + 5, x0 + 9, 12, body);
+    hline(grid, x0 + 14, x0 + 18, 12, body);
+    hline(grid, x0 + 6, x0 + 9, 14, body);
+    hline(grid, x0 + 14, x0 + 17, 14, body);
+  } else if (kind === "princess") {
+    // Trapped princess: crown pixel row, skin head, pink dress triangle.
+    hline(grid, x0 + 10, x0 + 13, 7, "#ffd24a");
+    hline(grid, x0 + 11, x0 + 12, 8, "#f2c79b");
+    hline(grid, x0 + 11, x0 + 12, 9, "#f2c79b");
+    hline(grid, x0 + 11, x0 + 12, 10, "#ff7bb0");
+    hline(grid, x0 + 10, x0 + 13, 11, "#ff7bb0");
+    hline(grid, x0 + 9, x0 + 14, 12, "#ff7bb0");
+  } else {
+    // Treasure chest: brown box, dark lid, gold band + keyhole.
+    for (let y = 10; y <= 14; y++) hline(grid, x0 + 8, x0 + 15, y, "#8a5a2a");
+    hline(grid, x0 + 8, x0 + 15, 10, "#5f3c1c");
+    hline(grid, x0 + 8, x0 + 15, 13, "#ffd24a");
+    setPixel(grid, x0 + 11, 12, "#5f3c1c");
+  }
+}
+
+/**
  * Build one full cave row: `CAVE_TILES_PER_ROW` tiles of
  * `CAVE_TILE_PX` × `CAVE_TILE_PX`. Deterministic in (tier, strip, tint).
  */
@@ -153,13 +243,32 @@ export function buildCaveRow(
   );
   const shades = rockShades(tint);
   const gem = gemColor(tint);
+  const egg = eggForStrip(t, strip);
   for (let tile = 0; tile < CAVE_TILES_PER_ROW; tile++) {
-    const seed = hashSeed(t * 7919 + strip * 104729, 0x5eed + tile * 131);
-    if (mulberry32(seed)() < ROCK_CHANCE) {
-      drawRockTile(grid, tile * CAVE_TILE_PX, mulberry32(hashSeed(seed, 1)), shades);
+    const x0 = tile * CAVE_TILE_PX;
+    const inPath = CAVE_PATH_TILES.includes(tile);
+    if (!inPath) {
+      const seed = hashSeed(t * 7919 + strip * 104729, 0x5eed + tile * 131);
+      if (mulberry32(seed)() < ROCK_CHANCE) {
+        drawRockTile(grid, x0, mulberry32(hashSeed(seed, 1)), shades);
+      }
+      if (mulberry32(hashSeed(seed, 2))() < GEM_CHANCE[t]) {
+        drawGem(grid, x0, mulberry32(hashSeed(seed, 3)), gem, t >= 2);
+      }
+      if (egg != null && egg.tile === tile) {
+        drawEgg(grid, x0, egg.kind);
+      }
     }
-    if (mulberry32(hashSeed(seed, 2))() < GEM_CHANCE[t]) {
-      drawGem(grid, tile * CAVE_TILE_PX, mulberry32(hashSeed(seed, 3)), gem, t >= 2);
+    // Path wall edges: a dark 3px stripe on the inner side of the tiles
+    // flanking the shaft, drawn even over gaps so the path reads clearly.
+    if (tile === CAVE_PATH_TILES[0] - 1) {
+      for (let dx = CAVE_TILE_PX - 3; dx < CAVE_TILE_PX; dx++) {
+        vline(grid, x0 + dx, 0, CAVE_TILE_PX - 1, pathEdgeColor(tint));
+      }
+    } else if (tile === CAVE_PATH_TILES[CAVE_PATH_TILES.length - 1] + 1) {
+      for (let dx = 0; dx < 3; dx++) {
+        vline(grid, x0 + dx, 0, CAVE_TILE_PX - 1, pathEdgeColor(tint));
+      }
     }
   }
   return grid;

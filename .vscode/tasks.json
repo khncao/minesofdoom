@@ -12,6 +12,16 @@
             "label": "build-release-android",
             "type": "shell",
             "command": "npx react-native build-android --mode=release"
+        },
+        {
+            "label": "start expo",
+            "type": "shell",
+            "command": "npx expo start --port 8082"
+        },
+        {
+            "label": "start expo android",
+            "type": "shell",
+            "command": "npx expo run:android --port 8082"
         }
     ]
 }

@@ -10,7 +10,6 @@ import {
   Animated,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -44,14 +43,13 @@ const MAX_ANSWER_LENGTH = 12;
 
 // memo: the parent re-renders every tick and on every tap flush; without
 // this the (focused) TextInput re-rendered with it. Safe now that onSubmit
-// (useEquations.handleSubmit) and onToggleKeypad are stable callbacks.
+// (useEquations.handleSubmit) is a stable callback.
 const AnswerInput = memo(function AnswerInput({
   value,
   setTextInput,
   onSubmit,
   shakeAnim,
   useKeypad,
-  onToggleKeypad,
 }: {
   value: string;
   setTextInput: Dispatch<SetStateAction<string>>;
@@ -61,9 +59,10 @@ const AnswerInput = memo(function AnswerInput({
    * On-screen keypad mode (plan §2.1): when on, no TextInput is mounted
    * at all, so the game never depends on the OS keyboard (this is also
    * the web-parity path — there, `inputMode="numeric"` is ignored).
+   * HIDDEN FOR NOW (plan "Adjust"): the parent passes false and no toggle
+   * is rendered; the `NumericKeypad` wiring below stays for revival.
    */
   useKeypad: boolean;
-  onToggleKeypad: () => void;
 }) {
   const textInputRef = useRef<null | TextInput>(null);
 
@@ -111,22 +110,10 @@ const AnswerInput = memo(function AnswerInput({
               }}
             />
           )}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Toggle on-screen keypad"
-            accessibilityHint="Switch between the on-screen keypad and the device keyboard"
-            style={({ pressed }) => [
-              localStyles.toggle,
-              pressed ? localStyles.togglePressed : null,
-            ]}
-            onPress={onToggleKeypad}
-          >
-            {/* The icon shows the destination: 🔢 = switch to the
-                on-screen keypad, ⌨️ = switch back to the device keyboard. */}
-            <Text style={localStyles.toggleText}>
-              {useKeypad ? "⌨️" : "🔢"}
-            </Text>
-          </Pressable>
+          {/* Keypad toggle HIDDEN for now (plan "Adjust", 2026-09-02):
+              revival = re-add a Pressable here (the old 🔢/⌨️ one was 44px,
+              same row) and pass the stored `onScreenKeypad` value from
+              MinesOfDoom instead of the literal false. */}
         </View>
         {useKeypad && (
           <NumericKeypad
@@ -160,21 +147,6 @@ const localStyles = StyleSheet.create({
     userSelect: "none",
   },
   // 44px tap target (plan §2.2): 18px glyph + 12px vertical padding.
-  toggle: {
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#555",
-    backgroundColor: "#3a3a3a",
-    paddingHorizontal: 10,
-    paddingVertical: 12,
-  },
-  togglePressed: {
-    opacity: 0.65,
-  },
-  toggleText: {
-    fontSize: 18,
-    userSelect: "none",
-  },
 });
 
 export default AnswerInput;

@@ -1,15 +1,21 @@
 import { DEPTH_TIERS } from "src/mines_of_doom/game";
 import {
   buildCaveRow,
+  CAVE_EGG_KINDS,
+  CAVE_PATH_TILES,
   CAVE_STRIPS_PER_TIER,
+  CAVE_TILE_PX,
   CAVE_TIER_ATS,
   caveRowUri,
   caveTierForDepth,
   clearCaveTileCache,
+  eggForStrip,
   gemColor,
   mixHex,
+  pathEdgeColor,
   rockShades,
 } from "./caveTiles";
+import type { PixelGrid } from "./caveTiles";
 
 const PREFIX = "data:image/png;base64,";
 
@@ -108,6 +114,83 @@ describe("buildCaveRow", () => {
     const grid = buildCaveRow(4, 3, "#5ab8b8");
     const raw = grid.length * (1 + grid[0].length * 4);
     expect(raw).toBeLessThanOrEqual(65535);
+  });
+});
+
+describe("mined path + easter eggs", () => {
+  const TINT = "#a0856a";
+  const allRows = (): PixelGrid[] => {
+    const rows: PixelGrid[] = [];
+    for (let t = 0; t < CAVE_TIER_ATS.length; t++) {
+      for (let s = 0; s < CAVE_STRIPS_PER_TIER; s++) {
+        rows.push(buildCaveRow(t, s, TINT));
+      }
+    }
+    return rows;
+  };
+
+  test("path tiles stay dug out (no rock, gems or eggs) in every strip", () => {
+    const x0 = CAVE_PATH_TILES[0] * CAVE_TILE_PX;
+    const x1 = (CAVE_PATH_TILES[CAVE_PATH_TILES.length - 1] + 1) * CAVE_TILE_PX;
+    for (const grid of allRows()) {
+      for (const row of grid) {
+        for (let x = x0; x < x1; x++) {
+          expect(row[x]).toBeNull();
+        }
+      }
+    }
+  });
+
+  test("dark wall edges flank the path in every strip", () => {
+    const edge = pathEdgeColor(TINT);
+    const leftX =
+      (CAVE_PATH_TILES[0] - 1) * CAVE_TILE_PX + CAVE_TILE_PX - 3;
+    const rightX =
+      (CAVE_PATH_TILES[CAVE_PATH_TILES.length - 1] + 1) * CAVE_TILE_PX;
+    for (const grid of allRows()) {
+      for (const row of grid) {
+        for (const x of [leftX, leftX + 1, leftX + 2, rightX, rightX + 1, rightX + 2]) {
+          expect(row[x]).toBe(edge);
+        }
+      }
+    }
+  });
+
+  test("eggForStrip is deterministic, off-path, and neither ubiquitous nor absent", () => {
+    for (let t = 0; t < CAVE_TIER_ATS.length; t++) {
+      for (let s = 0; s < CAVE_STRIPS_PER_TIER; s++) {
+        const a = eggForStrip(t, s);
+        expect(JSON.stringify(a)).toBe(JSON.stringify(eggForStrip(t, s)));
+        if (a != null) {
+          expect(CAVE_PATH_TILES).not.toContain(a.tile);
+          expect(CAVE_EGG_KINDS).toContain(a.kind);
+        }
+      }
+    }
+    let count = 0;
+    for (let t = 0; t < CAVE_TIER_ATS.length; t++) {
+      for (let s = 0; s < CAVE_STRIPS_PER_TIER; s++) {
+        if (eggForStrip(t, s) != null) count++;
+      }
+    }
+    // The mine has eggs, but most strips are plain rock.
+    expect(count).toBeGreaterThan(0);
+    expect(count).toBeLessThan(CAVE_TIER_ATS.length * CAVE_STRIPS_PER_TIER);
+  });
+
+  test("an egg paints pixels inside its (off-path) tile", () => {
+    for (let t = 0; t < CAVE_TIER_ATS.length; t++) {
+      for (let s = 0; s < CAVE_STRIPS_PER_TIER; s++) {
+        const egg = eggForStrip(t, s);
+        if (egg == null) continue;
+        const grid = buildCaveRow(t, s, TINT);
+        const x0 = egg.tile * CAVE_TILE_PX;
+        const painted = grid.some((row) =>
+          row.slice(x0 + 5, x0 + 19).some((p) => p !== null),
+        );
+        expect(painted).toBe(true);
+      }
+    }
   });
 });
 

@@ -78,13 +78,10 @@ export default function MinesOfDoom() {
   // currently doesn't mute android touch sounds, but can in the future
   const [mute, setMute] = useLocalStorage<boolean>("mute", false);
 
-  // On-screen keypad (plan §2.1): replaces the OS keyboard for typing
-  // answers. Off by default to keep the existing input flow for players
-  // who prefer the device keyboard.
-  const [useKeypad, setUseKeypad] = useLocalStorage<boolean>(
-    "onScreenKeypad",
-    false,
-  );
+  // On-screen keypad (plan §2.1): HIDDEN for now (plan "Adjust",
+  // 2026-09-02) — the stored `onScreenKeypad` value and the NumericKeypad
+  // wiring stay for revival; AnswerInput receives a literal false and no
+  // longer renders its toggle.
 
   // First-run onboarding (plan §2.1): shown until dismissed; the flag
   // persists in AsyncStorage so a skip/finish never resurfaces. The
@@ -163,13 +160,6 @@ export default function MinesOfDoom() {
   const handleSettingsDataChange = useCallback(
     (newSettings: SettingsData) => setSettingsData(newSettings),
     [setSettingsData],
-  );
-
-  // Stable so the memoized AnswerInput skips re-rendering on ticks and tap
-  // flushes (a focused TextInput re-rendering 20Hz is most of the tap lag).
-  const handleToggleKeypad = useCallback(
-    () => setUseKeypad(!useKeypad),
-    [useKeypad, setUseKeypad],
   );
 
   // Purchase-button visibility (plan "Adjust"): by default only the core
@@ -647,8 +637,7 @@ export default function MinesOfDoom() {
           setTextInput={setTextInput}
           onSubmit={handleSubmit}
           shakeAnim={shakeAnim}
-          useKeypad={useKeypad}
-          onToggleKeypad={handleToggleKeypad}
+          useKeypad={false}
         />
         <ComboIndicator
           combo={combo}

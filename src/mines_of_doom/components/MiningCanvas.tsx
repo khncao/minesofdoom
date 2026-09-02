@@ -1,4 +1,4 @@
-import { memo, MutableRefObject, RefObject, useRef } from "react";
+import { memo, MutableRefObject, RefObject, useRef, useState } from "react";
 import { Image, Text, View } from "react-native";
 import Miner from "./Miner";
 import DebrisParticles, {
@@ -74,6 +74,10 @@ const MiningCanvas = memo(function MiningCanvas({
 }) {
   // Refs only — hold duration must not trigger re-renders per press.
   const holdStartRef = useRef(0);
+  // Wind-up (plan "Adjust"): one re-render per press start / end (never
+  // per tick) flags the player Miner to pull the pickaxe back while the
+  // hold is in flight; on release the snap-back + (mined?) swing play.
+  const [holding, setHolding] = useState(false);
   return (
     /*
       Plain View + responder system instead of Pressable.
@@ -85,16 +89,19 @@ const MiningCanvas = memo(function MiningCanvas({
       onStartShouldSetResponder={() => true}
       onResponderStart={() => {
         holdStartRef.current = Date.now();
+        setHolding(true);
       }}
       onResponderRelease={() => {
         const held = Date.now() - holdStartRef.current;
         holdStartRef.current = 0;
+        setHolding(false);
         if (held >= MINE_HOLD_MS) {
           onTap();
         }
       }}
       onResponderTerminate={() => {
         holdStartRef.current = 0;
+        setHolding(false);
       }}
       onResponderTerminationRequest={() => false}
       accessibilityRole="button"
@@ -139,6 +146,7 @@ const MiningCanvas = memo(function MiningCanvas({
             key={"player"}
             animateRef={playerPickaxeAnimRef}
             isPlayer={true}
+            windingUp={holding}
             seed={playerSeed}
             outfitId={outfitId}
             pickaxeId={pickaxeId}

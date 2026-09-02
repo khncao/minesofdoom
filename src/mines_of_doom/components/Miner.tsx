@@ -17,6 +17,13 @@ export interface MinerProps {
   pickaxeId: string;
   /** OS reduce-motion preference: suppresses the idle bob. */
   reduceMotion?: boolean;
+  /**
+   * Wind-up (plan "Adjust"): while the player holds the cave, the pickaxe
+   * pulls back; on release it snaps forward into the normal swing (or
+   * retracts when the hold was too short to mine). Player-only — roster
+   * miners never hold.
+   */
+  windingUp?: boolean;
   /** Low-end fallback (plan §4.5): emoji instead of pixel sprites. */
   emojiArt?: boolean;
 }
@@ -40,8 +47,29 @@ function Miner({ scale = 1, ...props }: MinerProps) {
   const appContext = useContext(Context);
   const pickaxeAnim = useRef(new Animated.Value(0)).current;
   const bounceAnim = useRef(new Animated.Value(0)).current;
+  // Wind-up (plan "Adjust"): 0 = at rest, 1 = fully pulled back. Kept as
+  // a SEPARATE value (a second rotate transform) instead of offsetting
+  // pickaxeAnim, because the swing interpolates a clamped inputRange —
+  // two 2D rotates compose additively around the same origin.
+  const windAnim = useRef(new Animated.Value(0)).current;
   const lastPickaxeRef = useRef(0);
   const activeAnimRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  // Wind up on hold, snap back on release. The release snap is a quick
+  // tween rather than a setValue so a mined hold reads as "pulled back →
+  // swung forward" (the swing animation starts from the rest angle and the
+  // wind-down runs under it); a too-short hold simply retracts.
+  useEffect(() => {
+    const anim = Animated.timing(windAnim, {
+      toValue: props.windingUp ? 1 : 0,
+      duration: props.windingUp ? 180 : 100,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    });
+    anim.start();
+    return () => anim.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.windingUp]);
 
   const pickaxeAnimate = () => {
     // Throttle so rapid tapping can't stack unbounded pickaxe animations.
@@ -89,6 +117,11 @@ function Miner({ scale = 1, ...props }: MinerProps) {
   const spin = pickaxeAnim.interpolate({
     inputRange: [0, 90],
     outputRange: ["0deg", "90deg"],
+  });
+  // Pulled-back angle for the wind-up (separate transform entry, additive).
+  const wind = windAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "-55deg"],
   });
 
   // Idle bob from the shared animation clock (plan §4.5): one 1s loop drives
@@ -162,7 +195,7 @@ function Miner({ scale = 1, ...props }: MinerProps) {
             marginTop: props.isPlayer ? -14 : -7,
             marginLeft: props.isPlayer ? 10 : 6,
             userSelect: "none",
-            transform: [{ rotate: spin }],
+            transform: [{ rotate: spin }, { rotate: wind }],
           }}
         >
           ⛏️
@@ -195,7 +228,7 @@ function Miner({ scale = 1, ...props }: MinerProps) {
           // as the old emoji + pickaxe layout.
           marginTop: props.isPlayer ? -18 : -10,
           marginLeft: props.isPlayer ? 12 : 7,
-          transform: [{ rotate: spin }],
+          transform: [{ rotate: spin }, { rotate: wind }],
         }}
       />
     </Animated.View>
