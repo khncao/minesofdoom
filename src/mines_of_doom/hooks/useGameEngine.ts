@@ -373,8 +373,10 @@ export function useGameEngine(
       setGameState((n: SaveData) => {
         // Depth-tier click bonus (authoritative; the UI shows the same value
         // computed from the rendered depth — they only disagree across a
-        // tier boundary, by at most one gain event).
-        const bonus = getDepthTier(getDepth(n.minerals)).clickBonus;
+        // tier boundary, by at most one gain event). Depth is lifetime-mining
+        // based, not balance based, so spending can't pull the bonus back
+        // down mid-answer.
+        const bonus = getDepthTier(getDepth(n.lifetimeMinerals)).clickBonus;
         const prestige = getPrestigeMultiplier(n.prestigeLevel);
         // Click x2 upgrade (tier 3): doubles tap/answer gains per level.
         const clickBoost = getClickBoostMultiplier(n.clickBoostLevels);
@@ -737,7 +739,9 @@ export function useGameEngine(
   return {
     gameState,
     onTick,
-    depth: getDepth(gameState.minerals),
+    // Lifetime-mining based (see getDepth): the cave only ever descends —
+    // spending minerals never scrolls it back up.
+    depth: getDepth(gameState.lifetimeMinerals),
     isLoaded,
     mineralsPerSec:
       getMineralsPerSec(

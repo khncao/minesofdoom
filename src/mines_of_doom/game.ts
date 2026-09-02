@@ -499,9 +499,13 @@ export const FINAL_TIER_PROGRESS_SPAN = 350;
  * slowly while the player mines within a tier and hands off seamlessly at
  * each threshold (one tile of slide per tier, matching the row shift).
  * The final tier advances across a fixed virtual span and caps at 1.
+ *
+ * Takes LIFETIME mined minerals (not the balance): spending minerals must
+ * never slide the cave back up (todo: depth & scroll are lifetime-mining
+ * based, so both only ever advance).
  */
-export function getDepthTierProgress(minerals: number): number {
-  const depth = getDepth(minerals);
+export function getDepthTierProgress(lifetimeMinerals: number): number {
+  const depth = getDepth(lifetimeMinerals);
   const tier = getDepthTier(depth);
   const next = DEPTH_TIERS[tier.id + 1];
   const span = next ? next.at - tier.at : FINAL_TIER_PROGRESS_SPAN;
@@ -601,8 +605,9 @@ export function createEmptySaveData(): SaveData {
 /**
  * Lifetime-stat deltas for a gain event, spread into a state update:
  * `{ ...n, minerals, ...lifetimeDelta(n, { minerals: gained, ... }) }`.
- * Stats only ever increase; maxDepth is re-derived from post-gain minerals
- * so it can't go backwards when a purchase later spends them down.
+ * Stats only ever increase; maxDepth is re-derived from post-gain LIFETIME
+ * minerals (the depth's source, see getDepth) so it can never go backwards
+ * when a purchase later spends the balance down.
  */
 export function lifetimeDelta(
   n: SaveData,
@@ -618,7 +623,10 @@ export function lifetimeDelta(
     lifetimeMinerals: n.lifetimeMinerals + (d.minerals ?? 0),
     lifetimeCorrect: n.lifetimeCorrect + (d.correct ?? 0),
     maxCombo: Math.max(n.maxCombo, d.combo ?? 0),
-    maxDepth: Math.max(n.maxDepth, getDepth(n.minerals + (d.minerals ?? 0))),
+    maxDepth: Math.max(
+      n.maxDepth,
+      getDepth(n.lifetimeMinerals + (d.minerals ?? 0)),
+    ),
     minersOwnedEver:
       d.newMiners != null
         ? Math.max(n.minersOwnedEver, d.newMiners)
@@ -944,8 +952,15 @@ export function getAnswerPayoutMultiplier(
   );
 }
 
-export function getDepth(minerals: number): number {
-  return Math.floor(minerals / mineralsPerDepth);
+/**
+ * Depth (meters) for a given amount of LIFETIME-mined minerals — NOT the
+ * current balance. The cave keeps descending as the player mines in total;
+ * spending minerals never lifts it back up, and a sunk shaft doesn't raise
+ * it either (todo: "Depth and screen scrolling should be based on lifetime
+ * mining").
+ */
+export function getDepth(lifetimeMinerals: number): number {
+  return Math.floor(lifetimeMinerals / mineralsPerDepth);
 }
 
 /**

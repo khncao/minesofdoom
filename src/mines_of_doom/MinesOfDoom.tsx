@@ -677,7 +677,7 @@ export default function MinesOfDoom() {
             collapsible, so no unlock count can ever push the canvas off. */}
         <MiningCanvas
           depth={depth}
-          depthProgress={getDepthTierProgress(gameState.minerals)}
+          depthProgress={getDepthTierProgress(gameState.lifetimeMinerals)}
           tint={caveTint}
           minerals={gameState.minerals}
           gems={gameState.gems}

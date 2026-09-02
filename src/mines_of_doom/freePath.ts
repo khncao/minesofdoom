@@ -218,8 +218,10 @@ export function simulateFreePath(
       // pre-increment, see MinesOfDoom's onCorrect), depth-tier bonus,
       // banked prestige, and the click x2 line — exactly
       // applyAnswerReward's formula with the persona's expected value.
+      // Depth is lifetime-mining based in the engine, so the bonus reads
+      // the lifetime total, not the spendable balance.
       const comboMult = getComboMultiplier(combo);
-      const depthBonus = getDepthTier(getDepth(minerals)).clickBonus;
+      const depthBonus = getDepthTier(getDepth(lifetime)).clickBonus;
       addGain(
         Math.max(1, persona.expectedEquationValue) *
           clickPower *
@@ -245,9 +247,10 @@ export function simulateFreePath(
   const tap = () => {
     // Hold-to-mine: click power × depth bonus × prestige × click x2
     // (effectiveClickPower in MinesOfDoom), and the tap RESETS the combo
-    // (with resistance) just like the real onResetCombo path.
+    // (with resistance) just like the real onResetCombo path. Depth bonus
+    // is lifetime-mining based, mirroring the engine.
     combo = getResistantComboReset(combo, comboResistLevels);
-    const depthBonus = getDepthTier(getDepth(minerals)).clickBonus;
+    const depthBonus = getDepthTier(getDepth(lifetime)).clickBonus;
     addGain(
       clickPower * depthBonus * prestige * getClickBoostMultiplier(clickBoostLevels),
       "taps",

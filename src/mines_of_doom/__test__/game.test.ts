@@ -423,6 +423,15 @@ describe("lifetimeDelta", () => {
     expect(d.minersOwnedEver).toBe(0);
     expect(d.totalGemsMinted).toBe(0);
   });
+
+  test("maxDepth derives from lifetime mining, not the mineral balance", () => {
+    // The player has mined 10,000 (depth 20) and spent all but 0 — the old
+    // balance-based rule would have dropped the depth to 0 on the spend.
+    const spent = { ...save(), minerals: 0, lifetimeMinerals: 10_000 };
+    expect(lifetimeDelta(spent, {}).maxDepth).toBe(20);
+    // A further gain extends it from the lifetime total.
+    expect(lifetimeDelta(spent, { minerals: 500 }).maxDepth).toBe(21);
+  });
 });
 
 describe("getDepth", () => {

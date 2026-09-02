@@ -1,7 +1,7 @@
 # Mines of Doom — UX, Improvements & New Features Plan
 
 Status: planning draft
-Last updated: 2026-09-02 (iteration 11)
+Last updated: 2026-09-02 (iteration 12)
 
 Legend: [-] deferred (decision noted), [ ] not started, [o] in progress
 
@@ -9,7 +9,6 @@ Completed items are removed from this file (see git history); only remaining wor
 
 - [ ] On-device Android verification (blocked on a device/emulator): boot the debug build and confirm the hermes `describe` crash does not fire. Nets are in place for the next occurrence — crash boundary + persisted log (`crashLog.ts` / `crashLogging.ts`), the `ErrorUtils` global-handler net, the crash-context session trail (rendered on the crash screen and in Settings → "Recent errors (debug)"), and the jest regression net. Build workflow if it resurfaces: debug via `npx expo run:android`; release via EAS or `npx expo run:android --variant release`.
 - [o] **Add localizations** — EN/ES UI strings shipped (iteration 9): `src/utils/i18n/` tables (en = source of truth, es typed against its key set, placeholder parity pinned in `i18n.test.ts`), `useI18n` hook (preference persisted in AsyncStorage key `language`, separate from the save), language picker in Settings (Auto/English/Español, each shown in its own name), device detection via `expo-localization` with a web `navigator.language` fallback. All screen UI, toasts, tooltips, a11y labels, onboarding, and the crash screen are translated. **Deferred:** data-driven content names (cosmetics, goal tiers, achievements, records labels, IAP product labels, legal doc titles/sections, biome/tier names) still live in their data modules — follow-up is to give those tables a per-locale shape and thread the locale through.
-- [ ] Depth and screen scrolling should be based on lifetime mining
 - [ ] Create E2E tests for Android on phone, 7 inch tablet, and 10 inch tablet and generate 4 in game screenshots in various states for each
 
 - [ ] **BigInt for minerals** — `formatNumber` covers up to Qi (1e30). Implement as not fully released yet so no need for migrations

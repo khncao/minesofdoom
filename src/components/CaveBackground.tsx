@@ -44,14 +44,15 @@ function CaveBackground({
     if (depth !== prevDepth.current) {
       // Crossed a tier threshold: the rows re-indexed exactly one tile, so
       // the base offset continues one tile further — seamless hand-off.
-      // (A big depth spike, e.g. offline earnings or a prestige reset,
-      // just lands further into the strip; the clamp below keeps the
-      // window covered.)
+      // (A big depth jump — offline earnings, a streak of answers — just
+      // lands further into the strip; the clamp below keeps the window
+      // covered.)
       prevDepth.current = depth;
       scrollOffset.current += TILE_HEIGHT;
     }
     // Clamp the base so the strip (ROWS+1 tiles) always covers the window
-    // even after repeated tier crossings / resets.
+    // after repeated tier crossings (depth is lifetime-mining based, so it
+    // only ever climbs).
     const base = Math.min(scrollOffset.current, 2 * TILE_HEIGHT);
     // Cancel the in-flight scroll so depth changes during fast mining
     // don't stack competing animations on the same value.
