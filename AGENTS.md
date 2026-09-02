@@ -30,11 +30,14 @@ All commands run from the repo root:
 src/                       # All source
   app/                     # expo-router ROOT (set via expo-router plugin in app.config.ts).
     index.tsx              # Root screen: renders <MinesOfDoom/> in a Stack.Screen.
-                           # ONLY route files belong under src/app — every file (any
-                           # extension, incl. tests/.d.ts) becomes a route, and the
-                           # static web export emits an HTML page per route.
+    +html.tsx              # Web document template (title/description) — one of the
+                           # expo-router special files (+html/+api) that are filtered
+                           # out of the route table, so it emits no HTML route.
+                           # ONLY route files belong under src/app — every OTHER file
+                           # (any extension, incl. tests/.d.ts) becomes a route, and
+                           # the static web export emits an HTML page per route.
   AppContext.ts            # App-level React context (tick callbacks)
-  components/              # Shared UI components (Button, Tooltip, DropdownMenu,
+  components/              # Shared UI components (Button, Tooltip, BottomModal,
                            # IntegerInput, NumericKeypad, etc.)
   hooks/                   # Shared hooks (useLocalStorage)
   utils/                   # Pure utilities (format, math/equations, graphics)

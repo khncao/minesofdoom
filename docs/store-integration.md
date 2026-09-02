@@ -76,9 +76,15 @@ Steps:
 - [ ] *Restore purchases* → re-grants on a fresh install.
 - [ ] Refund: the local entitlement record is NOT revoked by design
       (documented in `iaps.ts` — additive-only merge). Accept and note it.
-- [ ] Web export (`npm run deploy` dry run) → **no store/ad SDK in the web
+- [x] Web export (`npm run deploy` dry run) → **no store/ad SDK in the web
       bundle, no purchase UI** (guardrail 5; the platform-gated provider
-      selection is what enforces this).
+      selection is what enforces this). *(Verified 2026-09-02 on a fresh
+      `npm run predeploy`: zero `react-native-purchases` /
+      `react-native-ads-mediation` / `expo-ad-adsense` / AdMob strings in the
+      bundle; both purchase panels are gated on the provider reporting
+      available, which the production no-op never does. The dev-sim code is
+      present in the minified bundle as strings only, runtime-dead when
+      `__DEV__` is false. Re-verify when the real SDKs land.)*
 - [ ] Ads: test ad units only, test devices/numbers registered with AdMob;
       rewarded-only placements confirmed; caps still hit
       (3 gem-roll watches/day, 10 rewards/day).
