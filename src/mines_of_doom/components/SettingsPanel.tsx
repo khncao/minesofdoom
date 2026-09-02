@@ -16,6 +16,7 @@ import { SettingsData } from "../game";
 import { formatCrashContext } from "../crashContext";
 import { useCrashLog } from "../hooks/useCrashLog";
 import CosmeticsSection from "./CosmeticsSection";
+import InquiriesButton from "./InquiriesButton";
 import LegalSection from "./LegalSection";
 import { styles } from "../styles";
 
@@ -89,7 +90,7 @@ const SettingsContent = memo(function SettingsContent({
   const { language, setLanguage, t } = useI18n();
   const languagePrefs: readonly LanguagePref[] = ["auto", "en", "es"];
   return (
-    <View style={{ gap: 2, marginTop: 5 }}>
+    <View style={{ gap: 2, marginTop: 5 }} testID="settings-view">
       <View style={styles.flexCenteredRow}>
         <Text style={{ ...styles.text, fontSize: 11 }}>
           {t("settings.language")}
@@ -374,6 +375,11 @@ const SettingsContent = memo(function SettingsContent({
       {/* Essential legal notices (todo): privacy policy + terms/disclaimer,
           in-app links at the very bottom of settings. */}
       <LegalSection />
+      {/* Mailing link lives inside settings (todo) instead of the footer: it
+          is a rarely-used action, and the footer is the always-visible row. */}
+      <View style={styles.flexCenteredRow}>
+        <InquiriesButton />
+      </View>
       <View style={{ alignSelf: "center", margin: 10 }}>
         {showMessage && <Text style={{ ...styles.text }}>{showMessage}</Text>}
       </View>

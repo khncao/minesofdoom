@@ -111,6 +111,8 @@ function MenuPanel({
       pressable={<Text style={{ fontSize: 30 }}>☰</Text>}
       accessibilityLabel={t("main.a11yMenu")}
       scrollable
+      testID="menu-button"
+      sheetTestID="menu-sheet"
     >
       <View style={{ gap: 4 }}>
         <View

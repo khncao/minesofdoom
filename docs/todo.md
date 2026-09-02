@@ -1,7 +1,7 @@
 # Mines of Doom — UX, Improvements & New Features Plan
 
 Status: planning draft
-Last updated: 2026-09-02 (iteration 9)
+Last updated: 2026-09-02 (iteration 10)
 
 Legend: [-] deferred (decision noted), [ ] not started, [o] in progress
 
@@ -13,8 +13,6 @@ Completed items are removed from this file (see git history); only remaining wor
 - [ ] Configurable equation display (7 * 2, 7 x 2)
 - [ ] More types of simple mental arithmetics for all ages
 - [ ] Create E2E tests for Android on phone, 7 inch tablet, and 10 inch tablet and generate 4 in game screenshots in various states for each
-- [ ] Fix settings not displaying
-- [ ] Move mailing inquiry link to inside settings menu
 
 - [ ] **BigInt for minerals** — `formatNumber` covers up to Qi (1e30). Implement as not fully released yet so no need for migrations
 

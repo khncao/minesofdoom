@@ -18,7 +18,6 @@ import MenuPanel from "./components/MenuPanel";
 import SavePill from "./components/SavePill";
 import OnboardingOverlay from "./components/OnboardingOverlay";
 import DailyBonusButton from "./components/DailyBonusButton";
-import InquiriesButton from "./components/InquiriesButton";
 import {
   ALL_PURCHASE_IDS,
   defaultSettingsData,
@@ -785,7 +784,6 @@ export default function MinesOfDoom() {
             analytics={analytics}
             onClearAnalytics={onClearAnalytics}
           />
-          <InquiriesButton />
           <DailyBonusButton
             claimable={dailyBonus.claimable}
             bonus={dailyBonus.bonus}

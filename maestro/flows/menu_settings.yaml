@@ -1,0 +1,49 @@
+# E2E settings check (Android): the footer menu button opens the menu
+# sheet, the settings view is actually rendered inside it (this is the
+# regression net for the "settings not displaying" bug — the old flex
+# layout collapsed the sheet on some configurations), and the ✕ closes it.
+appId: com.minus4kelvin.minesofdoom
+---
+- launchApp: com.minus4kelvin.minesofdoom
+
+- repeat:
+    while:
+      visible:
+        id: onboarding-overlay
+    times: 1
+    commands:
+      - tapOn:
+          id: onboarding-skip
+
+- assertVisible:
+    id: equation-display
+- assertVisible:
+    id: depth-banner
+
+# The sheet starts closed.
+- assertNotVisible:
+    id: menu-sheet
+
+# Open the footer menu.
+- tapOn:
+    id: menu-button
+
+# The sheet opens AND its content is on screen (asserting the sheet alone
+# would pass even if the content were collapsed/hidden inside it).
+- assertVisible:
+    id: menu-sheet
+- assertVisible:
+    id: settings-view
+- assertVisible:
+    textContains: "Settings"
+
+# And the ✕ closes it again.
+- tapOn:
+    id: menu-sheet-close
+
+- assertNotVisible:
+    id: menu-sheet
+
+# No crash screen stuck on top at the end.
+- assertNotVisible:
+    id: loading-screen
