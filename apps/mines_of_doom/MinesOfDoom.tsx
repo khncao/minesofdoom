@@ -58,6 +58,7 @@ import { useMineTaps } from "./hooks/useMineTaps";
 import { useAccessibilityReduceMotion } from "./hooks/useAccessibilityReduceMotion";
 import { useEquations } from "./hooks/useEquations";
 import { useDailyBonus } from "./hooks/useDailyBonus";
+import LoadingScreen from "./components/LoadingScreen";
 
 export default function MinesOfDoom() {
   // currently doesn't mute android touch sounds, but can in the future
@@ -88,6 +89,7 @@ export default function MinesOfDoom() {
     onTick,
     depth,
     mineralsPerSec,
+    isLoaded,
     saveGame,
     saveDirty,
     addTapGain,
@@ -141,6 +143,13 @@ export default function MinesOfDoom() {
   const handleSettingsDataChange = useCallback(
     (newSettings: SettingsData) => setSettingsData(newSettings),
     [setSettingsData],
+  );
+
+  // Stable so the memoized AnswerInput skips re-rendering on ticks and tap
+  // flushes (a focused TextInput re-rendering 20Hz is most of the tap lag).
+  const handleToggleKeypad = useCallback(
+    () => setUseKeypad(!useKeypad),
+    [useKeypad, setUseKeypad],
   );
 
   // Purchase-button visibility (plan "Adjust"): by default only the core
@@ -423,6 +432,13 @@ export default function MinesOfDoom() {
     displayMessage,
   });
 
+  // Cold start (plan §4.4): hold the screen on a loading state until the
+  // stored save is loaded, instead of flashing the zeroed state first.
+  // All hooks above have already run, so an early return is safe here.
+  if (!isLoaded) {
+    return <LoadingScreen reduceMotion={reduceMotion} />;
+  }
+
   return (
     <Context.Provider value={contextValue}>
       <View style={styles.container}>
@@ -445,7 +461,7 @@ export default function MinesOfDoom() {
           onSubmit={handleSubmit}
           shakeAnim={shakeAnim}
           useKeypad={useKeypad}
-          onToggleKeypad={() => setUseKeypad(!useKeypad)}
+          onToggleKeypad={handleToggleKeypad}
         />
         <ComboIndicator
           combo={combo}

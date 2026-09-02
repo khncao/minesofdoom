@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction, useRef } from "react";
+import { Dispatch, SetStateAction, memo, useRef } from "react";
 import {
   Animated,
   KeyboardAvoidingView,
@@ -15,7 +15,10 @@ import NumericKeypad from "apps/components/NumericKeypad";
 // this just stops the display box from overflowing.
 const MAX_ANSWER_LENGTH = 12;
 
-const AnswerInput = ({
+// memo: the parent re-renders every tick and on every tap flush; without
+// this the (focused) TextInput re-rendered with it. Safe now that onSubmit
+// (useEquations.handleSubmit) and onToggleKeypad are stable callbacks.
+const AnswerInput = memo(function AnswerInput({
   value,
   setTextInput,
   onSubmit,
@@ -34,7 +37,7 @@ const AnswerInput = ({
    */
   useKeypad: boolean;
   onToggleKeypad: () => void;
-}) => {
+}) {
   const textInputRef = useRef<null | TextInput>(null);
 
   const handleDigit = (digit: string) =>
@@ -108,7 +111,7 @@ const AnswerInput = ({
       </Animated.View>
     </KeyboardAvoidingView>
   );
-};
+});
 
 const localStyles = StyleSheet.create({
   inputRow: {

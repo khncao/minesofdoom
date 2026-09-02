@@ -1,7 +1,7 @@
 # Mines of Doom — UX, Improvements & New Features Plan
 
 Status: planning draft
-Last updated: 2026-09-01
+Last updated: 2026-09-02
 
 Legend: [-] deferred (decision noted), [ ] not started, [o] in progress
 
@@ -9,7 +9,7 @@ Completed items are removed from this file (see git history); only remaining wor
 
 ## Adjust
 
-- [ ] Fix lag and queued taps when tapping quickly (note: `useMineTaps` already batches rapid taps into a 20Hz state flush)
+(Lag / queued taps shipped: mining is hold-gated (300ms) and `useMineTaps` batches rapid taps into a 20Hz state flush; on top of that `useEquations.handleSubmit` and the keypad toggle are now stable callbacks and `AnswerInput` is memoized, so the focused `TextInput` no longer re-renders on the 1s tick or on each tap flush — re-rendering a focused input was most of the perceived tap lag, especially on web.)
 - [ ] Fix ReferenceError: Property 'describe' doesn't exist, js engine: hermes on Android (not reproducible in web build; suspected expo-router/native-stack interaction — grab the full stack trace from the red box next time it appears)
 
 ## Stability (§6.2)
@@ -62,7 +62,7 @@ Completed items are removed from this file (see git history); only remaining wor
 
 ### 3.4 Performance
 
-- `DebrisParticles` and `Miner` animations: verify they run on the native driver / don't trigger React re-renders per frame.
+(Verified: all decorative animation layers — `Miner` pickaxe swing/bounce, `DebrisParticles`, `BlockBreak`, `FloatingTextLayer`, `CaveBackground` scroll — drive their values with `useNativeDriver: true` and no per-frame React state; per-event React state (particle batches, floating texts) is throttled (80ms min trigger interval) and capped (12 particles / 5 blocks / 16 texts), so animation cost is bounded even under spam. On web the JS driver is the fallback by design (RNW has no native driver) and the caps keep it cheap. No changes needed.)
 
 ## 4. Potential New Features
 
@@ -84,7 +84,7 @@ Completed items are removed from this file (see git history); only remaining wor
 
 ### 4.4 Platform
 
-- **PWA / web polish.** Add a proper loading state (favicon/splash already set in `app.config.ts`).
+(Loading state shipped: `LoadingScreen` (pulsing ⛏️, native-driver loop, suppressed under reduce-motion) renders until `useGameEngine` reports the stored save is loaded — a slow AsyncStorage cold start no longer flashes the zeroed game state. Favicon/splash were already set in `app.config.ts`. Remaining "web polish" is open-ended; track concrete items here when found.)
 - **iOS build** is already scripted (`expo run:ios`) — verify `expo-av` audio and AsyncStorage work, then consider TestFlight.
 
 ### 4.5 Art: real animated sprites (replace emojis)

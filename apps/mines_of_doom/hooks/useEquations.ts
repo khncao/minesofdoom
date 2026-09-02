@@ -51,12 +51,35 @@ export function useEquations({
   const streakMode = equationSettings.streakMode;
   const streakActive = streakMode && streak >= STREAK_MODE_THRESHOLD;
 
-  // The interval callback can't see the latest closures; the refs keep the
-  // expiry path fresh without re-arming the timer every render.
-  const onIncorrectRef = useRef(onIncorrect);
-  onIncorrectRef.current = onIncorrect;
-  const equationSettingsRef = useRef(equationSettings);
-  equationSettingsRef.current = equationSettings;
+  // Latest-value refs: the timed-mode interval and handleSubmit read the
+  // fresh values from here, so BOTH can be stable across renders. Stability
+  // is what lets the memoized AnswerInput skip re-rendering — with an
+  // unstable onSubmit it re-rendered the (focused on native) TextInput on
+  // every 1s tick and every 20Hz tap flush, which is most of the "lag
+  // while tapping" cost (worst on web, where a focused input's re-render
+  // steals event-loop time).
+  const latestRef = useRef({
+    equationSettings,
+    onCorrect,
+    onIncorrect,
+    textInput,
+    equation,
+    timeLeftMs,
+    streak,
+    timedMode,
+    streakMode,
+  });
+  latestRef.current = {
+    equationSettings,
+    onCorrect,
+    onIncorrect,
+    textInput,
+    equation,
+    timeLeftMs,
+    streak,
+    timedMode,
+    streakMode,
+  };
 
   // Switching streak mode off drops the (unpaid) streak so re-enabling it
   // never hands out a premium the player didn't earn in the new session.
@@ -78,14 +101,15 @@ export function useEquations({
         if (!expired) {
           expired = true;
           clearInterval(id);
+          const { onIncorrect, streakMode, equationSettings } = latestRef.current;
           // Timeout = miss: same consequences as a wrong answer, so the
           // onIncorrect handler (combo reset + resistance, shake, toast)
           // gets exactly one call per expired window. A wrong answer also
           // breaks the streak-mode streak, so reset it on the same path.
-          if (equationSettingsRef.current.streakMode) setStreak(0);
-          onIncorrectRef.current();
+          if (streakMode) setStreak(0);
+          onIncorrect();
           setTextInput("");
-          setEquation(getRandomEquation(equationSettingsRef.current));
+          setEquation(getRandomEquation(equationSettings));
         }
         setTimeLeftMs(0);
       } else {
@@ -98,6 +122,21 @@ export function useEquations({
   }, [equation, timedMode]);
 
   const handleSubmit = useCallback(() => {
+    // Read through latestRef so the callback identity never changes; the
+    // memoized AnswerInput only re-renders when the answer text itself
+    // changes (typing), not on every game tick / tap flush.
+    const {
+      textInput,
+      equation,
+      timeLeftMs,
+      streak,
+      timedMode,
+      streakMode,
+      equationSettings,
+      onCorrect,
+      onIncorrect,
+    } = latestRef.current;
+
     let value = -1;
     try {
       value = Number.parseFloat(textInput);
@@ -129,17 +168,8 @@ export function useEquations({
     }
     setTextInput("");
     setEquation(getRandomEquation(equationSettings));
-  }, [
-    textInput,
-    equation,
-    equationSettings,
-    onCorrect,
-    onIncorrect,
-    timedMode,
-    timeLeftMs,
-    streakMode,
-    streak,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
     equation,

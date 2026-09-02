@@ -68,6 +68,10 @@ export function useGameEngine(
   // aspirational — with miners running the state changes every tick, so
   // the indicator stays "stale" until the next autosave/manual save.
   const [saveDirty, setSaveDirty] = useState(false);
+  // True once the stored save has been read + migrated (or confirmed
+  // absent). MinesOfDoom renders a loading state until this flips, so a
+  // slow AsyncStorage cold start doesn't flash the zeroed game state.
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Mark dirty on any state change after load. setSaveDirty(true) is a
   // no-op re-render when the flag is already true (React bails out).
@@ -83,6 +87,7 @@ export function useGameEngine(
       const finish = (data: SaveData | null, offlineMinerals: number) => {
         loadedRef.current = true;
         if (cancelled) return;
+        setIsLoaded(true);
         if (data == null) return;
         setGameState(data);
         startTime.current = data.startTime;
@@ -610,6 +615,7 @@ export function useGameEngine(
     gameState,
     onTick,
     depth: getDepth(gameState.minerals),
+    isLoaded,
     mineralsPerSec:
       getMineralsPerSec(
         gameState.miners,
