@@ -9,7 +9,8 @@
  *  - a data item with no translation degrades to English at render time,
  *    but a FORGOTTEN one is caught here, not by a player;
  *  - a stray key in a locale table (typo'd or orphaned) fails too;
- *  - `detail` must be present exactly where the English item has one.
+ *  - `detail` and `body` must be present exactly where the English item
+ *    has one.
  */
 import { DEPTH_TIERS, createEmptySaveData } from "src/mines_of_doom/game";
 import { GOAL_TIERS } from "src/mines_of_doom/goals";
@@ -70,7 +71,7 @@ function expectedItems(): Map<string, ContentStrings> {
     for (const section of doc.sections) {
       m.set(
         contentKey("legalSection", `${doc.id}:${section.heading}`),
-        { title: section.heading },
+        { title: section.heading, body: section.body },
       );
     }
   }
@@ -96,17 +97,24 @@ describe("locale content tables", () => {
       for (const entry of Object.values(table)) {
         expect(entry.title.trim().length).toBeGreaterThan(0);
         if (entry.detail != null) expect(entry.detail).not.toBe("");
+        if (entry.body != null) expect(entry.body.trim()).not.toBe("");
       }
     }
   });
 
-  it("`detail` is present exactly where the English item has one", () => {
+  it("`detail` and `body` are present exactly where the English item has them", () => {
     for (const [locale, table] of Object.entries({ es: contentEs })) {
       for (const [key, entry] of Object.entries(table)) {
-        const hasEn = expected.get(key)?.detail != null;
-        expect({ locale, key, hasEn, hasLocale: entry.detail != null }).toEqual(
-          { locale, key, hasEn, hasLocale: hasEn },
-        );
+        const hasEnDetail = expected.get(key)?.detail != null;
+        const hasEnBody = expected.get(key)?.body != null;
+        expect({
+          locale,
+          key,
+          hasEnDetail,
+          hasLocaleDetail: entry.detail != null,
+        }).toEqual({ locale, key, hasEnDetail, hasLocaleDetail: hasEnDetail });
+        expect({ locale, key, hasEnBody, hasLocaleBody: entry.body != null })
+          .toEqual({ locale, key, hasEnBody, hasLocaleBody: hasEnBody });
       }
     }
   });

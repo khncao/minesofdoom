@@ -9,10 +9,12 @@
  * is a test failure, so this file can't silently drift from the data.
  *
  * `title` replaces the data item's name/label; `detail` (only where the
- * English item has one) replaces its blurb/unlock line. English itself has
- * no table — the data modules ARE the English source of truth.
+ * English item has one) replaces its blurb/unlock line; `body` (same rule)
+ * carries the long legal-doc section texts. English itself has no table —
+ * the data modules ARE the English source of truth.
  */
 import type { ContentTable } from "./content";
+import { LEGAL_CONTACT_EMAIL } from "src/mines_of_doom/legal";
 
 export const contentEs: ContentTable = {
   // --- Depth tiers / biomes (DEPTH_TIERS in game.ts) -------------------
@@ -188,38 +190,85 @@ export const contentEs: ContentTable = {
   },
 
   // --- Legal docs (LEGAL_DOCS in legal.ts) -------------------------------
-  // Titles + section headings are localized; the section BODIES stay
-  // English for now (see docs/todo.md).
+  // Titles, section headings AND bodies are localized here.
   "legalDoc:privacy": { title: "Política de privacidad" },
   "legalDoc:terms": { title: "Términos de uso y descargo" },
 
-  "legalSection:privacy:Short version": { title: "Versión corta" },
+  "legalSection:privacy:Short version": {
+    title: "Versión corta",
+    body:
+      "Mines of Doom no recopila información personal. Tus datos de juego se guardan solo en tu dispositivo, nada se envía por la red y no existe ningún sistema de cuentas. Esta política lo detalla y cubre los pocos casos límite (las compras en la aplicación y los anuncios con recompensa, si llegaran a estar disponibles en tu plataforma).",
+  },
   "legalSection:privacy:What we store, and where": {
     title: "Qué guardamos, y dónde",
+    body:
+      "Todo lo que el juego guarda vive en el almacenamiento privado de tu dispositivo (Android/iOS: el almacenamiento privado de la app vía AsyncStorage; web: el almacenamiento local de tu navegador para este sitio). Incluye:\n\n• Tus datos de juego (minerales, mejoras, cosméticos, metas, logros, ajustes).\n• Un pequeño registro de estadísticas locales (cuándo abriste la app por primera vez, días de uso, primer visionado de anuncio, número de compras, número de prestigios). Se usa solo para nuestras propias decisiones de desarrollo, se puede leer en el dispositivo en Ajustes → «Estadísticas locales (depuración)» y se puede borrar allí en cualquier momento.\n• Un breve registro de errores (solo mensajes de error recientes, nunca tus datos de juego ni nada personal), visible y borrable en Ajustes → «Errores recientes (depuración)».\n• Marcas de tiempo para el bono diario y los límites de recompensa de anuncios.\n\nNinguno de estos datos sale nunca de tu dispositivo. Además, puedes borrarlo todo de una vez con Ajustes → Restablecer.",
   },
   "legalSection:privacy:What we do NOT collect": {
     title: "Qué NO recopilamos",
+    body:
+      "Ni nombre, ni dirección de correo electrónico, ni ninguna otra información personal. Sin identificadores de dispositivo. Sin SDK de análisis de terceros. Sin transmisión por red de ningún tipo. No hay cuentas, ni inicio de sesión, ni ninguna forma de que identifiquemos a una persona o vinculemos los datos de juego con ella.\n\nLa función «Código de guardado» (Ajustes → Código de guardado) genera un código que contiene tus datos de juego. Compartir ese código es compartir tu progreso: no lo compartas con personas de quien no te fíes. Nunca te lo pediremos.",
   },
   "legalSection:privacy:In-app purchases": {
     title: "Compras en la aplicación",
+    body:
+      "Las compras en la aplicación opcionales (packs cosméticos y «Eliminar anuncios») las procesa la tienda de apps desde la que instalaste el juego (Google Play o la App Store de Apple). Los datos de pago los gestiona la tienda, no nosotros: solo sabemos que una compra tuvo éxito, para que el juego pueda entregar el artículo. La versión web del juego es 100 % gratuita y no ofrece ninguna compra.",
   },
-  "legalSection:privacy:Advertising": { title: "Publicidad" },
-  "legalSection:privacy:Children": { title: "Menores" },
+  "legalSection:privacy:Advertising": {
+    title: "Publicidad",
+    body:
+      "La versión web del juego no contiene publicidad de ningún tipo.\n\nLas versiones para móvil pueden ofrecer anuncios de vídeo con recompensa, estrictamente opcionales y iniciados por el jugador (tú mismo pulsas «ver», y solo recibes la recompensa dentro del juego si terminas el vídeo; no hay ningún otro formato de anuncio). Si un proveedor de anuncios con recompensa está activo en tu plataforma, puede procesar los datos que su propia política de privacidad describe con el fin de servir esos vídeos; no le transmitimos ninguna información personal sobre ti, y ningún anuncio afecta jamás al juego fuera de la recompensa que pediste explícitamente. Los ajustes de anuncio y el opt-out se gestionan a través de los controles de anuncios de la tienda/plataforma. Somos un desarrollador independiente y no tenemos afiliación con Google, Apple ni ninguna red de publicidad.",
+  },
+  "legalSection:privacy:Children": {
+    title: "Menores",
+    body:
+      "El juego está pensado para todas las edades y no contiene chat, ni enlaces externos, ni contenido generado por usuarios. En consecuencia, la publicidad (donde exista) se configura para el tratamiento de contenido dirigido a menores y las recompensas son siempre artículos dentro del juego: nunca bienes del mundo real.",
+  },
   "legalSection:privacy:Changes to this policy": {
     title: "Cambios de esta política",
+    body: "Los cambios importantes se indicarán aquí con una nueva versión y fecha.",
   },
-  "legalSection:privacy:Contact": { title: "Contacto" },
+  "legalSection:privacy:Contact": {
+    title: "Contacto",
+    body: `Las preguntas, o las peticiones de borrado de tus datos (más allá de los controles Limpiar/Restablecer de la app), pueden enviarse a ${LEGAL_CONTACT_EMAIL}.`,
+  },
 
-  "legalSection:terms:The game": { title: "El juego" },
-  "legalSection:terms:Virtual goods": { title: "Bienes virtuales" },
+  "legalSection:terms:The game": {
+    title: "El juego",
+    body:
+      "Mines of Doom («el juego») es un juego idle de minería gratuito. «Gratis» significa que puedes llegar al juego completo y a todo su contenido de final sin gastar dinero; algunos artículos cosméticos también se pueden comprar con dinero real, y todo lo comprable también se puede obtener jugando.",
+  },
+  "legalSection:terms:Virtual goods": {
+    title: "Bienes virtuales",
+    body:
+      "Los minerales, las gemas y todos los demás artículos del juego son solo virtuales. No tienen valor en el mundo real, no pueden canjearse por dinero o bienes y no pueden transferirse entre jugadores excepto mediante la función de código de guardado, que usas bajo tu propia responsabilidad (importar un código reemplaza tu guardado actual).",
+  },
   "legalSection:terms:In-app purchases": {
     title: "Compras en la aplicación",
+    body:
+      "Las compras se cargan en tu cuenta de la tienda de apps y están sujetas a los propios términos y la política de devoluciones de la tienda. Los artículos comprados se entregan a la cuenta del dispositivo en el que los compraste y una compra de «Eliminar anuncios» o de un pack cosmético es definitiva una vez que el artículo se ha entregado o usado. Al comprar confirmas que aceptas los términos de servicio de la tienda de apps.",
   },
-  "legalSection:terms:Your save data": { title: "Tus datos de guardado" },
-  "legalSection:terms:No affiliation": { title: "Sin afiliación" },
+  "legalSection:terms:Your save data": {
+    title: "Tus datos de guardado",
+    body:
+      "Tu progreso se guarda en tu dispositivo (ver la Política de privacidad). Borrar los datos locales de la app, reinstalarla o usar Ajustes → Restablecer borrará tu progreso de forma permanente. La función de código de guardado se ofrece como copia de seguridad/medio de intercambio; no guardamos copia de tu guardado y no podemos restaurarlo si se pierde.",
+  },
+  "legalSection:terms:No affiliation": {
+    title: "Sin afiliación",
+    body:
+      "El juego es un producto independiente. No está afiliado, respaldado ni patrocinado por Apple Inc., Google LLC ni ninguna red de publicidad. «Apple», el logotipo de Apple, «iPhone», «iOS» y «App Store» son marcas registradas de Apple Inc.; «Google Play» y «Android» son marcas registradas de Google LLC. Todas las marcas son propiedad de sus respectivos titulares.",
+  },
   "legalSection:terms:Disclaimer": {
     title: "Descargo de responsabilidad",
+    body:
+      "El juego se proporciona «tal cual», sin garantía de ningún tipo, expresa o implícita, incluyendo, sin limitación, la aptitud para un propósito concreto, la comerciabilidad y la no infracción. No garantizamos que el juego sea ininterrumpido, libre de errores o disponible en un momento concreto. En la máxima medida permitida por la ley, no nos hacemos responsables de ninguna pérdida de progreso, de artículos virtuales ni de otros daños derivados del uso del juego.",
   },
-  "legalSection:terms:Changes": { title: "Cambios" },
-  "legalSection:terms:Contact": { title: "Contacto" },
+  "legalSection:terms:Changes": {
+    title: "Cambios",
+    body: "Podemos actualizar el juego y estos términos con el tiempo; los cambios importantes se indicarán con una nueva versión y fecha.",
+  },
+  "legalSection:terms:Contact": {
+    title: "Contacto",
+    body: `Las preguntas sobre estos términos pueden enviarse a ${LEGAL_CONTACT_EMAIL}.`,
+  },
 };

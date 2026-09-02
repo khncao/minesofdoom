@@ -3,8 +3,8 @@
  *
  * UI chrome lives in en.ts/es.ts (key → string). The DATA-driven names —
  * cosmetics, goal tiers, goal/achievement/record labels, IAP product
- * labels, legal doc titles & section headings, depth-tier (biome) names —
- * live in their data modules (game.ts, goals.ts, cosmetics.ts,
+ * labels, legal doc titles/section headings/bodies, depth-tier (biome)
+ * names — live in their data modules (game.ts, goals.ts, cosmetics.ts,
  * achievements.ts, records.ts, iaps.ts, legal.ts), which are the
  * ENGLISH source of truth for those strings.
  *
@@ -16,9 +16,10 @@
  * a forgotten translation degrades to English instead of crashing.
  *
  * `title` is the display name/label; `detail` is the optional one-line
- * extra (blurb, unlock line). The parity net (content.test.ts) walks the
- * actual data modules and pins that every locale covers exactly that key
- * set, with `detail` present exactly where the English item has one.
+ * extra (blurb, unlock line); `body` is optional long text (legal doc
+ * sections). The parity net (content.test.ts) walks the actual data
+ * modules and pins that every locale covers exactly that key set, with
+ * `detail` and `body` present exactly where the English item has one.
  */
 import type { Locale } from "./i18n";
 import { contentEs } from "./content-es";
@@ -45,7 +46,7 @@ export type ContentNamespace =
   | "iap"
   /** Legal document titles (LEGAL_DOCS in legal.ts). */
   | "legalDoc"
-  /** Legal section headings. id = `<docId>:<English heading>`. */
+  /** Legal section headings + bodies. id = `<docId>:<English heading>`. */
   | "legalSection";
 
 /** A content item's display strings. */
@@ -54,6 +55,8 @@ export type ContentStrings = {
   title: string;
   /** Optional one-line extra (blurb, unlock line). */
   detail?: string;
+  /** Optional long text (legal doc section bodies). */
+  body?: string;
 };
 
 /** A locale's content table, keyed by `ns:id` (contentKey). */
@@ -91,5 +94,6 @@ export function translateContent(
   return {
     title: entry.title,
     detail: entry.detail ?? fallback.detail,
+    body: entry.body ?? fallback.body,
   };
 }

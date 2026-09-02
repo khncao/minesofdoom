@@ -64,26 +64,30 @@ function LegalDocContent({ doc }: { doc: LegalDoc }) {
           date: doc.effectiveDate,
         })}
       </Text>
-      {doc.sections.map((section) => (
-        <View key={section.heading} style={{ gap: 2 }}>
-          <Text style={{ ...styles.text, fontWeight: "bold" }}>
-            {content("legalSection", `${doc.id}:${section.heading}`, {
-              title: section.heading,
-            }).title}
-          </Text>
-          <Text
-            selectable
-            style={{
-              ...styles.text,
-              fontSize: 12,
-              color: "#ddd",
-              lineHeight: 18,
-            }}
-          >
-            {section.body}
-          </Text>
-        </View>
-      ))}
+      {doc.sections.map((section) => {
+        const sectionText = content("legalSection", `${doc.id}:${section.heading}`, {
+          title: section.heading,
+          body: section.body,
+        });
+        return (
+          <View key={section.heading} style={{ gap: 2 }}>
+            <Text style={{ ...styles.text, fontWeight: "bold" }}>
+              {sectionText.title}
+            </Text>
+            <Text
+              selectable
+              style={{
+                ...styles.text,
+                fontSize: 12,
+                color: "#ddd",
+                lineHeight: 18,
+              }}
+            >
+              {sectionText.body ?? section.body}
+            </Text>
+          </View>
+        );
+      })}
     </View>
   );
 }
