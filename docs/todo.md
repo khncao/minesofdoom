@@ -16,7 +16,7 @@ Completed items are removed from this file (see git history); only remaining wor
   - [o] Store integrations: cloud saves, leaderboard, achievements — designed in `docs/store-integration-plan.md` (device-keyed, no account; extends the same Pocketbase deployment as IAP)
     - [ ] **External:** same Pocketbase deploy as the IAP item above (sandbox first); the six cloud/leaderboard endpoints from the plan go in the same `pb_hooks/` folder as the IAP ones
     - [ ] Identity decision pending — device-scoped (no account, plan's default) vs. login: see `docs/blockers.md`
-    - [ ] Client: cloud-save engine wiring — push cadence (autosave/prestige) into `cloudSave.ts`, launch-recovery path (corrupt local → cloud import), settings UI (toggle, last-sync status, manual restore) + tests
+    - [x] Client: cloud-save engine wiring — push cadence (autosave/prestige), launch-recovery path (corrupt local → cloud import), settings UI (toggle, last-sync status, manual restore) + tests. Done: `hooks/useCloudSave.ts` (5-min push gate, prestige bypass, recovery only on a FAILED local load, persisted last-sync status, manual restore) + `useGameEngine.restoreFromBlob`/`saveLoadFailed` (restore goes through the normal validate/migrate/offline-pay pipeline) + the new settings section in `SettingsPanel` (hides while the provider is unavailable; the dev sim is labeled) + tests (`useCloudSave.test.ts`, `useGameEngine.test.ts`).
     - [ ] Client: leaderboard (monotonic submit piggyback, top-10 modal + trophy button, display name, availability gate) + tests
     - [ ] Client: achievement badge count on board rows + share strings; "delete my data" (GDPR) button + endpoint
     - [ ] On-device verification per the plan §Phases 6

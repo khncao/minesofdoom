@@ -5,6 +5,7 @@ import { useT } from "src/hooks/useI18n";
 import MuteToggle from "src/components/MuteToggle";
 import { EquationSettings } from "src/utils/math/equations";
 import { AnalyticsState } from "../analytics";
+import type { CloudSaveSettingsProps } from "../hooks/useCloudSave";
 import type { ComponentProps } from "react";
 import SettingsContent from "./SettingsPanel";
 import GoalsContent from "./GoalsPanel";
@@ -38,6 +39,7 @@ function MenuPanel({
   stats,
   analytics,
   onClearAnalytics,
+  cloudSave,
 }: {
   settingsData: SettingsData;
   onChangeSettingsData: (newSettings: SettingsData) => void;
@@ -60,6 +62,9 @@ function MenuPanel({
   analytics: AnalyticsState | null;
   /** Data-deletion path for the analytics record. */
   onClearAnalytics: () => void;
+  /** Cloud-backup settings bundle (see useCloudSave); the section hides
+   *  itself while the provider is unavailable. */
+  cloudSave: CloudSaveSettingsProps;
 }) {
   const t = useT();
   const [view, setView] = useState<MenuView>("settings");
@@ -82,6 +87,7 @@ function MenuPanel({
         hardModeUnlocked={hardModeUnlocked}
         analytics={analytics}
         onClearAnalytics={onClearAnalytics}
+        cloudSave={cloudSave}
       />
     ),
     [
@@ -98,6 +104,7 @@ function MenuPanel({
       hardModeUnlocked,
       analytics,
       onClearAnalytics,
+      cloudSave,
     ],
   );
   const goalsChildren = useMemo(() => <GoalsContent stats={stats} />, [stats]);

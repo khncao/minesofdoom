@@ -175,14 +175,24 @@ one value; `isPocketbaseConfigured()` derives from it. No second URL field.
    against the sandbox instance (fake-token dev flag) — deployable only
    once the Pocketbase instance itself exists (shared blocker with the IAP
    todo).
-3. **Client: cloud save** — **provider core done**: config refactor
-   (top-level `pocketbaseUrl`), `cloudSave.ts` (interface +
-   `storeCloudSaveProvider` push/pull/delete + `noopCloudSaveProvider` +
-   `selectCloudSaveProvider` selection, no `.web` twin — no native SDK
-   import) and the pin tests against scripted fetch
-   (`__test__/cloudSave.test.ts`). Remaining: the engine wiring (push
-   cadence after autosave/prestige, launch-recovery path, manual-restore
-   + toggle + "last sync" settings UI).
+3. **Client: cloud save** — **done** (provider core + engine wiring).
+   Provider core: config refactor (top-level `pocketbaseUrl`),
+   `cloudSave.ts` (interface + `storeCloudSaveProvider` push/pull/delete +
+   `noopCloudSaveProvider` + `selectCloudSaveProvider` selection, no `.web`
+   twin — no native SDK import) and the pin tests against scripted fetch
+   (`__test__/cloudSave.test.ts`). Engine wiring: `hooks/useCloudSave.ts`
+   (push on every local save with a 5-minute gate — prestige bypasses it
+   as the run boundary; launch-recovery only when the local load FAILED,
+   importing through the engine's validate/migrate/offline-pay pipeline via
+   `useGameEngine.restoreFromBlob`; manual restore + toggle + persisted
+   "last sync" line, rendered by a new settings section that hides itself
+   while the provider is unavailable; the dev build runs the labeled
+   in-memory simulation). Tests: `__test__/useCloudSave.test.ts` (cadence,
+   prestige bypass, toggle, stale→refresh, recovery, restore toasts,
+   formatAgo) + the `restoreFromBlob`/`saveLoadFailed` cases in
+   `useGameEngine.test.ts`. Remaining: the server side (the three
+   cloud/delete endpoints in the shared Pocketbase deploy — item 6's
+   verification covers it end-to-end).
 4. **Client: leaderboard** — submit piggyback, top/rank endpoints, modal +
    trophy button, display name, tests (monotonic pin, gate-when-unavailable
    pin).

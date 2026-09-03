@@ -76,6 +76,11 @@ export function useGameEngine(
   // absent). MinesOfDoom renders a loading state until this flips, so a
   // slow AsyncStorage cold start doesn't flash the zeroed game state.
   const [isLoaded, setIsLoaded] = useState(false);
+  // True when a stored save EXISTS but couldn't be loaded (storage read
+  // error, unparseable JSON, non-object). Drives the cloud-save launch-
+  // recovery path (docs/store-integration-plan.md §Cloud save): a fresh
+  // install (no stored save) must NOT be restored over from the cloud.
+  const [saveLoadFailed, setSaveLoadFailed] = useState(false);
   // "Watch to double offline earnings" (plan §5.1): when a load produces a
   // positive offline haul, the EXTRA half a rewarded ad would grant is held
   // here as a one-shot offer — consumed by claimOfflineDouble, or replaced
@@ -134,6 +139,9 @@ export function useGameEngine(
         raw = await getSaveData();
       } catch (e) {
         console.warn("Failed to read save data", e);
+        // The read itself failed — a save probably exists but is unreadable;
+        // flag it so the cloud-recovery path gets a chance.
+        setSaveLoadFailed(true);
         return finish(null, 0n, 0n);
       }
       if (raw == null) {
@@ -153,9 +161,11 @@ export function useGameEngine(
         } catch (e) {
           console.warn("Failed to back up corrupt save", e);
         }
+        setSaveLoadFailed(true);
         return finish(null, 0n, 0n);
       }
       if (parsed == null || typeof parsed !== "object") {
+        setSaveLoadFailed(true);
         return finish(null, 0n, 0n);
       }
 
@@ -737,6 +747,56 @@ export function useGameEngine(
     return true;
   }, []);
 
+  // Cloud-backup restore (docs/store-integration-plan.md §Cloud save):
+  // import a raw serialized save blob (the cloud store's `blob` field) and
+  // a save code's JSON through the SAME defensive pipeline the storage
+  // loader uses — JSON parse, versioned migration, clamping build, then
+  // the imported save's offline earnings paid up front. Returns false for
+  // an unparseable blob so the caller can toast a failure; the caller
+  // (useCloudSave) is the only consumer.
+  const restoreFromBlob = useCallback((blob: string): boolean => {
+    if (!loadedRef.current) return false;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(blob);
+    } catch {
+      return false;
+    }
+    if (parsed == null || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return false;
+    }
+    const now = Date.now();
+    const data = buildSaveData(migrateSaveData(parsed as Record<string, unknown>), now);
+    const offline = computeOfflineMinerals(
+      data.miners,
+      data.minerPower,
+      data.fastMiners,
+      data.saveTime,
+      now,
+      getPrestigeMultiplier(data.prestigeLevel),
+      data.legendaryMiners,
+    );
+    const topUp = computeOfflineTopUpMinerals(
+      data.miners,
+      data.minerPower,
+      data.fastMiners,
+      data.saveTime,
+      now,
+      getPrestigeMultiplier(data.prestigeLevel),
+      data.legendaryMiners,
+    );
+    setGameState({
+      ...data,
+      minerals: data.minerals + offline,
+      lifetimeMinerals: data.lifetimeMinerals + offline,
+    });
+    if (topUp > 0n) {
+      offlineTopUpRef.current = topUp;
+      setOfflineTopUp(topUp);
+    }
+    return true;
+  }, []);
+
   const resetGame = useCallback(() => {
     setGameState(createEmptySaveData());
     // Clear async first; the next periodic save rewrites a fresh state, so
@@ -753,6 +813,8 @@ export function useGameEngine(
     // spending minerals never scrolls it back up.
     depth: getDepth(gameState.lifetimeMinerals),
     isLoaded,
+    saveLoadFailed,
+    restoreFromBlob,
     mineralsPerSec: mulFloats(
       BigInt(
         getMineralsPerSec(

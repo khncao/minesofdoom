@@ -11,6 +11,10 @@ import {
   type TranslationKey,
 } from "src/utils/i18n/i18n";
 import {
+  formatAgo,
+  type CloudSaveSettingsProps,
+} from "../hooks/useCloudSave";
+import {
   EquationSettings,
   OPERATOR_KEYS,
   Ops,
@@ -91,6 +95,7 @@ const SettingsContent = memo(function SettingsContent({
   hardModeUnlocked,
   analytics,
   onClearAnalytics,
+  cloudSave,
 }: {
   settingsData: SettingsData;
   onChangeSettingsData: (newSettings: SettingsData) => void;
@@ -112,6 +117,10 @@ const SettingsContent = memo(function SettingsContent({
   analytics: AnalyticsState | null;
   /** Data-deletion path for the analytics record (module docs). */
   onClearAnalytics: () => void;
+  /** Cloud-backup section (plan §Cloud save); the section itself renders
+   *  only while its `available` flag is set (the "hidden until
+   *  configured" rule lives in the hook's provider). */
+  cloudSave: CloudSaveSettingsProps;
 }) {
   const [exportedCode, setExportedCode] = useState<string | null>(null);
   const [importCode, setImportCode] = useState("");
@@ -444,6 +453,7 @@ const SettingsContent = memo(function SettingsContent({
           onPress={onReset}
         />
       </View>
+      <CloudSaveSection cloudSave={cloudSave} />
       <AnalyticsSection analytics={analytics} onClear={onClearAnalytics} />
       <CrashLogSection />
       {/* Essential legal notices (todo): privacy policy + terms/disclaimer,
@@ -460,6 +470,51 @@ const SettingsContent = memo(function SettingsContent({
     </View>
   );
 });
+
+/**
+ * Cloud backup section (docs/store-integration-plan.md §Cloud save):
+ * the toggle, the "last sync" status line, and the manual restore.
+ * Rendered only while the provider is available (dev-sim in dev builds,
+ * the Pocketbase provider once the URL lands — until then the section is
+ * absent, same "hidden until configured" rule as the ad/IAP entry
+ * points). A dev build labels itself "(simulated)" (transparency
+ * guardrail: the in-memory simulation is not a durable backup).
+ */
+function CloudSaveSection({ cloudSave }: { cloudSave: CloudSaveSettingsProps }) {
+  const { t } = useI18n();
+  if (!cloudSave.available) return null;
+  const { lastSync } = cloudSave;
+  const statusText =
+    lastSync.state === "failed"
+      ? t("settings.cloudLastSyncFailed")
+      : lastSync.state === "ok" && lastSync.at != null
+        ? t("settings.cloudLastSyncOk", { when: formatAgo(lastSync.at, Date.now()) })
+        : t("settings.cloudNeverSynced");
+  return (
+    <View style={{ gap: 6, marginTop: 10 }} testID="cloud-save-section">
+      <View
+        style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+      >
+        <Text style={{ ...styles.text, fontWeight: "bold" }}>
+          {t("settings.cloudSave")}
+          {cloudSave.isDevSim ? t("settings.cloudSim") : ""}
+        </Text>
+        <Switch value={cloudSave.enabled} onValueChange={cloudSave.setEnabled} />
+      </View>
+      <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+        {t("settings.cloudSaveHelp")}
+      </Text>
+      <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+        {statusText}
+      </Text>
+      <ConfirmableButton
+        title={t("settings.cloudRestore")}
+        description={t("settings.cloudRestoreDescription")}
+        onPress={cloudSave.onRestore}
+      />
+    </View>
+  );
+}
 
 /**
  * Debug section (guardrail 5 "measure before scaling"): the local

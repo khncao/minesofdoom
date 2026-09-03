@@ -148,6 +148,16 @@ describe("useGameEngine — load & save", () => {
     // The corrupt raw data is backed up, not destroyed.
     expect(mockStore.get(saveDataKey + ".corrupt")).toBe("{not json!!");
     expect(displayMessage).not.toHaveBeenCalled();
+    // The load failure is flagged so the cloud-save recovery path can
+    // offer the last backup (see useCloudSave).
+    expect(result.current.saveLoadFailed).toBe(true);
+  });
+
+  it("does not flag a load failure for a missing or a valid stored save", async () => {
+    const fresh = await renderEngine();
+    expect(fresh.result.current.saveLoadFailed).toBe(false);
+    const valid = await renderEngine({ minerals: 7n });
+    expect(valid.result.current.saveLoadFailed).toBe(false);
   });
 
   it("saves the current state to storage and clears the dirty flag", async () => {
@@ -529,6 +539,48 @@ describe("useGameEngine — prestige & offline offers", () => {
       await Promise.resolve();
     });
     expect(result.current.gameState.minerals).toBe(s.minerals);
+  });
+});
+
+describe("useGameEngine — cloud restore", () => {
+  it("restoreFromBlob imports a valid blob and pays its offline earnings", async () => {
+    const saveTime = Date.now() - 2 * 60 * 60 * 1000; // 2h away, under the cap
+    const { result } = await renderEngine();
+    const blob = serializeSaveData({
+      ...createEmptySaveData(),
+      miners: 1,
+      minerPower: 1,
+      minerals: 1000n,
+      lifetimeMinerals: 5000n,
+      saveTime,
+    });
+    let ok = false;
+    await act(async () => {
+      ok = result.current.restoreFromBlob(blob);
+      await Promise.resolve();
+    });
+    expect(ok).toBe(true);
+    const offline = computeOfflineMinerals(1, 1, 0, saveTime, Date.now(), 1, 0);
+    expect(offline).toBeGreaterThan(0n);
+    expect(result.current.gameState.minerals).toBe(1000n + offline);
+    expect(result.current.gameState.lifetimeMinerals).toBe(5000n + offline);
+  });
+
+  it("restoreFromBlob rejects garbage (no state change)", async () => {
+    const { result } = await renderEngine();
+    await act(async () => {
+      result.current.addTapGain(3n);
+      await Promise.resolve();
+    });
+    for (const blob of ["!!!not json!!!", "[1,2,3]", "\"a string\""] as const) {
+      let ok = true;
+      await act(async () => {
+        ok = result.current.restoreFromBlob(blob as string);
+        await Promise.resolve();
+      });
+      expect(ok).toBe(false);
+    }
+    expect(result.current.gameState.minerals).toBe(3n);
   });
 });
 

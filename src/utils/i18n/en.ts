@@ -58,6 +58,9 @@ export const en = {
   "toast.settingsSaved": "Saved",
   "toast.invalidSaveCode": "Invalid save code.",
   "toast.saveImported": "Save imported!",
+  "toast.cloudRestored": "Save recovered from the cloud backup",
+  "toast.cloudNoBackup": "No cloud backup found yet",
+  "toast.cloudRestoreFailed": "The cloud backup couldn't be read",
   "toast.welcomeBack":
     "Welcome back! Your miners collected {count} 🪨 while you were away.",
   "toast.saveFailed": "Warning: failed to save your game.",
@@ -241,6 +244,19 @@ export const en = {
   "settings.saveCodeHelp":
     "Export gives you a code to copy and share; importing a code " +
     "replaces your current save with the one in the code.",
+  "settings.cloudSave": "Cloud backup",
+  "settings.cloudSim": " (simulated)",
+  "settings.cloudSaveHelp":
+    "Backs up your save to a private, device-only cloud slot every few " +
+    "minutes and after each prestige. The backup never appears in save " +
+    "codes and only ever replaces your save when you restore it.",
+  "settings.cloudRestore": "Restore from cloud",
+  "settings.cloudRestoreDescription":
+    "Replace your current save with the cloud backup? This can't be " +
+    "undone.",
+  "settings.cloudLastSyncOk": "Last sync: {when}",
+  "settings.cloudLastSyncFailed": "Last sync failed — will retry automatically",
+  "settings.cloudNeverSynced": "Not synced yet",
   "settings.saveButton": "Save",
   "settings.resetButton": "Reset",
   "settings.resetDescription":

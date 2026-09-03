@@ -43,6 +43,9 @@ export const es: Record<TranslationKey, string> = {
   "toast.settingsSaved": "Guardado",
   "toast.invalidSaveCode": "Código de guardado no válido.",
   "toast.saveImported": "¡Guardado importado!",
+  "toast.cloudRestored": "Partida recuperada desde la copia en la nube",
+  "toast.cloudNoBackup": "Todavía no hay copia en la nube",
+  "toast.cloudRestoreFailed": "No se pudo leer la copia en la nube",
   "toast.welcomeBack":
     "¡Bienvenido de nuevo! Tus mineros recogieron {count} 🪨 mientras no estabas.",
   "toast.saveFailed": "Aviso: no se pudo guardar tu partida.",
@@ -233,6 +236,20 @@ export const es: Record<TranslationKey, string> = {
   "settings.saveCodeHelp":
     "Exportar te da un código para copiar y compartir; al importar un código " +
     "se reemplaza tu guardado actual por el del código.",
+  "settings.cloudSave": "Copia en la nube",
+  "settings.cloudSim": " (simulado)",
+  "settings.cloudSaveHelp":
+    "Respalda tu partida cada pocos minutos y tras cada prestigio en un " +
+    "slot privado y exclusivo de este dispositivo. La copia nunca aparece " +
+    "en los códigos de guardado y solo reemplaza tu partida cuando la " +
+    "restauras tú.",
+  "settings.cloudRestore": "Restaurar desde la nube",
+  "settings.cloudRestoreDescription":
+    "¿Reemplazar tu guardado actual por la copia en la nube? Esto no se " +
+    "puede deshacer.",
+  "settings.cloudLastSyncOk": "Última sincronización: {when}",
+  "settings.cloudLastSyncFailed": "La última sincronización falló — se reintentará sola",
+  "settings.cloudNeverSynced": "Sin sincronizar todavía",
   "settings.saveButton": "Guardar",
   "settings.resetButton": "Reiniciar",
   "settings.resetDescription":

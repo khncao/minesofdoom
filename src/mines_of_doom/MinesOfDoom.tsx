@@ -21,6 +21,8 @@ import DailyBonusButton from "./components/DailyBonusButton";
 import {
   ALL_PURCHASE_IDS,
   defaultSettingsData,
+  saveVersion,
+  serializeSaveData,
   getComboMultiplier,
   getComboRetention,
   getDepthTier,
@@ -64,6 +66,8 @@ import { noteCrashEvent, setCrashContextState } from "./crashContext";
 import { useDailyBonus } from "./hooks/useDailyBonus";
 import { useAnalytics } from "./hooks/useAnalytics";
 import { useAdRewards } from "./hooks/useAdRewards";
+import { useCloudSave, type CloudSaveSettingsProps } from "./hooks/useCloudSave";
+import { selectCloudSaveProvider } from "./cloudSave";
 import { selectAdProvider, COMBO_SAVE_WINDOW_MS, type AdKind } from "./ads";
 import { useIap } from "./hooks/useIap";
 import {
@@ -142,6 +146,8 @@ export default function MinesOfDoom() {
     resetGame,
     exportSaveCode,
     importSaveCode,
+    saveLoadFailed,
+    restoreFromBlob,
   } = useGameEngine(displayMessage, () => autosaveSecondsRef.current);
   // Language: useI18n persists the player's choice ("auto" | locale) and
   // drives the live locale store, so every useT() consumer re-renders on a
@@ -261,6 +267,81 @@ export default function MinesOfDoom() {
   useEffect(() => {
     autosaveSecondsRef.current = settingsData.autosave;
   }, [settingsData.autosave]);
+
+  // Cloud save (docs/store-integration-plan.md §Cloud save): a device-
+  // scoped backup of the serialized save on the Pocketbase deployment.
+  // The provider is picked once (dev builds run the labeled in-memory
+  // simulation; native production runs the real provider once the
+  // Pocketbase URL lands; entry points — the settings section — are
+  // hidden on the no-op, same rule as the ad/IAP entry points).
+  const cloudProvider = useMemo(() => selectCloudSaveProvider(__DEV__), []);
+  // Snapshot source: the latest state read from a ref so getCloudSnapshot
+  // stays stable while always serializing the current save (the engine's
+  // own saveGame does the same ref dance). updatedAt is the push time —
+  // the server's last-write-wins key is the client clock by design.
+  const cloudStateRef = useRef(gameState);
+  cloudStateRef.current = gameState;
+  const getCloudSnapshot = useCallback(
+    () => ({
+      blob: serializeSaveData({
+        ...cloudStateRef.current,
+        saveTime: Date.now(),
+      }),
+      saveVersion,
+      updatedAt: Date.now(),
+    }),
+    [],
+  );
+  const cloudSave = useCloudSave({
+    provider: cloudProvider,
+    getSnapshot: getCloudSnapshot,
+    restore: restoreFromBlob,
+    isLoaded,
+    saveLoadFailed,
+    displayMessage,
+    t,
+  });
+  // Destructure the stable members: effect/callback deps reference the
+  // bindings directly (exhaustive-deps happy without re-running on the
+  // handle object's per-render identity).
+  const { requestPush: cloudRequestPush, restoreFromCloud: cloudRestoreFromCloud } =
+    cloudSave;
+  // Push cadence (plan §Cloud save): every local save that lands — the
+  // dirty→clean transition, autosave and manual save alike — requests a
+  // push; the hook applies the 5-minute gate (and the toggle). The
+  // prestige push below bypasses the cadence: it's the run boundary.
+  const prevSaveDirtyRef = useRef(false);
+  useEffect(() => {
+    const wasDirty = prevSaveDirtyRef.current;
+    prevSaveDirtyRef.current = saveDirty;
+    if (isLoaded && wasDirty && !saveDirty) {
+      cloudRequestPush("autosave");
+    }
+  }, [saveDirty, isLoaded, cloudRequestPush]);
+  // Settings bundle for the menu's cloud-backup section (memo keeps the
+  // memoized MenuPanel/SettingsPanel quiet; lastSync moves at most once
+  // per push — 5 minutes apart).
+  const handleCloudRestore = useCallback(() => {
+    noteCrashEvent("cloud restore");
+    void cloudRestoreFromCloud();
+  }, [cloudRestoreFromCloud]);
+  const cloudSaveSettings = useMemo<CloudSaveSettingsProps>(
+    () => ({
+      available: cloudProvider.isAvailable(),
+      isDevSim: cloudProvider.id === "dev-sim",
+      enabled: cloudSave.enabled,
+      setEnabled: cloudSave.setEnabled,
+      lastSync: cloudSave.lastSync,
+      onRestore: handleCloudRestore,
+    }),
+    [
+      cloudProvider,
+      cloudSave.enabled,
+      cloudSave.lastSync,
+      cloudSave.setEnabled,
+      handleCloudRestore,
+    ],
+  );
   // The "pickaxe" sound is the equipped pickaxe's unique swing sound
   // (falls back to the generic one for unknown ids, see useSounds).
   const { play } = useSounds(mute, gameState.selectedPickaxe);
@@ -680,8 +761,11 @@ export default function MinesOfDoom() {
     if (prev !== null && gameState.totalPrestiges > prev) {
       noteCrashEvent("prestige");
       onPrestige();
+      // Prestige is the run boundary: push the backup immediately, no
+      // 5-minute cadence (plan §Cloud save "Push").
+      cloudRequestPush("prestige");
     }
-  }, [gameState.totalPrestiges, onPrestige]);
+  }, [gameState.totalPrestiges, onPrestige, cloudRequestPush]);
 
   // Crash-context trails for the monetization actions (dev-sim or store,
   // same paths).
@@ -855,6 +939,7 @@ export default function MinesOfDoom() {
             stats={gameState}
             analytics={analytics}
             onClearAnalytics={onClearAnalytics}
+            cloudSave={cloudSaveSettings}
           />
           <DailyBonusButton
             claimable={dailyBonus.claimable}
