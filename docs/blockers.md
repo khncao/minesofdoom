@@ -99,20 +99,18 @@ players; the `delete my data` endpoint and the reinstall caveats in the
 settings copy are still drafted for the device model and are part of the
 login scope (they gain an account target).
 
-**Blocked on (decision, open within that scope):** *which login
-mechanism* — email/password, Google, or Apple sign-in. The scope work can't
-start the sign-in UI or the account data model without it: email/password
-means password-reset + verification flows and is the GDPR-heaviest option
-for a kid-skewing audience (guardrail 6: age rating must be planned with
-the choice, `TAG_FOR_CHILD_DIRECTED_TREATMENT` if that's the answer);
-Google/Apple SDK sign-in avoids passwords but on iOS "Sign in with Apple"
-is required whenever a third-party (Google) login exists, which pulls the
-iOS half (already in `docs/backlog.md`) into the same decision. The
-mechanism also decides where account identity lives (a Pocketbase user
-collection with a PB auth token vs an opaque provider id the hooks trust).
-**Unblocks when:** one mechanism (or a "Google + Apple, no email"-style
-pairing) is chosen; the `todo.md` scope bullets are written to hold either
-way.
+**Decision recorded (was: which login mechanism):** **all three —
+email/password, Google sign-in, and Apple sign-in**, side by side in the
+sign-in UI. Carried into the scope item in `todo.md`: email/password is
+the GDPR-heaviest surface (password reset + verification flows; the
+guardrail-6 age-rating planning applies to it specifically, and
+`TAG_FOR_CHILD_DIRECTED_TREATMENT` if that's the resulting rating), and
+with a third-party (Google) login present the iOS "Sign in with Apple"
+requirement fires — it's offered anyway, so the rule holds by
+construction. Accounts are provider-agnostic: any of the three
+mechanisms creates or signs into the same account (email where it exists
+is the shared identity). No further decision gates the scope — it is
+in-repo work on top of the sandbox Pocketbase, startable now.
 
 **Blocked on (external, shared):** the Pocketbase deployment itself — the
 cloud/leaderboard endpoints land in the same container and `pb_hooks/`

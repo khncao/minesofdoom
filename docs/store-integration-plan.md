@@ -51,10 +51,13 @@ Consequences (documented, accepted):
 `[decision — recorded]` **Optional login, anonymous device-based
 default.** Login is no longer rejected: it is approved as additive scope
 (the "Optional login" item in `todo.md`), with the device-scoped model
-above kept exactly as the no-sign-in default. The open sub-decision is
-*which mechanism* (email vs Google vs Apple) — see `docs/blockers.md`;
-the guardrail-6 caveats (kid-skewing audience, age rating,
-`TAG_FOR_CHILD_DIRECTED_TREATMENT`) still apply to whichever is chosen.
+above kept exactly as the no-sign-in default. **All three mechanisms**
+are in: email/password, Google sign-in, and Apple sign-in, side by side,
+provider-agnostic accounts (any mechanism signs into the same account).
+The guardrail-6 caveats (kid-skewing audience, age rating,
+`TAG_FOR_CHILD_DIRECTED_TREATMENT`) apply to the email surface
+specifically; the iOS "Sign in with Apple" requirement holds by
+construction since Google sign-in (a third-party login) is present.
 
 ## Backend: extend the existing Pocketbase deployment
 
