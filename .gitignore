@@ -160,3 +160,6 @@ vendor/
 
 # Web build output
 /dist/
+
+# Pocketbase sandbox data dir (never commit a data volume)
+/pb_data/

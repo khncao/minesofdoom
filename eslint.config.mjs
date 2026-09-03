@@ -41,5 +41,39 @@ export default [
     // wins over the rules in tseslint.configs.recommended above.
     files: ["**/*.config.js"],
     rules: { "@typescript-eslint/no-var-requires": "off" },
+  },
+  {
+    // The pb_hooks jest suite runs plain CommonJS; give it the test globals.
+    files: ["pb_hooks/__test__/**/*.js"],
+    languageOptions: { globals: { ...globals.jest } },
+  },
+  {
+    // Pocketbase v0.4x JS-hook runtime bindings (pb_hooks/ — see
+    // pocketbase/pocketbase plugins/jsvm in v0.40.x). require/module/
+    // process are already covered by the globals.node block above.
+    files: ["pb_hooks/**/*.js"],
+    ignores: ["pb_hooks/__test__/**"],
+    rules: {
+      // Plain CommonJS by design — this folder ships as-is to a Pocketbase
+      // hook runtime that has no ESM.
+      "@typescript-eslint/no-var-requires": "off",
+    },
+    languageOptions: {
+      globals: {
+        $app: "readonly",
+        $http: "readonly",
+        $security: "readonly",
+        $template: "readonly",
+        routerAdd: "readonly",
+        routerUse: "readonly",
+        onBootstrap: "readonly",
+        __hooks: "readonly",
+        Record: "readonly",
+        Collection: "readonly",
+        FieldsList: "readonly",
+        Field: "readonly",
+        arrayOf: "readonly",
+      },
+    },
   }
 ];
