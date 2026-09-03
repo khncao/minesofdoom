@@ -36,7 +36,7 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
     expect(storeConfig.adMob.rewardedUnitIos).toEqual(iosUnits);
     // Guardrail 7 default OFF until the final age rating is known.
     expect(storeConfig.adMob.tagForChildDirectedTreatment).toBe(false);
-    expect(storeConfig.iap.pocketbaseUrl).toBe("");
+    expect(storeConfig.pocketbaseUrl).toBe("");
   });
 
   it("isAdMobIdsConfigured requires the app id AND every placement unit", () => {

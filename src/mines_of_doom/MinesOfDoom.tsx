@@ -620,7 +620,7 @@ export default function MinesOfDoom() {
 
   // In-app purchases (plan §5.2): dev builds run a clearly labeled
   // simulation; native production runs the real expo-iap → Pocketbase
-  // provider once storeConfig.iap.pocketbaseUrl is filled in (docs/
+  // provider once storeConfig.pocketbaseUrl is filled in (docs/
   // store-integration.md §1) and the no-op (entry points hidden) until
   // then; web is the no-op until the Stripe web path is built. Entitlements
   // are device-local and never travel in the save; the first validated

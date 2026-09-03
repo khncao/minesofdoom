@@ -131,7 +131,7 @@ async function postVerify(
 ): Promise<boolean> {
   try {
     const res = await postJson(
-      `${storeConfig.iap.pocketbaseUrl}/api/app/verify`,
+      `${storeConfig.pocketbaseUrl}/api/app/verify`,
       { deviceId, platform: Platform.OS, productId, token },
     );
     return res !== null;
@@ -172,7 +172,7 @@ async function restoreFromServer(
   deviceId: string,
 ): Promise<Partial<Record<IapProductId, boolean>>> {
   const res = await postJson(
-    `${storeConfig.iap.pocketbaseUrl}/api/app/restore`,
+    `${storeConfig.pocketbaseUrl}/api/app/restore`,
     { deviceId },
   );
   const raw = res?.entitlements;

@@ -84,7 +84,7 @@ contract, so the swap stays one line in `selectIapProvider`.
 
 ## Client (repo changes) — **done**
 
-All shipped in `src/mines_of_doom/`: `storeConfig.ts` (`iap.pocketbaseUrl`),
+All shipped in `src/mines_of_doom/`: `storeConfig.ts` (`pocketbaseUrl`),
 `iapProvider.ts` (the provider below), `iapProvider.web.ts` (web no-op),
 `iapDeviceId.ts` (device id), the `selectIapProvider`/`pickIapProvider` swap
 (`iaps.ts`), jest mocks for `expo-iap` + AsyncStorage, and tests

@@ -5,7 +5,7 @@ The AdMob provider (`adProvider.ts`) is selected by `selectAdProvider`
 whenever `storeConfig.adMob` is filled in; the IAP provider
 (`iapProvider.ts`: expo-iap → Pocketbase verify → entitlement record) is
 selected by `selectIapProvider` whenever
-`storeConfig.iap.pocketbaseUrl` is filled in. What's left is external work
+`storeConfig.pocketbaseUrl` is filled in. What's left is external work
 — store accounts, product creation, the deployed Pocketbase, the ids/URL in
 `storeConfig.ts`, and the verification below.
 
@@ -19,7 +19,7 @@ managed service; the IAP validation path in §2 is that plan's §"Client").
   tiny catalog, entitlement rules, device-local entitlement persistence
   (never in the save), restore merge, cosmetic-pack grants, analytics hook.
   Production runs the real `storeIapProvider` (`iapProvider.ts`,
-  expo-iap → Pocketbase verify) once `storeConfig.iap.pocketbaseUrl` is
+  expo-iap → Pocketbase verify) once `storeConfig.pocketbaseUrl` is
   filled in and `noopIapProvider` (panel hidden) until then; dev builds run
   the labeled `devSimIapProvider`; web resolves `iapProvider.web.ts`
   (no-op — the Stripe web path is not built yet).
@@ -58,9 +58,7 @@ export const storeConfig = {
     },
     rewardedUnitIos: { /* same shape */ },
   },
-  iap: {
-    pocketbaseUrl: "",         // self-hosted server — docs/pocketbase-plan.md
-  },
+  pocketbaseUrl: "",           // self-hosted server — docs/pocketbase-plan.md
 };
 ```
 
@@ -114,7 +112,7 @@ Per-SDK setup:
   re-attempted on the next purchase/restore (a player never loses a
   completed purchase to a flaky network). **Remaining:** deploy the server
   per `docs/pocketbase-plan.md` and paste its URL into
-  `storeConfig.iap.pocketbaseUrl`.
+  `storeConfig.pocketbaseUrl`.
 - **The swaps** (one function body each, together with the pin-test updates;
   every reward rule / catalog / entitlement rule above stays untouched):
   - `selectAdProvider` — **done**: pure rule `pickAdProvider` in `ads.ts`

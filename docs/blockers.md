@@ -51,6 +51,25 @@ factory, selection matrix). Until the Pocketbase URL lands,
 — pinned by `iaps.test.ts` / `iapProvider.test.ts`.
 
 **Unblocks when:** the Pocketbase sandbox is up (fake-token dev flag) with
-its URL in `storeConfig.iap.pocketbaseUrl`, then the real store
+its URL in `storeConfig.pocketbaseUrl`, then the real store
 credentials per the plan's phases 2–4 and the verification checklist in
 docs/store-integration.md §3.
+
+## Store integrations (cloud saves, leaderboard, achievements) — `todo.md` "Store integrations"
+
+**Blocked on (decision):** the identity model. The plan
+(`docs/store-integration-plan.md`) defaults to **device-scoped, no account**
+(same tradeoff as the IAP entitlements: uninstall = identity gone; save
+codes are the escape hatch). The alternative — email/Google/Apple login —
+was rejected in the plan because it adds auth + GDPR account data to a
+kid-skewing casual game. **Default assumption in force: proceed with
+device-scoped** unless the decision comes back otherwise; nothing in the
+server/client design needs to change to swap it later, but the `delete my
+data` endpoint and the reinstall caveats in the settings copy do, so that
+copy is drafted for the device model.
+
+**Blocked on (external, shared):** the Pocketbase deployment itself — the
+cloud/leaderboard endpoints land in the same container and `pb_hooks/`
+folder as the IAP ones, so their server phase starts exactly when the IAP
+sandbox does. Client work (providers, UI, tests against scripted fetch) is
+**not** blocked and can start in the sandbox.

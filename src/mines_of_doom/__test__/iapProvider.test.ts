@@ -45,7 +45,7 @@ function resetMocks() {
 }
 
 function configure(base: string) {
-  storeConfig.iap.pocketbaseUrl = base;
+  storeConfig.pocketbaseUrl = base;
 }
 
 /** Yield to the microtask queue a few times (async storage + provider). */
@@ -67,18 +67,18 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-  storeConfig.iap.pocketbaseUrl = "";
+  storeConfig.pocketbaseUrl = "";
 });
 
 describe("storeIapProvider: gating", () => {
   it("is unavailable while the Pocketbase URL is empty (shipped state)", () => {
-    storeConfig.iap.pocketbaseUrl = "";
+    storeConfig.pocketbaseUrl = "";
     expect(isPocketbaseConfigured()).toBe(false);
     expect(storeIapProvider.isAvailable()).toBe(false);
   });
 
   it("purchase resolves 'error' (never rejects) while unconfigured", async () => {
-    storeConfig.iap.pocketbaseUrl = "";
+    storeConfig.pocketbaseUrl = "";
     await expect(storeIapProvider.purchase("removeAds")).resolves.toBe(
       "error",
     );
@@ -86,7 +86,7 @@ describe("storeIapProvider: gating", () => {
   });
 
   it("restore resolves {} while unconfigured", async () => {
-    storeConfig.iap.pocketbaseUrl = "";
+    storeConfig.pocketbaseUrl = "";
     await expect(storeIapProvider.restore()).resolves.toEqual({});
   });
 

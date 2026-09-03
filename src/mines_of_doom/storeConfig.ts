@@ -66,11 +66,13 @@ export const storeConfig = {
     // MobileAds().setRequestConfiguration in adProvider.ts.
     tagForChildDirectedTreatment: false,
   },
-  iap: {
-    // Self-hosted Pocketbase base URL for receipt validation + entitlements
-    // (docs/pocketbase-plan.md). Read by the IAP provider at call time.
-    pocketbaseUrl: "",
-  },
+  // Self-hosted Pocketbase base URL — ONE deployment serves receipt
+  // validation + entitlements (docs/pocketbase-plan.md) AND the store
+  // integrations: cloud saves + leaderboard (docs/store-integration-plan.md).
+  // Read by the IAP / cloud-save providers at call time. Empty = unset
+  // (same rule as the ad ids): the real providers stay no-ops until it
+  // lands.
+  pocketbaseUrl: "",
 };
 
 /** The AdMob ids for one platform, straight out of the config. */
@@ -97,9 +99,10 @@ export function isAdMobIdsConfigured(ids: AdMobIds): boolean {
   );
 }
 
-/** The Pocketbase (verify/entitlements) backend is configured — the
- *  IAP provider's `isAvailable()` gate (empty = unset, same rule as the
- *  ad ids). Until the URL lands the purchase UI stays hidden. */
+/** The Pocketbase backend is configured — the IAP provider's
+ *  `isAvailable()` gate AND the cloud-save/leaderboard providers' (empty
+ *  = unset, same rule as the ad ids). Until the URL lands the purchase UI
+ *  and the store integrations stay hidden. */
 export function isPocketbaseConfigured(): boolean {
-  return storeConfig.iap.pocketbaseUrl.length > 0;
+  return storeConfig.pocketbaseUrl.length > 0;
 }
