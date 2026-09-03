@@ -11,7 +11,7 @@ import {
 } from "../analytics";
 
 /**
- * Local event logging (guardrail 6 "measure before scaling"). Owns the
+ * Local event logging (guardrail 5 "measure before scaling"). Owns the
  * analytics record end to end: loads it once, folds in this session's app
  * open, and exposes stable record* callbacks for the one-shot milestones
  * (first ad view, IAP purchase, first prestige).

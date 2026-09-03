@@ -12,8 +12,11 @@ import {
   iapGrantCosmeticIds,
   mergeIapEntitlements,
   noopIapProvider,
+  pickIapProvider,
   selectIapProvider,
 } from "../iaps";
+import { storeIapProvider } from "../iapProvider";
+import { isPocketbaseConfigured } from "../storeConfig";
 import {
   CAVE_THEMES,
   OUTFITS,
@@ -190,8 +193,12 @@ describe("providers", () => {
     await expect(devSimIapProvider.restore()).resolves.toEqual({});
   });
 
-  it("both providers implement the same interface surface", () => {
-    for (const provider of [noopIapProvider, devSimIapProvider]) {
+  it("all three providers implement the same interface surface", () => {
+    for (const provider of [
+      noopIapProvider,
+      devSimIapProvider,
+      storeIapProvider,
+    ]) {
       expect(typeof provider.id).toBe("string");
       expect(typeof provider.isAvailable()).toBe("boolean");
       expect(provider.purchase("removeAds")).resolves.toBeDefined();
@@ -200,15 +207,43 @@ describe("providers", () => {
   });
 });
 
-describe("provider selection (the one-line swap point)", () => {
-  it("production (dev: false) selects the no-op provider", () => {
-    // Pins guardrail 5: no store SDK is bundled today, so production
-    // selects the no-op whose entry points stay hidden. When the real
-    // provider lands, this test asserts the swap is deliberate.
-    expect(selectIapProvider(false)).toBe(noopIapProvider);
+describe("provider selection (the swap point, pure)", () => {
+  it("dev builds always select the labeled simulation, no matter what", () => {
+    // The simulation is what makes the buy → unlock flow testable before
+    // any backend exists; it must never be hidden by a missing config.
+    expect(
+      pickIapProvider({ dev: true, web: false, iapBackendConfigured: false }),
+    ).toBe(devSimIapProvider);
+    expect(
+      pickIapProvider({ dev: true, web: true, iapBackendConfigured: true }),
+    ).toBe(devSimIapProvider);
   });
 
-  it("dev builds select the labeled simulation", () => {
-    expect(selectIapProvider(true)).toBe(devSimIapProvider);
+  it("web production stays on the no-op (web Stripe path is not built yet, even if configured)", () => {
+    expect(
+      pickIapProvider({ dev: false, web: true, iapBackendConfigured: true }),
+    ).toBe(noopIapProvider);
+  });
+
+  it("native production selects the no-op until the Pocketbase URL is configured", () => {
+    // Pins the shipped state: the repo builds with an empty URL, so
+    // entry points stay hidden everywhere.
+    expect(
+      pickIapProvider({ dev: false, web: false, iapBackendConfigured: false }),
+    ).toBe(noopIapProvider);
+  });
+
+  it("native production selects the store provider once configured", () => {
+    expect(
+      pickIapProvider({ dev: false, web: false, iapBackendConfigured: true }),
+    ).toBe(storeIapProvider);
+  });
+
+  it("live: the shipped state (no Pocketbase URL) selects the no-op", () => {
+    // Same pin as the ad integration: while the config is empty the live
+    // selector must hand out the no-op, so a store purchase can never
+    // surface without a configured backend.
+    expect(isPocketbaseConfigured()).toBe(false);
+    expect(selectIapProvider(false)).toBe(noopIapProvider);
   });
 });

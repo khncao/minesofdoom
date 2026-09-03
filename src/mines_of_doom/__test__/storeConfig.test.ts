@@ -4,7 +4,7 @@ import { getAdMobIds, isAdMobIdsConfigured, storeConfig } from "../storeConfig";
 
 describe("storeConfig (runbook §1 — the single SDK config point)", () => {
   it("ships with every value unset (empty = unconfigured)", () => {
-    // Pins guardrail 5 + the "empty = unset" rule: until real ids land
+    // Pins the "empty = unset" rule: until real ids land
     // (docs/store-integration.md), providers fall back to the no-ops.
     expect(storeConfig.adMob.androidAppId).toBe("");
     expect(storeConfig.adMob.iosAppId).toBe("");

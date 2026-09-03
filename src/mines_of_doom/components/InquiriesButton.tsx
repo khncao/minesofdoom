@@ -4,8 +4,8 @@ import { useT } from "src/hooks/useI18n";
 
 /**
  * Inquiries button: opens the player's mail app addressed to the developer.
- * A plain `mailto:` link — no SDK, works on web and native (guardrail 5
- * keeps the web build free/SDK-less; a mail link is neither).
+ * A plain `mailto:` link — no SDK, works on web and native (a mail link is
+ * not a bundled SDK, so there is nothing to keep out of the web bundle).
  */
 const INQUIRIES_EMAIL = "minus4kelvin@gmail.com";
 

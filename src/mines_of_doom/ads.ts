@@ -83,7 +83,8 @@ export type AdProviderSelection = {
    *  watch → reward → daily caps flow stays exercisable without an ad
    *  account (production builds never grant simulated rewards). */
   dev: boolean;
-  /** Web target — 100% free, no ad SDKs at all (guardrail 5). */
+  /** Web target: no web ad integration exists yet — `adProvider.web.ts`
+   *  is a no-op and the native SDK never enters the web bundle. */
   web: boolean;
   /** Whether this platform's storeConfig.adMob pair is set (runbook §1). */
   adMobConfigured: boolean;

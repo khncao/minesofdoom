@@ -6,7 +6,7 @@
  * otherwise the no-op (hidden entry points) or the labeled dev-sim runs.
  * The Web build resolves `adProvider.web.ts` instead (Metro's `.web`
  * extension), so this file — and the SDK — never enters the web bundle
- * (guardrail 5; verified by the bundle grep in docs/store-integration.md §3).
+ * (verified by the bundle grep in docs/store-integration.md §3).
  *
  * v16 API notes (differs from the older docs this package has been
  * documented with): `MobileAds()` is a module factory whose `initialize()`

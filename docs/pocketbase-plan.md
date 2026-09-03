@@ -31,7 +31,7 @@ half, at ~$0–5/mo, with no third party touching purchase data.
 ## Architecture
 
 ```
-App (native only — web stays 100% free, guardrail 5)
+App (native; the web/Stripe path is not built yet)
   expo-iap ──purchase──▶ store sheet ──▶ purchase { storeId, token }
       │
       ├─▶ POST {pb}/api/app/verify  { deviceId, platform, productId, token }
@@ -69,7 +69,7 @@ contract, so the swap stays one line in `selectIapProvider`.
     endpoints below touch it): `{ deviceId, productId, platform, tokenHash,
     verifiedAt }`.
   - `events` — **private**, phase 2: the lightweight analytics from
-    AGENTS.md guardrail 6 ("measure before scaling"): `{ deviceId, name,
+    AGENTS.md guardrail 5 ("measure before scaling"): `{ deviceId, name,
     data, at }` for first-ad-view, IAP purchase, D1/D7 pings.
 - **Hook endpoints** (`pb_hooks/`, versioned in the repo so a deploy = push):
   - `POST /api/app/verify` — validate `token` against the store for
@@ -82,12 +82,17 @@ contract, so the swap stays one line in `selectIapProvider`.
     service-account JSON and Apple shared secret live **server-side only**
     (env on the container — never in the app bundle).
 
-## Client (repo changes)
+## Client (repo changes) — **done**
 
-- `src/mines_of_doom/storeConfig.ts` — the single config module prescribed in
-  `docs/store-integration.md` §1 (Pocketbase URL + AdMob ids; empty = unset).
-- `PocketbaseIapProvider` (new file, e.g. `src/mines_of_doom/iapProvider.ts`)
-  implementing the existing `IapProvider`:
+All shipped in `src/mines_of_doom/`: `storeConfig.ts` (`iap.pocketbaseUrl`),
+`iapProvider.ts` (the provider below), `iapProvider.web.ts` (web no-op),
+`iapDeviceId.ts` (device id), the `selectIapProvider`/`pickIapProvider` swap
+(`iaps.ts`), jest mocks for `expo-iap` + AsyncStorage, and tests
+(`iapProvider.test.ts` — full purchase/restore/verify-failure matrix against
+a fake fetch — `iapDeviceId.test.ts`, `iaps.test.ts` selection matrix).
+The provider itself:
+
+- `storeIapProvider` implementing the existing `IapProvider`:
   - `purchase(productId)`: expo-iap purchase for
     `IAP_STORE_IDS[productId]` → on store success, POST the token to
     `/api/app/verify` → merge the reply into the local `iap` key.
@@ -97,11 +102,11 @@ contract, so the swap stays one line in `selectIapProvider`.
     (additive-only — the player never loses a completed purchase to a flaky
     network); re-verify on next launch. The store-side sheet + SDK error
     still map to the existing `PurchaseResult` union.
-- **Device id**: a UUID persisted in AsyncStorage under its own key (like the
-  existing `iap` / `adRewards` keys) — never in the save, so save codes never
-  leak it.
-- **Swap**: `selectIapProvider` body (the one line) + update the "provider
-  selection" pin tests in `iaps.test.ts`. Web stays on `noopIapProvider`.
+- **Device id**: a device-scoped id persisted in AsyncStorage under its own
+  key (`IAP_DEVICE_ID_KEY`) — never in the save, so save codes never leak it.
+- **Swap**: `selectIapProvider` body + the "provider selection" pin tests in
+  `iaps.test.ts`. Web stays on `noopIapProvider` until the Stripe web path
+  is built.
 
 ## Phases
 
@@ -114,9 +119,11 @@ contract, so the swap stays one line in `selectIapProvider`.
    verify → entitlement granted → restore after wiping the local `iap` key.
 4. **iOS**: App Store sandbox + the same matrix.
 5. **Swap** the provider selection, update pin tests, re-run the web bundle
-   grep (guardrail 5).
+   grep. — **done**: the provider is selected purely on
+   `isPocketbaseConfigured()`, so when the URL lands it's just the
+   `storeConfig` value (+ prebuild), no code change.
 6. **Phase 2 (optional)**: `events` collection — point the existing
-   `recordIapPurchase` / first-ad-view / retention hooks at it (guardrail 6).
+   `recordIapPurchase` / first-ad-view / retention hooks at it (guardrail 5).
 
 ## Effort estimate
 

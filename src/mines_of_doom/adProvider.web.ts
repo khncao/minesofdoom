@@ -1,8 +1,9 @@
 /**
  * Web variant of `./adProvider` — Metro resolves this file (`.web`
  * extension) for the web target, so `react-native-google-mobile-ads` is
- * never bundled into the web build (guardrail 5: web is 100% free with no
- * ad SDKs at all). It mirrors the native module's shape exactly, so
+ * never bundled into the web build (a web ad integration is not built yet;
+ * this no-op keeps the SDK out of the web bundle in the meantime). It
+ * mirrors the native module's shape exactly, so
  * `ads.ts` and its tests are platform-agnostic: on web the pair is by
  * construction "not configured" and the no-op provider is selected.
  */

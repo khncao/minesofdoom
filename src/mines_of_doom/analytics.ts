@@ -1,5 +1,5 @@
 /**
- * Lightweight local event logging (AGENTS.md guardrail 6, "measure before
+ * Lightweight local event logging (AGENTS.md guardrail 5, "measure before
  * scaling"): the handful of events the UA-spend decision needs — first
  * ad view, IAP purchases, D1/D7 retention, free-path progress (first
  * prestige + total prestige count) — plus the raw session signals
@@ -38,17 +38,17 @@ export type AnalyticsState = {
   d7Retention: boolean;
   /**
    * Local day keys of first-occurrence events ("" = not yet observed).
-   * "First-time ad view" (guardrail 6) is the moment the player first taps
+   * "First-time ad view" (guardrail 5) is the moment the player first taps
    * "watch" — recorded whether or not they finish the ad.
    */
   firstAdViewDay: string;
   /** Local day of the first IAP purchase (wired when the store SDK ships). */
   firstIapPurchaseDay: string;
-  /** Total IAP purchases (receipt count, guardrail 6). */
+  /** Total IAP purchases (receipt count, guardrail 5). */
   iapPurchases: number;
   /** Local day of the player's first prestige (free-path progress). */
   firstPrestigeDay: string;
-  /** Total prestiges sunk (free-path progress, guardrail 6). */
+  /** Total prestiges sunk (free-path progress, guardrail 5). */
   prestiges: number;
 };
 
@@ -133,7 +133,7 @@ export function recordIapPurchase(
 /**
  * A prestige was sunk (free-path progress). Stamps the first-prestige day
  * once and counts every subsequent one — "free-path progress" (guardrail
- * 6) is a curve, not just a milestone, and the count is cheap.
+ * 5) is a curve, not just a milestone, and the count is cheap.
  */
 export function recordPrestige(
   state: AnalyticsState | null,

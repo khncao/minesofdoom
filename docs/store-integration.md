@@ -1,11 +1,13 @@
 # Store SDK Integration Runbook (ads + IAP)
 
-Status: **ads integration shipped, store accounts pending.** The AdMob
-provider (`adProvider.ts`) is implemented and selected by `selectAdProvider`
-whenever `storeConfig.adMob` is filled in; the IAP half is still prep-only
-behind `selectIapProvider`. What's left is the external work — store
-accounts, product creation, the SDK ids in `storeConfig.ts`, and the
-verification below.
+Status: **ads + IAP providers shipped; store accounts + backend pending.**
+The AdMob provider (`adProvider.ts`) is selected by `selectAdProvider`
+whenever `storeConfig.adMob` is filled in; the IAP provider
+(`iapProvider.ts`: expo-iap → Pocketbase verify → entitlement record) is
+selected by `selectIapProvider` whenever
+`storeConfig.iap.pocketbaseUrl` is filled in. What's left is external work
+— store accounts, product creation, the deployed Pocketbase, the ids/URL in
+`storeConfig.ts`, and the verification below.
 
 Companion plan: `docs/pocketbase-plan.md` — self-hosted Pocketbase for
 receipt validation + entitlement persistence (replaces a RevenueCat-style
@@ -16,8 +18,11 @@ managed service; the IAP validation path in §2 is that plan's §"Client").
 - **IAP** (`src/mines_of_doom/iaps.ts`, `useIap.ts`, `IapPanel.tsx`):
   tiny catalog, entitlement rules, device-local entitlement persistence
   (never in the save), restore merge, cosmetic-pack grants, analytics hook.
-  Production runs `noopIapProvider` (panel hidden); dev builds run the
-  labeled `devSimIapProvider`.
+  Production runs the real `storeIapProvider` (`iapProvider.ts`,
+  expo-iap → Pocketbase verify) once `storeConfig.iap.pocketbaseUrl` is
+  filled in and `noopIapProvider` (panel hidden) until then; dev builds run
+  the labeled `devSimIapProvider`; web resolves `iapProvider.web.ts`
+  (no-op — the Stripe web path is not built yet).
 - **Rewarded ads** (`ads.ts`, `useAdRewards.ts`, `AdRewardsPanel.tsx`):
   reward economy + daily fraud caps (pure rules) — gem rolls, offline
   double/top-up, and combo saves (restore a just-lost combo, 60s window,
@@ -73,8 +78,9 @@ Rules that keep setup mechanical:
    in JS. The Pocketbase URL is read by the IAP provider at call time.
    `expo-iap` needs no new product strings: the catalog's
    `IAP_STORE_IDS` *are* the product ids (already canonical + test-pinned).
-3. **Web stays pure (guardrail 5).** The real SDKs are imported only in
-   provider files that native builds select; web selects the no-ops. After
+3. **Web bundles no native SDKs.** The real SDKs are imported only in
+   provider files that native builds select; web resolves the `.web`
+   no-op files (web ad/payment integrations aren't built yet). After
    wiring, re-run the web bundle grep in §3 — if SDK strings leak into the
    web bundle, switch the provider import to a platform file swap
    (`provider.web.ts` → no-ops) instead of a runtime branch.
@@ -94,17 +100,24 @@ Per-SDK setup:
   account**, so the full watch → reward → caps flow is device-testable
   before production ids exist (the dev-sim provider still covers it in
   `__DEV__` meanwhile).
-- **IAP** — `expo-iap` + Pocketbase:
-  `npx expo install expo-iap`, deploy the server per
-  `docs/pocketbase-plan.md`, paste its URL into `storeConfig.iap`, implement
-  `PocketbaseIapProvider` per that plan's "Client" section.
+- **IAP** — `expo-iap` + Pocketbase — **client done** (shipped in
+  `src/mines_of_doom/iapProvider.ts` + `iapProvider.web.ts`): purchase =
+  `requestPurchase` → store event → `finishTransaction` → POST
+  `/api/app/verify` (unified `purchaseToken`; the server re-verifies with
+  the store's API and upserts the device entitlement record); restore =
+  POST `/api/app/restore`; a failed verify is queued locally and
+  re-attempted on the next purchase/restore (a player never loses a
+  completed purchase to a flaky network). **Remaining:** deploy the server
+  per `docs/pocketbase-plan.md` and paste its URL into
+  `storeConfig.iap.pocketbaseUrl`.
 - **The swaps** (one function body each, together with the pin-test updates;
   every reward rule / catalog / entitlement rule above stays untouched):
   - `selectAdProvider` — **done**: pure rule `pickAdProvider` in `ads.ts`
     (dev → dev-sim; web or unconfigured → noop; configured native →
     AdMob), pinned by `ads.test.ts`.
-  - `selectIapProvider` — **pending**: → e.g.
-    `Platform.OS === "web" ? noopIapProvider : pocketbaseIapProvider`.
+  - `selectIapProvider` — **done**: pure rule `pickIapProvider` in
+    `iaps.ts` (dev → dev-sim; web → noop; unconfigured native → noop;
+    configured native → store), pinned by `iaps.test.ts`.
 
 ## 2. Create the products (do this first — it's the long pole)
 
@@ -145,8 +158,8 @@ Steps:
 - [ ] Refund: the local entitlement record is NOT revoked by design
       (documented in `iaps.ts` — additive-only merge). Accept and note it.
 - [ ] Web export (`npm run deploy` dry run) → **no store/ad SDK in the web
-      bundle, no purchase UI** (guardrail 5; the `.web` platform file is
-      what enforces this). Grep `dist/` for
+      bundle, no purchase UI** (the `.web` platform files are
+      what enforce this). Grep `dist/` for
       `react-native-google-mobile-ads` / `expo-iap` / the Pocketbase URL —
       zero hits. *(Ads half verified: with `adProvider.ts` + the SDK in
       `package.json`, a fresh `npx expo export -p web` + grep returns zero
@@ -154,7 +167,7 @@ Steps:
 - [ ] Ads: test ad units only, test devices/numbers registered with AdMob;
       rewarded-only placements confirmed; caps still hit
       (3 gem-roll watches/day, 1 combo save/day, 10 rewards/day).
-- [ ] Compliance (guardrail 7): set the SDK's kid-safety flag
+- [ ] Compliance (guardrail 6): set the SDK's kid-safety flag
       (`TAG_FOR_CHILD_DIRECTED_TREATMENT` for AdMob) per the final age
       rating — math idle skews young.
 - [ ] Analytics: `recordIapPurchase` / first-ad-view fire (check
@@ -174,7 +187,6 @@ Steps:
 ## Guardrail reminders (AGENTS.md, non-negotiable)
 
 - Rewarded ads **only**, strictly opt-in — no interstitials/banners, ever.
-- Web stays 100% free with no ad SDKs bundled at all.
 - No dark patterns; Remove Ads page stays plain-English about what it is.
 - F2P path untouched: everything sold is also gem-earnable; the
   `freePath.test.ts` gate keeps proving it.

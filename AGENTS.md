@@ -140,6 +140,5 @@ So test/source files import like `import ... from "src/mines_of_doom/game"` or
 2. **Rewarded ads only**, and only where the player taps "watch". Interstitials and banners are off the table permanently, not just "for now".
 3. **No dark patterns** — no fake scarcity ("offer ends in…"), no fake batteries, no accidental-purchase flows, no default-checked purchase options.
 4. **Transparency** — the Remove Ads purchase page and ad opt-in buttons show plainly what they are; no misleading icons.
-5. **Platform gating** — Google Play requires IAP for digital goods; web build stays 100% free with no ad SDKs bundled at all.
-6. **Measure before scaling** — lightweight event logging (first-time-ad-view, IAP purchase, D1/D7 retention, free-path progress) before any UA spend.
-7. **Compliance** — math idle games skew young: plan for a kid-safe age rating, and since ads reward minerals (a game item, not a real product), verify the ad SDK's kid-safety/`TAG_FOR_CHILD_DIRECTED_TREATMENT` setting for the chosen rating.
+5. **Measure before scaling** — lightweight event logging (first-time-ad-view, IAP purchase, D1/D7 retention, free-path progress) before any UA spend.
+6. **Compliance** — math idle games skew young: plan for a kid-safe age rating, and since ads reward minerals (a game item, not a real product), verify the ad SDK's kid-safety/`TAG_FOR_CHILD_DIRECTED_TREATMENT` setting for the chosen rating.

@@ -20,7 +20,14 @@
  *  - Transparency (guardrail 4): the purchase page states plainly what
  *    each product is and that the game stays fully free without it.
  */
+import { Platform } from "react-native";
 import { getCaveTheme, getOutfit, getPickaxe, isOutfitId } from "./cosmetics";
+// The real provider (native; a no-op on web via the .web swap). Imported
+// here (not the reverse) so the selection rules stay in one pure module;
+// the import is only read at call time inside selectIapProvider, which
+// keeps the module cycle lazy-safe.
+import { storeIapProvider } from "./iapProvider";
+import { isPocketbaseConfigured } from "./storeConfig";
 
 /** The kinds of store products the game knows about. */
 export type IapProductId =
@@ -204,10 +211,10 @@ export interface IapProvider {
 }
 
 /**
- * The default production provider: no store SDK is bundled, so purchase
- * entry points are hidden everywhere until a real provider is wired in
- * (guardrail 5 — web stays 100% free, and the UI must never offer a
- * "Buy" button that charges nothing or charges for nothing).
+ * The default production provider: no store backend is configured, so
+ * purchase entry points are hidden everywhere until the real provider is
+ * live (the UI must never offer a "Buy" button that charges nothing or
+ * charges for nothing).
  */
 export const noopIapProvider: IapProvider = {
   id: "noop",
@@ -236,18 +243,50 @@ export const devSimIapProvider: IapProvider = {
   restore: async () => ({}),
 };
 
+/** The inputs to provider selection — a pure decision so the swap point
+ *  stays unit-testable (same pattern as pickAdProvider in ads.ts). */
+export type IapProviderSelection = {
+  /** `__DEV__` — the dev build always runs the labeled simulation. */
+  dev: boolean;
+  /** Web target: the store provider is a no-op (`.web` swap); web
+ *  purchases go through Stripe, which is not built yet. */
+  web: boolean;
+  /** `isPocketbaseConfigured()` (storeConfig.ts). */
+  iapBackendConfigured: boolean;
+};
+
 /**
- * The ONE LINE that swaps store integrations (plan §5.2 / todo item: "the
- * provider swap is one line"). Today: dev builds run the labeled simulation
- * (the full buy → unlock → Cosmetics flow is exercisable without any store
- * account), production runs the no-op (nothing bundled, entry points
- * hidden, web stays 100% free — guardrail 5). When the real SDK lands
- * (docs/store-integration.md), this body becomes e.g.
- * `Platform.OS === "web" ? noopIapProvider : revenueCatIapProvider` —
- * `MinesOfDoom.tsx` and every rule above it are untouched by that change.
+ * Pure provider selection. The rules, in order:
+ *  1. dev always wins — the labeled simulation is what makes the whole
+ *     buy → unlock flow testable before the backend exists.
+ *  2. web is a no-op: `iapProvider.web.ts` resolves a stub and the Stripe
+ *     web path is not built yet.
+ *  3. native production: the real expo-iap → Pocketbase provider only once
+ *     the backend URL is configured (docs/store-integration.md §1); until
+ *     then the no-op keeps the entry points hidden.
+ */
+export function pickIapProvider(sel: IapProviderSelection): IapProvider {
+  if (sel.dev) return devSimIapProvider;
+  if (sel.web) return noopIapProvider;
+  if (!sel.iapBackendConfigured) return noopIapProvider;
+  return storeIapProvider;
+}
+
+/**
+ * The ONE CALL that swaps store integrations (plan §5.2 / todo item: "the
+ * provider swap is one line"). Today: dev builds run the labeled
+ * simulation (the full buy → unlock → Cosmetics flow is exercisable
+ * without any store account); native production runs the real provider
+ * once the Pocketbase URL is configured, otherwise the no-op (entry
+ * points hidden); web runs the no-op until the Stripe path lands. The
+ * decision itself is pure — see pickIapProvider and iaps.test.ts.
  */
 export function selectIapProvider(dev: boolean): IapProvider {
-  return dev ? devSimIapProvider : noopIapProvider;
+  return pickIapProvider({
+    dev,
+    web: Platform.OS === "web",
+    iapBackendConfigured: isPocketbaseConfigured(),
+  });
 }
 
 // ---------------------------------------------------------------------------

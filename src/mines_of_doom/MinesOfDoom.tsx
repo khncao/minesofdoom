@@ -570,7 +570,7 @@ export default function MinesOfDoom() {
     dailyClaim();
   }, [dailyClaim]);
 
-  // Local event logging (guardrail 6, "measure before scaling"): the
+  // Local event logging (guardrail 5, "measure before scaling"): the
   // app-open record happens inside the hook (after its stored record has
   // loaded); the milestones are fired from the effects below. The hook is
   // the single owner of the record — Settings only displays it.
@@ -587,7 +587,7 @@ export default function MinesOfDoom() {
   // a clearly labeled simulation; production runs the real AdMob provider
   // once storeConfig.adMob is filled in (docs/store-integration.md §1) and
   // the no-op (entry points hidden) until then; web is always the no-op
-  // (100% free, no ad SDKs — guardrail 5).
+  // (no web ad integration yet — adProvider.web.ts).
   const adProvider = selectAdProvider(__DEV__);
   const adRewards = useAdRewards({
     provider: adProvider,
@@ -618,15 +618,15 @@ export default function MinesOfDoom() {
     return () => clearInterval(id);
   }, [comboSave, comboSaveClaiming]);
 
-  // In-app purchases (plan §5.2): production builds run the no-op provider
-  // (no store SDK bundled — web stays 100% free, guardrail 5), so the
-  // purchase entry points stay hidden until a real store integration
-  // swaps in behind the same interface. Dev builds run a clearly labeled
-  // simulation. Entitlements are device-local and never travel in the
-  // save; the first validated purchase feeds the analytics record.
-  // The provider selection itself is the documented one-line swap point
-  // (selectIapProvider — see its docs; real store SDK swap is
-  // docs/store-integration.md).
+  // In-app purchases (plan §5.2): dev builds run a clearly labeled
+  // simulation; native production runs the real expo-iap → Pocketbase
+  // provider once storeConfig.iap.pocketbaseUrl is filled in (docs/
+  // store-integration.md §1) and the no-op (entry points hidden) until
+  // then; web is the no-op until the Stripe web path is built. Entitlements
+  // are device-local and never travel in the save; the first validated
+  // purchase feeds the analytics record. The provider selection itself is
+  // the documented one-line swap point (selectIapProvider — see its docs).
+
   const iapProvider = selectIapProvider(__DEV__);
   const iap = useIap({
     provider: iapProvider,
@@ -669,7 +669,7 @@ export default function MinesOfDoom() {
     [gameState.ownedCosmetics, gameState.ownedCaveThemes],
   );
 
-  // Free-path progress (guardrail 6): every prestige sunk live in this
+  // Free-path progress (guardrail 5): every prestige sunk live in this
   // session (the record keeps both the count and the first-prestige day).
   // The ref starts null so a loaded save that already has prestiges isn't
   // miscounted on the first effect run.

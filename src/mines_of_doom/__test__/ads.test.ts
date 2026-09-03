@@ -204,7 +204,7 @@ describe("provider selection (the swap point)", () => {
     ).toBe(devSimAdProvider);
   });
 
-  it("web production stays on the no-op (guardrail 5, even if configured)", () => {
+  it("web production stays on the no-op (no web ad integration yet, even if configured)", () => {
     expect(
       pickAdProvider({ dev: false, web: true, adMobConfigured: true }),
     ).toBe(noopAdProvider);

@@ -14,8 +14,9 @@
  *  - **Server-side-only secrets live nowhere in this file** (the Play
  *    service-account JSON and Apple shared secret belong on the Pocketbase
  *    server — docs/pocketbase-plan.md).
- *  - Web stays 100% free (guardrail 5): the web build resolves
- *    `adProvider.web.ts` (no-ops) and never bundles an ad SDK.
+ *  - The web build resolves the `.web` provider files (no-ops) and never
+ *    bundles a native ad/purchase SDK; web payments (Stripe) are not built
+ *    yet.
  */
 
 /** The platforms a store/SDK value is keyed for (web is never keyed — it
@@ -41,7 +42,7 @@ export const storeConfig = {
     // work here without an AdMob account for device testing.
     rewardedUnitAndroid: "",
     rewardedUnitIos: "",
-    // Guardrail 7 (kid safety): TAG_FOR_CHILD_DIRECTED_TREATMENT. Flip to
+    // Guardrail 6 (kid safety): TAG_FOR_CHILD_DIRECTED_TREATMENT. Flip to
     // true once the final age rating is known; applied via
     // MobileAds().setRequestConfiguration in adProvider.ts.
     tagForChildDirectedTreatment: false,
@@ -72,4 +73,11 @@ export function getAdMobIds(platform: StorePlatform): AdMobIds {
  *  produce a rewarded ad, so the entry points must stay hidden. */
 export function isAdMobIdsConfigured(ids: AdMobIds): boolean {
   return ids.appId.length > 0 && ids.rewardedUnitId.length > 0;
+}
+
+/** The Pocketbase (verify/entitlements) backend is configured — the
+ *  IAP provider's `isAvailable()` gate (empty = unset, same rule as the
+ *  ad ids). Until the URL lands the purchase UI stays hidden. */
+export function isPocketbaseConfigured(): boolean {
+  return storeConfig.iap.pocketbaseUrl.length > 0;
 }

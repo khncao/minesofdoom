@@ -462,7 +462,7 @@ const SettingsContent = memo(function SettingsContent({
 });
 
 /**
- * Debug section (guardrail 6 "measure before scaling"): the local
+ * Debug section (guardrail 5 "measure before scaling"): the local
  * analytics record as a selectable, copyable summary — the measurement
  * the UA-spend decision is based on, readable without pulling the app off
  * the device. Rendered only while a record is loaded (the hook is the
