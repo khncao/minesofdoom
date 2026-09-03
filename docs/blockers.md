@@ -60,38 +60,29 @@ the deploy + URL remain external. Note the v0.40 hooks API is a major
 rewrite from v0.2x (pooled handler VMs, sync-only, self-contained
 handlers) — see the "v0.40 hook model" section in `pb_hooks/README.md`
 before editing that folder.
+- **Store-verification sidecar (the signing-gap decision, in-repo):**
+  `pb_hooks/sidecar/` — zero-dependency Node ≥18 process that signs the
+  RS256/ES256 JWTs the goja runtime can't and makes the two store
+  round-trips (Play publisher API: `purchaseState===0` on the pinned SKU;
+  Apple App Store Server: transaction lookup with the
+  `signedTransactionInfo` JWS verified against `/oauth/certificates`
+  fetched in the same call). `storeVerify.js` gains a middle mode:
+  `MDOOM_SIDECAR_URL` set → POST via `$http` (the v0.40 `$http` contract
+  is pinned by probing + `storeVerify.test.js`), mint only on `2xx` +
+  `valid:true`; unset → fail closed as before. Per-platform credentials
+  live in the sidecar's env (`PLAY_SERVICE_ACCOUNT_JSON`, `APPLE_*`);
+  an unconfigured platform refuses per-verify, never mints. Runs next to
+  Pocketbase (env-var table in `pb_hooks/README.md`); the credentials
+  themselves remain the External item above.
 
 **Unblocks when:** the Pocketbase sandbox is up (fake-token dev flag) with
 its URL in `storeConfig.pocketbaseUrl`, then the real store
 credentials per the plan's phases 2–4 and the verification checklist in
-docs/store-integration.md §3. The real-token path itself is separately
-blocked on the signing gap below.
+docs/store-integration.md §3.
 
-## IAP store-token verification needs RSA/ECDSA — Pocketbase JS can't sign — `todo.md` "IAP — Pocketbase deploy + store products + on-device verification"
-
-**Blocked on (decision):** where real store-token verification runs.
-Play's service-account flow needs an **RS256**-signed JWT; Apple's App
-Store Server API needs an **ES256**-signed JWT. Pocketbase's goja JS
-runtime (v0.40) exposes only HMAC (`$security.hmac*`) — no RSA/ECDSA key
-operations, so `pb_hooks/storeVerify.js` **fails closed** in production
-mode: it refuses every real token rather than mint on an unverified
-receipt (a money leak). Sandbox `MDOOM_DEV_FAKE_TOKEN` mode is fully
-verified and is the deploy path for the sandbox phase.
-
-**Options (decision needed):**
-1. **Tiny sidecar** — a ~50-line Node/Python service that signs the two
-   JWTs and POSTs the store APIs; Pocketbase hooks call it via `$http`
-   (internal network, no new public surface). Keeps one public endpoint.
-2. **Move verify/restore** (the only two endpoints that touch a store) to
-   any runtime with real crypto (same server host, different process);
-   the other six endpoints stay in Pocketbase.
-3. **Re-evaluate hosting** the whole `pb_hooks` set on a runtime with
-   full crypto (the data model is plain rows; the app only talks to the
-   REST shapes).
-
-**Unblocks when:** one of the above is chosen and the store credentials
-(env vars per `pb_hooks/README.md`) exist. Option 1 is the smallest delta
-and keeps the fail-closed default until wired up.
+(Decision log: the earlier "signing gap" item is resolved in-repo by the
+sidecar above — option 1 of the three options that were on the table;
+nothing left to decide there.)
 
 ## Store integrations (cloud saves, leaderboard, achievements) — `todo.md` "Store integrations"
 

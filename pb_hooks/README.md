@@ -41,7 +41,16 @@ pruned per device after the 1h window).
 - `logic.js` — pure validation/merge/cap/budget logic (no Pocketbase API).
 - `collections.js` — programmatic private-collection setup.
 - `storeVerify.js` — store-side receipt verification (see below).
-- `__test__/logic.test.js` — jest unit tests (app suite).
+- `sidecar/` — the store-verification sidecar (plain Node, zero deps, `node
+  sidecar/server.js`): `verify.js` (pure, fetch-injectables — signs the RS256/ES256
+  JWTs the goja runtime can't and calls Play/Apple) and `server.js` (the tiny
+  HTTP front: `GET /healthz`, `POST /verify`).
+- `__test__/logic.test.js` — pure-logic jest unit tests (app suite).
+- `__test__/storeVerify.test.js` — Pocketbase-side verify (sandbox / fail-closed /
+  sidecar modes) against the pinned `$http` contract.
+- `__test__/verifySidecar.test.js` — sidecar Play/Apple flows with scripted
+  fetches; the Apple cert chain is generated with openssl at test time (chain
+  cases skip when openssl is unavailable).
 
 ## v0.40 hook model (read before touching these files)
 
@@ -87,19 +96,45 @@ inside a handler**, and not shared between pooled VMs. Rules this code follows:
   (newer = rejected), leaderboard stats below sanity caps (above = dropped,
   not clamped), display name ≤16 chars.
 
-## Store verification — current state (read `docs/blockers.md`)
+## Store verification
 
-`storeVerify.js` has two modes:
+`storeVerify.js` has three modes, first match wins:
 
 - **Sandbox** (`MDOOM_DEV_FAKE_TOKEN=1`): mints entitlements for any
   non-empty token without calling a store. The entire contract above was
-  verified end-to-end with this flag.
-- **Production (fail closed)**: Pocketbase's goja runtime exposes only HMAC
-  (`$security.*`). Play's service-account JWT (RS256) and Apple's App Store
-  Server JWT (ES256) need RSA/ECDSA, which the runtime cannot sign — so real
-  tokens are *refused* until a decision lands (native sidecar, or another
-  runtime for the two store round-trips). Failing closed is deliberate:
-  denying every purchase beats minting on an unverified token.
+  verified end-to-end with this flag. Use it ONLY in the sandbox phase.
+- **Sidecar** (`MDOOM_SIDECAR_URL` set): the hook POSTs
+  `{ platform, productId, token }` to `<MDOOM_SIDECAR_URL>/verify` via `$http`
+  and mints on `2xx` + `{ valid: true }` only. The sidecar
+  (`sidecar/`, zero-dependency Node ≥18) does the two store round-trips the
+  goja runtime can't: Play's service-account JWT (RS256) and Apple's App
+  Store Server JWT (ES256) — both signed with `node:crypto`, both stores
+  answered over the internal network hop. This is the RSA/ECDSA-signing
+  decision from `docs/blockers.md` (option 1, in-repo).
+- **Default (fail closed)**: no sidecar URL → refuse and log. Minting on an
+  unverified token in production is a money leak; refusing every purchase
+  beats that. A sidecar that's down, slow, or non-2xx also refuses — the
+  side call degrades to "not purchased", never to "granted".
+
+The `$http` contract `storeVerify.js` relies on (pinned by probing a live
+v0.40.2 sandbox; the probe route was one-off and is not in this folder):
+
+```
+$http.send({ url, method, headers, body: <JSON string> })
+  → { statusCode: number, json: parsed body, raw: string }
+```
+
+Gotchas from the probe: `body` must be a JSON **string** (an object arrives
+as `{}`), and the reply's `json` is the already-parsed body. `storeVerify.js`
+still reads the reply defensively (json → string-json → raw), so a future
+`$http` reshuffle degrades to a refusal, not a mint (pinned by
+`__test__/storeVerify.test.js`).
+
+Apple verdicts are only trusted after the JWS check in `sidecar/verify.js`
+(`verifySignedTransactionInfo`): the `signedTransactionInfo` JWS must verify
+against its x5c chain, the chain links must hold, and the root must be one
+of the certs fetched from `/oauth/certificates` in the same request cycle.
+Play verdicts require `purchaseState === 0` on the pinned SKU.
 
 ## Sandbox runbook (verified)
 
@@ -138,14 +173,46 @@ curl -s $B/api/app/delete -d '{"deviceId":"dev-1"}'
 curl -s $B/api/app/restore -d '{"deviceId":"dev-1"}'  # entitlements survive
 ```
 
+Sidecar (separate process, zero deps — runs next to Pocketbase):
+
+```sh
+node pb_hooks/sidecar/server.js   # env vars: the table below; none needed for a healthz check
+curl -s http://127.0.0.1:8180/healthz   # → { ok, configured: { android, ios }, … }
+
+# point Pocketbase at it (unset the fake flag, set the URL), restart:
+#   set MDOOM_DEV_FAKE_TOKEN=
+#   set MDOOM_SIDECAR_URL=http://127.0.0.1:8180
+# without store credentials /verify now answers { valid: false, reason: "<platform> not configured" }
+# — the honest fail-closed verdict; with credentials it is a real store call.
+```
+
 ## Production env vars (container env — never in the repo)
+
+Pocketbase container:
 
 | Var | Meaning |
 |---|---|
 | `MDOOM_DEV_FAKE_TOKEN` | `1`/`true` = sandbox fake-token mode. **Must be unset in production.** |
-| `PLAY_SERVICE_ACCOUNT_JSON` | Play service-account JSON (Play Console → API access). Enables real Android receipt verification once the RSA-signing gap is solved. |
+| `MDOOM_SIDECAR_URL` | Sidecar base URL (no trailing slash needed). Set → real store verification via the sidecar. Unset → fail closed. |
+| `MDOOM_SIDECAR_SECRET` | Optional shared key; sent as `x-mdoom-key` on the verify POST. |
+
+Sidecar container (the Play/Apple credentials live here, never in
+Pocketbase):
+
+| Var | Meaning |
+|---|---|
+| `MDOOM_SIDECAR_PORT` / `MDOOM_SIDECAR_HOST` | Listen address (default `127.0.0.1:8180`). |
+| `MDOOM_SIDECAR_SECRET` | If set, `/verify` requires the same value in `x-mdoom-key` (constant-time compare). |
+| `PLAY_SERVICE_ACCOUNT_JSON` | Play service-account JSON (Play Console → API access), inline or a path / `@path` to the file. Absent → Android verifies nothing (fail closed), iOS unaffected. |
 | `PLAY_PACKAGE` | Play package name (default `com.minus4kelvin.minesofdoom`). |
-| `APPLE_IAP_ENV` | `sandbox` (default) or `production` for the App Store Server API. |
+| `APPLE_BUNDLE_ID` / `APPLE_APP_ID` / `APPLE_KEY_ID` | App Store Connect API key identity (App Store Connect → Users and Access → Integrations → App Store Server API). All three required for iOS verification. |
+| `APPLE_PRIVATE_KEY` | The P-256 `.p8` key, inline or a path / `@path`. |
+| `APPLE_IAP_ENV` | `sandbox` (default) or `production` for the App Store Server API. Anything else disables iOS verification (never an implicit sandbox). |
+
+A sidecar with neither platform configured still serves `/healthz` and
+refuses `/verify` per-platform (`"<platform> not configured"`) — so the
+Pocketbase deployment can go up with the sidecar running before the
+credentials exist.
 
 Ops: one volume (`/pb_data`) is the whole state — nightly copy is the
 backup; the dataset is rows-per-device, i.e. tiny. The superuser credentials
