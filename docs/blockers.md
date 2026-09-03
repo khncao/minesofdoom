@@ -89,16 +89,30 @@ nothing left to decide there.)
 
 ## Store integrations (cloud saves, leaderboard, achievements) — `todo.md` "Store integrations"
 
-**Blocked on (decision):** the identity model. The plan
-(`docs/store-integration-plan.md`) defaults to **device-scoped, no account**
-(same tradeoff as the IAP entitlements: uninstall = identity gone; save
-codes are the escape hatch). The alternative — email/Google/Apple login —
-was rejected in the plan because it adds auth + GDPR account data to a
-kid-skewing casual game. **Default assumption in force: proceed with
-device-scoped** unless the decision comes back otherwise; nothing in the
-server/client design needs to change to swap it later, but the `delete my
-data` endpoint and the reinstall caveats in the settings copy do, so that
-copy is drafted for the device model.
+**Decision recorded (was: the identity model):** **optional login,
+anonymous device-based default.** The shipped device-scoped model
+(`docs/store-integration-plan.md`) stays exactly as-is for players who
+don't sign in — it was never the wrong default, just incomplete scope;
+login is additive, tracked as the "Optional login" item in `todo.md`.
+Nothing in the deployed server/client design changes for non-signed-in
+players; the `delete my data` endpoint and the reinstall caveats in the
+settings copy are still drafted for the device model and are part of the
+login scope (they gain an account target).
+
+**Blocked on (decision, open within that scope):** *which login
+mechanism* — email/password, Google, or Apple sign-in. The scope work can't
+start the sign-in UI or the account data model without it: email/password
+means password-reset + verification flows and is the GDPR-heaviest option
+for a kid-skewing audience (guardrail 6: age rating must be planned with
+the choice, `TAG_FOR_CHILD_DIRECTED_TREATMENT` if that's the answer);
+Google/Apple SDK sign-in avoids passwords but on iOS "Sign in with Apple"
+is required whenever a third-party (Google) login exists, which pulls the
+iOS half (already in `docs/backlog.md`) into the same decision. The
+mechanism also decides where account identity lives (a Pocketbase user
+collection with a PB auth token vs an opaque provider id the hooks trust).
+**Unblocks when:** one mechanism (or a "Google + Apple, no email"-style
+pairing) is chosen; the `todo.md` scope bullets are written to hold either
+way.
 
 **Blocked on (external, shared):** the Pocketbase deployment itself — the
 cloud/leaderboard endpoints land in the same container and `pb_hooks/`

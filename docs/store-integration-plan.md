@@ -21,10 +21,14 @@ The todo says "cloud saves, leaderboard, achievements". Concretely:
    badge count, and (b) a share-sheet string per achievement (client-only,
    no backend).
 
-Out of scope (deliberately): accounts/login, per-user redeem codes,
-cross-device *merge*, offline leaderboards, real-time updates (polling is
-enough), and any leaderboard *rewards* (would create a paywin/cheat incentive
-— see guardrails below).
+Out of scope (deliberately): per-user redeem codes, offline leaderboards,
+real-time updates (polling is enough), and any leaderboard *rewards*
+(would create a paywin/cheat incentive — see guardrails below).
+
+(Originally "accounts/login" was out of scope too; that was superseded by
+the **optional login, anonymous device-based default** decision — login is
+now additive scope in `todo.md`, the device-scoped model below remains the
+default for everyone who doesn't sign in.)
 
 ## Identity: device-scoped, no account
 
@@ -44,10 +48,13 @@ Consequences (documented, accepted):
 - If support demand appears, the escape hatch is server-issued one-time
   transfer codes (not planned now).
 
-`[decision — see blockers.md]` The only alternative (email/Google/Apple
-login) is rejected unless someone pushes back: it pulls in auth,
-verification emails, and GDPR account data for a kid-skewing casual game,
-and it is the one thing in this plan that could touch guardrail 6.
+`[decision — recorded]` **Optional login, anonymous device-based
+default.** Login is no longer rejected: it is approved as additive scope
+(the "Optional login" item in `todo.md`), with the device-scoped model
+above kept exactly as the no-sign-in default. The open sub-decision is
+*which mechanism* (email vs Google vs Apple) — see `docs/blockers.md`;
+the guardrail-6 caveats (kid-skewing audience, age rating,
+`TAG_FOR_CHILD_DIRECTED_TREATMENT`) still apply to whichever is chosen.
 
 ## Backend: extend the existing Pocketbase deployment
 

@@ -16,5 +16,12 @@ Completed items are removed from this file (see git history); only remaining wor
 - [ ] Store integrations (cloud saves, leaderboard, achievements)
   Server and client are done: the six cloud/leaderboard/GDPR endpoints in `pb_hooks/` (same deployment as IAP) + the client wiring (cloud save w/ recovery + settings, leaderboard panel, achievement share, GDPR delete — designed in `docs/store-integration-plan.md`).
   - [ ] **External:** same Pocketbase deploy as the IAP item above (sandbox first).
-  - [ ] Identity decision — device-scoped (no account, the plan's default) vs. login: see `docs/blockers.md`.
   - [ ] On-device verification per the plan §Phases 6 (the iOS device pass is in `docs/backlog.md`).
+  - [x] Identity decision (done): **optional login, anonymous device-based default** — the shipped device-scoped model stays exactly as-is for players who don't sign in; login is additive scope, tracked as its own item below.
+
+- [ ] Optional login (anonymous device default)
+  Identity decision recorded in the item above; this is the additive scope it implies. The default path — no sign-in, everything keyed on the existing device UUID — is already built and stays untouched; login must never be a prerequisite for any feature (guardrail: F2P parity).
+  - [ ] Decision: which login mechanism (email/password vs Google vs Apple) — see `docs/blockers.md` (kid-skewing audience: guardrail 6 applies, and on iOS "Sign in with Apple" rules apply if a third-party login exists).
+  - [ ] Server (`pb_hooks/`): key cloud saves / leaderboard (and entitlements, for cross-device restore) by user identity with the device id as fallback; a sign-in links the device's existing rows to the account (data is never lost or duplicated); the GDPR `delete my data` endpoint gains the account target (account + all linked devices).
+  - [ ] Client: settings sign-in/out ("continue without an account" is the visible default), claim/link flow for pre-existing device data, and the settings copy that is currently drafted for the device-only model (`delete my data`, reinstall caveats).
+  - [ ] Tests (server merge/link logic in the existing `__test__` suites, client against scripted fetch) + on-device verification added to the §Phases 6 list.
