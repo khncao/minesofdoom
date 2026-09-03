@@ -1,8 +1,12 @@
 # Pocketbase Self-Host Plan (RevenueCat replacement)
 
-Status: **plan** (todo item). Implementation starts when the store accounts from
-`docs/store-integration.md` exist — the server side needs real product SKUs and
-test credentials to be useful.
+Status: **deployed** (2026-09-03) — Pocketbase v0.40.2 + `pb_hooks/` + sidecar
+run on the servarica VPS at `https://minesofdoom.minus4kelvin.com` (Caddy TLS;
+`~/docker/pocketbase` compose on the box). The client points at it
+(`storeConfig.pocketbaseUrl`, pinned by tests). Store verification fails closed
+per platform until the sidecar's env carries the real credentials (`PLAY_*` /
+`APPLE_*` — env table in `pb_hooks/README.md`); the fake-token sandbox mode was
+used only against local instances, never on the public endpoint.
 
 ## Why this, not RevenueCat
 
@@ -112,16 +116,20 @@ The provider itself:
 
 1. **Store accounts** (external — `docs/store-integration.md` §2): products
    created in Play Console / App Store Connect, test buyer accounts ready.
-2. **Pocketbase sandbox**: local Docker instance + hook endpoints + a dev flag
-   that accepts a fake token — proves the verify → merge → restore paths
-   end-to-end before any store credential is involved.
+2. **Pocketbase sandbox** — **done** (twice): against a local v0.40.2
+   instance with `MDOOM_DEV_FAKE_TOKEN=1` (the full curl matrix in
+   `pb_hooks/README.md`), and the public deployment went straight to the
+   honest state instead: sidecar up, no credentials, fail closed.
 3. **Android**: Play service account, real test purchase through expo-iap →
    verify → entitlement granted → restore after wiping the local `iap` key.
 4. **iOS**: App Store sandbox + the same matrix.
 5. **Swap** the provider selection, update pin tests, re-run the web bundle
-   grep. — **done**: the provider is selected purely on
-   `isPocketbaseConfigured()`, so when the URL lands it's just the
-   `storeConfig` value (+ prebuild), no code change.
+   grep. — **done**: the URL is in `storeConfig.pocketbaseUrl`, the pin
+   tests (`storeConfig.test.ts`, the live pin in `iaps.test.ts`) expect the
+   store provider now; the provider is selected purely on
+   `isPocketbaseConfigured()` so it was just the `storeConfig` value (+
+   prebuild), no code change. Re-run the web bundle grep in the
+   on-device pass (`expo-iap` + the Pocketbase URL).
 6. **Phase 2 (optional)**: `events` collection — point the existing
    `recordIapPurchase` / first-ad-view / retention hooks at it (guardrail 5).
 

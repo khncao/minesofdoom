@@ -36,7 +36,11 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
     expect(storeConfig.adMob.rewardedUnitIos).toEqual(iosUnits);
     // Guardrail 7 default OFF until the final age rating is known.
     expect(storeConfig.adMob.tagForChildDirectedTreatment).toBe(false);
-    expect(storeConfig.pocketbaseUrl).toBe("");
+    // The Pocketbase deployment is live (docs/pocketbase-plan.md) — pin the
+    // URL so a stray edit can't point the client at the wrong backend.
+    expect(storeConfig.pocketbaseUrl).toBe(
+      "https://minesofdoom.minus4kelvin.com",
+    );
   });
 
   it("isAdMobIdsConfigured requires the app id AND every placement unit", () => {

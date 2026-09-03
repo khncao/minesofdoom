@@ -36,11 +36,11 @@ docs/store-integration.md §1/§3.
 
 ## IAP (Pocketbase + store products + on-device verification) — `todo.md` "IAP — Pocketbase deploy + store products + on-device verification"
 
-**Blocked on (external):** a deployed **Pocketbase** server (hook
-endpoints + collections per `docs/pocketbase-plan.md`) and the store
-products (Play Console SKUs per `docs/store-integration.md` §2; the
-App Store Connect half is deferred to `docs/backlog.md`). Neither can be
-produced in-repo.
+**Blocked on (external):** the store products (Play Console SKUs per
+`docs/store-integration.md` §2; the App Store Connect half is deferred to
+`docs/backlog.md`) and the store credentials that go on the sidecar once
+they exist. Neither can be produced in-repo. (The Pocketbase deployment
+itself is DONE — see below.)
 
 **Done in-repo:** the full client half, mirroring the ads pattern —
 `iapProvider.ts` (expo-iap → `finishTransaction` → POST `/api/app/verify`,
@@ -58,8 +58,9 @@ factory, selection matrix). Until the Pocketbase URL lands,
 local sandbox (fake-token mode — the full curl matrix in
 `pb_hooks/README.md` passes: IAP verify/restore, cloud LWW push/pull,
 monotonic leaderboard merge + top/rank, the 30-write/hour durable budget
-429-ing on the 31st write, GDPR delete with entitlements surviving). Only
-the deploy + URL remain external. Note the v0.40 hooks API is a major
+429-ing on the 31st write, GDPR delete with entitlements surviving). The
+deploy + URL are DONE (see "Deployment status" below); only the store
+credentials remain external. Note the v0.40 hooks API is a major
 rewrite from v0.2x (pooled handler VMs, sync-only, self-contained
 handlers) — see the "v0.40 hook model" section in `pb_hooks/README.md`
 before editing that folder.
@@ -78,10 +79,20 @@ before editing that folder.
   Pocketbase (env-var table in `pb_hooks/README.md`); the credentials
   themselves remain the External item above.
 
-**Unblocks when:** the Pocketbase sandbox is up (fake-token dev flag) with
-its URL in `storeConfig.pocketbaseUrl`, then the real store
-credentials per the plan's phases 2–4 and the verification checklist in
-docs/store-integration.md §3.
+**Deployment status (done):** live Pocketbase v0.40.2 on the servarica
+VPS (`~/docker/pocketbase`), Caddy TLS on
+`https://minesofdoom.minus4kelvin.com`; `pb_hooks/` mounted read-only,
+the sidecar container on the internal compose network, `MDOOM_SIDECAR_URL`
+set, no fake-token flag (a public endpoint must never mint on fake
+tokens). Smoke-tested live: restore/leaderboard/cloud serve; a fake
+token is refused (fail closed). `storeConfig.pocketbaseUrl` is set and
+pinned by `storeConfig.test.ts`; the `iaps.test.ts` live pin now expects
+the store provider.
+
+**Unblocks when:** the Play Console products + service account exist, the
+sidecar's env carries the `PLAY_*` credentials, and the on-device
+verification in docs/store-integration.md §3 passes (test purchase →
+entitlement → restore after wiping the local key; web bundle grep).
 
 (Decision log: the earlier "signing gap" item is resolved in-repo by the
 sidecar above — option 1 of the three options that were on the table;

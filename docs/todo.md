@@ -9,13 +9,14 @@ Completed items are removed from this file (see git history); only remaining wor
 
 - [ ] IAP — Pocketbase deploy + store products + on-device verification
   Client and server are done: `iapProvider.ts` / `iapDeviceId.ts` behind `selectIapProvider`; `pb_hooks/` (all 8 endpoints verified live against a Pocketbase v0.40.2 fake-token sandbox) + the store-verification sidecar in `pb_hooks/sidecar/` (the signing-gap resolution). Remaining work is external — see `docs/blockers.md`.
-  - [ ] **External:** deploy `pb_hooks/` to a Pocketbase **v0.40.x** instance per `docs/pocketbase-plan.md` (sandbox first with `MDOOM_DEV_FAKE_TOKEN=1`), then paste the URL into `storeConfig.pocketbaseUrl`. Real-token phase: run `pb_hooks/sidecar/` next to Pocketbase, set `MDOOM_SIDECAR_URL` on Pocketbase + the `PLAY_*`/`APPLE_*` credential env on the sidecar (tables + runbook in `pb_hooks/README.md`); until it's up, `MDOOM_SIDECAR_URL` unset = fail closed.
+  - [x] **Done:** deploy `pb_hooks/` to a Pocketbase **v0.40.x** instance — live on the servarica VPS (`~/docker/pocketbase`, Caddy TLS on the public domain): hooks mounted read-only, sidecar container on the internal compose network, `MDOOM_SIDECAR_URL` set, **no** `MDOOM_DEV_FAKE_TOKEN` (public endpoint — minting on fake tokens would be a money leak; fail closed instead). Smoke-tested live: restore/leaderboard/cloud endpoints answer, a fake token is refused. URL is in `storeConfig.pocketbaseUrl` (both pinned by tests).
+  - [ ] **External:** real-token phase: put the store credentials on the sidecar (env: `PLAY_SERVICE_ACCOUNT_JSON` + friends for Android, `APPLE_*` for the iOS half — tables + runbook in `pb_hooks/README.md`), `docker compose up -d` on the server, done. Until then verify/identity fail closed per platform: purchases are honestly refused, never faked.
   - [ ] **External:** create the four Play Console products (the `storeId`s in the table in `docs/store-integration.md` §2 are the exact SKUs) + the Play service-account credentials (server-side only). The App Store Connect half (products + the sidecar's `APPLE_*` credentials) is in `docs/backlog.md` (iOS section).
   - [ ] On-device verification per `docs/store-integration.md` §3 (test purchase, restore on a wiped local key, web bundle grep incl. `expo-iap` + the Pocketbase URL).
 
 - [ ] Store integrations (cloud saves, leaderboard, achievements)
   Server and client are done: the six cloud/leaderboard/GDPR endpoints in `pb_hooks/` (same deployment as IAP) + the client wiring (cloud save w/ recovery + settings, leaderboard panel, achievement share, GDPR delete — designed in `docs/store-integration-plan.md`).
-  - [ ] **External:** same Pocketbase deploy as the IAP item above (sandbox first).
+  - [x] **Done:** the Pocketbase deploy is live (same instance as the IAP item above — cloud saves + leaderboard + GDPR endpoints are already serving on the public URL; verify them in the on-device pass).
   - [ ] On-device verification per the plan §Phases 6 (the iOS device pass is in `docs/backlog.md`).
   - [x] Identity decision (done): **optional login, anonymous device-based default** — the shipped device-scoped model stays exactly as-is for players who don't sign in; login is additive scope, tracked as its own item below.
 

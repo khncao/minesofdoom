@@ -71,8 +71,13 @@ export const storeConfig = {
   // integrations: cloud saves + leaderboard (docs/store-integration-plan.md).
   // Read by the IAP / cloud-save providers at call time. Empty = unset
   // (same rule as the ad ids): the real providers stay no-ops until it
-  // lands.
-  pocketbaseUrl: "",
+  // lands. Server-side verification is fail closed (the sidecar carries no
+  // store credentials yet — real purchases are refused, never faked);
+  // cloud saves / leaderboard work as-is.
+  // Deployed: ~/docker/pocketbase on the servarica VPS (Caddy TLS on the
+  // public domain; hooks in pb_hooks/; sidecar on the internal network).
+  // https://minesofdoom.minus4kelvin.com
+  pocketbaseUrl: "https://minesofdoom.minus4kelvin.com",
 };
 
 /** The AdMob ids for one platform, straight out of the config. */

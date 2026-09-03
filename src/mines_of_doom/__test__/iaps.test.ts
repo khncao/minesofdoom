@@ -239,11 +239,12 @@ describe("provider selection (the swap point, pure)", () => {
     ).toBe(storeIapProvider);
   });
 
-  it("live: the shipped state (no Pocketbase URL) selects the no-op", () => {
-    // Same pin as the ad integration: while the config is empty the live
-    // selector must hand out the no-op, so a store purchase can never
-    // surface without a configured backend.
-    expect(isPocketbaseConfigured()).toBe(false);
-    expect(selectIapProvider(false)).toBe(noopIapProvider);
+  it("live: the deployed Pocketbase URL selects the store provider (native)", () => {
+    // The deployment is live (storeConfig pin test locks the URL), so a
+    // production selector must hand out the store provider. Web still stays
+    // on the no-op — see the pickIapProvider pin above (web Stripe path
+    // not built yet).
+    expect(isPocketbaseConfigured()).toBe(true);
+    expect(selectIapProvider(false)).toBe(storeIapProvider);
   });
 });
