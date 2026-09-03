@@ -1,5 +1,5 @@
 /**
- * Cloud-save engine wiring (docs/store-integration-plan.md §Cloud save,
+ * Cloud-save engine wiring (docs/store-integration.md §3,
  * the "engine wiring" half after the provider core in cloudSave.ts).
  *
  * Consumes `selectCloudSaveProvider()` and adds exactly what the plan

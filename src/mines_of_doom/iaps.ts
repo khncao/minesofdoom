@@ -3,11 +3,13 @@
  * state, and the provider abstraction.
  *
  * Design rules (AGENTS.md guardrails, non-negotiable):
- *  - The catalog is deliberately tiny (plan §5.2: "two kinds of product,
- *    nothing else"): Remove Ads (one-time) plus one cosmetic pack per
- *    cosmetic line (pickaxe / outfit / cave theme) — and every pack is
- *    also earnable in-game, so buying is convenience, never access
- *    (F2P viability, guardrail 1).
+ *  - The catalog is Remove Ads (one-time) plus exactly ONE pack per paid
+ *    cosmetic in cosmetics.ts (every pickaxe / outfit / cave theme with
+ *    costGems > 0) — and every pack is also gem-earnable in-game, so
+ *    buying is convenience, never access (F2P viability, guardrail 1).
+ *    PACK_SPECS is the single source for the pack table; tests pin it
+ *    against cosmetics.ts, so a new paid cosmetic without a pack is a
+ *    test failure, not a store surprise.
  *  - No store SDK is bundled yet: the production provider is a no-op whose
  *    entry points are hidden (`noopIapProvider`), mirroring the ads
  *    pattern in ads.ts. A real store integration (Google Play Billing /
@@ -29,12 +31,49 @@ import { getCaveTheme, getOutfit, getPickaxe, isOutfitId } from "./cosmetics";
 import { storeIapProvider } from "./iapProvider";
 import { isPocketbaseConfigured } from "./storeConfig";
 
+/** The cosmetic lines packs sell (panel grouping + blurb shape). */
+export type IapPackLine = "pickaxe" | "outfit" | "caveTheme";
+
+/**
+ * One pack per PAID cosmetic (costGems > 0) in cosmetics.ts, in
+ * cosmetics.ts catalog order per line (pickaxes, outfits, cave themes).
+ * The internal id is `pack` + the cosmetic id PascalCased — and it is
+ * deliberately NOT the store id (the store id is the Play Billing SKU /
+ * App Store product id; the two name different things and must stay
+ * separate, see IapProduct.storeId).
+ */
+const PACK_SPECS = [
+  { id: "packGold", line: "pickaxe", cosmeticId: "gold" },
+  { id: "packFrost", line: "pickaxe", cosmeticId: "frost" },
+  { id: "packShadow", line: "pickaxe", cosmeticId: "shadow" },
+  { id: "packNight", line: "outfit", cosmeticId: "night" },
+  { id: "packGoldrush", line: "outfit", cosmeticId: "goldrush" },
+  { id: "packCrystal", line: "outfit", cosmeticId: "crystal" },
+  { id: "packMagma", line: "outfit", cosmeticId: "magma" },
+  { id: "packBlocky", line: "outfit", cosmeticId: "blocky" },
+  { id: "packSurface", line: "outfit", cosmeticId: "surface" },
+  { id: "packKnight", line: "outfit", cosmeticId: "knight" },
+  { id: "packHunter", line: "outfit", cosmeticId: "hunter" },
+  { id: "packOni", line: "outfit", cosmeticId: "oni" },
+  { id: "packMarmot", line: "outfit", cosmeticId: "marmot" },
+  { id: "packFox", line: "outfit", cosmeticId: "fox" },
+  { id: "packOtter", line: "outfit", cosmeticId: "otter" },
+  { id: "packDamsel", line: "outfit", cosmeticId: "damsel" },
+  { id: "packAmethyst", line: "caveTheme", cosmeticId: "amethyst" },
+  { id: "packVerdant", line: "caveTheme", cosmeticId: "verdant" },
+  { id: "packSolar", line: "caveTheme", cosmeticId: "solar" },
+  { id: "packVoid", line: "caveTheme", cosmeticId: "void" },
+  { id: "packVoxel", line: "caveTheme", cosmeticId: "voxel" },
+  { id: "packWilds", line: "caveTheme", cosmeticId: "wilds" },
+  { id: "packAshen", line: "caveTheme", cosmeticId: "ashen" },
+  { id: "packGothic", line: "caveTheme", cosmeticId: "gothic" },
+  { id: "packCherry", line: "caveTheme", cosmeticId: "cherry" },
+] as const;
+
+export type IapPackId = (typeof PACK_SPECS)[number]["id"];
+
 /** The kinds of store products the game knows about. */
-export type IapProductId =
-  | "removeAds"
-  | "packShadowPick"
-  | "packOniOutfit"
-  | "packCherryTheme";
+export type IapProductId = "removeAds" | IapPackId;
 
 /**
  * Outcome of a purchase attempt. Only "purchased" grants the entitlement;
@@ -43,9 +82,12 @@ export type IapProductId =
  */
 export type PurchaseResult = "purchased" | "cancelled" | "error";
 
-/** One row of the (deliberately tiny) store catalog. */
+/** One row of the store catalog. */
 export interface IapProduct {
   readonly id: IapProductId;
+  /** Which cosmetic line the pack sells (undefined for Remove Ads) — the
+   *  panel groups rows by this. */
+  readonly line?: IapPackLine;
   /**
    * The STORE-side product id (Play Billing SKU / App Store product id /
    * RevenueCat product id — one canonical slug for both stores). Deliberately
@@ -68,10 +110,76 @@ export interface IapProduct {
 }
 
 /**
- * The store catalog (plan §5.2). Deliberately tiny: the anchor IAP plus one
- * cosmetic pack per cosmetic line (pickaxe, outfit, cave theme). Every pack
- * grants a cosmetic that is ALSO gem-earnable in-game (the panel shows the
- * gem price), so buying is convenience, never access (guardrail 1).
+ * Display price tier by gem price, keeping every pack inside the $0.99–
+ * $3.99 band (plan §5.2): the pricier a cosmetic is in gems, the pricier
+ * its pack, so a purchase and saving gems stay roughly comparable.
+ * Adjust the tiers here — the console table in
+ * docs/store-integration.md §2 must follow.
+ */
+function packPriceLabel(costGems: number): string {
+  if (costGems <= 30) return "$0.99";
+  if (costGems <= 60) return "$1.99";
+  if (costGems <= 100) return "$2.99";
+  return "$3.99";
+}
+
+/** One catalog row per spec, resolving the cosmetic name/price/blurb from
+ *  cosmetics.ts so the pack copy can never drift from the gem shop. */
+function packProduct(
+  spec: (typeof PACK_SPECS)[number],
+): IapProduct {
+  const storeId = "pack_" + spec.cosmeticId;
+  if (spec.line === "pickaxe") {
+    const c = getPickaxe(spec.cosmeticId);
+    return {
+      id: spec.id,
+      line: "pickaxe",
+      storeId,
+      label: `${c.name} Pickaxe`,
+      priceLabel: packPriceLabel(c.costGems),
+      blurb:
+        `One-time purchase. Unlocks the ${c.name} pickaxe — its own swing ` +
+        "sound and swing feel. Purely cosmetic.",
+    };
+  }
+  if (spec.line === "outfit") {
+    const c = getOutfit(spec.cosmeticId);
+    return {
+      id: spec.id,
+      line: "outfit",
+      storeId,
+      label: `${c.name} Outfit`,
+      priceLabel: packPriceLabel(c.costGems),
+      blurb:
+        `One-time purchase. Unlocks the ${c.name} outfit` +
+        (c.blurb ? ` — ${c.blurb}.` : ".") + " Purely cosmetic.",
+    };
+  }
+  const c = getCaveTheme(spec.cosmeticId);
+  return {
+    id: spec.id,
+    line: "caveTheme",
+    storeId,
+    label: `${c.name} Theme`,
+    priceLabel: packPriceLabel(c.costGems),
+    blurb:
+      `One-time purchase. Unlocks the ${c.name} cave theme` +
+      (c.blurb ? ` — ${c.blurb}.` : ".") + " Purely cosmetic.",
+  };
+}
+
+const packProducts = {} as Record<IapPackId, IapProduct>;
+for (const spec of PACK_SPECS) {
+  packProducts[spec.id] = packProduct(spec);
+}
+
+/**
+ * The store catalog: the anchor IAP plus one pack per paid cosmetic.
+ * Every pack grants a cosmetic that is ALSO gem-earnable in-game (the
+ * panel shows the gem price), so buying is convenience, never access
+ * (guardrail 1). Products the console creates are named by `storeId` —
+ * the table in docs/store-integration.md §2 is generated from this
+ * catalog and is the exact SKU list.
  */
 export const IAP_PRODUCTS: Record<IapProductId, IapProduct> = {
   removeAds: {
@@ -84,37 +192,15 @@ export const IAP_PRODUCTS: Record<IapProductId, IapProduct> = {
       "nothing else changes, and the game stays fully free and completable " +
       "without it.",
   },
-  packShadowPick: {
-    id: "packShadowPick",
-    storeId: "pack_shadow_pickaxe",
-    label: "Shadow Pickaxe",
-    priceLabel: "$1.99",
-    blurb:
-      "One-time purchase. Unlocks the Shadow pickaxe — its own swing sound " +
-      "and the heaviest, most deliberate swing feel. Purely cosmetic.",
-  },
-  packOniOutfit: {
-    id: "packOniOutfit",
-    storeId: "pack_crimson_oni",
-    label: "Crimson Oni Outfit",
-    priceLabel: "$0.99",
-    blurb:
-      "One-time purchase. Unlocks the Crimson Oni outfit (a samurai-era " +
-      "vengeance tribute). Purely cosmetic.",
-  },
-  packCherryTheme: {
-    id: "packCherryTheme",
-    storeId: "pack_cherry_indigo",
-    label: "Cherry & Indigo Theme",
-    priceLabel: "$2.99",
-    blurb:
-      "One-time purchase. Unlocks the Cherry & Indigo cave theme. Purely " +
-      "cosmetic.",
-  },
+  ...packProducts,
 };
 
-/** Products in display order (Remove Ads first, packs after). */
-export const IAP_PRODUCT_LIST: IapProduct[] = Object.values(IAP_PRODUCTS);
+/** Products in display order (Remove Ads first, then packs by line in
+ *  cosmetics.ts order). */
+export const IAP_PRODUCT_LIST: IapProduct[] = [
+  IAP_PRODUCTS.removeAds,
+  ...PACK_SPECS.map((spec) => packProducts[spec.id]),
+];
 
 /**
  * Store-side ids keyed by internal id — what a real `IapProvider` passes to
@@ -130,9 +216,9 @@ export const IAP_STORE_IDS: Record<IapProductId, string> = Object.fromEntries(
 ) as Record<IapProductId, string>;
 
 /**
- * Which cosmetic each pack grants. Pure catalog data: the pack id maps to
- * a cosmetic id that already exists in the gem shop (cosmetics.ts), so
- * the grant is just "add this id to the save's owned lists".
+ * Which cosmetic each pack grants. Derived from PACK_SPECS: the grant is
+ * just "add the pack's cosmetic id to the save's owned lists" (the grant
+ * in the engine is idempotent).
  */
 export type IapPackGrant = {
   readonly kind: "cosmetic" | "caveTheme";
@@ -141,11 +227,15 @@ export type IapPackGrant = {
 
 export const IAP_PACK_GRANTS: Partial<
   Record<IapProductId, IapPackGrant>
-> = {
-  packShadowPick: { kind: "cosmetic", id: "shadow" },
-  packOniOutfit: { kind: "cosmetic", id: "oni" },
-  packCherryTheme: { kind: "caveTheme", id: "cherry" },
-};
+> = Object.fromEntries(
+  PACK_SPECS.map((spec) => [
+    spec.id,
+    {
+      kind: spec.line === "caveTheme" ? ("caveTheme" as const) : ("cosmetic" as const),
+      id: spec.cosmeticId,
+    },
+  ]),
+) as Partial<Record<IapProductId, IapPackGrant>>;
 
 /**
  * The pack's granted cosmetic resolved against the live catalogs — name +

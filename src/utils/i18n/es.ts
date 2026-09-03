@@ -350,6 +350,9 @@ export const es: Record<TranslationKey, string> = {
   "iap.alsoEarnable":
     "También se puede conseguir en el juego por {count} 💎 — comprar es " +
     "comodidad, no acceso.",
+  "iap.groupPickaxes": "Picos",
+  "iap.groupOutfits": "Trajes",
+  "iap.groupThemes": "Temas de cueva",
   "iap.owned": "Obtenido",
   "iap.buy": "Comprar",
   "iap.restore": "📦 Restaurar compras",

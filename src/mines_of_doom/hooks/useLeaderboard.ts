@@ -1,5 +1,5 @@
 /**
- * Leaderboard engine wiring (docs/store-integration-plan.md §Leaderboard,
+ * Leaderboard engine wiring (docs/store-integration.md §3,
  * the "client" half after the provider core in leaderboard.ts).
  *
  * Consumes `selectLeaderboardProvider()` and adds exactly what the plan

@@ -175,10 +175,10 @@ describe("useIap — purchase", () => {
     const result = await renderIap(
       makeProps({ provider, displayMessage, onPurchased }),
     );
-    await buy(result, "packOniOutfit");
+    await buy(result, "packOni");
     expect(displayMessage).toHaveBeenCalledWith("toast.iapPackUnlocked", 4000);
-    expect(onPurchased).toHaveBeenCalledWith("packOniOutfit");
-    expect(stored()?.packOniOutfit).toBe(true);
+    expect(onPurchased).toHaveBeenCalledWith("packOni");
+    expect(stored()?.packOni).toBe(true);
   });
 
   it("a cancelled store sheet grants nothing and stays silent", async () => {
@@ -249,16 +249,16 @@ describe("useIap — restore", () => {
   it("folds the store's record in additively and persists the merge", async () => {
     const provider = makeProvider("purchased", true, {
       removeAds: true,
-      packCherryTheme: true,
+      packCherry: true,
     });
     const result = await renderIap(makeProps({ provider }));
     expect(result.current.removeAds).toBe(false);
     await restore(result);
     expect(provider.restore).toHaveBeenCalledTimes(1);
     expect(result.current.removeAds).toBe(true);
-    expect(result.current.entitlements.packCherryTheme).toBe(true);
+    expect(result.current.entitlements.packCherry).toBe(true);
     expect(stored()?.removeAds).toBe(true);
-    expect(stored()?.packCherryTheme).toBe(true);
+    expect(stored()?.packCherry).toBe(true);
     expect(result.current.restoring).toBe(false);
   });
 

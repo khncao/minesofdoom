@@ -351,6 +351,9 @@ export const en = {
   "iap.alsoEarnable":
     "Also earnable in-game for {count} 💎 — buying is convenience, not " +
     "access.",
+  "iap.groupPickaxes": "Pickaxes",
+  "iap.groupOutfits": "Outfits",
+  "iap.groupThemes": "Cave themes",
   "iap.owned": "Owned",
   "iap.buy": "Buy",
   "iap.restore": "📦 Restore purchases",

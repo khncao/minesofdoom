@@ -21,7 +21,7 @@ fall back cleanly until the ids land).
   (gem rolls, offline double, offline top-up) exist — AdMob units aren't
   platform-scoped, so the same unit ids go in the Android and iOS tables.
 - [ ] `npx expo prebuild` → verify on an iOS device per
-  `docs/store-integration.md` §1/§3.
+  `docs/store-integration.md` §1/§4.
 
 Note: until `iosAppId` lands, `isAdMobIdsConfigured` is false on iOS, so
 `selectAdProvider` keeps the no-op there (entry points hidden) — Android is
@@ -33,8 +33,8 @@ unaffected.
 deploy, `storeConfig.pocketbaseUrl`, the sidecar itself) are the active IAP
 items in `docs/todo.md`; this section is the Apple-specific half of them.
 
-- [ ] Create the four App Store Connect products per the table in
-  `docs/store-integration.md` §2 (exact `storeId`s — the canonical ids the
+- [ ] Create the 26 App Store Connect products per the table in
+  `docs/store-integration.md` §2.1 (exact `storeId`s — the canonical ids the
   client already sends as `productId`).
 - [ ] App Store Connect API key: Users and Access → Integrations →
   **App Store Server API** → create a key with the App Store Server API
@@ -42,7 +42,7 @@ items in `docs/todo.md`; this section is the Apple-specific half of them.
   and the `.p8` file (`APPLE_PRIVATE_KEY`); start with
   `APPLE_IAP_ENV=sandbox`. The sidecar env-var table + runbook are in
   `pb_hooks/README.md`.
-- [ ] iOS on-device verification per `docs/store-integration.md` §3: test
+- [ ] iOS on-device verification per `docs/store-integration.md` §4: test
   purchase end-to-end (expo-iap → Pocketbase `/api/app/verify` → sidecar
   Apple lookup), restore on a wiped local entitlement key.
 
@@ -54,7 +54,7 @@ without blocking it.
 ## iOS — store integrations (cloud save / leaderboard / GDPR) on-device check
 
 - [ ] iOS on-device verification per
-  `docs/store-integration-plan.md` §Phases 6. The client is
+  `docs/store-integration.md` §Phases 6. The client is
   platform-agnostic (same `useCloudSave` / `useLeaderboard` / provider
   picks as Android) — this is a device pass over the same checklist, not
   new code.

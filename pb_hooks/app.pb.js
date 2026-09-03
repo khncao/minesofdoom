@@ -2,7 +2,7 @@
 /*
  * Pocketbase custom-JS-hooks entry point for the Mines of Idle Doomath
  * backend. One deployment serves (docs/pocketbase-plan.md,
- * docs/store-integration-plan.md):
+ * docs/store-integration.md):
  *
  *   - IAP receipt verification + entitlement records
  *       POST /api/app/verify, POST /api/app/restore

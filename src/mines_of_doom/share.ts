@@ -1,5 +1,5 @@
 /**
- * Share actions (docs/store-integration-plan.md §Achievements "Share"):
+ * Share actions (docs/store-integration.md §3 "Share"):
  * each completed achievement row gets a share action — a plain-text
  * string via the platform share sheet. No backend, no tracking.
  *

@@ -341,7 +341,7 @@ describe("Apple (ios) verification", () => {
 
   chainTest("productId mismatch refuses", async () => {
     const c = appleCtx(appleRoutes({ transactionInfo: [{ signedTransactionInfo: makeAppleJws(applePayload()) }] }));
-    const verdict = await S.verifyApplePurchase(APPLE, "pack_crimson_oni", "987654321", c);
+    const verdict = await S.verifyApplePurchase(APPLE, "pack_oni", "987654321", c);
     expect(verdict.valid).toBe(false);
   });
 

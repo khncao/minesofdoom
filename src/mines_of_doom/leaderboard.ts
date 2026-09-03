@@ -1,5 +1,5 @@
 /**
- * Leaderboard (docs/store-integration-plan.md §Leaderboard): the top-10
+ * Leaderboard (docs/store-integration.md §3): the top-10
  * max-depth scoreboard hosted on the SAME Pocketbase deployment as the
  * cloud saves — one URL (`storeConfig.pocketbaseUrl`), the same
  * `isPocketbaseConfigured()` gate, the same device identity

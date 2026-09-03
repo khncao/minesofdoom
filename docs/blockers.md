@@ -32,12 +32,11 @@ test unit ids*, and the dev-sim provider covers `__DEV__` builds.
 **Unblocks when:** production AdMob ids from the AdMob console land in
 `storeConfig.adMob` + the `adMobAppIds` block in `app.config.ts`, followed
 by `npx expo prebuild` and the on-device verification in
-docs/store-integration.md §1/§3.
+docs/store-integration.md §1/§4.
 
 ## IAP (Pocketbase + store products + on-device verification) — `todo.md` "IAP — Pocketbase deploy + store products + on-device verification"
 
-**Blocked on (external):** the store products (Play Console SKUs per
-`docs/store-integration.md` §2; the App Store Connect half is deferred to
+**Blocked on (external):** the store products (`docs/store-integration.md` §2.1 — 26 products; the App Store Connect half is deferred to
 `docs/backlog.md`) and the store credentials that go on the sidecar once
 they exist. Neither can be produced in-repo. (The Pocketbase deployment
 itself is DONE — see below.)
@@ -91,7 +90,7 @@ the store provider.
 
 **Unblocks when:** the Play Console products + service account exist, the
 sidecar's env carries the `PLAY_*` credentials, and the on-device
-verification in docs/store-integration.md §3 passes (test purchase →
+verification in docs/store-integration.md §4 passes (test purchase →
 entitlement → restore after wiping the local key; web bundle grep).
 
 (Decision log: the earlier "signing gap" item is resolved in-repo by the
@@ -102,7 +101,7 @@ nothing left to decide there.)
 
 **Decision recorded (was: the identity model):** **optional login,
 anonymous device-based default.** The shipped device-scoped model
-(`docs/store-integration-plan.md`) stays exactly as-is for players who
+(`docs/store-integration.md`) stays exactly as-is for players who
 don't sign in — it was never the wrong default, just incomplete scope;
 login is additive, tracked as the "Optional login" item in `todo.md`.
 Nothing in the deployed server/client design changes for non-signed-in

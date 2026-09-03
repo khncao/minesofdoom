@@ -68,7 +68,7 @@ export const storeConfig = {
   },
   // Self-hosted Pocketbase base URL — ONE deployment serves receipt
   // validation + entitlements (docs/pocketbase-plan.md) AND the store
-  // integrations: cloud saves + leaderboard (docs/store-integration-plan.md).
+  // integrations: cloud saves + leaderboard (docs/store-integration.md).
   // Read by the IAP / cloud-save providers at call time. Empty = unset
   // (same rule as the ad ids): the real providers stay no-ops until it
   // lands. Server-side verification is fail closed (the sidecar carries no

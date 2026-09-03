@@ -472,7 +472,7 @@ const SettingsContent = memo(function SettingsContent({
 });
 
 /**
- * Cloud backup section (docs/store-integration-plan.md §Cloud save):
+ * Cloud backup section (docs/store-integration.md §3):
  * the toggle, the "last sync" status line, and the manual restore.
  * Rendered only while the provider is available (dev-sim in dev builds,
  * the Pocketbase provider once the URL lands — until then the section is

@@ -78,7 +78,7 @@ export function useGameEngine(
   const [isLoaded, setIsLoaded] = useState(false);
   // True when a stored save EXISTS but couldn't be loaded (storage read
   // error, unparseable JSON, non-object). Drives the cloud-save launch-
-  // recovery path (docs/store-integration-plan.md §Cloud save): a fresh
+  // recovery path (docs/store-integration.md §3): a fresh
   // install (no stored save) must NOT be restored over from the cloud.
   const [saveLoadFailed, setSaveLoadFailed] = useState(false);
   // "Watch to double offline earnings" (plan §5.1): when a load produces a
@@ -747,7 +747,7 @@ export function useGameEngine(
     return true;
   }, []);
 
-  // Cloud-backup restore (docs/store-integration-plan.md §Cloud save):
+  // Cloud-backup restore (docs/store-integration.md §3):
   // import a raw serialized save blob (the cloud store's `blob` field) and
   // a save code's JSON through the SAME defensive pipeline the storage
   // loader uses — JSON parse, versioned migration, clamping build, then

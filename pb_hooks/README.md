@@ -1,7 +1,7 @@
 # pb_hooks — Mines of Idle Doomath Pocketbase backend
 
 The Pocketbase JS hooks for the app's single Pocketbase deployment
-(`docs/pocketbase-plan.md` + `docs/store-integration-plan.md`). Deploy = push
+(`docs/pocketbase-plan.md` + `docs/store-integration.md`). Deploy = push
 this folder; nothing is clicked in a console.
 
 Target runtime: **Pocketbase v0.40.x** (the v0.40 hooks API is a major
@@ -118,8 +118,9 @@ inside a handler**, and not shared between pooled VMs. Rules this code follows:
 
 ## Security posture (both plans)
 
-- Allow-list: `productId` must map to one of the four canonical store ids
-  (`logic.PRODUCTS`) — a valid receipt for any other SKU mints nothing.
+- Allow-list: `productId` must map to a canonical store id (the full catalog
+  lives in `logic.PRODUCTS`, mirrored by `iaps.ts` and pinned by
+  `__test__/logic.test.js`) — a valid receipt for any other SKU mints nothing.
 - Per-device write budget: 30 writes/hour across the write endpoints
   (durable — `events` collection; reads are unlimited).
 - Server-side-only secrets: the Play service-account JSON and the Apple env

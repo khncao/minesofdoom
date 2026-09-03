@@ -186,23 +186,166 @@ export const contentEs: ContentTable = {
       "recompensa — nada más cambia, y el juego sigue siendo completamente " +
       "gratuito y jugable hasta el final sin ella.",
   },
-  "iap:packShadowPick": {
-    title: "Pico de sombra",
+  // One pack per paid cosmetic (PACK_SPECS in iaps.ts) — titles reuse the
+  // Spanish cosmetic names above (pickaxe/outfit/caveTheme namespaces).
+  "iap:packGold": {
+    title: "Pico de Oro",
     detail:
-      "Compra única. Desbloquea el pico Sombra — con su propio sonido de " +
-      "balanceo y el golpeo más pesado y deliberado. Puramente cosmético.",
+      "Compra única. Desbloquea el pico de Oro — con su propio sonido de " +
+      "balanceo y su propio golpeo. Puramente cosmético.",
   },
-  "iap:packOniOutfit": {
-    title: "Traje de Oni carmesí",
+  "iap:packFrost": {
+    title: "Pico de Cristal",
     detail:
-      "Compra única. Desbloquea el traje Oni carmesí (un homenaje a la " +
+      "Compra única. Desbloquea el pico de Cristal — con su propio sonido " +
+      "de balanceo y su propio golpeo. Puramente cosmético.",
+  },
+  "iap:packShadow": {
+    title: "Pico de Sombra",
+    detail:
+      "Compra única. Desbloquea el pico de Sombra — con su propio sonido " +
+      "de balanceo y el golpeo más pesado y deliberado. " +
+      "Puramente cosmético.",
+  },
+  "iap:packNight": {
+    title: "Traje de turno nocturno",
+    detail:
+      "Compra única. Desbloquea el traje de turno nocturno. " +
+      "Puramente cosmético.",
+  },
+  "iap:packGoldrush": {
+    title: "Traje de fiebre del oro",
+    detail:
+      "Compra única. Desbloquea el traje de fiebre del oro. " +
+      "Puramente cosmético.",
+  },
+  "iap:packCrystal": {
+    title: "Traje de minero de cristal",
+    detail:
+      "Compra única. Desbloquea el traje de minero de cristal. " +
+      "Puramente cosmético.",
+  },
+  "iap:packMagma": {
+    title: "Traje de operario de lava",
+    detail:
+      "Compra única. Desbloquea el traje de operario de lava. " +
+      "Puramente cosmético.",
+  },
+  "iap:packBlocky": {
+    title: "Traje de aventurero de bloques",
+    detail:
+      "Compra única. Desbloquea el traje de aventurero de bloques (un " +
+      "homenaje al sándex voxel). Puramente cosmético.",
+  },
+  "iap:packSurface": {
+    title: "Traje de explorador fronterizo",
+    detail:
+      "Compra única. Desbloquea el traje de explorador fronterizo (un " +
+      "homenaje al sándex de superficie a subsuelo). Puramente cosmético.",
+  },
+  "iap:packKnight": {
+    title: "Traje de caballero ceniciento",
+    detail:
+      "Compra única. Desbloquea el traje de caballero ceniciento (un " +
+      "homenaje al soulslike dark fantasy). Puramente cosmético.",
+  },
+  "iap:packHunter": {
+    title: "Traje de cazador errante",
+    detail:
+      "Compra única. Desbloquea el traje de cazador errante (un homenaje " +
+      "a la cacería gótica). Puramente cosmético.",
+  },
+  "iap:packOni": {
+    title: "Traje de oni carmesí",
+    detail:
+      "Compra única. Desbloquea el traje de oni carmesí (un homenaje a la " +
       "venganza de la era samurái). Puramente cosmético.",
   },
-  "iap:packCherryTheme": {
+  "iap:packMarmot": {
+    title: "Traje de marmota de la madriguera",
+    detail:
+      "Compra única. Desbloquea el traje de marmota de la madriguera (un " +
+      "roedor de bolsillo con una pico más grande que él). " +
+      "Puramente cosmético.",
+  },
+  "iap:packFox": {
+    title: "Traje de zorro de la veta",
+    detail:
+      "Compra única. Desbloquea el traje de zorro de la veta (todo fuego " +
+      "y sin humo — el jugador habitual del equipo). Puramente cosmético.",
+  },
+  "iap:packOtter": {
+    title: "Traje de nutria del río",
+    detail:
+      "Compra única. Desbloquea el traje de nutria del río (la mejor del " +
+      "río — acumula tesoros brillantes en un nido de piedras). " +
+      "Puramente cosmético.",
+  },
+  "iap:packDamsel": {
+    title: "Traje de dama de las profundidades",
+    detail:
+      "Compra única. Desbloquea el traje de dama de las profundidades " +
+      "(cabello largo, ropas más suaves, el mismo temple inquebrantable). " +
+      "Puramente cosmético.",
+  },
+  "iap:packAmethyst": {
+    title: "Tema Cueva de amatista",
+    detail:
+      "Compra única. Desbloquea el tema de cueva Cueva de amatista. " +
+      "Puramente cosmético.",
+  },
+  "iap:packVerdant": {
+    title: "Tema Hoyo verdante",
+    detail:
+      "Compra única. Desbloquea el tema de cueva Hoyo verdante. " +
+      "Puramente cosmético.",
+  },
+  "iap:packSolar": {
+    title: "Tema Veta solar",
+    detail:
+      "Compra única. Desbloquea el tema de cueva Veta solar. " +
+      "Puramente cosmético.",
+  },
+  "iap:packVoid": {
+    title: "Tema Profundidades del vacío",
+    detail:
+      "Compra única. Desbloquea el tema de cueva Profundidades del vacío. " +
+      "Puramente cosmético.",
+  },
+  "iap:packVoxel": {
+    title: "Tema Minas de Blockfall",
+    detail:
+      "Compra única. Desbloquea el tema de cueva Minas de Blockfall " +
+      "(tierra, hierba y mena brillante — un homenaje voxel). " +
+      "Puramente cosmético.",
+  },
+  "iap:packWilds": {
+    title: "Tema Selva de abajo",
+    detail:
+      "Compra única. Desbloquea el tema de cueva Selva de abajo (de la " +
+      "superficie herbosa a la hellstone — un homenaje sándex). " +
+      "Puramente cosmético.",
+  },
+  "iap:packAshen": {
+    title: "Tema Profundidades cenicientas",
+    detail:
+      "Compra única. Desbloquea el tema de cueva Profundidades " +
+      "cenicientas (niebla, piedra gris y una chispa — un homenaje dark " +
+      "fantasy). Puramente cosmético.",
+  },
+  "iap:packGothic": {
+    title: "Tema Niebla y farol",
+    detail:
+      "Compra única. Desbloquea el tema de cueva Niebla y farol (niebla " +
+      "bajo la luna, resplandor del farol y una gota de sangre — un " +
+      "homenaje a la cacería gótica). Puramente cosmético.",
+  },
+  "iap:packCherry": {
     title: "Tema Cerezo e índigo",
     detail:
-      "Compra única. Desbloquea el tema de cueva Cerezo e índigo. " +
-      "Puramente cosmético.",
+      "Compra única. Desbloquea el tema de cueva Cerezo e índigo (flores " +
+      "sobre la noche índigo, oro en el fondo — un homenaje de la era " +
+      "samurái). Puramente cosmético.",
   },
 
   // --- Legal docs (LEGAL_DOCS in legal.ts) -------------------------------

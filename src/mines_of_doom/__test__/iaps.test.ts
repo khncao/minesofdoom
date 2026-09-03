@@ -116,14 +116,54 @@ describe("cosmetic packs (plan §5.2)", () => {
     expect(getIapPackCosmetic("removeAds")).toBeUndefined();
   });
 
+  it("exactly one pack per PAID cosmetic, in cosmetics.ts order per line", () => {
+    const paidPickaxes = PICKAXES.filter((p) => p.costGems > 0);
+    const paidOutfits = OUTFITS.filter((o) => o.costGems > 0);
+    const paidThemes = CAVE_THEMES.filter((t) => t.costGems > 0);
+    const packs = IAP_PRODUCT_LIST.filter((p) => p.line != null);
+    // Free defaults (steel / classic / natural) stay out of the catalog.
+    expect(packs).toHaveLength(
+      paidPickaxes.length + paidOutfits.length + paidThemes.length,
+    );
+    const byLine = (line: string) =>
+      packs.filter((p) => p.line === line).map((p) => p.storeId);
+    expect(byLine("pickaxe")).toEqual(
+      paidPickaxes.map((p) => "pack_" + p.id),
+    );
+    expect(byLine("outfit")).toEqual(paidOutfits.map((o) => "pack_" + o.id));
+    expect(byLine("caveTheme")).toEqual(
+      paidThemes.map((t) => "pack_" + t.id),
+    );
+  });
+
+  it("pack blurbs and prices resolve from the gem shop (no drift)", () => {
+    for (const p of IAP_PRODUCT_LIST) {
+      if (p.id === "removeAds") continue;
+      const pack = getIapPackCosmetic(p.id);
+      expect(pack).toBeDefined();
+      // The label is the cosmetic name + the line word.
+      expect(p.label).toContain(pack!.name);
+      // The blurb names what it unlocks and says it's cosmetic.
+      expect(p.blurb).toContain("One-time purchase");
+      expect(p.blurb).toContain("Purely cosmetic.");
+      expect(p.blurb).toContain(pack!.name);
+      // The display price tracks the gem-price tier (packPriceLabel).
+      const g = pack!.costGems;
+      const tier = g <= 30 ? 0.99 : g <= 60 ? 1.99 : g <= 100 ? 2.99 : 3.99;
+      expect(Number.parseFloat(p.priceLabel.replace("$", ""))).toBeCloseTo(
+        tier,
+      );
+    }
+  });
+
   it("iapGrantCosmeticIds splits owned packs by save list", () => {
     expect(iapGrantCosmeticIds(emptyIapEntitlements())).toEqual({
       cosmetics: [],
       caveThemes: [],
     });
     const e = grantIapEntitlement(
-      grantIapEntitlement(emptyIapEntitlements(), "packShadowPick"),
-      "packCherryTheme",
+      grantIapEntitlement(emptyIapEntitlements(), "packShadow"),
+      "packCherry",
     );
     expect(iapGrantCosmeticIds(e)).toEqual({
       cosmetics: ["shadow"],

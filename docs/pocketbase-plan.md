@@ -80,7 +80,7 @@ contract, so the swap stays one line in `selectIapProvider`.
     `productId`, upsert, return the device's full entitlement list.
   - `POST /api/app/restore` — return the device's entitlement list.
   - `POST /api/app/event` — phase 2 only.
-  - **Security**: `productId` must be one of the four canonical
+  - **Security**: `productId` must be one of the canonical
     `IAP_STORE_IDS` (an allow-list — a valid token for some other SKU must not
     mint an entitlement we don't sell); per-device-id rate limit; the Google
     service-account JSON and Apple shared secret live **server-side only**

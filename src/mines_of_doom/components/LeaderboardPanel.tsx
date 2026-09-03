@@ -13,7 +13,7 @@ import { LEADERBOARD_NAME_MAX, type LeaderboardHandle } from "../hooks/useLeader
 import { styles } from "../styles";
 
 /**
- * Leaderboard entry point + board (docs/store-integration-plan.md
+ * Leaderboard entry point + board (docs/store-integration.md
  * §Leaderboard "Display"): a small trophy button in the footer (rendered
  * by MinesOfDoom ONLY while the provider is available — the "hidden
  * until configured" rule, same as the ad/IAP entry points) opens a

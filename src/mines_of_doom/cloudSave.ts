@@ -1,5 +1,5 @@
 /**
- * Cloud saves (docs/store-integration-plan.md §Client "Cloud save"): a
+ * Cloud saves (docs/store-integration.md §Client "Cloud save"): a
  * device-scoped backup of the serialized save blob, hosted on the SAME
  * Pocketbase deployment as IAP — one URL (`storeConfig.pocketbaseUrl`),
  * the same `isPocketbaseConfigured()` gate, the same device identity

@@ -9,18 +9,41 @@
  * Pocketbase.
  */
 
-// The four canonical products: internal app id -> store id (Play SKU /
+// The canonical store catalog: internal app id -> store id (Play SKU /
 // App Store Connect product id). Keep in sync with IAP_PRODUCTS in
 // src/mines_of_doom/iaps.ts — pinned by __test__/logic.test.js. The
 // verify request carries the INTERNAL id; entitlements are stored and
 // returned by STORE id (the client's restore allowlist keys on store
 // ids). A valid receipt for a product not in this table must never
 // mint an entitlement (the plan's allowlist rule).
+// One pack per paid cosmetic (PACK_SPECS in iaps.ts) + Remove Ads.
 const PRODUCTS = {
   removeAds: "remove_ads",
-  packShadowPick: "pack_shadow_pickaxe",
-  packOniOutfit: "pack_crimson_oni",
-  packCherryTheme: "pack_cherry_indigo",
+  packGold: "pack_gold",
+  packFrost: "pack_frost",
+  packShadow: "pack_shadow",
+  packNight: "pack_night",
+  packGoldrush: "pack_goldrush",
+  packCrystal: "pack_crystal",
+  packMagma: "pack_magma",
+  packBlocky: "pack_blocky",
+  packSurface: "pack_surface",
+  packKnight: "pack_knight",
+  packHunter: "pack_hunter",
+  packOni: "pack_oni",
+  packMarmot: "pack_marmot",
+  packFox: "pack_fox",
+  packOtter: "pack_otter",
+  packDamsel: "pack_damsel",
+  packAmethyst: "pack_amethyst",
+  packVerdant: "pack_verdant",
+  packSolar: "pack_solar",
+  packVoid: "pack_void",
+  packVoxel: "pack_voxel",
+  packWilds: "pack_wilds",
+  packAshen: "pack_ashen",
+  packGothic: "pack_gothic",
+  packCherry: "pack_cherry",
 };
 
 // Highest save version this server will store. Keep in sync with
@@ -34,7 +57,7 @@ const MAX_SAVE_VERSION = 10;
 // the spam boundary, not a feature limit.
 const CLOUD_BLOB_MAX_BYTES = 16 * 1024;
 
-// Leaderboard caps (docs/store-integration-plan.md §Backend). The anti-
+// Leaderboard caps (docs/store-integration.md §3.3). The anti-
 // cheat stance is honest-casual: monotonic upserts + sanity caps, no
 // server-simulated gameplay. Anything above a cap is a corrupt save —
 // the submit is dropped, not clamped.
@@ -265,7 +288,7 @@ function writeBudgetExceeded(recentCount) {
   return Number(recentCount) >= WRITE_LIMIT_PER_HOUR;
 }
 
-// -- accounts / optional login (docs/store-integration-plan.md) ---------------
+// -- accounts / optional login (docs/store-integration.md) ---------------
 //
 // Identity model (the recorded decision): anonymous device-based default,
 // login is additive. Accounts are provider-agnostic — email/password,

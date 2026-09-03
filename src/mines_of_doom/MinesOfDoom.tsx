@@ -271,7 +271,7 @@ export default function MinesOfDoom() {
     autosaveSecondsRef.current = settingsData.autosave;
   }, [settingsData.autosave]);
 
-  // Cloud save (docs/store-integration-plan.md §Cloud save): a device-
+  // Cloud save (docs/store-integration.md §3): a device-
   // scoped backup of the serialized save on the Pocketbase deployment.
   // The provider is picked once (dev builds run the labeled in-memory
   // simulation; native production runs the real provider once the
@@ -319,7 +319,7 @@ export default function MinesOfDoom() {
     noteCrashEvent("delete my data");
     void cloudDeleteMyData();
   }, [cloudDeleteMyData]);
-  // Leaderboard (docs/store-integration-plan.md §Leaderboard): the top-10
+  // Leaderboard (docs/store-integration.md §3): the top-10
   // max-depth scoreboard on the same Pocketbase deployment as the cloud
   // save. Same provider-selection rules (dev builds run the labeled
   // in-memory row; native production gets the real provider once the

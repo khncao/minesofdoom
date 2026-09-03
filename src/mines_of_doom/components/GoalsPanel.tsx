@@ -133,7 +133,7 @@ const GoalsContent = memo(function GoalsContent({
                 {formatNumber(a.target)} · +{formatNumber(a.bonusMinerals)}{" "}
                 {emojis.mineral}
               </Text>
-              {/* Share action (docs/store-integration-plan.md §Achievements):
+              {/* Share action (docs/store-integration.md §3):
                   a plain-text string via the platform share sheet, no
                   backend. Only on COMPLETED rows — sharing an unearned
                   badge would be a lie. */}
