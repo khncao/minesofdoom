@@ -367,6 +367,35 @@ describe("useCloudSave — manual restore", () => {
   });
 });
 
+// -- delete my data (GDPR "delete my data", plan §Backend) ------------------------
+
+describe("deleteMyData (GDPR)", () => {
+  it("round-trips the provider's delete and toasts success", async () => {
+    const provider = makeProvider({
+      delete: jest.fn(async () => true),
+    });
+    const { result, displayMessage } = setup({ provider });
+    await flush();
+    await act(async () => {
+      await result.current.deleteMyData();
+    });
+    expect(provider.delete).toHaveBeenCalledTimes(1);
+    expect(displayMessage).toHaveBeenCalledWith("toast.dataDeleted", 4000);
+  });
+
+  it("toasts the failure (nothing deleted) when the server is unreachable", async () => {
+    const provider = makeProvider({
+      delete: jest.fn(async () => false),
+    });
+    const { result, displayMessage } = setup({ provider });
+    await flush();
+    await act(async () => {
+      await result.current.deleteMyData();
+    });
+    expect(displayMessage).toHaveBeenCalledWith("toast.dataDeleteFailed", 4000);
+  });
+});
+
 describe("formatAgo", () => {
   const now = 1_700_000_000_000;
   it("renders minute/hour/day buckets", () => {

@@ -96,6 +96,10 @@ export interface CloudSaveHandle {
   /** Manual "restore from cloud" (settings button; the confirm modal is
    *  the component's job). Toasts the outcome. */
   restoreFromCloud: () => Promise<void>;
+  /** GDPR "delete my data" (plan §Backend `POST /api/app/delete`): removes
+   *  this device's cloud-save + leaderboard rows. Purchases survive (the
+   *  copy in the confirm modal says so). Toasts the outcome. */
+  deleteMyData: () => Promise<void>;
 }
 
 /** The bundle MinesOfDoom hands to the settings section (memo-friendly:
@@ -108,6 +112,10 @@ export interface CloudSaveSettingsProps {
   setEnabled: (enabled: boolean) => void;
   lastSync: CloudSaveSyncStatus;
   onRestore: () => void;
+  /** GDPR "delete my data" (ConfirmableButton in the same section; the
+   *  section already renders only while the provider is available, so
+   *  the button is never a no-op). */
+  onDeleteData: () => void;
 }
 
 const STORAGE_KEY_ENABLED = "cloudSaveEnabled";
@@ -236,6 +244,17 @@ export function useCloudSave(opts: CloudSaveOptions): CloudSaveHandle {
 
   const available = useMemo(() => provider.isAvailable(), [provider]);
 
+  // "Delete my data" (plan §Backend, GDPR): the confirm modal with the
+  // plain wording is the component's job (a ConfirmableButton in the
+  // settings section); this is just the round-trip + the outcome toast.
+  const deleteMyData = useCallback(async () => {
+    const ok = await providerRef.current.delete().catch(() => false);
+    displayMessageRef.current(
+      ok ? tRef.current("toast.dataDeleted") : tRef.current("toast.dataDeleteFailed"),
+      4000,
+    );
+  }, []);
+
   return {
     available,
     enabled,
@@ -243,5 +262,6 @@ export function useCloudSave(opts: CloudSaveOptions): CloudSaveHandle {
     lastSync,
     requestPush,
     restoreFromCloud,
+    deleteMyData,
   };
 }

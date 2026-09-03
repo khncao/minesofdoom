@@ -512,6 +512,15 @@ function CloudSaveSection({ cloudSave }: { cloudSave: CloudSaveSettingsProps }) 
         description={t("settings.cloudRestoreDescription")}
         onPress={cloudSave.onRestore}
       />
+      {/* GDPR "delete my data" (plan §Backend): a real, reachable button
+          with plain wording about what it does and doesn't remove (the
+          section renders only while the provider is available, so the
+          button is never a no-op — transparency guardrail). */}
+      <ConfirmableButton
+        title={t("settings.deleteData")}
+        description={t("settings.deleteDataDescription")}
+        onPress={cloudSave.onDeleteData}
+      />
     </View>
   );
 }

@@ -1,8 +1,9 @@
 import { memo } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { emojis } from "src/utils/graphics/emojis";
 import { useContent, useT } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
+import { shareText } from "../share";
 import {
   GOAL_TIERS,
   getCompletedTierIds,
@@ -108,6 +109,7 @@ const GoalsContent = memo(function GoalsContent({
         {ACHIEVEMENTS.map((a) => {
           const done = isAchievementComplete(stats, a);
           const current = stats[a.metric];
+          const title = content("achievement", a.id, { title: a.label }).title;
           return (
             <View
               key={a.id}
@@ -122,7 +124,7 @@ const GoalsContent = memo(function GoalsContent({
               }}
             >
               <Text style={{ fontSize: 12 }}>
-                {done ? "✅" : a.icon} {content("achievement", a.id, { title: a.label }).title}
+                {done ? "✅" : a.icon} {title}
               </Text>
               <Text style={{ fontSize: 10, color: "#aaa" }}>
                 {formatNumber(
@@ -131,6 +133,27 @@ const GoalsContent = memo(function GoalsContent({
                 {formatNumber(a.target)} · +{formatNumber(a.bonusMinerals)}{" "}
                 {emojis.mineral}
               </Text>
+              {/* Share action (docs/store-integration-plan.md §Achievements):
+                  a plain-text string via the platform share sheet, no
+                  backend. Only on COMPLETED rows — sharing an unearned
+                  badge would be a lie. */}
+              {done && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("a11y.shareAchievement", {
+                    name: title,
+                  })}
+                  onPress={() => {
+                    void shareText(
+                      t("share.achievement", { name: title }),
+                    );
+                  }}
+                  hitSlop={8}
+                  style={{ alignSelf: "flex-end", padding: 4 }}
+                >
+                  <Text style={{ fontSize: 11 }}>📤</Text>
+                </Pressable>
+              )}
             </View>
           );
         })}

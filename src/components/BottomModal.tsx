@@ -24,6 +24,11 @@ export interface BottomModalProps {
   testID?: string;
   /** testID forwarded to the sheet itself (e2e anchors). */
   sheetTestID?: string;
+  /** Notified with the new open state whenever the sheet opens/closes
+   *  (any of: the toggle, the backdrop, or the hardware back gesture).
+   *  Lets a consumer react to the sheet becoming visible (e.g. refresh
+   *  leaderboard data on open). */
+  onToggle?: (open: boolean) => void;
 }
 
 /**
@@ -43,16 +48,21 @@ function BottomModal({
   scrollable = false,
   testID,
   sheetTestID,
+  onToggle,
   ...props
 }: BottomModalProps) {
   const [showModal, setShowModal] = useState(false);
   const t = useT();
+  const setOpen = (open: boolean) => {
+    setShowModal(open);
+    onToggle?.(open);
+  };
   const toggle = (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={props.accessibilityLabel ?? t("a11y.settings")}
       testID={testID}
-      onPress={() => setShowModal(!showModal)}
+      onPress={() => setOpen(!showModal)}
       // 44×44 minimum tap target: 30px glyph + 8px padding either side.
       // Tight margins keep the footer compact (plan "Adjust"); the tap
       // target size is set by the padding, not the margin.
@@ -69,7 +79,7 @@ function BottomModal({
       <Modal
         animationType="slide"
         visible={showModal}
-        onRequestClose={() => setShowModal(false)}
+        onRequestClose={() => setOpen(false)}
         transparent={true}
       >
         <View style={styles.root}>
@@ -79,7 +89,7 @@ function BottomModal({
             accessibilityRole="button"
             accessibilityLabel={t("a11y.closeSettings")}
             style={styles.backdrop}
-            onPress={() => setShowModal(false)}
+            onPress={() => setOpen(false)}
           />
           <View
             testID={sheetTestID}
@@ -93,7 +103,7 @@ function BottomModal({
               accessibilityLabel={t("a11y.closeSettings")}
               testID={sheetTestID ? `${sheetTestID}-close` : undefined}
               style={styles.closeButton}
-              onPress={() => setShowModal(false)}
+              onPress={() => setOpen(false)}
             >
               <Text style={styles.closeButtonText}>✕</Text>
             </Pressable>

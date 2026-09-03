@@ -42,6 +42,7 @@ export const en = {
   "main.a11yShowUpgrades": "Show upgrades",
   "main.a11yHideUpgrades": "Hide upgrades",
   "main.a11yMenu": "Menu",
+  "main.a11yLeaderboard": "Leaderboard — the top diggers",
 
   // --- Toasts / messages --------------------------------------------------
   "toast.depth": "Depth {depth}m — deeper into the cave!",
@@ -61,6 +62,8 @@ export const en = {
   "toast.cloudRestored": "Save recovered from the cloud backup",
   "toast.cloudNoBackup": "No cloud backup found yet",
   "toast.cloudRestoreFailed": "The cloud backup couldn't be read",
+  "toast.dataDeleted": "Your data has been deleted from the server",
+  "toast.dataDeleteFailed": "Couldn't reach the server — nothing was deleted",
   "toast.welcomeBack":
     "Welcome back! Your miners collected {count} 🪨 while you were away.",
   "toast.saveFailed": "Warning: failed to save your game.",
@@ -257,6 +260,19 @@ export const en = {
   "settings.cloudLastSyncOk": "Last sync: {when}",
   "settings.cloudLastSyncFailed": "Last sync failed — will retry automatically",
   "settings.cloudNeverSynced": "Not synced yet",
+  "settings.deleteData": "Delete my data",
+  "settings.deleteDataDescription":
+    "Removes your cloud backup and leaderboard row from the server. " +
+    "Purchases on this device are kept, so a restore still works. " +
+    "This can't be undone.",
+  "leaderboard.title": "🏆 Top {limit} — deepest shaft",
+  "leaderboard.name": "Display name (shown on the leaderboard)",
+  "leaderboard.refresh": "Refresh",
+  "leaderboard.loading": "Loading the board…",
+  "leaderboard.unavailable":
+    "Unavailable right now — try again in a minute.",
+  "leaderboard.youRow": "You — rank #{rank} · {depth}m",
+  "leaderboard.notRanked": "Not in the top {limit} yet — keep digging!",
   "settings.saveButton": "Save",
   "settings.resetButton": "Reset",
   "settings.resetDescription":
@@ -359,6 +375,8 @@ export const en = {
   "inquiries.subject": "Mines of Doom — feedback from a player",
   "a11y.inquiries":
     "Inquiries — opens your email app to contact the developer",
+  "share.achievement": "I earned '{name}' in Mines of Idle Doomath!",
+  "a11y.shareAchievement": "Share achievement {name}",
   "a11y.mute": "Mute sound",
   "a11y.unmute": "Unmute sound",
 } as const;

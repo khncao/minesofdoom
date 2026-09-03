@@ -68,6 +68,9 @@ import { useAnalytics } from "./hooks/useAnalytics";
 import { useAdRewards } from "./hooks/useAdRewards";
 import { useCloudSave, type CloudSaveSettingsProps } from "./hooks/useCloudSave";
 import { selectCloudSaveProvider } from "./cloudSave";
+import { useLeaderboard } from "./hooks/useLeaderboard";
+import { selectLeaderboardProvider } from "./leaderboard";
+import LeaderboardPanel from "./components/LeaderboardPanel";
 import { selectAdProvider, COMBO_SAVE_WINDOW_MS, type AdKind } from "./ads";
 import { useIap } from "./hooks/useIap";
 import {
@@ -304,8 +307,47 @@ export default function MinesOfDoom() {
   // Destructure the stable members: effect/callback deps reference the
   // bindings directly (exhaustive-deps happy without re-running on the
   // handle object's per-render identity).
-  const { requestPush: cloudRequestPush, restoreFromCloud: cloudRestoreFromCloud } =
-    cloudSave;
+  const {
+    requestPush: cloudRequestPush,
+    restoreFromCloud: cloudRestoreFromCloud,
+    deleteMyData: cloudDeleteMyData,
+  } = cloudSave;
+  // GDPR "delete my data" (plan §Backend): the ConfirmableButton in the
+  // settings section holds the plain wording; this is the crash-trail +
+  // the hook call (which toasts the outcome).
+  const handleDeleteData = useCallback(() => {
+    noteCrashEvent("delete my data");
+    void cloudDeleteMyData();
+  }, [cloudDeleteMyData]);
+  // Leaderboard (docs/store-integration-plan.md §Leaderboard): the top-10
+  // max-depth scoreboard on the same Pocketbase deployment as the cloud
+  // save. Same provider-selection rules (dev builds run the labeled
+  // in-memory row; native production gets the real provider once the
+  // Pocketbase URL lands; the trophy button stays hidden on the no-op —
+  // the same "hidden until configured" rule as the ad/IAP/cloud entry
+  // points). Only DERIVED lifetime stats leave the device (maxDepth is
+  // the save's lifetime max — monotonic by construction).
+  const leaderboardProvider = useMemo(
+    () => selectLeaderboardProvider(__DEV__),
+    [],
+  );
+  const leaderboardStateRef = useRef(gameState);
+  leaderboardStateRef.current = gameState;
+  const getLeaderboardStats = useCallback(
+    () => ({
+      bestDepth: Number(leaderboardStateRef.current.maxDepth),
+      maxCombo: leaderboardStateRef.current.maxCombo,
+      lifetimeMinerals: Number(leaderboardStateRef.current.lifetimeMinerals),
+      achievementIds: leaderboardStateRef.current.completedAchievements,
+    }),
+    [],
+  );
+  const leaderboard = useLeaderboard({
+    provider: leaderboardProvider,
+    getStats: getLeaderboardStats,
+  });
+  const { requestSubmit: leaderboardRequestSubmit } = leaderboard;
+
   // Push cadence (plan §Cloud save): every local save that lands — the
   // dirty→clean transition, autosave and manual save alike — requests a
   // push; the hook applies the 5-minute gate (and the toggle). The
@@ -316,8 +358,11 @@ export default function MinesOfDoom() {
     prevSaveDirtyRef.current = saveDirty;
     if (isLoaded && wasDirty && !saveDirty) {
       cloudRequestPush("autosave");
+      // Leaderboard submit piggybacks the same network turn (plan
+      // §Leaderboard: same 5-minute cadence, fire-and-forget).
+      leaderboardRequestSubmit();
     }
-  }, [saveDirty, isLoaded, cloudRequestPush]);
+  }, [saveDirty, isLoaded, cloudRequestPush, leaderboardRequestSubmit]);
   // Settings bundle for the menu's cloud-backup section (memo keeps the
   // memoized MenuPanel/SettingsPanel quiet; lastSync moves at most once
   // per push — 5 minutes apart).
@@ -333,6 +378,7 @@ export default function MinesOfDoom() {
       setEnabled: cloudSave.setEnabled,
       lastSync: cloudSave.lastSync,
       onRestore: handleCloudRestore,
+      onDeleteData: handleDeleteData,
     }),
     [
       cloudProvider,
@@ -340,8 +386,10 @@ export default function MinesOfDoom() {
       cloudSave.lastSync,
       cloudSave.setEnabled,
       handleCloudRestore,
+      handleDeleteData,
     ],
   );
+
   // The "pickaxe" sound is the equipped pickaxe's unique swing sound
   // (falls back to the generic one for unknown ids, see useSounds).
   const { play } = useSounds(mute, gameState.selectedPickaxe);
@@ -762,10 +810,12 @@ export default function MinesOfDoom() {
       noteCrashEvent("prestige");
       onPrestige();
       // Prestige is the run boundary: push the backup immediately, no
-      // 5-minute cadence (plan §Cloud save "Push").
+      // 5-minute cadence (plan §Cloud save "Push"); the leaderboard row
+      // (lifetime maxes) refreshes with it, cadence-gated in the hook.
       cloudRequestPush("prestige");
+      leaderboardRequestSubmit();
     }
-  }, [gameState.totalPrestiges, onPrestige, cloudRequestPush]);
+  }, [gameState.totalPrestiges, onPrestige, cloudRequestPush, leaderboardRequestSubmit]);
 
   // Crash-context trails for the monetization actions (dev-sim or store,
   // same paths).
@@ -947,6 +997,16 @@ export default function MinesOfDoom() {
             streak={dailyBonus.streak}
             onClaim={handleDailyClaim}
           />
+          {/* The trophy renders only while the provider is available
+              (plan §Leaderboard "Availability gate"): hidden until the
+              Pocketbase URL is configured, same rule as the ad/IAP
+              entry points. */}
+          {leaderboard.available && (
+            <LeaderboardPanel
+              handle={leaderboard}
+              isDevSim={leaderboardProvider.id === "dev-sim"}
+            />
+          )}
           {adRewards.available && !iap.removeAds && (
             <AdRewardsPanel
               isDevSim={adProvider.id === "dev-sim"}

@@ -27,6 +27,7 @@ export const es: Record<TranslationKey, string> = {
   "main.a11yShowUpgrades": "Mostrar mejoras",
   "main.a11yHideUpgrades": "Ocultar mejoras",
   "main.a11yMenu": "Menú",
+  "main.a11yLeaderboard": "Clasificación — los mejores mineros",
 
   // --- Toasts / messages --------------------------------------------------
   "toast.depth": "¡Profundidad {depth}m — cada vez más profundo en la cueva!",
@@ -46,6 +47,9 @@ export const es: Record<TranslationKey, string> = {
   "toast.cloudRestored": "Partida recuperada desde la copia en la nube",
   "toast.cloudNoBackup": "Todavía no hay copia en la nube",
   "toast.cloudRestoreFailed": "No se pudo leer la copia en la nube",
+  "toast.dataDeleted": "Tus datos se han eliminado del servidor",
+  "toast.dataDeleteFailed":
+    "No se pudo contactar al servidor — no se eliminó nada",
   "toast.welcomeBack":
     "¡Bienvenido de nuevo! Tus mineros recogieron {count} 🪨 mientras no estabas.",
   "toast.saveFailed": "Aviso: no se pudo guardar tu partida.",
@@ -250,6 +254,20 @@ export const es: Record<TranslationKey, string> = {
   "settings.cloudLastSyncOk": "Última sincronización: {when}",
   "settings.cloudLastSyncFailed": "La última sincronización falló — se reintentará sola",
   "settings.cloudNeverSynced": "Sin sincronizar todavía",
+  "settings.deleteData": "Borrar mis datos",
+  "settings.deleteDataDescription":
+    "Elimina tu copia de seguridad en la nube y tu fila de la " +
+    "clasificación del servidor. Las compras de este dispositivo se " +
+    "conservan, así que la restauración sigue funcionando. No se puede " +
+    "deshacer.",
+  "leaderboard.title": "🏆 Top {limit} — el pozo más profundo",
+  "leaderboard.name": "Nombre de pantalla (se muestra en la clasificación)",
+  "leaderboard.refresh": "Actualizar",
+  "leaderboard.loading": "Cargando la clasificación…",
+  "leaderboard.unavailable":
+    "No disponible ahora — inténtalo de nuevo en un minuto.",
+  "leaderboard.youRow": "Tú — puesto #{rank} · {depth}m",
+  "leaderboard.notRanked": "Aún no estás en el top {limit} — ¡sigue cavando!",
   "settings.saveButton": "Guardar",
   "settings.resetButton": "Reiniciar",
   "settings.resetDescription":
@@ -356,6 +374,8 @@ export const es: Record<TranslationKey, string> = {
   "inquiries.subject": "Mines of Doom — comentarios de un jugador",
   "a11y.inquiries":
     "Consultas — abre tu app de correo para contactar al desarrollador",
+  "share.achievement": "¡Obtuve «{name}» en Mines of Idle Doomath!",
+  "a11y.shareAchievement": "Compartir logro {name}",
   "a11y.mute": "Silenciar sonido",
   "a11y.unmute": "Activar sonido",
 };
