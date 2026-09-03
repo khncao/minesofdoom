@@ -15,4 +15,6 @@ Completed items are removed from this file (see git history); only remaining wor
 - [ ] App store integrations
   - [ ] Store integrations: cloud saves, leaderboard, achievements
 
-- [ ] Add test coverage for the core gameplay and monetization loop
+- [o] Add test coverage for the core gameplay and monetization loop
+  - [x] Hook-level coverage for the two untested loop hooks: `useGameEngine` (load/save + corrupt-save fallback, tap/answer earning, every purchase line, prestige, offline double/top-up offers, save codes) and `useAdRewards` (claim lifecycle, reward grants via engine callbacks, daily caps + midnight rollover, double-tap guard) — 40 tests, see `__test__/useGameEngine.test.ts` + `__test__/useAdRewards.test.ts`. Pure-logic layers (game, ads, iaps, iapProvider, ...) were already covered.
+  - [ ] Remaining thin hooks if the risk justifies it: `useIap`, `useEquations`, `useCombo`, `useMineTaps`
