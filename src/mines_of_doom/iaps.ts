@@ -336,19 +336,28 @@ export const devSimIapProvider: IapProvider = {
 /** The inputs to provider selection — a pure decision so the swap point
  *  stays unit-testable (same pattern as pickAdProvider in ads.ts). */
 export type IapProviderSelection = {
-  /** `__DEV__` — the dev build always runs the labeled simulation. */
+  /** `__DEV__` — the dev build runs the labeled simulation unless the
+ *   real-store override below is set. */
   dev: boolean;
   /** Web target: the store provider is a no-op (`.web` swap); web
  *  purchases go through Stripe, which is not built yet. */
   web: boolean;
   /** `isPocketbaseConfigured()` (storeConfig.ts). */
   iapBackendConfigured: boolean;
+  /** Dev-build-only opt-in (the "real store billing" toggle in the IAP
+ *   panel): run the REAL expo-iap → Pocketbase provider from a debug
+ *   build for on-device Play Billing tests (license key installed on the
+ *   device, docs/store-integration.md §2.4). Ignored on web and until the
+ *   backend URL is configured. */
+  realStore?: boolean;
 };
 
 /**
  * Pure provider selection. The rules, in order:
- *  1. dev always wins — the labeled simulation is what makes the whole
- *     buy → unlock flow testable before the backend exists.
+ *  1. dev wins by default — the labeled simulation is what makes the whole
+ *     buy → unlock flow testable before the backend exists. A dev build
+ *     opts into the REAL store provider via `realStore` (native, backend
+ *     configured) for on-device billing tests.
  *  2. web is a no-op: `iapProvider.web.ts` resolves a stub and the Stripe
  *     web path is not built yet.
  *  3. native production: the real expo-iap → Pocketbase provider only once
@@ -356,7 +365,12 @@ export type IapProviderSelection = {
  *     then the no-op keeps the entry points hidden.
  */
 export function pickIapProvider(sel: IapProviderSelection): IapProvider {
-  if (sel.dev) return devSimIapProvider;
+  if (sel.dev) {
+    if (sel.realStore && !sel.web && sel.iapBackendConfigured) {
+      return storeIapProvider;
+    }
+    return devSimIapProvider;
+  }
   if (sel.web) return noopIapProvider;
   if (!sel.iapBackendConfigured) return noopIapProvider;
   return storeIapProvider;
@@ -366,16 +380,19 @@ export function pickIapProvider(sel: IapProviderSelection): IapProvider {
  * The ONE CALL that swaps store integrations (plan §5.2 / todo item: "the
  * provider swap is one line"). Today: dev builds run the labeled
  * simulation (the full buy → unlock → Cosmetics flow is exercisable
- * without any store account); native production runs the real provider
+ * without any store account) unless `realStore` opts into the real store
+ * provider (debug-APK billing tests — native, backend configured);
+ * native production runs the real provider
  * once the Pocketbase URL is configured, otherwise the no-op (entry
  * points hidden); web runs the no-op until the Stripe path lands. The
  * decision itself is pure — see pickIapProvider and iaps.test.ts.
  */
-export function selectIapProvider(dev: boolean): IapProvider {
+export function selectIapProvider(dev: boolean, realStore = false): IapProvider {
   return pickIapProvider({
     dev,
     web: Platform.OS === "web",
     iapBackendConfigured: isPocketbaseConfigured(),
+    realStore,
   });
 }
 

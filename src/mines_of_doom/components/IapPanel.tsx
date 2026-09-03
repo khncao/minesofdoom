@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import BottomModal from "src/components/BottomModal";
 import Button from "src/components/Button";
 import { useContent, useI18n } from "src/hooks/useI18n";
@@ -41,6 +41,9 @@ import { styles } from "../styles";
  */
 function IapPanel({
   isDevSim,
+  isDevBuild,
+  realStoreIap,
+  onRealStoreChange,
   purchasing,
   restoring,
   ownedPackIds,
@@ -50,6 +53,13 @@ function IapPanel({
 }: {
   /** Provider is the dev simulation (dev builds only). */
   isDevSim: boolean;
+  /** `__DEV__` — dev builds get the banner block + the real-store toggle. */
+  isDevBuild: boolean;
+  /** The persisted real-store opt-in value (IapPanel only, dev builds). */
+  realStoreIap: boolean;
+  /** Present on native dev builds (web has no store billing): flips the
+ *   real-store opt-in. Absent → the toggle row is not rendered. */
+  onRealStoreChange?: (value: boolean) => void;
   purchasing: IapProductId | null;
   restoring: boolean;
   /** Pack products this device already owns (entitlements). */
@@ -120,6 +130,26 @@ function IapPanel({
           <Text style={{ ...styles.text, color: "#ffaa44" }}>
             {t("iap.devSim")}
           </Text>
+        )}
+        {isDevBuild && !isDevSim && (
+          // Dev build running the REAL provider (real-store opt-in on):
+          // say so plainly (transparency guardrail) — this device hits
+          // the real store.
+          <Text style={{ ...styles.text, color: "#ffaa44" }}>
+            {t("iap.devRealStoreActive")}
+          </Text>
+        )}
+        {isDevBuild && onRealStoreChange != null && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => onRealStoreChange(!realStoreIap)}
+            style={{ padding: 4 }}
+          >
+            <Text style={{ ...styles.text, fontSize: 11 }}>
+              {realStoreIap ? "☑ " : "☐ "}
+              {t("iap.realStoreToggle")}
+            </Text>
+          </Pressable>
         )}
 
         {renderProduct(IAP_PRODUCTS.removeAds)}

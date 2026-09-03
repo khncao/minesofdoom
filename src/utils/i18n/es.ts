@@ -347,6 +347,13 @@ export const es: Record<TranslationKey, string> = {
   "iap.devSim":
     "⚠️ Compilación de desarrollo: las compras son simuladas y no hay " +
     "dinero de por medio.",
+  "iap.devRealStoreActive":
+    "⚠️ Compilación de desarrollo con facturación REAL de la tienda " +
+    "activa: las compras usan la tienda real de este dispositivo.",
+  "iap.realStoreToggle":
+    "Facturación real de la tienda (APK de depuración: instala primero la " +
+    "clave de licencia de Play en este dispositivo — ver " +
+    "docs/store-integration.md §2.4)",
   "iap.alsoEarnable":
     "También se puede conseguir en el juego por {count} 💎 — comprar es " +
     "comodidad, no acceso.",

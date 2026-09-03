@@ -166,7 +166,9 @@ products *are* API-manageable, but we ship one-time products). The
 
 - **dev build**: `devSimIapProvider` — a labeled 1.5 s simulation
   ("⚠️ Development build" banner) so the whole buy → unlock → Cosmetics
-  flow is testable pre-store.
+  flow is testable pre-store. A dev build can opt into the REAL store
+  provider instead ("Real store billing" toggle in the IAP panel —
+  §2.4) for on-device Play Billing tests.
 - **native prod**: `storeIapProvider` — `expo-iap` requests the
   purchase, then **POSTs the receipt to Pocketbase**
   (`/api/app/verify` → `pb_hooks/verify-purchase.js` → the
@@ -196,6 +198,46 @@ never revoke).
 Remove Ads is special: owning it hides **both** the IAP panel and the
 rewarded-ads panel permanently (plan §5.1: "permanently disables even
 the opt-in buttons").
+
+### 2.4 Testing real billing on a debug APK
+
+The normal dev build runs the labeled simulation, which never touches
+Play Billing. To exercise the REAL store round-trip (product sheet,
+payment, `finishTransaction`, verify, entitlement) on a debug APK:
+
+1. **Play Console**: the app + the products exist (§2.2) and the
+   internal test track has the build's package
+   `com.minesofdoom.minus4kelvin.minesofdoom`.
+2. **License key**: Play Console → app → Monetize → License testing →
+   **API key**. Install it on the device (the Play Store app must be
+   signed in):
+   ```sh
+   adb shell am start -a com.android.vending.BILLING -e key <LICENSE_KEY>
+   ```
+   This is what lets a **debug-signed** APK talk to Play Billing; a
+   release build signed with the upload key does not need it.
+3. **Build the APK** (`npm run android` against Metro, or the prebuilt
+   debug APK — the JS bundle is embedded, see AGENTS.md) and install it.
+4. **In-app toggle**: open the IAP panel (🛍️) and flip **"Real store
+   billing"** (visible only in dev builds, native only, persisted per
+   device under the `iapRealStore` localStorage key). The banner above
+   it switches to "REAL store billing active" so it is never
+   ambiguous which mode the panel is in (transparency guardrail).
+5. **Buy** any product with a test card
+   (Play Console → Monetize → Test payments → test card). Expected:
+   the store sheet opens for the real SKU, the purchase completes,
+   `finishTransaction` acks, and the entitlement is **granted
+   device-locally immediately** — even while the sidecar still has no
+   Play credentials, in which case `/api/app/verify` fails closed
+   ("token verification failed") and the purchase is **queued for
+   re-verify** (AsyncStorage `iapPendingVerifies`). Once
+   `PLAY_SERVICE_ACCOUNT_JSON` lands on the sidecar (§2.2 step 3), the
+   next purchase/restore replays the queue, the server mints its
+   entitlement record, and restore returns it. A completed store
+   purchase is never lost to the flaky-verify state by design.
+
+This is NOT the release gate: the §4 device pass still has to run
+against a release (upload-key-signed) build before shipping.
 
 ---
 

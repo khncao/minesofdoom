@@ -348,6 +348,12 @@ export const en = {
   "iap.devSim":
     "⚠️ Development build: purchases are simulated and no money is " +
     "involved.",
+  "iap.devRealStoreActive":
+    "⚠️ Development build with REAL store billing active: purchases hit " +
+    "the real store on this device.",
+  "iap.realStoreToggle":
+    "Real store billing (debug APK: install the Play license key on this " +
+    "device first — see docs/store-integration.md §2.4)",
   "iap.alsoEarnable":
     "Also earnable in-game for {count} 💎 — buying is convenience, not " +
     "access.",

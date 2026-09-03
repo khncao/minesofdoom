@@ -259,6 +259,39 @@ describe("provider selection (the swap point, pure)", () => {
     ).toBe(devSimIapProvider);
   });
 
+  it("dev + realStore runs the REAL store provider (debug-APK billing tests, native + configured)", () => {
+    // The on-device billing path: a debug APK with the Play license key
+    // installed opens the real store sheet (docs §2.4). It must require
+    // BOTH a native target and a configured backend...
+    expect(
+      pickIapProvider({
+        dev: true,
+        web: false,
+        iapBackendConfigured: true,
+        realStore: true,
+      }),
+    ).toBe(storeIapProvider);
+    // ...and must fall back to the labeled simulation on web (no store
+    // billing there) or without a backend (the store provider would
+    // have nowhere to verify).
+    expect(
+      pickIapProvider({
+        dev: true,
+        web: true,
+        iapBackendConfigured: true,
+        realStore: true,
+      }),
+    ).toBe(devSimIapProvider);
+    expect(
+      pickIapProvider({
+        dev: true,
+        web: false,
+        iapBackendConfigured: false,
+        realStore: true,
+      }),
+    ).toBe(devSimIapProvider);
+  });
+
   it("web production stays on the no-op (web Stripe path is not built yet, even if configured)", () => {
     expect(
       pickIapProvider({ dev: false, web: true, iapBackendConfigured: true }),

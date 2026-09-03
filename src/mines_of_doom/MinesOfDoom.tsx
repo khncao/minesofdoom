@@ -756,7 +756,15 @@ export default function MinesOfDoom() {
   // purchase feeds the analytics record. The provider selection itself is
   // the documented one-line swap point (selectIapProvider — see its docs).
 
-  const iapProvider = selectIapProvider(__DEV__);
+  // Debug-APK billing tests (docs/store-integration.md §2.4): a persisted,
+  // user-toggled opt-in for the REAL store provider in dev builds (the
+  // IAP panel shows the toggle). Off by default — dev builds run the
+  // labeled simulation unless the player deliberately switches it.
+  const [realStoreIap, setRealStoreIap] = useLocalStorage<boolean>(
+    "iapRealStore",
+    false,
+  );
+  const iapProvider = selectIapProvider(__DEV__, realStoreIap);
   const iap = useIap({
     provider: iapProvider,
     onPurchased: onFirstIap,
@@ -1025,6 +1033,11 @@ export default function MinesOfDoom() {
           {iap.available && !iap.removeAds && (
             <IapPanel
               isDevSim={iapProvider.id === "dev-sim"}
+              isDevBuild={__DEV__}
+              realStoreIap={realStoreIap}
+              onRealStoreChange={
+                Platform.OS !== "web" ? setRealStoreIap : undefined
+              }
               purchasing={iap.purchasing}
               restoring={iap.restoring}
               ownedPackIds={iapOwnedPackIds}
