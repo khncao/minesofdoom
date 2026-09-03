@@ -28,6 +28,10 @@ project.xcworkspace
 /build/
 /packages/react-native-gradle-plugin/build/
 /packages/rn-tester/build
+# Play Console upload key — NEVER commit (see docs/store-integration.md §2.5)
+/android/keystore.properties
+/android/keystore/
+
 /packages/rn-tester/android/app/.cxx/
 /packages/rn-tester/android/app/build/
 /packages/rn-tester/android/app/gradle/

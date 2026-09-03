@@ -239,6 +239,50 @@ payment, `finishTransaction`, verify, entitlement) on a debug APK:
 This is NOT the release gate: the §4 device pass still has to run
 against a release (upload-key-signed) build before shipping.
 
+### 2.5 Building the release AAB (Play Console upload)
+
+Play Console needs an **app build uploaded before one-time in-app
+products can be created** — this section produces it. The AAB must be
+signed with the **Play upload key**; the keystore never enters the
+repo (`android/keystore.properties` + `android/keystore/` are
+gitignored, and `android/app/build.gradle` falls back to the debug
+signature without them, so a keyless build can never be uploaded by
+mistake — Play rejects debug-signed AABs).
+
+1. **Play Console → App integrity → App signing.** Generate (or
+   select) the app-signing key and **download the `.jks`** (the page
+   gives the keystore password; note the key alias too).
+   - If Play App Signing is already set up with a key you don't hold
+     (e.g. Google generated one earlier), you cannot sign locally —
+     that AAB would need EAS/CI remote signing instead; in that case
+     use *"Use an existing key"* with a key you control.
+2. **Place the key** (local machine only):
+   - `android/keystore/upload-keystore.jks`
+   - `android/keystore.properties`:
+     ```properties
+     storeFile=keystore/upload-keystore.jks
+     storePassword=<from the App signing page>
+     keyAlias=<key alias>
+     keyPassword=<key password, usually the keystore password>
+     ```
+3. **Build** (repo root; the Android SDK must be on the machine):
+   ```sh
+   cd android && gradlew.bat bundleRelease
+   ```
+   Output: `android/app/build/outputs/bundle/release/app-release.aab`
+   (the JS bundle is embedded by the RN gradle plugin — no Metro
+   needed). On non-Windows: `./gradlew bundleRelease`.
+4. **Upload**: Play Console → Release → Internal testing → create
+   release → upload the AAB. The console verifies the signature
+   matches the App signing page. Once a build is on a track, the
+   **Monetize → In-app products** section unlocks and the §2.2 table
+   can be created.
+5. **Every future upload**: bump `version` + `android.versionCode`
+   in `app.config.ts` **and** `versionCode`/`versionName` in
+   `android/app/build.gradle` (the committed prebuild file — keep them
+   in sync; Play requires a strictly increasing `versionCode`), then
+   re-run step 3.
+
 ---
 
 ## 3. Cloud saves, leaderboards & achievements (Pocketbase)
