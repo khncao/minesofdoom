@@ -29,8 +29,8 @@ managed service; the IAP validation path in §2 is that plan's §"Client").
   1/day) — provider abstraction, same noop/dev-sim pattern. The **AdMob
   provider is implemented** (`adProvider.ts`, v16 API; `adProvider.web.ts`
   is the web no-op so the SDK never enters the web bundle) and selected by
-  `selectAdProvider` when `storeConfig.adMob` holds both the app id and a
-  rewarded unit id for the current platform.
+  `selectAdProvider` when `storeConfig.adMob` holds the app id and a
+  rewarded unit id for EVERY placement (AdKind) on the current platform.
 - **The one-line swap points** — provider selection is a function, and
   swapping the real SDK in is editing ONE function body, not the UI:
   - `selectIapProvider(dev)` in `iaps.ts`
@@ -50,8 +50,13 @@ export const storeConfig = {
   adMob: {
     androidAppId: "",          // AdMob console → Apps → Android
     iosAppId: "",              // AdMob console → Apps → iOS
-    rewardedUnitAndroid: "",   // AdMob console → Ad units → Rewarded
-    rewardedUnitIos: "",
+    rewardedUnitAndroid: {     // one unit per placement (AdKind), console →
+      gemRolls: "",            //   Ad units → Rewarded
+      offlineDouble: "",
+      offlineTopUp: "",
+      comboSave: "",
+    },
+    rewardedUnitIos: { /* same shape */ },
   },
   iap: {
     pocketbaseUrl: "",         // self-hosted server — docs/pocketbase-plan.md
@@ -143,9 +148,11 @@ Steps:
    with the same ids.
 3. **Pocketbase server** per `docs/pocketbase-plan.md` (phase 2 sandbox first,
    then real store credentials in phases 3–4).
-4. **AdMob** console → create the app entries (Android + iOS) → create ONE
-   rewarded ad unit per platform → paste the ids into `storeConfig.adMob`
-   (§1). Until the account exists, use AdMob's public test unit ids.
+4. **AdMob** console → create the app entries (Android + iOS) → create one
+   rewarded ad unit per placement (gem rolls, offline double, offline
+   top-up, combo save) → paste the ids into `storeConfig.adMob` (§1).
+   Until a placement's production unit exists, use AdMob's public test unit
+   id for that slot (the non-combo-save slots do this today).
 
 ## 3. Verify on device (checklist)
 

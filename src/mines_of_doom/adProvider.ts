@@ -39,8 +39,8 @@ function currentPlatform(): StorePlatform {
 }
 
 /** Whether a rewarded ad can actually be shown right now on this platform
- * (both the manifest app id and a rewarded unit id must be configured —
- * they travel together: app id via the prebuild plugin, unit via JS). */
+ * (the manifest app id plus every placement's unit id must be configured —
+ * they travel together: app id via the prebuild plugin, units via JS). */
 export function hasAdMobConfig(): boolean {
   return isAdMobIdsConfigured(getAdMobIds(currentPlatform()));
 }
@@ -75,11 +75,13 @@ export const adMobAdProvider: AdProvider = {
   id: "admob",
   isAvailable: () => hasAdMobConfig(),
   showRewarded(kind: AdKind): Promise<AdResult> {
-    // `kind` is for the hook's reward rules / analytics — the SDK shows one
-    // rewarded placement regardless of what the player will earn.
-    void kind;
+    // `kind` doubles as the placement selector: each AdKind has its own
+    // rewarded unit in storeConfig (adMob can report placements separately)
+    // as well as driving the hook's reward rules / analytics.
     if (!hasAdMobConfig()) return Promise.resolve("error");
-    const { rewardedUnitId } = getAdMobIds(currentPlatform());
+    const { rewardedUnitIds } = getAdMobIds(currentPlatform());
+    const rewardedUnitId = rewardedUnitIds[kind];
+    if (rewardedUnitId.length === 0) return Promise.resolve("error");
     return new Promise<AdResult>((resolve) => {
       const ad = RewardedAd.createForAdRequest(rewardedUnitId);
       let settled = false;

@@ -10,11 +10,15 @@ const pickaxePng = "./public/assets/logo.jpg";
 // Expo config loader can't import TS modules (plain node require). A test
 // in src/mines_of_doom/__test__/storeConfig.test.ts pins the two together
 // so they can't drift. Fill storeConfig.ts AND this block, then prebuild.
-// Empty = omitted from the native manifests (no AdMob account yet) — the
-// plugin then only sets the lazy-init manifest flags and logs an "no
-// appId" warning at prebuild, which is expected and harmless until the
-// ids land.
-const adMobAppIds = { androidAppId: "", iosAppId: "" };
+// Empty = omitted from the native manifests — the plugin then only sets
+// the lazy-init manifest flags and logs a "no appId" warning at prebuild,
+// which is expected and harmless for a platform whose id hasn't landed yet
+// (the iOS App ID is still empty).
+const adMobAppIds = {
+  androidAppId: "ca-app-pub-2101316086878618~4973124022",
+  iosAppId: "",
+};
+
 const googleMobileAdsPluginOptions = {
   ...(adMobAppIds.androidAppId
     ? { androidAppId: adMobAppIds.androidAppId }

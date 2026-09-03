@@ -23,25 +23,44 @@
  *  runs the no-op providers by construction). */
 export type StorePlatform = "android" | "ios";
 
+import type { AdKind } from "./ads";
+
 export type AdMobIds = {
   /** The AdMob App ID for this platform (AdMob console → Apps). */
   appId: string;
-  /** The rewarded ad unit id for this platform (AdMob console → Ad units →
-   *  Rewarded). Only rewarded placements exist in this app (guardrail 2). */
-  rewardedUnitId: string;
+  /** The rewarded ad unit id per placement (AdMob console → Ad units →
+   *  Rewarded). Only rewarded placements exist in this app (guardrail 2);
+   *  each `AdKind` (ads.ts) is its own placement so AdMob can report them
+   *  separately. */
+  rewardedUnitIds: Record<AdKind, string>;
 };
 
 export const storeConfig = {
   adMob: {
     // AdMob console → Apps → Android / iOS → App ID. Baked into the native
     // manifests by the config plugin in app.config.ts at prebuild.
-    androidAppId: "",
+    androidAppId: "ca-app-pub-2101316086878618~4973124022",
     iosAppId: "",
-    // AdMob console → Ad units → Rewarded → unit id (one per platform).
-    // Public AdMob test unit ids (react-native-google-mobile-ads' TestIds)
-    // work here without an AdMob account for device testing.
-    rewardedUnitAndroid: "",
-    rewardedUnitIos: "",
+    // AdMob console → Ad units → Rewarded → unit id, one per placement
+    // (AdKind) per platform. The combo-save unit is production; the other
+    // placements run AdMob's PUBLIC TEST unit ids (TestIds.ANDROID_REWARDED
+    // / TestIds.IOS_REWARDED) until their production units are created
+    // (docs/store-integration.md §2).
+    rewardedUnitAndroid: {
+      gemRolls: "ca-app-pub-3940256099942544/5224354917",
+      offlineDouble: "ca-app-pub-3940256099942544/5224354917",
+      offlineTopUp: "ca-app-pub-3940256099942544/5224354917",
+      comboSave: "ca-app-pub-2101316086878618/9285949727",
+    },
+    rewardedUnitIos: {
+      gemRolls: "ca-app-pub-3145189286508883/1712485313",
+      offlineDouble: "ca-app-pub-3145189286508883/1712485313",
+      offlineTopUp: "ca-app-pub-3145189286508883/1712485313",
+      // AdMob ad units aren't platform-scoped (the App ID is), so the same
+      // production unit serves iOS — moot until iosAppId lands (the pair
+      // stays hidden with an empty App ID).
+      comboSave: "ca-app-pub-2101316086878618/9285949727",
+    },
     // Guardrail 6 (kid safety): TAG_FOR_CHILD_DIRECTED_TREATMENT. Flip to
     // true once the final age rating is known; applied via
     // MobileAds().setRequestConfiguration in adProvider.ts.
@@ -59,20 +78,23 @@ export function getAdMobIds(platform: StorePlatform): AdMobIds {
   if (platform === "ios") {
     return {
       appId: storeConfig.adMob.iosAppId,
-      rewardedUnitId: storeConfig.adMob.rewardedUnitIos,
+      rewardedUnitIds: storeConfig.adMob.rewardedUnitIos,
     };
   }
   return {
     appId: storeConfig.adMob.androidAppId,
-    rewardedUnitId: storeConfig.adMob.rewardedUnitAndroid,
+    rewardedUnitIds: storeConfig.adMob.rewardedUnitAndroid,
   };
 }
 
-/** Pure: an ad pair is usable only when BOTH the app id and a rewarded unit
- *  id are present — an app id without a unit (or vice versa) can never
- *  produce a rewarded ad, so the entry points must stay hidden. */
+/** Pure: an ad pair is usable only when the app id is set AND every
+ *  placement has a unit id (a test id counts) — any entry point that could
+ *  not fill must stay hidden. */
 export function isAdMobIdsConfigured(ids: AdMobIds): boolean {
-  return ids.appId.length > 0 && ids.rewardedUnitId.length > 0;
+  return (
+    ids.appId.length > 0 &&
+    Object.values(ids.rewardedUnitIds).every((unitId) => unitId.length > 0)
+  );
 }
 
 /** The Pocketbase (verify/entitlements) backend is configured — the

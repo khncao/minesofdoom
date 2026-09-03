@@ -6,10 +6,17 @@ unblocks, delete its section and re-scope the todo.
 
 ## Rewarded ads (AdMob) — `todo.md` "Rewarded ads (AdMob) — production ids + on-device verification"
 
-**Blocked on (external):** the Google **AdMob account** — creating the app
-entries (Android + iOS) to obtain production App IDs, one rewarded ad unit
-id per platform, and registering test devices. Nothing in-repo can produce
-those ids.
+**Blocked on (external):** the Google **AdMob account** — the Android App ID
+and the production combo-save rewarded unit have landed; still outstanding:
+the iOS app entry, the rewarded units for the other three placements
+(gem rolls, offline double, offline top-up — the other slots currently run
+AdMob's public test unit ids) and registering test devices. Nothing
+in-repo can produce those ids.
+
+**Note:** Android is now fully configured (app id + all placement units,
+three of them test ids) and runs the real `AdMobAdProvider` in production
+builds. iOS stays on the no-op until `iosAppId` lands — `isAdMobIdsConfigured`
+requires the app id plus a unit id for every placement.
 
 **Done in-repo:** the `AdMobAdProvider` behind `selectAdProvider` (v16
 `react-native-google-mobile-ads`): `src/mines_of_doom/adProvider.ts` (+
