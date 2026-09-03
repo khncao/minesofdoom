@@ -582,13 +582,12 @@ export default function MinesOfDoom() {
     clear: onClearAnalytics,
   } = useAnalytics();
 
-  // Rewarded ads (plan §5.1): production builds run the no-op provider,
-  // whose entry points stay hidden (no ad SDK is bundled; web remains 100%
-  // free). Dev builds run a clearly labeled simulation so the full flow —
-  // watch → reward → daily caps — can be exercised before the real SDK
-  // integration swaps in behind the same interface.
-  // The provider selection itself is the documented one-line swap point
-  // (selectAdProvider — see its docs; real SDK swap is docs/store-integration.md).
+  // Rewarded ads (plan §5.1): the provider is picked in ads.ts behind the
+  // documented swap point (selectAdProvider — see its docs): dev builds run
+  // a clearly labeled simulation; production runs the real AdMob provider
+  // once storeConfig.adMob is filled in (docs/store-integration.md §1) and
+  // the no-op (entry points hidden) until then; web is always the no-op
+  // (100% free, no ad SDKs — guardrail 5).
   const adProvider = selectAdProvider(__DEV__);
   const adRewards = useAdRewards({
     provider: adProvider,

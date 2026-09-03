@@ -15,7 +15,9 @@
  *    HERE, in pure code — the provider can only ever trigger them.
  */
 
+import { Platform } from "react-native";
 import { getLocalDayKey } from "./dailyBonus";
+import { adMobAdProvider, hasAdMobConfig } from "./adProvider";
 
 /** The kinds of rewards a completed ad can grant. */
 export type AdKind = "gemRolls" | "offlineDouble" | "offlineTopUp" | "comboSave";
@@ -73,17 +75,42 @@ export const devSimAdProvider: AdProvider = {
 };
 
 /**
- * The ONE LINE that swaps ad integrations (mirrors `selectIapProvider` in
- * iaps.ts). Today: dev builds run the labeled simulation so the full
- * watch → reward → daily caps flow is exercisable without an ad account;
- * production runs the no-op (no ad SDK bundled, entry points hidden, web
- * stays 100% free — guardrail 5). When the real SDK lands
- * (docs/store-integration.md), this body becomes e.g.
- * `Platform.OS === "web" ? noopAdProvider : sdkAdProvider` —
- * `MinesOfDoom.tsx` and every reward rule below are untouched by that change.
+ * The inputs a selection needs, factored out so the decision is pure and
+ * exhaustively testable without touching Platform/SDK modules.
  */
+export type AdProviderSelection = {
+  /** `__DEV__` build — runs the labeled simulation so the full
+   *  watch → reward → daily caps flow stays exercisable without an ad
+   *  account (production builds never grant simulated rewards). */
+  dev: boolean;
+  /** Web target — 100% free, no ad SDKs at all (guardrail 5). */
+  web: boolean;
+  /** Whether this platform's storeConfig.adMob pair is set (runbook §1). */
+  adMobConfigured: boolean;
+};
+
+/**
+ * The pure selection rule (the ONE SWAP POINT, mirrors
+ * `selectIapProvider` in iaps.ts). dev always wins (labeled simulation);
+ * web and "native without configured ids" stay on the no-op so entry
+ * points never appear where no ad can be shown; only a configured
+ * production native build gets the real AdMob provider. Every reward rule
+ * below this file's rules is untouched by that swap.
+ */
+export function pickAdProvider(sel: AdProviderSelection): AdProvider {
+  if (sel.dev) return devSimAdProvider;
+  if (sel.web || !sel.adMobConfigured) return noopAdProvider;
+  return adMobAdProvider;
+}
+
+/** The one call site-facing selector (MinesOfDoom.tsx): reads the live
+ * platform/config state and hands it to `pickAdProvider`. */
 export function selectAdProvider(dev: boolean): AdProvider {
-  return dev ? devSimAdProvider : noopAdProvider;
+  return pickAdProvider({
+    dev,
+    web: Platform.OS === "web",
+    adMobConfigured: hasAdMobConfig(),
+  });
 }
 
 // ---------------------------------------------------------------------------

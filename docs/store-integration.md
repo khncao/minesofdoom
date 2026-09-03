@@ -1,9 +1,11 @@
 # Store SDK Integration Runbook (ads + IAP)
 
-Status: **prep shipped, store accounts pending.** Everything in-app is already
-in place behind provider abstractions; what's left is the external half —
-store accounts, product creation, SDK packages, and the one-line swaps below.
-No code in this repo ships a store SDK until the steps here are done.
+Status: **ads integration shipped, store accounts pending.** The AdMob
+provider (`adProvider.ts`) is implemented and selected by `selectAdProvider`
+whenever `storeConfig.adMob` is filled in; the IAP half is still prep-only
+behind `selectIapProvider`. What's left is the external work — store
+accounts, product creation, the SDK ids in `storeConfig.ts`, and the
+verification below.
 
 Companion plan: `docs/pocketbase-plan.md` — self-hosted Pocketbase for
 receipt validation + entitlement persistence (replaces a RevenueCat-style
@@ -19,7 +21,11 @@ managed service; the IAP validation path in §2 is that plan's §"Client").
 - **Rewarded ads** (`ads.ts`, `useAdRewards.ts`, `AdRewardsPanel.tsx`):
   reward economy + daily fraud caps (pure rules) — gem rolls, offline
   double/top-up, and combo saves (restore a just-lost combo, 60s window,
-  1/day) — provider abstraction, same noop/dev-sim pattern.
+  1/day) — provider abstraction, same noop/dev-sim pattern. The **AdMob
+  provider is implemented** (`adProvider.ts`, v16 API; `adProvider.web.ts`
+  is the web no-op so the SDK never enters the web bundle) and selected by
+  `selectAdProvider` when `storeConfig.adMob` holds both the app id and a
+  rewarded unit id for the current platform.
 - **The one-line swap points** — provider selection is a function, and
   swapping the real SDK in is editing ONE function body, not the UI:
   - `selectIapProvider(dev)` in `iaps.ts`
@@ -56,9 +62,15 @@ Rules that keep setup mechanical:
    repo stays buildable and shippable in every environment until store ids
    exist. Dev builds keep running the labeled `devSim*` providers under
    `__DEV__` regardless.
-2. **No ids in code, native manifests, or app config.** AdMob initializes
-   programmatically (`AdMobAds.initialize({ appId })`) — no per-OS manifest
-   edits. The Pocketbase URL is read by the IAP provider at call time.
+2. **No ids scattered.** AdMob app ids live in `storeConfig.adMob` and are
+   repeated in ONE block (`adMobAppIds`) in `app.config.ts` only because the
+   Expo config loader can't import TS modules — the
+   `react-native-google-mobile-ads` config plugin bakes them into the native
+   manifests at `expo prebuild` (never hand-edit android/ or ios/);
+   `storeConfig.test.ts` pins the two together. The v16 JS API needs no
+   app id at runtime (`MobileAds().initialize()` takes no arguments). The
+   rewarded unit ids live in `storeConfig.adMob` and are read by the provider
+   in JS. The Pocketbase URL is read by the IAP provider at call time.
    `expo-iap` needs no new product strings: the catalog's
    `IAP_STORE_IDS` *are* the product ids (already canonical + test-pinned).
 3. **Web stays pure (guardrail 5).** The real SDKs are imported only in
@@ -71,25 +83,28 @@ Rules that keep setup mechanical:
 
 Per-SDK setup:
 
-- **Ads** — `react-native-google-mobile-ads`:
-  `npx expo install react-native-google-mobile-ads` (its config plugin wires
-  the native side). Implement `AdMobAdProvider` (e.g.
-  `src/mines_of_doom/adProvider.ts`): init from `storeConfig.adMob`, and
-  `showRewarded(kind)` = `AdMobRewardedAd` load + show, mapping a completed
-  ad → `"rewarded"`, bail/`error` → `"closed"` / `"error"`. **AdMob's public
-  test unit ids work without an AdMob account**, so the full watch → reward →
-  caps flow is device-testable before production ids exist (the dev-sim
-  provider still covers it in `__DEV__` meanwhile).
+- **Ads** — `react-native-google-mobile-ads` — **done** (shipped in
+  `src/mines_of_doom/adProvider.ts`): `showRewarded(kind)` =
+  `RewardedAd.createForAdRequest(unit)` + `load()`/`show()` + event listeners,
+  mapping EARNED_REWARD → `"rewarded"`, dismiss-without-reward → `"closed"`,
+  no-fill/load/show failure → `"error"` (20s load timeout, cancelled once
+  the ad opens). **Remaining:** paste the production ids into
+  `storeConfig.adMob` + `app.config.ts` (§1 rules), `npx expo prebuild`,
+  device-test. **AdMob's public test unit ids work without an AdMob
+  account**, so the full watch → reward → caps flow is device-testable
+  before production ids exist (the dev-sim provider still covers it in
+  `__DEV__` meanwhile).
 - **IAP** — `expo-iap` + Pocketbase:
   `npx expo install expo-iap`, deploy the server per
   `docs/pocketbase-plan.md`, paste its URL into `storeConfig.iap`, implement
   `PocketbaseIapProvider` per that plan's "Client" section.
-- **The swaps** (one line each, together with the pin-test updates):
-  `selectAdProvider` body → e.g.
-  `Platform.OS === "web" ? noopAdProvider : adMobAdProvider`;
-  `selectIapProvider` body → e.g.
-  `Platform.OS === "web" ? noopIapProvider : pocketbaseIapProvider`.
-  Every reward rule / catalog / entitlement rule above stays untouched.
+- **The swaps** (one function body each, together with the pin-test updates;
+  every reward rule / catalog / entitlement rule above stays untouched):
+  - `selectAdProvider` — **done**: pure rule `pickAdProvider` in `ads.ts`
+    (dev → dev-sim; web or unconfigured → noop; configured native →
+    AdMob), pinned by `ads.test.ts`.
+  - `selectIapProvider` — **pending**: → e.g.
+    `Platform.OS === "web" ? noopIapProvider : pocketbaseIapProvider`.
 
 ## 2. Create the products (do this first — it's the long pole)
 
@@ -130,11 +145,12 @@ Steps:
 - [ ] Refund: the local entitlement record is NOT revoked by design
       (documented in `iaps.ts` — additive-only merge). Accept and note it.
 - [ ] Web export (`npm run deploy` dry run) → **no store/ad SDK in the web
-      bundle, no purchase UI** (guardrail 5; the platform-gated provider
-      selection is what enforces this). Grep `dist/` for
+      bundle, no purchase UI** (guardrail 5; the `.web` platform file is
+      what enforces this). Grep `dist/` for
       `react-native-google-mobile-ads` / `expo-iap` / the Pocketbase URL —
-      zero hits. *(The 2026-09-02 verification predates the SDK swap;
-      re-run it exactly this way once the real providers land.)*
+      zero hits. *(Ads half verified: with `adProvider.ts` + the SDK in
+      `package.json`, a fresh `npx expo export -p web` + grep returns zero
+      hits. Re-run after the IAP swap too.)*
 - [ ] Ads: test ad units only, test devices/numbers registered with AdMob;
       rewarded-only placements confirmed; caps still hit
       (3 gem-roll watches/day, 1 combo save/day, 10 rewards/day).

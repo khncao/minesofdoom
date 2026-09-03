@@ -10,9 +10,11 @@ import {
   devSimAdProvider,
   getAdRewardState,
   noopAdProvider,
+  pickAdProvider,
   selectAdProvider,
 } from "../ads";
 import { getLocalDayKey } from "../dailyBonus";
+import { adMobAdProvider, hasAdMobConfig } from "../adProvider";
 
 /** Local noon on a calendar day — same convention as the daily-bonus
  *  tests: noon±24h stays on the expected day in the DST regimes we test. */
@@ -189,11 +191,42 @@ describe("applyAdReward", () => {
   });
 });
 
-describe("provider selection (the one-line swap point)", () => {
-  it("production (dev: false) selects the no-op provider", () => {
-    // Pins guardrail 5: no ad SDK is bundled today, so production selects
-    // the no-op whose entry points stay hidden. When the real provider
-    // lands, this test asserts the swap is deliberate.
+describe("provider selection (the swap point)", () => {
+  // The pure rule (pickAdProvider) — exhaustive matrix, no platform/SDK
+  // state involved, so the decision itself is pinned regardless of the
+  // live config.
+  it("dev builds always select the labeled simulation", () => {
+    expect(
+      pickAdProvider({ dev: true, web: false, adMobConfigured: false }),
+    ).toBe(devSimAdProvider);
+    expect(
+      pickAdProvider({ dev: true, web: true, adMobConfigured: true }),
+    ).toBe(devSimAdProvider);
+  });
+
+  it("web production stays on the no-op (guardrail 5, even if configured)", () => {
+    expect(
+      pickAdProvider({ dev: false, web: true, adMobConfigured: true }),
+    ).toBe(noopAdProvider);
+  });
+
+  it("unconfigured native production stays on the no-op (hidden entry points)", () => {
+    expect(
+      pickAdProvider({ dev: false, web: false, adMobConfigured: false }),
+    ).toBe(noopAdProvider);
+  });
+
+  it("configured native production selects the AdMob provider", () => {
+    expect(
+      pickAdProvider({ dev: false, web: false, adMobConfigured: true }),
+    ).toBe(adMobAdProvider);
+  });
+
+  // The live selector — pins the shipped state of storeConfig: the ids
+  // are not filled in yet (docs/store-integration.md §1), so a production
+  // build must still hide the entry points.
+  it("live selector: production with the current (empty) config selects the no-op", () => {
+    expect(hasAdMobConfig()).toBe(false);
     expect(selectAdProvider(false)).toBe(noopAdProvider);
   });
 

@@ -3,8 +3,8 @@
 Legend: [ ] not started, [o] in progress
 Completed items are removed from this file (see git history); only remaining work is tracked here.
 
-- [ ] Implement react-native-google-mobile-ads for ads
-  - [ ] **Rewarded-ads** — implement integrations (blocked: see `docs/blockers.md`)
+- [ ] Rewarded ads (AdMob) — production ids + on-device verification (integration itself is done; the remaining half is external — see `docs/blockers.md`)
+  - [ ] **External:** create the AdMob account → app entries (Android + iOS) → one rewarded unit per platform → fill `storeConfig.adMob` **and** the `adMobAppIds` block in `app.config.ts` (pinned together by `storeConfig.test.ts`) → `npx expo prebuild` → verify on device per `docs/store-integration.md` §1/§3. AdMob's public test unit ids make the full watch → reward → caps flow device-testable before the real account exists.
 
 - [ ] Implement expo-iap for iap (receipt validation + entitlements on self-hosted Pocketbase: `docs/pocketbase-plan.md`)
 
