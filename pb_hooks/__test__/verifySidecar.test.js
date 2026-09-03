@@ -422,3 +422,174 @@ describe("verifyPurchase dispatcher", () => {
     expect(verdict.valid).toBe(false);
   });
 });
+
+// -- identity (optional login) --------------------------------------------------
+
+const GOOGLE_CLIENT_ID = "1234567890-abc.apps.googleusercontent.com";
+const APPLE_BUNDLE_ID = "com.minus4kelvin.minesofdoom";
+
+const googleJwk = Object.assign({ kid: "g-kid-1" }, rsaKeyPair.publicKey.export({ format: "jwk" }));
+const appleJwk = Object.assign({ kid: "ap-kid-1" }, ecKeyPair.publicKey.export({ format: "jwk" }));
+
+function googleToken(claims, { pem = SA.private_key, kid = "g-kid-1" } = {}) {
+  return S.signJwt({ alg: "RS256", kid }, claims, pem);
+}
+
+function appleToken(claims, { pem = APPLE.privateKeyPem, kid = "ap-kid-1" } = {}) {
+  return S.signJwt({ alg: "ES256", kid }, claims, pem);
+}
+
+const googleClaims = (over = {}) => ({
+  iss: "https://accounts.google.com",
+  aud: GOOGLE_CLIENT_ID,
+  iat: NOW_SEC - 10,
+  exp: NOW_SEC + 3600,
+  sub: "g-1",
+  email: "digger@example.com",
+  email_verified: true,
+  ...over,
+});
+
+const appleClaims = (over = {}) => ({
+  iss: "https://appleid.apple.com",
+  aud: [APPLE_BUNDLE_ID],
+  iat: NOW_SEC - 10,
+  exp: NOW_SEC + 3600,
+  sub: "ap|Ae1",
+  ...over,
+});
+
+const identityCfg = S.parseSidecarConfig({
+  GOOGLE_CLIENT_ID: GOOGLE_CLIENT_ID,
+  APPLE_BUNDLE_ID: APPLE_BUNDLE_ID,
+});
+
+const identityRoutes = [
+  { match: /googleapis\.com\/oauth2\/v3\/certs/, reply: { keys: [googleJwk] } },
+  { match: /appleid\.apple\.com\/auth\/keys/, reply: { keys: [appleJwk] } },
+];
+
+describe("parseSidecarConfig identity audiences", () => {
+  test("GOOGLE_CLIENT_ID / APPLE_BUNDLE_ID stand alone (no store creds needed)", () => {
+    const cfg = S.parseSidecarConfig({
+      GOOGLE_CLIENT_ID: GOOGLE_CLIENT_ID,
+      APPLE_BUNDLE_ID: APPLE_BUNDLE_ID,
+    });
+    expect(cfg.googleClientId).toBe(GOOGLE_CLIENT_ID);
+    expect(cfg.appleBundleId).toBe(APPLE_BUNDLE_ID);
+    expect(cfg.play).toBeNull();
+    expect(cfg.apple).toBeNull(); // store IAP stays unconfigured
+  });
+
+  test("missing audiences leave the identity providers unconfigured", () => {
+    const cfg = S.parseSidecarConfig({});
+    expect(cfg.googleClientId).toBeUndefined();
+    expect(cfg.appleBundleId).toBeUndefined();
+  });
+});
+
+describe("Google identity verification", () => {
+  test("a valid ID token verifies against the JWKS and passes claims through", async () => {
+    const { fetchImpl, calls } = scriptedFetch(identityRoutes);
+    const verdict = await S.verifyIdentity({
+      provider: "google",
+      idToken: googleToken(googleClaims()),
+      cfg: identityCfg,
+      ctx: { fetch: fetchImpl, nowSec: NOW_SEC },
+    });
+    expect(verdict).toEqual({
+      valid: true,
+      sub: "g-1",
+      email: "digger@example.com",
+      emailVerified: true,
+    });
+    expect(calls.some((c) => c.url === "https://www.googleapis.com/oauth2/v3/certs")).toBe(true);
+  });
+
+  test("a token signed by a different key refuses (the spoofing case)", async () => {
+    const other = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const forged = googleToken(googleClaims(), { pem: other.privateKey.export({ type: "pkcs8", format: "pem" }) });
+    const { fetchImpl } = scriptedFetch(identityRoutes);
+    const verdict = await S.verifyIdentity({ provider: "google", idToken: forged, cfg: identityCfg, ctx: { fetch: fetchImpl, nowSec: NOW_SEC } });
+    expect(verdict.valid).toBe(false);
+  });
+
+  test("wrong audience, wrong issuer, expiry, and kid miss all refuse", async () => {
+    const cases = [
+      googleToken(googleClaims({ aud: "other-client-id" })),
+      googleToken(googleClaims({ iss: "https://evil.example.com" })),
+      googleToken(googleClaims({ exp: NOW_SEC - 1 })),
+      googleToken(googleClaims(), { kid: "unknown-kid" }),
+      "not-a-jwt",
+    ];
+    for (const token of cases) {
+      const { fetchImpl } = scriptedFetch(identityRoutes);
+      const verdict = await S.verifyIdentity({ provider: "google", idToken: token, cfg: identityCfg, ctx: { fetch: fetchImpl, nowSec: NOW_SEC } });
+      expect(verdict.valid).toBe(false);
+    }
+  });
+
+  test("an unconfigured client id refuses without a network call", async () => {
+    const { fetchImpl, calls } = scriptedFetch([]);
+    const verdict = await S.verifyIdentity({ provider: "google", idToken: googleToken(googleClaims()), cfg: { googleClientId: null }, ctx: { fetch: fetchImpl, nowSec: NOW_SEC } });
+    expect(verdict).toEqual({ valid: false, reason: "google not configured" });
+    expect(calls).toEqual([]);
+  });
+});
+
+describe("Apple identity verification", () => {
+  test("a valid ID token verifies (email optional — the privacy proxy)", async () => {
+    const { fetchImpl } = scriptedFetch(identityRoutes);
+    const verdict = await S.verifyIdentity({
+      provider: "apple",
+      idToken: appleToken(appleClaims()),
+      cfg: identityCfg,
+      ctx: { fetch: fetchImpl, nowSec: NOW_SEC },
+    });
+    expect(verdict).toEqual({ valid: true, sub: "ap|Ae1", email: "", emailVerified: false });
+    const withEmail = await S.verifyIdentity({
+      provider: "apple",
+      idToken: appleToken(appleClaims({ email: "x@privaterelay.appleid.com" })),
+      cfg: identityCfg,
+      ctx: { fetch: fetchImpl, nowSec: NOW_SEC },
+    });
+    expect(withEmail.email).toBe("x@privaterelay.appleid.com");
+  });
+
+  test("a token signed by a different key refuses", async () => {
+    const other = crypto.generateKeyPairSync("ec", { namedCurve: "P-256" });
+    const forged = appleToken(appleClaims(), { pem: other.privateKey.export({ type: "pkcs8", format: "pem" }) });
+    const { fetchImpl } = scriptedFetch(identityRoutes);
+    const verdict = await S.verifyIdentity({ provider: "apple", idToken: forged, cfg: identityCfg, ctx: { fetch: fetchImpl, nowSec: NOW_SEC } });
+    expect(verdict.valid).toBe(false);
+  });
+
+  test("wrong bundle-id audience, wrong issuer, and expiry refuse", async () => {
+    const cases = [
+      appleToken(appleClaims({ aud: ["com.other.app"] })),
+      appleToken(appleClaims({ iss: "https://evil.example.com" })),
+      appleToken(appleClaims({ exp: NOW_SEC - 1 })),
+    ];
+    for (const token of cases) {
+      const { fetchImpl } = scriptedFetch(identityRoutes);
+      const verdict = await S.verifyIdentity({ provider: "apple", idToken: token, cfg: identityCfg, ctx: { fetch: fetchImpl, nowSec: NOW_SEC } });
+      expect(verdict.valid).toBe(false);
+    }
+  });
+
+  test("an unconfigured bundle id refuses; unknown providers refuse", async () => {
+    const { fetchImpl, calls } = scriptedFetch([]);
+    expect(
+      (await S.verifyIdentity({ provider: "apple", idToken: appleToken(appleClaims()), cfg: {}, ctx: { fetch: fetchImpl, nowSec: NOW_SEC } })).reason,
+    ).toBe("apple not configured");
+    const verdict = await S.verifyIdentity({ provider: "github", idToken: "x.y.z", cfg: identityCfg, ctx: { fetch: fetchImpl, nowSec: NOW_SEC } });
+    expect(verdict).toEqual({ valid: false, reason: "unknown provider" });
+    expect(calls).toEqual([]);
+  });
+
+  test("a fetch crash becomes a refusal, never a throw", async () => {
+    const fetchImpl = async () => { throw new Error("boom"); };
+    const verdict = await S.verifyIdentity({ provider: "google", idToken: googleToken(googleClaims()), cfg: identityCfg, ctx: { fetch: fetchImpl, nowSec: NOW_SEC } });
+    expect(verdict.valid).toBe(false);
+  });
+});

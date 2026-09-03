@@ -15,6 +15,7 @@
  */
 const logic = require(__hooks + "/logic.js");
 const { verifyPurchase } = require(__hooks + "/storeVerify.js");
+const { verifyIdentity } = require(__hooks + "/identityVerify.js");
 const { ensureCollections } = require(__hooks + "/collections.js");
 
 function ok(json) {
@@ -67,6 +68,18 @@ function listEntitlements(app, deviceId) {
   return (records || []).map((record) => record.get("productId"));
 }
 
+function listAccountEntitlements(app, accountId) {
+  const records = app.findRecordsByFilter(
+    "entitlements",
+    "accountId = {:accountId}",
+    "",
+    -1,
+    0,
+    { accountId: accountId },
+  );
+  return (records || []).map((record) => record.get("productId"));
+}
+
 // -- write budget (durable: the `events` collection IS the counter) ---------
 
 function recentWriteEvents(app, deviceId) {
@@ -115,24 +128,42 @@ function handleVerify(app, body) {
   if (typeof token !== "string" || token.length < 1 || token.length > 16384) {
     return badRequest("invalid token");
   }
+  // Optional login: a live session tags the minted row so ANY of the
+  // account's devices can restore it (cross-device restore).
+  const session = sessionOfToken(app, body.sessionToken);
   if (logic.writeBudgetExceeded((recentWriteEvents(app, deviceId) || []).length)) {
     return tooManyRequests();
   }
   const verified = verifyPurchase(body.platform, productId, token);
   if (!verified) return badRequest("token verification failed");
-  upsertDeviceRow(app, "entitlements", deviceId, {
+  const row = {
     productId: logic.PRODUCTS[productId],
     platform: typeof body.platform === "string" ? body.platform.slice(0, 16) : "",
     tokenHash: globalThis.$security.sha256(token),
     verifiedAt: new Date().toISOString(),
-  });
+  };
+  if (session) row.accountId = session.account.get("id");
+  upsertDeviceRow(app, "entitlements", deviceId, row);
   spendWriteBudget(app, deviceId);
-  return ok({ entitlements: listEntitlements(app, deviceId) });
+  const entitlements = session
+    ? logic.unionEntitlements([listEntitlements(app, deviceId), listAccountEntitlements(app, session.account.get("id"))])
+    : listEntitlements(app, deviceId);
+  return ok({ entitlements: entitlements });
 }
 
 function handleRestore(app, body) {
   if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
-  return ok({ entitlements: listEntitlements(app, body.deviceId) });
+  // Anonymous default: the device's own rows. Signed in: the union with
+  // every row the account has linked (a fresh device recovers purchases
+  // made on the old one — the cross-device restore the login scope adds).
+  const session = sessionOfToken(app, body.sessionToken);
+  const entitlements = session
+    ? logic.unionEntitlements([
+        listEntitlements(app, body.deviceId),
+        listAccountEntitlements(app, session.account.get("id")),
+      ])
+    : listEntitlements(app, body.deviceId);
+  return ok({ entitlements: entitlements });
 }
 
 // -- cloud saves -------------------------------------------------------------
@@ -141,6 +172,7 @@ function handleCloudPush(app, body) {
   const v = logic.validateCloudPush(body);
   if (!v.ok) return badRequest(v.error);
   const deviceId = v.value.deviceId;
+  const session = sessionOfToken(app, body.sessionToken);
   if (logic.writeBudgetExceeded((recentWriteEvents(app, deviceId) || []).length)) {
     return tooManyRequests();
   }
@@ -150,27 +182,48 @@ function handleCloudPush(app, body) {
   // Last-write-wins: the server keeps the newer of (stored, pushed). A tie
   // rewrites the same value — harmless.
   if (replyUpdatedAt === v.value.updatedAt) {
-    upsertDeviceRow(app, "cloudSaves", deviceId, {
+    const row = {
       blob: v.value.blob,
       saveVersion: v.value.saveVersion,
       updatedAt: v.value.updatedAt,
-    });
+    };
+    if (session) row.accountId = session.account.get("id");
+    upsertDeviceRow(app, "cloudSaves", deviceId, row);
     spendWriteBudget(app, deviceId);
   }
   return ok({ updatedAt: replyUpdatedAt });
 }
 
+function cloudSnapshotOf(record) {
+  return {
+    blob: record.get("blob"),
+    saveVersion: record.get("saveVersion"),
+    updatedAt: Number(record.get("updatedAt")),
+  };
+}
+
 function handleCloudPull(app, body) {
   if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
+  // The device's own row first (a tie keeps it — a stale copy from a
+  // sibling device never shadows the local one), then every row linked
+  // to the signed-in account. Newest updatedAt wins.
+  const rows = [];
   const record = findDeviceRow(app, "cloudSaves", body.deviceId);
-  if (!record) return ok({ snapshot: null });
-  return ok({
-    snapshot: {
-      blob: record.get("blob"),
-      saveVersion: record.get("saveVersion"),
-      updatedAt: record.get("updatedAt"),
-    },
-  });
+  if (record) rows.push(cloudSnapshotOf(record));
+  const session = sessionOfToken(app, body.sessionToken);
+  if (session) {
+    const accountRows = app.findRecordsByFilter(
+      "cloudSaves",
+      "accountId = {:accountId}",
+      "",
+      -1,
+      0,
+      { accountId: session.account.get("id") },
+    );
+    for (const row of accountRows || []) rows.push(cloudSnapshotOf(row));
+  }
+  const best = logic.newestByUpdatedAt(rows);
+  return ok({ snapshot: best === null ? null : best });
 }
 
 // -- leaderboard ---------------------------------------------------------------
@@ -179,6 +232,7 @@ function handleLeaderboardSubmit(app, body) {
   const v = logic.validateLeaderboardSubmit(body);
   if (!v.ok) return badRequest(v.error);
   const deviceId = v.value.deviceId;
+  const session = sessionOfToken(app, body.sessionToken);
   if (logic.writeBudgetExceeded((recentWriteEvents(app, deviceId) || []).length)) {
     return tooManyRequests();
   }
@@ -195,7 +249,7 @@ function handleLeaderboardSubmit(app, body) {
         v.value,
       )
     : v.value;
-  upsertDeviceRow(app, "leaderboard", deviceId, {
+  const row = {
     displayName: merged.displayName,
     bestDepth: merged.bestDepth,
     maxCombo: merged.maxCombo,
@@ -203,7 +257,9 @@ function handleLeaderboardSubmit(app, body) {
     achievementIds: JSON.stringify(merged.achievementIds),
     // Server clock, used only for tie-breaking the top-N sort.
     updatedAt: Date.now(),
-  });
+  };
+  if (session) row.accountId = session.account.get("id");
+  upsertDeviceRow(app, "leaderboard", deviceId, row);
   spendWriteBudget(app, deviceId);
   return ok({ ok: true });
 }
@@ -217,26 +273,44 @@ function handleLeaderboardTop(app, body) {
 
 function handleLeaderboardRank(app, body) {
   if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
+  // The player's row is the best across every device linked to the signed-
+  // in account (anonymous default: just the device's own row).
+  const rows = [];
   const record = findDeviceRow(app, "leaderboard", body.deviceId);
-  if (!record) return ok({ entry: null });
+  if (record) rows.push({ bestDepth: Number(record.get("bestDepth")) });
+  const session = sessionOfToken(app, body.sessionToken);
+  if (session) {
+    const accountRows = app.findRecordsByFilter(
+      "leaderboard",
+      "accountId = {:accountId}",
+      "",
+      -1,
+      0,
+      { accountId: session.account.get("id") },
+    );
+    for (const row of accountRows || []) rows.push({ bestDepth: Number(row.get("bestDepth")) });
+  }
+  const best = logic.bestLeaderboardRow(rows);
+  if (best === null) return ok({ entry: null });
   const above = app.findRecordsByFilter(
     "leaderboard",
     "bestDepth > {:depth}",
     "",
     -1,
     0,
-    { depth: record.get("bestDepth") },
+    { depth: best.bestDepth },
   );
-  return ok({ entry: { rank: (above || []).length + 1, bestDepth: record.get("bestDepth") } });
+  return ok({ entry: { rank: (above || []).length + 1, bestDepth: best.bestDepth } });
 }
 
 // -- GDPR -------------------------------------------------------------------
 
 function handleDelete(app, body) {
   if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
-  // cloudSaves + leaderboard rows go; `events` rows are pruned by the write
-  // budget; `entitlements` intentionally SURVIVE (a refund/restore must
-  // remain possible — see the endpoints.js header).
+  // Device scope (the shipped behavior): cloudSaves + leaderboard rows go;
+  // `events` rows are pruned by the write budget; `entitlements`
+  // intentionally SURVIVE (a refund/restore must remain possible — see the
+  // endpoints.js header).
   for (const name of ["cloudSaves", "leaderboard"]) {
     const record = findDeviceRow(app, name, body.deviceId);
     if (record) app.delete(record);
@@ -250,7 +324,258 @@ function handleDelete(app, body) {
     { deviceId: body.deviceId },
   );
   for (const record of events || []) app.delete(record);
+
+  // Account scope (optional login): the GDPR `delete my data` endpoint gains
+  // the account target — the account + all linked devices. Here the legal
+  // erasure beats the refund convenience, so entitlements go TOO, and every
+  // live session of the account is killed (all devices sign out).
+  const session = sessionOfToken(app, body.sessionToken);
+  if (session) {
+    const accountId = session.account.get("id");
+    for (const name of ["cloudSaves", "leaderboard", "entitlements"]) {
+      const rows = app.findRecordsByFilter(
+        name,
+        "accountId = {:accountId}",
+        "",
+        -1,
+        0,
+        { accountId: accountId },
+      );
+      for (const record of rows || []) app.delete(record);
+    }
+    const sessions = app.findRecordsByFilter(
+      "authSessions",
+      "accountId = {:accountId}",
+      "",
+      -1,
+      0,
+      { accountId: accountId },
+    );
+    for (const record of sessions || []) app.delete(record);
+    app.delete(session.account);
+  }
+  return ok({ ok: true, deletedAccount: session !== null });
+}
+
+// -- accounts / optional login -----------------------------------------------
+//
+// Identity model: anonymous device default; login is additive. Three
+// mechanisms (email/password, Google, Apple) sign into the SAME provider-
+// agnostic account row — the lower-cased email (where one exists) is the
+// shared identity, googleId/appleId are secondary lookups. Data rows stay
+// deviceId-keyed and gain an accountId backfill, so signing in NEVER loses
+// or duplicates data: it only re-labels rows the device already owns.
+
+function sha256hex(str) {
+  return globalThis.$security.sha256(String(str));
+}
+
+function findRecordBy(app, name, field, value) {
+  try {
+    return app.findFirstRecordByData(name, field, value) || null;
+  } catch (err) {
+    return null;
+  }
+}
+
+/** The index shape logic.resolveProviderAccount consumes (all values are
+ *  live records or null on a lookup miss). */
+function accountIndex(app, provider, claims) {
+  const field = logic.providerIdField(provider);
+  const idxKey = logic.providerIndexKey(provider);
+  const idx = { byGoogleId: {}, byAppleId: {}, byEmail: {} };
+  if (field && idxKey && claims.sub) {
+    idx[idxKey][claims.sub] = findRecordBy(app, "accounts", field, claims.sub);
+  }
+  if (claims.email) idx.byEmail[claims.email] = findRecordBy(app, "accounts", "email", claims.email);
+  return idx;
+}
+
+function createAccountRow(app, partial) {
+  const row = {
+    id: logic.randomHex(logic.ACCOUNT_ID_BYTES),
+    email: typeof partial.email === "string" ? partial.email : "",
+    passwordHash: typeof partial.passwordHash === "string" ? partial.passwordHash : "",
+    passwordSalt: typeof partial.passwordSalt === "string" ? partial.passwordSalt : "",
+    googleId: typeof partial.googleId === "string" ? partial.googleId : "",
+    appleId: typeof partial.appleId === "string" ? partial.appleId : "",
+    createdAt: Date.now(),
+  };
+  return app.save(new Record(app.findCollectionByNameOrId("accounts"), row));
+}
+
+
+function createSession(app, account, deviceId) {
+  const now = Date.now();
+  return app.save(
+    new Record(app.findCollectionByNameOrId("authSessions"), {
+      token: logic.randomHex(logic.SESSION_TOKEN_BYTES),
+      accountId: account.get("id"),
+      deviceId: logic.validDeviceId(deviceId) ? deviceId : "",
+      createdAt: now,
+      expiresAt: logic.sessionExpiresAt(now),
+    }),
+  );
+}
+
+/**
+ * Resolve a session token to its live account (null on any miss). An
+ * expired row is pruned in place — dead sessions cost nothing after the
+ * lookup that finds them.
+ */
+function sessionOfToken(app, token) {
+  if (!logic.validSessionToken(token)) return null;
+  const session = findRecordBy(app, "authSessions", "token", token);
+  if (!session) return null;
+  if (!logic.sessionValid(session, Date.now())) {
+    try {
+      app.delete(session);
+    } catch (_) {
+      /* race: another request already pruned it */
+    }
+    return null;
+  }
+  const accountId = session.get("accountId");
+  const account = accountId ? findRecordBy(app, "accounts", "id", accountId) : null;
+  if (!account) return null;
+  return { session: session, account: account };
+}
+
+/**
+ * Link the device's existing data rows to the account — BACKFILL ONLY
+ * (set accountId where the device already has a row). Nothing is copied or
+ * created, so nothing can be lost or duplicated; the device rows keep
+ * their deviceId as the primary key.
+ */
+function linkDeviceRows(app, accountId, deviceId) {
+  if (!accountId || !logic.validDeviceId(deviceId)) return;
+  for (const name of ["cloudSaves", "leaderboard", "entitlements"]) {
+    const record = findDeviceRow(app, name, deviceId);
+    if (!record) continue;
+    if (record.get("accountId") === accountId) continue;
+    record.set("accountId", accountId);
+    app.save(record);
+  }
+}
+
+function accountJson(account) {
+  return logic.accountShape({
+    email: account.get("email") || "",
+    passwordHash: account.get("passwordHash") || "",
+    googleId: account.get("googleId") || "",
+    appleId: account.get("appleId") || "",
+  });
+}
+
+function signedInReply(account, session) {
+  return { ok: true, token: session.get("token"), account: accountJson(account) };
+}
+
+function handleAuthRegister(app, body) {
+  const v = logic.validateEmailCredentials(body.email, body.password);
+  if (!v.ok) return badRequest(v.error);
+  if (findRecordBy(app, "accounts", "email", v.value.email)) {
+    return { status: 409, json: { error: "email already in use" } };
+  }
+  if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
+  if (logic.writeBudgetExceeded((recentWriteEvents(app, body.deviceId) || []).length)) {
+    return tooManyRequests();
+  }
+  const salt = logic.randomHex(logic.PASSWORD_SALT_BYTES);
+  const account = createAccountRow(app, {
+    email: v.value.email,
+    passwordHash: logic.hashPassword(v.value.password, salt, sha256hex),
+    passwordSalt: salt,
+  });
+  const session = createSession(app, account, body.deviceId);
+  linkDeviceRows(app, account.get("id"), body.deviceId);
+  spendWriteBudget(app, body.deviceId);
+  return ok(signedInReply(account, session));
+}
+
+function handleAuthLogin(app, body) {
+  const v = logic.validateEmailCredentials(body.email, body.password);
+  if (!v.ok) return badRequest(v.error);
+  // One error for both misses — the endpoint must not confirm which half
+  // of (email, password) is wrong.
+  const account = findRecordBy(app, "accounts", "email", v.value.email);
+  const stored = account ? account.get("passwordHash") : "";
+  if (!account || !logic.verifyPassword(v.value.password, stored, sha256hex)) {
+    return { status: 401, json: { error: "invalid credentials" } };
+  }
+  if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
+  if (logic.writeBudgetExceeded((recentWriteEvents(app, body.deviceId) || []).length)) {
+    return tooManyRequests();
+  }
+  const session = createSession(app, account, body.deviceId);
+  linkDeviceRows(app, account.get("id"), body.deviceId);
+  spendWriteBudget(app, body.deviceId);
+  return ok(signedInReply(account, session));
+}
+
+function handleAuthProvider(app, provider, body) {
+  if (provider !== "google" && provider !== "apple") return badRequest("unknown provider");
+  if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
+  // Verified by the sidecar (or fake-decoded in sandbox) — an unverified
+  // sign-in would be an account takeover, so null is a hard 401.
+  const verdict = verifyIdentity(provider, body.idToken);
+  if (!verdict) return { status: 401, json: { error: "token verification failed" } };
+  const claims = logic.normalizeProviderClaims(provider, verdict);
+  if (!claims) return { status: 401, json: { error: "token verification failed" } };
+  if (logic.writeBudgetExceeded((recentWriteEvents(app, body.deviceId) || []).length)) {
+    return tooManyRequests();
+  }
+  const resolved = logic.resolveProviderAccount(accountIndex(app, provider, claims), claims);
+  const account =
+    resolved.action === "create" ? createAccountRow(app, resolved.account) : resolved.account;
+  // Claim upgrades: pin a provider id / a real email the first time they
+  // appear (an Apple proxy-email account gains a provider id at sign-in,
+  // and any account gains its email when the provider first carries one).
+  const field = logic.providerIdField(provider);
+  const patch = {};
+  if (!account.get(field) && claims.sub) patch[field] = claims.sub;
+  if (!account.get("email") && claims.email) patch.email = claims.email;
+  if (Object.keys(patch).length > 0) {
+    for (const key of Object.keys(patch)) account.set(key, patch[key]);
+    app.save(account);
+  }
+  const session = createSession(app, account, body.deviceId);
+  linkDeviceRows(app, account.get("id"), body.deviceId);
+  spendWriteBudget(app, body.deviceId);
+  return ok(signedInReply(account, session));
+}
+
+function handleAuthMe(app, body) {
+  const s = sessionOfToken(app, body.token);
+  if (!s) return { status: 401, json: { error: "invalid session" } };
+  return ok({ account: accountJson(s.account) });
+}
+
+function handleAuthLogout(app, body) {
+  const s = sessionOfToken(app, body.token);
+  if (s) {
+    try {
+      app.delete(s.session);
+    } catch (_) {
+      /* race: already gone */
+    }
+  }
   return ok({ ok: true });
+}
+
+function handleAuthLink(app, body) {
+  // The claim flow on a NEW device: the device already signed in (it has a
+  // session) and now wants its pre-existing anonymous rows attached to the
+  // account.
+  const s = sessionOfToken(app, body.token);
+  if (!s) return { status: 401, json: { error: "invalid session" } };
+  if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
+  if (logic.writeBudgetExceeded((recentWriteEvents(app, body.deviceId) || []).length)) {
+    return tooManyRequests();
+  }
+  linkDeviceRows(app, s.account.get("id"), body.deviceId);
+  spendWriteBudget(app, body.deviceId);
+  return ok({ ok: true, account: accountJson(s.account) });
 }
 
 // -- router plumbing ---------------------------------------------------------
@@ -264,6 +589,13 @@ const handlers = {
   "leaderboard/top": handleLeaderboardTop,
   "leaderboard/rank": handleLeaderboardRank,
   delete: handleDelete,
+  "auth/register": handleAuthRegister,
+  "auth/login": handleAuthLogin,
+  "auth/google": (app, body) => handleAuthProvider(app, "google", body),
+  "auth/apple": (app, body) => handleAuthProvider(app, "apple", body),
+  "auth/me": handleAuthMe,
+  "auth/logout": handleAuthLogout,
+  "auth/link": handleAuthLink,
 };
 
 /**
@@ -278,7 +610,12 @@ function run(e, path, handlerName) {
     // collections are created on the first call that reaches them. The
     // check is four index lookups; at this scale that is negligible.
     ensureCollections(globalThis.$app);
-    const result = handlers[handlerName](globalThis.$app, bodyOf(e));
+    const handler = handlers[handlerName];
+    if (!handler) {
+      e.json(404, { error: "unknown route " + path });
+      return;
+    }
+    const result = handler(globalThis.$app, bodyOf(e));
     e.json(result.status, result.json);
   } catch (err) {
     console.error("[pb_hooks] " + path + " failed: " + err);

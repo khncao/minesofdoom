@@ -36,6 +36,15 @@ const PLAY_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const PLAY_PUBLISHER_BASE =
   "https://androidpublisher.googleapis.com/androidpublisher/v3";
 const PLAY_SCOPE = "https://www.googleapis.com/auth/androidpublisher";
+
+// Identity (optional login) — Google / Apple ID tokens are compact JWTs
+// signed by the provider; verification = fetch the provider's published
+// public keys, check the signature, then the standard claims (iss/aud/
+// exp/iat/sub). No client secret is needed — these are public endpoints.
+const GOOGLE_JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
+const GOOGLE_ISSUERS = ["accounts.google.com", "https://accounts.google.com"];
+const APPLE_ID_KEYS_URL = "https://appleid.apple.com/auth/keys";
+const APPLE_ID_ISSUERS = ["https://appleid.apple.com"];
 const APPLE_BASE = {
   sandbox: "https://sandbox.storekit.itunes.apple.com",
   production: "https://api.storekit.itunes.apple.com",
@@ -150,6 +159,17 @@ function parseSidecarConfig(env) {
         env: appleEnv,
       };
     }
+  }
+  // Identity verification (sidecar /identity): needs only the audience the
+  // tokens must carry — the OAuth client id (Google) and the bundle id
+  // (Apple). Both are independent of the store credentials above; the
+  // bundle id reuses APPLE_BUNDLE_ID when the full Apple block is set and
+  // falls back to the raw env value so identity can run storeless.
+  if (typeof e.GOOGLE_CLIENT_ID === "string" && e.GOOGLE_CLIENT_ID.trim().length > 0) {
+    cfg.googleClientId = e.GOOGLE_CLIENT_ID.trim();
+  }
+  if (typeof e.APPLE_BUNDLE_ID === "string" && e.APPLE_BUNDLE_ID.trim().length > 0) {
+    cfg.appleBundleId = e.APPLE_BUNDLE_ID.trim();
   }
   return cfg;
 }
@@ -334,6 +354,129 @@ async function verifyApplePurchase(appleCfg, productId, transactionId, ctx) {
   return { valid: false, reason: "no matching transaction" };
 }
 
+// -- identity (optional login) -------------------------------------------------
+
+function jwkToPublicKey(jwk) {
+  try {
+    return crypto.createPublicKey({ key: jwk, format: "jwk" });
+  } catch {
+    return null;
+  }
+}
+
+/** Shared claim checks after a provider signature verifies. */
+function checkIdentityClaims(claims, { nowSec, issuerOk, audOk }) {
+  const c = claims || {};
+  if (!issuerOk(c)) return "bad issuer";
+  const aud = Array.isArray(c.aud) ? c.aud : [c.aud];
+  if (!audOk(aud)) return "bad audience";
+  if (typeof c.exp !== "number" || c.exp <= nowSec) return "token expired";
+  if (typeof c.iat === "number" && c.iat > nowSec + 300) return "token iat in the future";
+  if (typeof c.sub !== "string" || c.sub.length < 1 || c.sub.length > 64) return "bad sub";
+  return null;
+}
+
+function identityVerdict(claims, reasonIfBad) {
+  if (reasonIfBad) return { valid: false, reason: reasonIfBad };
+  return {
+    valid: true,
+    sub: claims.sub,
+    email: typeof claims.email === "string" ? claims.email : "",
+    emailVerified: claims.email_verified === true,
+  };
+}
+
+/**
+ * Google ID token ("Sign in with Google" SDK idToken). RS256, keys from
+ * the public JWKS endpoint, aud = the app's OAuth client id.
+ */
+async function verifyGoogleIdentity(idToken, clientId, ctx) {
+  const decoded = decodeJwt(idToken);
+  if (!decoded) return { valid: false, reason: "malformed google token" };
+  const header = decoded.header || {};
+  const claims = decoded.claims || {};
+  if (header.alg !== "RS256" || typeof header.kid !== "string") {
+    return { valid: false, reason: "bad google token header" };
+  }
+  const res = await ctx.fetch(GOOGLE_JWKS_URL, { headers: { Accept: "application/json" } });
+  if (!res.ok) return { valid: false, reason: "google jwks " + res.status };
+  const data = await res.json().catch(() => null);
+  const keys = data && Array.isArray(data.keys) ? data.keys : [];
+  const jwk = keys.find((k) => k && k.kid === header.kid && k.kty === "RSA" && k.use !== "enc");
+  if (!jwk) return { valid: false, reason: "google kid not found" };
+  const pub = jwkToPublicKey(jwk);
+  if (!pub) return { valid: false, reason: "google key unparsable" };
+  const [h64, p64] = idToken.split(".");
+  const sigOk = crypto.verify("RSA-SHA256", Buffer.from(h64 + "." + p64), pub, decoded.signature);
+  if (!sigOk) return { valid: false, reason: "bad google signature" };
+  const reason = checkIdentityClaims(claims, {
+    nowSec: ctx.nowSec,
+    issuerOk: (c) => GOOGLE_ISSUERS.includes(c.iss),
+    audOk: (aud) => aud.includes(clientId),
+  });
+  return identityVerdict(claims, reason);
+}
+
+/**
+ * Apple ID token (Sign in with Apple). ES256 / P-256, keys from
+ * appleid.apple.com/auth/keys, aud = the app's bundle id. Apple returns
+ * no email after the first sign-in when the user picked the privacy
+ * proxy — a missing email is legal here (the sub is the stable key).
+ */
+async function verifyAppleIdentity(idToken, bundleId, ctx) {
+  const decoded = decodeJwt(idToken);
+  if (!decoded) return { valid: false, reason: "malformed apple token" };
+  const header = decoded.header || {};
+  const claims = decoded.claims || {};
+  if (header.alg !== "ES256" || typeof header.kid !== "string") {
+    return { valid: false, reason: "bad apple token header" };
+  }
+  const res = await ctx.fetch(APPLE_ID_KEYS_URL, { headers: { Accept: "application/json" } });
+  if (!res.ok) return { valid: false, reason: "apple keys " + res.status };
+  const data = await res.json().catch(() => null);
+  const keys = data && Array.isArray(data.keys) ? data.keys : [];
+  const jwk = keys.find(
+    (k) => k && k.kid === header.kid && k.kty === "EC" && k.crv === "P-256" && k.use !== "enc",
+  );
+  if (!jwk) return { valid: false, reason: "apple kid not found" };
+  const pub = jwkToPublicKey(jwk);
+  if (!pub) return { valid: false, reason: "apple key unparsable" };
+  const [h64, p64] = idToken.split(".");
+  const sigOk = crypto.verify("SHA256", Buffer.from(h64 + "." + p64), pub, decoded.signature);
+  if (!sigOk) return { valid: false, reason: "bad apple signature" };
+  const reason = checkIdentityClaims(claims, {
+    nowSec: ctx.nowSec,
+    issuerOk: (c) => APPLE_ID_ISSUERS.includes(c.iss),
+    audOk: (aud) => aud.includes(bundleId),
+  });
+  return identityVerdict(claims, reason);
+}
+
+/**
+ * Identity dispatcher — same contract as verifyPurchase: never throws,
+ * every failure path is a `valid: false` verdict. A provider without its
+ * audience configured refuses (fail closed).
+ */
+async function verifyIdentity({ provider, idToken, cfg, ctx }) {
+  const context = {
+    fetch: ctx && ctx.fetch,
+    nowSec: ctx && Number.isFinite(ctx.nowSec) ? ctx.nowSec : Date.now() / 1000,
+  };
+  try {
+    if (provider === "google") {
+      if (!cfg || !cfg.googleClientId) return { valid: false, reason: "google not configured" };
+      return await verifyGoogleIdentity(idToken, cfg.googleClientId, context);
+    }
+    if (provider === "apple") {
+      if (!cfg || !cfg.appleBundleId) return { valid: false, reason: "apple not configured" };
+      return await verifyAppleIdentity(idToken, cfg.appleBundleId, context);
+    }
+    return { valid: false, reason: "unknown provider" };
+  } catch (err) {
+    return { valid: false, reason: String(err && err.message || err) };
+  }
+}
+
 // -- dispatcher ---------------------------------------------------------------
 
 /**
@@ -381,4 +524,11 @@ module.exports = {
   verifySignedTransactionInfo,
   verifyApplePurchase,
   verifyPurchase,
+  GOOGLE_JWKS_URL,
+  GOOGLE_ISSUERS,
+  APPLE_ID_KEYS_URL,
+  APPLE_ID_ISSUERS,
+  verifyGoogleIdentity,
+  verifyAppleIdentity,
+  verifyIdentity,
 };

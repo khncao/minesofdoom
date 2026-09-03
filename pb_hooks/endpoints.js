@@ -15,7 +15,9 @@
  *
  * All endpoint behavior (validation, merge rules, budget, record I/O)
  * lives in handlerLib.js / logic.js / storeVerify.js. Contract (every
- * route is POST + JSON, device-scoped):
+ * route is POST + JSON, device-scoped; the data routes ALSO accept an
+ * optional `sessionToken` — with a live session the row's account is
+ * tagged and account-linked rows of other devices become reachable):
  *   /api/app/verify              → { entitlements: [storeId…] }
  *   /api/app/restore             → { entitlements: [storeId…] }
  *   /api/app/cloud/push          → { updatedAt }   // the STORED value
@@ -24,7 +26,25 @@
  *   /api/app/leaderboard/top     → { rows: [{ rank, displayName, bestDepth,
  *                                           maxCombo, achievementCount }] }
  *   /api/app/leaderboard/rank    → { entry: { rank, bestDepth } | null }
- *   /api/app/delete              → { ok: true }
+ *   /api/app/delete              → { ok: true, deletedAccount: bool }
+ *
+ * Optional login (anonymous device default — sign-in is never
+ * prerequisite for anything; all three mechanisms share one provider-
+ * agnostic account, email where it exists being the shared identity):
+ *   /api/app/auth/register       { email, password, deviceId }
+ *                                → { ok, token, account }  (409 taken)
+ *   /api/app/auth/login          { email, password, deviceId }
+ *                                → { ok, token, account }  (401 bad creds)
+ *   /api/app/auth/google         { idToken, deviceId }
+ *   /api/app/auth/apple          { idToken, deviceId }
+ *                                → { ok, token, account }  (401 unverified)
+ *   /api/app/auth/me             { token } → { account }
+ *   /api/app/auth/logout         { token } → { ok: true }
+ *   /api/app/auth/link           { token, deviceId } → { ok, account }
+ * The sign-in routes backfill `accountId` on the device's existing rows
+ * (claim, never copy — nothing is lost or duplicated). `/delete` with a
+ * session token erases the account + every linked device (GDPR account
+ * target: entitlements go too).
  *
  * /api/app/delete deliberately does NOT touch `entitlements` — a refund
  * or restore must remain possible after "delete my data" (the in-app
@@ -58,5 +78,12 @@ route("leaderboard/submit");
 route("leaderboard/top");
 route("leaderboard/rank");
 route("delete");
+route("auth/register");
+route("auth/login");
+route("auth/google");
+route("auth/apple");
+route("auth/me");
+route("auth/logout");
+route("auth/link");
 
 

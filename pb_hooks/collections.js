@@ -15,6 +15,9 @@ const COLLECTION_DEFS = [
     // one row per (deviceId, productId); verifiedAt lets us audit refunds
     fields: [
       { name: "deviceId", type: "text", required: true, max: 64 },
+      // Optional login: set when the owning device has signed into an
+      // account — cross-device restore queries on this column.
+      { name: "accountId", type: "text", max: 32 },
       { name: "productId", type: "text", required: true, max: 64 },
       { name: "platform", type: "text", max: 16 },
       { name: "tokenHash", type: "text", max: 64 },
@@ -27,6 +30,7 @@ const COLLECTION_DEFS = [
     // one row per deviceId; blob ≤ 16KB enforced in logic.validateCloudPush
     fields: [
       { name: "deviceId", type: "text", required: true, max: 64 },
+      { name: "accountId", type: "text", max: 32 },
       { name: "blob", type: "text", required: true, max: 20000 },
       { name: "saveVersion", type: "number", required: true },
       { name: "updatedAt", type: "number", required: true },
@@ -38,12 +42,43 @@ const COLLECTION_DEFS = [
     // one row per deviceId; values only ever move forward (logic.merge)
     fields: [
       { name: "deviceId", type: "text", required: true, max: 64 },
+      { name: "accountId", type: "text", max: 32 },
       { name: "displayName", type: "text", max: 16 },
       { name: "bestDepth", type: "number", required: true },
       { name: "maxCombo", type: "number", required: true },
       { name: "lifetimeMinerals", type: "number", required: true },
       { name: "achievementIds", type: "text", max: 8000 },
       { name: "updatedAt", type: "number", required: true },
+    ],
+  },
+  {
+    type: "base",
+    name: "accounts",
+    // one row per account (optional login). provider-agnostic: any of the
+    // three mechanisms signs into the same row; the lower-cased email
+    // (where one exists) is the shared identity, googleId/appleId are
+    // secondary lookups. email may be empty (Apple privacy proxy).
+    fields: [
+      { name: "id", type: "text", required: true, max: 32 },
+      { name: "email", type: "text", max: 254 },
+      { name: "passwordHash", type: "text", max: 128 },
+      { name: "passwordSalt", type: "text", max: 32 },
+      { name: "googleId", type: "text", max: 64 },
+      { name: "appleId", type: "text", max: 64 },
+      { name: "createdAt", type: "number", required: true },
+    ],
+  },
+  {
+    type: "base",
+    name: "authSessions",
+    // one row per live sign-in; the opaque token IS the credential. Pruned
+    // lazily on expiry (a dead row costs a lookup, nothing more).
+    fields: [
+      { name: "token", type: "text", required: true, max: 64 },
+      { name: "accountId", type: "text", required: true, max: 32 },
+      { name: "deviceId", type: "text", max: 64 },
+      { name: "createdAt", type: "number", required: true },
+      { name: "expiresAt", type: "number", required: true },
     ],
   },
   {

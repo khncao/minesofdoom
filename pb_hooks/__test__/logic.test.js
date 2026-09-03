@@ -247,3 +247,231 @@ describe("writeBudgetExceeded", () => {
     expect(L.writeBudgetExceeded(L.WRITE_LIMIT_PER_HOUR + 5)).toBe(true);
   });
 });
+
+// -- accounts / optional login --------------------------------------------------
+
+const sha256 = (s) => require("crypto").createHash("sha256").update(s).digest("hex");
+
+describe("email / password validation", () => {
+  test("accepts normal emails, normalized to lowercase + trimmed", () => {
+    expect(L.validEmail("  Digger@Example.COM ")).toBe(true);
+    expect(L.normalizeEmail("Digger@Example.COM")).toBe("digger@example.com");
+    expect(L.validEmail("first.last+tag@sub.domain-x.org")).toBe(true);
+  });
+
+  test("rejects malformed addresses", () => {
+    expect(L.validEmail("")).toBe(false);
+    expect(L.validEmail("nope")).toBe(false);
+    expect(L.validEmail("@example.com")).toBe(false);
+    expect(L.validEmail("digger@")).toBe(false);
+    expect(L.validEmail("digger@example")).toBe(false); // no TLD
+    expect(L.validEmail("digger@.com")).toBe(false);
+    expect(L.validEmail("a b@example.com")).toBe(false);
+    expect(L.validEmail(null)).toBe(false);
+    expect(L.validEmail(42)).toBe(false);
+    expect(L.validEmail("a".repeat(300) + "@example.com")).toBe(false);
+  });
+
+  test("password policy: 8..72 chars", () => {
+    expect(L.validPassword("12345678")).toBe(true);
+    expect(L.validPassword("a".repeat(72))).toBe(true);
+    expect(L.validPassword("1234567")).toBe(false);
+    expect(L.validPassword("a".repeat(73))).toBe(false);
+    expect(L.validPassword(12345678)).toBe(false);
+    expect(L.validPassword(undefined)).toBe(false);
+  });
+
+  test("validateEmailCredentials normalizes and rejects together", () => {
+    const v = L.validateEmailCredentials(" Digger@Example.com ", "12345678");
+    expect(v.ok).toBe(true);
+    expect(v.value.email).toBe("digger@example.com");
+    expect(v.value.password).toBe("12345678");
+    expect(L.validateEmailCredentials("nope", "12345678").ok).toBe(false);
+    expect(L.validateEmailCredentials("digger@example.com", "short").ok).toBe(false);
+  });
+});
+
+describe("password hashing (injected sha256)", () => {
+  const salt = "0123456789abcdef";
+
+  test("hashPassword is salted and stable; verifyPassword round-trips", () => {
+    const stored = L.hashPassword("correct horse", salt, sha256);
+    expect(stored.startsWith("sha256:" + salt + ":")).toBe(true);
+    expect(L.verifyPassword("correct horse", stored, sha256)).toBe(true);
+  });
+
+  test("wrong password fails; the salt travels WITH the stored value", () => {
+    const a = L.hashPassword("correct horse", "1111111111111111", sha256);
+    const b = L.hashPassword("correct horse", "2222222222222222", sha256);
+    expect(a).not.toBe(b); // same password, different salt → different digest
+    expect(L.verifyPassword("correct horsa", a, sha256)).toBe(false);
+    expect(L.verifyPassword("correct horse", a, sha256)).toBe(true);
+    expect(L.verifyPassword("correct horse", b, sha256)).toBe(true);
+  });
+
+  test("malformed stored values never verify", () => {
+    expect(L.verifyPassword("x", null, sha256)).toBe(false);
+    expect(L.verifyPassword("x", "", sha256)).toBe(false);
+    expect(L.verifyPassword("x", "bcrypt:zzz", sha256)).toBe(false);
+    expect(L.verifyPassword("x", "sha256::deadbeef", sha256)).toBe(false);
+    expect(L.verifyPassword("x", "sha256:ab:cd:ef", sha256)).toBe(false);
+  });
+});
+
+describe("randomHex / session tokens", () => {
+  test("deterministic with an injected rand", () => {
+    // rand always 0 → all-zero bytes → all-zero hex.
+    expect(L.randomHex(4, () => 0)).toBe("00000000");
+    // rand just below 1 → 0xff bytes.
+    expect(L.randomHex(3, () => 0.999999)).toBe("ffffff");
+  });
+
+  test("length and charset", () => {
+    expect(L.randomHex(32, () => 0.5).length).toBe(64);
+    expect(L.randomHex(16, () => 0.999999999)).toMatch(/^[0-9a-f]+$/);
+  });
+
+  test("validSessionToken accepts the token shape, rejects junk", () => {
+    expect(L.validSessionToken(L.randomHex(32, () => 0.5))).toBe(true);
+    expect(L.validSessionToken("")).toBe(false);
+    expect(L.validSessionToken("short".repeat(0) || "tooshort")).toBe(false);
+    expect(L.validSessionToken("a".repeat(129))).toBe(false);
+    expect(L.validSessionToken("has space".repeat(3) + "a".repeat(13))).toBe(false);
+    expect(L.validSessionToken(42)).toBe(false);
+  });
+});
+
+describe("session validity", () => {
+  test("expiresAt is createdAt + the 30-day TTL", () => {
+    expect(L.sessionExpiresAt(0)).toBe(L.SESSION_TTL_MS);
+    expect(L.SESSION_TTL_MS).toBe(30 * 24 * 60 * 60 * 1000);
+  });
+
+  test("sessionValid is strictly before expiry", () => {
+    const s = { expiresAt: 1000 };
+    expect(L.sessionValid(s, 999)).toBe(true);
+    expect(L.sessionValid(s, 1000)).toBe(false);
+    expect(L.sessionValid(null, 0)).toBe(false);
+    expect(L.sessionValid({ expiresAt: "nope" }, 0)).toBe(false);
+  });
+});
+
+describe("normalizeProviderClaims", () => {
+  test("google: unverified email is dropped, verified email kept", () => {
+    const v = L.normalizeProviderClaims("google", {
+      sub: "g-123",
+      email: "Digger@Example.com",
+      emailVerified: true,
+    });
+    expect(v).toEqual({ provider: "google", sub: "g-123", email: "digger@example.com" });
+    const u = L.normalizeProviderClaims("google", {
+      sub: "g-123",
+      email: "digger@example.com",
+      emailVerified: false,
+    });
+    expect(u.email).toBe("");
+  });
+
+  test("apple: the email Apple returns is always trusted (incl. proxy)", () => {
+    const v = L.normalizeProviderClaims("apple", { sub: "ap|Ae1", email: "x@privaterelay.appleid.com" });
+    expect(v.email).toBe("x@privaterelay.appleid.com");
+  });
+
+  test("bad subs / unknown providers reject", () => {
+    expect(L.normalizeProviderClaims("google", { sub: "" })).toBe(null);
+    expect(L.normalizeProviderClaims("google", { sub: "bad sub!" })).toBe(null);
+    expect(L.normalizeProviderClaims("github", { sub: "x" })).toBe(null);
+    expect(L.normalizeProviderClaims("google", null)).toBe(null);
+  });
+});
+
+describe("resolveProviderAccount (the provider-agnostic merge)", () => {
+  const emailAccount = { id: "acct-1", email: "digger@example.com", googleId: "", appleId: "", passwordHash: "sha256:s:h" };
+  const googleAccount = { id: "acct-2", email: "g@example.com", googleId: "g-999", appleId: "", passwordHash: "" };
+  const appleNoEmail = { id: "acct-3", email: "", googleId: "", appleId: "ap|hidden", passwordHash: "" };
+
+  test("1) an account keyed on THIS provider's sub wins (re-login)", () => {
+    const index = { byGoogleId: { "g-999": googleAccount }, byAppleId: {}, byEmail: {} };
+    const r = L.resolveProviderAccount(index, { provider: "google", sub: "g-999", email: "g@example.com" });
+    expect(r.action).toBe("signin");
+    expect(r.account).toBe(googleAccount);
+    // apple's sub never matches a google index
+    const r2 = L.resolveProviderAccount(index, { provider: "apple", sub: "ap|x", email: "" });
+    expect(r2.action).toBe("create");
+  });
+
+  test("2) else a verified email signs into the shared account (Google → email account)", () => {
+    const index = { byGoogleId: {}, byAppleId: {}, byEmail: { "digger@example.com": emailAccount } };
+    const r = L.resolveProviderAccount(index, { provider: "google", sub: "g-new", email: "Digger@Example.com" });
+    expect(r.action).toBe("signin");
+    expect(r.account).toBe(emailAccount);
+  });
+
+  test("3) else create — provider sub set, email kept (empty for proxy)", () => {
+    const index = { byGoogleId: {}, byAppleId: {}, byEmail: {} };
+    const r = L.resolveProviderAccount(index, { provider: "apple", sub: "ap|new", email: "" });
+    expect(r.action).toBe("create");
+    expect(r.account).toEqual({ appleId: "ap|new", email: "" });
+    const r2 = L.resolveProviderAccount(index, { provider: "google", sub: "g-new", email: "fresh@example.com" });
+    expect(r2.action).toBe("create");
+    expect(r2.account).toEqual({ googleId: "g-new", email: "fresh@example.com" });
+  });
+
+  test("provider sub match beats a conflicting email (the sub row is authoritative)", () => {
+    const index = {
+      byAppleId: { "ap|hidden": appleNoEmail },
+      byGoogleId: {},
+      byEmail: { "real@example.com": emailAccount },
+    };
+    const r = L.resolveProviderAccount(index, { provider: "apple", sub: "ap|hidden", email: "real@example.com" });
+    expect(r.action).toBe("signin");
+    expect(r.account).toBe(appleNoEmail);
+  });
+});
+
+describe("accountShape", () => {
+  test("exposes email + provider links only", () => {
+    const shape = L.accountShape({
+      email: "digger@example.com",
+      passwordHash: "sha256:s:h",
+      googleId: "g-1",
+      appleId: "",
+    });
+    expect(shape).toEqual({
+      email: "digger@example.com",
+      providers: [
+        { name: "email", linked: true },
+        { name: "google", linked: true },
+        { name: "apple", linked: false },
+      ],
+    });
+  });
+});
+
+describe("cross-device helpers", () => {
+  test("unionEntitlements dedupes, drops non-strings, keeps order", () => {
+    expect(L.unionEntitlements([["remove_ads", "pack_x"], ["pack_x", null, 42, "pack_y"]])).toEqual([
+      "remove_ads",
+      "pack_x",
+      "pack_y",
+    ]);
+    expect(L.unionEntitlements(null)).toEqual([]);
+    expect(L.unionEntitlements([null, { ok: 1 }])).toEqual([]);
+  });
+
+  test("newestByUpdatedAt picks the max; ties keep the FIRST row", () => {
+    const a = { updatedAt: 100, blob: "a" };
+    const b = { updatedAt: 200, blob: "b" };
+    const c = { updatedAt: 100, blob: "c" };
+    expect(L.newestByUpdatedAt([a, b, c]).blob).toBe("b");
+    expect(L.newestByUpdatedAt([a, c]).blob).toBe("a"); // tie → first
+    expect(L.newestByUpdatedAt([])).toBe(null);
+    expect(L.newestByUpdatedAt([null, { updatedAt: "nope" }])).toBe(null);
+  });
+
+  test("bestLeaderboardRow picks max depth; ties keep the first", () => {
+    expect(L.bestLeaderboardRow([{ bestDepth: 10 }, { bestDepth: 99 }, { bestDepth: 10 }]).bestDepth).toBe(99);
+    expect(L.bestLeaderboardRow([{ bestDepth: 5, id: 1 }, { bestDepth: 5, id: 2 }]).id).toBe(1);
+    expect(L.bestLeaderboardRow([])).toBe(null);
+  });
+});

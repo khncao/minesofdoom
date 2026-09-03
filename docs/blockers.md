@@ -113,7 +113,19 @@ is the shared identity). No further decision gates the scope — it is
 in-repo work on top of the sandbox Pocketbase, startable now.
 
 **Blocked on (external, shared):** the Pocketbase deployment itself — the
-cloud/leaderboard endpoints land in the same container and `pb_hooks/`
+cloud/leaderboard endpoints land in the same container and `pb_hooks`
 folder as the IAP ones, so their server phase starts exactly when the IAP
 sandbox does. Client work (providers, UI, tests against scripted fetch) is
 **not** blocked and can start in the sandbox.
+
+**Progress (optional login):** the SERVER half of that scope is done and
+unit-tested — the seven `auth/*` endpoints in `pb_hooks/` (provider-
+agnostic accounts: the three mechanisms share one account, email where it
+exists the shared identity; sign-in backfills `accountId` onto the device's
+existing rows so nothing is lost or duplicated; GDPR delete gains the
+account target) plus the sidecar's `POST /identity` route (Google RS256 /
+Apple ES256 against the providers' published keys, with the same
+fake-token sandbox / fail-closed modes as the store path). What remains is
+the client half (sign-in UI, secure-storage token, the two native SDKs) —
+in-repo work, unblocked, and it does not block release (anonymous play is
+the shipped default).

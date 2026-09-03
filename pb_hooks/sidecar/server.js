@@ -7,29 +7,37 @@
  *   node pb_hooks/sidecar/server.js
  *
  * Routes
- *   GET  /healthz  → { ok, configured: { android, ios }, playPackage }
+ *   GET  /healthz  → { ok, configured: { android, ios, identity: { google, apple } },
+ *                       playPackage }
  *   POST /verify   body { platform, productId, token }
  *                  → 200 { valid: bool, reason?: string }
  *                    (a "not valid" verdict is a 200 with valid:false —
  *                     the Pocketbase side treats anything but valid:true
  *                     as a refusal and fails closed on its own too)
+ *   POST /identity body { provider: "google"|"apple", idToken }
+ *                  → 200 { valid, sub?, email?, emailVerified?, reason? }
+ *                    (optional-login sign-in tokens; same 200-with-
+ *                     valid:false convention)
  *
  * Env (container only — never in the repo; see pb_hooks/README.md)
  *   MDOOM_SIDECAR_PORT      default 8180
  *   MDOOM_SIDECAR_HOST      default 127.0.0.1
- *   MDOOM_SIDECAR_SECRET    optional; if set, /verify requires the same
- *                           value in the `x-mdoom-key` header (the
+ *   MDOOM_SIDECAR_SECRET    optional; if set, /verify and /identity require
+ *                           the same value in the `x-mdoom-key` header (the
  *                           Pocketbase container carries the same env)
  *   PLAY_SERVICE_ACCOUNT_JSON  Play SA JSON inline, or a path to the file
  *   PLAY_PACKAGE               default com.minus4kelvin.minesofdoom
  *   APPLE_BUNDLE_ID / APPLE_APP_ID / APPLE_KEY_ID
  *   APPLE_PRIVATE_KEY          P-256 PEM inline, or a path to the file
  *   APPLE_IAP_ENV              sandbox (default) | production
+ *   GOOGLE_CLIENT_ID           the "Sign in with Google" OAuth client id
+ *                              (audience for /identity google tokens)
+ *   APPLE_BUNDLE_ID            also the audience for /identity apple tokens
  */
 
 const http = require("http");
 const crypto = require("crypto");
-const { parseSidecarConfig, verifyPurchase } = require("./verify.js");
+const { parseSidecarConfig, verifyPurchase, verifyIdentity } = require("./verify.js");
 
 const TIMEOUT_MS = 15000;
 const MAX_BODY_BYTES = 1024 * 1024;
@@ -123,19 +131,68 @@ function startServer({ env = process.env, listen = true } = {}) {
     return json(res, 200, verdict);
   }
 
+  async function handleIdentity(req, res) {
+    if (secret.length > 0) {
+      const key = req.headers["x-mdoom-key"];
+      if (typeof key !== "string" || !constantTimeEqual(key, secret)) {
+        return json(res, 403, { error: "bad key" });
+      }
+    }
+    let raw;
+    try {
+      raw = await readBody(req);
+    } catch {
+      return json(res, 400, { error: "body too large" });
+    }
+    let body;
+    try {
+      body = JSON.parse(raw || "{}");
+    } catch {
+      return json(res, 400, { error: "body must be JSON" });
+    }
+    const { provider, idToken } = body || {};
+    if (typeof provider !== "string" || (provider !== "google" && provider !== "apple")) {
+      return json(res, 400, { error: "invalid provider" });
+    }
+    if (typeof idToken !== "string" || idToken.length < 1 || idToken.length > 16384) {
+      return json(res, 400, { error: "invalid idToken" });
+    }
+    const nowSec = Date.now() / 1000;
+    let verdict;
+    try {
+      verdict = await verifyIdentity({ provider, idToken, cfg, ctx: { fetch: fetchImpl, nowSec } });
+    } catch (err) {
+      // verifyIdentity never throws by contract; a 500 is the honest
+      // fallback if it ever does (fail closed, never a sign-in).
+      console.error("[sidecar] identity crashed:", err);
+      verdict = { valid: false, reason: "internal error" };
+    }
+    if (!verdict.valid && verdict.reason) {
+      console.warn(`[sidecar] identity REFUSED provider=${provider}: ${verdict.reason}`);
+    }
+    return json(res, 200, verdict);
+  }
+
   const server = http.createServer(async (req, res) => {
     try {
       const url = (req.url || "/").split("?")[0];
       if (req.method === "GET" && url === "/healthz") {
         return json(res, 200, {
           ok: true,
-          configured: { android: !!cfg.play, ios: !!cfg.apple },
+          configured: {
+            android: !!cfg.play,
+            ios: !!cfg.apple,
+            identity: { google: !!cfg.googleClientId, apple: !!cfg.appleBundleId },
+          },
           playPackage: cfg.playPackage,
           appleEnv: cfg.apple ? cfg.apple.env : null,
         });
       }
       if (req.method === "POST" && url === "/verify") {
         return await handleVerify(req, res);
+      }
+      if (req.method === "POST" && url === "/identity") {
+        return await handleIdentity(req, res);
       }
       return json(res, 405, { error: "not found" });
     } catch (err) {
@@ -147,7 +204,8 @@ function startServer({ env = process.env, listen = true } = {}) {
   if (listen) {
     server.listen(port, host);
     console.log(
-      `[sidecar] listening on ${host}:${port} (android=${!!cfg.play} ios=${!!cfg.apple})`,
+      `[sidecar] listening on ${host}:${port} (android=${!!cfg.play} ios=${!!cfg.apple} ` +
+        `identity: google=${!!cfg.googleClientId} apple=${!!cfg.appleBundleId})`,
     );
   }
   return { server, cfg };

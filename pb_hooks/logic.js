@@ -265,6 +265,234 @@ function writeBudgetExceeded(recentCount) {
   return Number(recentCount) >= WRITE_LIMIT_PER_HOUR;
 }
 
+// -- accounts / optional login (docs/store-integration-plan.md) ---------------
+//
+// Identity model (the recorded decision): anonymous device-based default,
+// login is additive. Accounts are provider-agnostic — email/password,
+// Google, and Apple all sign into the SAME account row; the lower-cased
+// email where one exists is the shared identity, and the provider subject
+// ids (googleId / appleId) are secondary lookups. Data rows (cloudSaves,
+// leaderboard, entitlements) stay keyed by deviceId and gain an accountId
+// backfill so a signed-in session can reach every device that has linked.
+
+const EMAIL_RE =
+  /^[a-z0-9._%+-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\.[a-z]{2,}$/;
+
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MAX_LENGTH = 72; // the sha256 pre-image bound is arbitrary; 72 is a sane cap
+
+// Session tokens are opaque random hex, single use per request, 30-day TTL.
+// They carry no claims — the authSessions collection is the source of truth.
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const SESSION_TOKEN_BYTES = 32;
+const ACCOUNT_ID_BYTES = 16;
+const PASSWORD_SALT_BYTES = 16;
+
+function normalizeEmail(v) {
+  return String(v == null ? "" : v).trim().toLowerCase();
+}
+
+function validEmail(v) {
+  const e = normalizeEmail(v);
+  return e.length >= 6 && e.length <= 254 && EMAIL_RE.test(e);
+}
+
+function validPassword(v) {
+  return (
+    typeof v === "string" &&
+    v.length >= PASSWORD_MIN_LENGTH &&
+    v.length <= PASSWORD_MAX_LENGTH
+  );
+}
+
+/** Validate a register/login body. Returns the normalized email (the
+ *  account key) + the raw password (never returned by the handlers). */
+function validateEmailCredentials(email, password) {
+  if (!validEmail(email)) return badResult("invalid email");
+  if (!validPassword(password)) return badResult("invalid password");
+  return { ok: true, value: { email: normalizeEmail(email), password } };
+}
+
+/**
+ * Salted sha256 password digest, stored as "sha256:<salt>:<hash>".
+ * `sha256` is injected (the Pocketbase runtime exposes $security.sha256;
+ * tests inject node crypto) so this module stays environment-free.
+ */
+function hashPassword(password, salt, sha256) {
+  return "sha256:" + salt + ":" + sha256(salt + ":" + password);
+}
+
+function constantTimeEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) {
+    return false;
+  }
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+function verifyPassword(password, stored, sha256) {
+  const parts = String(stored == null ? "" : stored).split(":");
+  if (parts.length !== 3 || parts[0] !== "sha256" || parts[1].length === 0) {
+    return false;
+  }
+  return constantTimeEqual(sha256(parts[1] + ":" + password), parts[2]);
+}
+
+/**
+ * Random hex of `byteCount` bytes. `rand` is injectable (0..1) so tests
+ * are deterministic; the default is Math.random (adequate for opaque
+ * tokens — not a CSPRNG, but the tokens are single-purpose and the
+ * collections are private).
+ */
+function randomHex(byteCount, rand) {
+  const r = typeof rand === "function" ? rand : Math.random;
+  let out = "";
+  for (let i = 0; i < byteCount; i++) {
+    out += ("0" + Math.floor(r() * 256).toString(16)).slice(-2);
+  }
+  return out;
+}
+
+function validSessionToken(v) {
+  return typeof v === "string" && v.length >= 16 && v.length <= 128 && /^[A-Za-z0-9_-]+$/.test(v);
+}
+
+/** A session row is live while now < expiresAt (the row itself must
+ *  exist — the handler checks that). */
+function sessionValid(session, nowMs) {
+  return session != null && Number(session.expiresAt) > Number(nowMs);
+}
+
+function sessionExpiresAt(createdAtMs, ttlMs) {
+  return Number(createdAtMs) + Number(ttlMs == null ? SESSION_TTL_MS : ttlMs);
+}
+
+const PROVIDERS = ["google", "apple"];
+
+/** Index key for a provider's subject-id lookups (the `index` shape
+ *  resolveProviderAccount consumes: { byGoogleId, byAppleId, byEmail }). */
+function providerIndexKey(provider) {
+  if (provider === "google") return "byGoogleId";
+  if (provider === "apple") return "byAppleId";
+  return null;
+}
+
+function providerIdField(provider) {
+  if (provider === "google") return "googleId";
+  if (provider === "apple") return "appleId";
+  return null;
+}
+
+/**
+ * Normalize a verified provider-token payload into the claims the account
+ * resolution trusts. sub is the provider subject (opaque, ≤64 safe chars —
+ * it is stored in a text column and interpolated into filters); email is
+ * only trusted when the provider said it was verified (Google's
+ * email_verified flag; Apple always controls the address it returns,
+ * including privacy-proxy addresses).
+ */
+function normalizeProviderClaims(provider, claims) {
+  const c = claims || {};
+  const field = providerIdField(provider);
+  if (!field) return null;
+  if (typeof c.sub !== "string" || !/^[A-Za-z0-9._|:-]{1,256}$/.test(c.sub)) return null;
+  let email = "";
+  if (provider === "apple" || c.emailVerified === true) {
+    if (validEmail(c.email)) email = normalizeEmail(c.email);
+  }
+  return { provider: provider, sub: c.sub, email: email };
+}
+
+/**
+ * Account resolution for a verified provider sign-in — the provider-
+ * agnostic merge rule. `index` is the handler's pre-fetched lookups:
+ *   { byGoogleId: {<sub>: account}, byAppleId: {<sub>: account},
+ *     byEmail: {<email>: account} }
+ * Rules, in order:
+ *   1. an account keyed on THIS provider's sub already exists → sign in
+ *      to it (a re-login, including after a proxy-email round trip);
+ *   2. else a VERIFIED email matches an existing account → sign in to
+ *      that account (email is the shared identity — this is what lets
+ *      Google sign into an email/password account);
+ *   3. else → create: the new account carries this provider's sub and
+ *      the verified email (Apple may have none — privacy proxy).
+ * Returns { action: "signin" | "create", account }.
+ */
+function resolveProviderAccount(index, { provider, sub, email }) {
+  const field = providerIdField(provider);
+  if (!field) return null;
+  const idx = index || {};
+  const byProvider = idx[providerIndexKey(provider)] || {};
+  if (byProvider[sub]) return { action: "signin", account: byProvider[sub] };
+  const byEmail = idx.byEmail || {};
+  const normalizedEmail = normalizeEmail(email);
+  if (normalizedEmail && byEmail[normalizedEmail]) {
+    return { action: "signin", account: byEmail[normalizedEmail] };
+  }
+  const created = {};
+  created[field] = sub;
+  created.email = email || "";
+  return { action: "create", account: created };
+}
+
+/** The public shape of an account in API replies — nothing the client
+ *  can act on beyond its own email; provider id links only. */
+function accountShape(account) {
+  const a = account || {};
+  return {
+    email: typeof a.email === "string" ? a.email : "",
+    providers: [
+      { name: "email", linked: typeof a.passwordHash === "string" && a.passwordHash.length > 0 },
+      { name: "google", linked: typeof a.googleId === "string" && a.googleId.length > 0 },
+      { name: "apple", linked: typeof a.appleId === "string" && a.appleId.length > 0 },
+    ],
+  };
+}
+
+/** Union of entitlement lists (cross-device restore): deduped, order of
+ *  first appearance, non-strings dropped. */
+function unionEntitlements(lists) {
+  const flat = [];
+  for (const list of lists || []) {
+    if (Array.isArray(list)) for (const item of list) flat.push(item);
+  }
+  return [...new Set(flat.filter((v) => typeof v === "string" && v.length > 0))];
+}
+
+/** Newest row by numeric updatedAt (cloud pull across linked devices).
+ *  Ties keep the FIRST row (the device's own row comes first, so a stale
+ *  account copy never shadows the local device). */
+function newestByUpdatedAt(rows) {
+  let best = null;
+  let bestTs = -Infinity;
+  for (const row of rows || []) {
+    const ts = Number(row && row.updatedAt);
+    if (!Number.isFinite(ts)) continue;
+    if (best === null || ts > bestTs) {
+      best = row;
+      bestTs = ts;
+    }
+  }
+  return best;
+}
+
+/** The account's best leaderboard row across linked devices (max
+ *  bestDepth; ties keep the first = the device's own row). */
+function bestLeaderboardRow(rows) {
+  let best = null;
+  let bestDepth = -Infinity;
+  for (const row of rows || []) {
+    const depth = Number(row && row.bestDepth);
+    if (!Number.isFinite(depth)) continue;
+    if (best === null || depth > bestDepth) {
+      best = row;
+      bestDepth = depth;
+    }
+  }
+  return best;
+}
+
 module.exports = {
   PRODUCTS,
   MAX_SAVE_VERSION,
@@ -287,4 +515,31 @@ module.exports = {
   parseAchievementIds,
   shapeTopRow,
   writeBudgetExceeded,
+  // accounts / optional login
+  EMAIL_RE,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_MAX_LENGTH,
+  SESSION_TTL_MS,
+  SESSION_TOKEN_BYTES,
+  ACCOUNT_ID_BYTES,
+  PASSWORD_SALT_BYTES,
+  PROVIDERS,
+  normalizeEmail,
+  validEmail,
+  validPassword,
+  validateEmailCredentials,
+  providerIndexKey,
+  hashPassword,
+  verifyPassword,
+  randomHex,
+  validSessionToken,
+  sessionValid,
+  sessionExpiresAt,
+  providerIdField,
+  normalizeProviderClaims,
+  resolveProviderAccount,
+  accountShape,
+  unionEntitlements,
+  newestByUpdatedAt,
+  bestLeaderboardRow,
 };

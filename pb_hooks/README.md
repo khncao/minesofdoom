@@ -9,12 +9,17 @@ rewrite from v0.2x — everything in this folder is written for it).
 
 ## What it serves
 
-All endpoints are `POST` + JSON, device-scoped (no account), on **private**
-collections (all five rules null — only these hooks touch the rows). The REST
-shapes are pinned by the clients in `src/mines_of_doom/`
-(`iapProvider.ts`, `cloudSave.ts`, `leaderboard.ts`); the pure logic is
-unit-tested in `__test__/logic.test.js` (runs in the app's jest suite, with
-sync-pins against `iaps.ts` / `game.ts` so the server caps can't drift).
+All endpoints are `POST` + JSON on **private** collections (all rules
+null — only these hooks touch the rows). **Anonymous device is the
+default**: every data route is keyed by `deviceId`, and login is never a
+prerequisite for anything. The optional login (below) adds an account
+layer: the data routes ALSO accept an optional `sessionToken`, and with a
+live session the row's account is tagged and the account's other devices
+become reachable (cross-device restore). The REST shapes are pinned by the
+clients in `src/mines_of_doom/` (`iapProvider.ts`, `cloudSave.ts`,
+`leaderboard.ts`); the pure logic is unit-tested in `__test__/logic.test.js`
+(runs in the app's jest suite, with sync-pins against `iaps.ts` / `game.ts`
+so the server caps can't drift).
 
 | Endpoint | Body | Reply |
 |---|---|---|
@@ -25,11 +30,35 @@ sync-pins against `iaps.ts` / `game.ts` so the server caps can't drift).
 | `/api/app/leaderboard/submit` | `{ deviceId, displayName, bestDepth, maxCombo, lifetimeMinerals, achievementIds }` | `{ ok: true }` (monotonic per-field max) |
 | `/api/app/leaderboard/top` | `{ limit }` | `{ rows: [{ rank, displayName, bestDepth, maxCombo, achievementCount }] }` |
 | `/api/app/leaderboard/rank` | `{ deviceId }` | `{ entry: { rank, bestDepth } \| null }` |
-| `/api/app/delete` | `{ deviceId }` | `{ ok: true }` (GDPR — cloud save + leaderboard + events rows; **entitlements intentionally survive** so a refund/restore stays possible) |
+| `/api/app/delete` | `{ deviceId }` | `{ ok: true, deletedAccount }` (GDPR — device scope: cloud save + leaderboard + events rows; **entitlements intentionally survive** so a refund/restore stays possible. WITH a `sessionToken`: the account target — the account, every linked device's rows, all sessions; here entitlements go too) |
+
+Optional login (all `POST` + JSON; replies carry a 30-day `token`):
+
+| Endpoint | Body | Reply |
+|---|---|---|
+| `/api/app/auth/register` | `{ email, password, deviceId }` | `{ ok, token, account }` (`409` email taken) |
+| `/api/app/auth/login` | `{ email, password, deviceId }` | `{ ok, token, account }` (`401` — one error for both halves, no user enumeration) |
+| `/api/app/auth/google` | `{ idToken, deviceId }` | `{ ok, token, account }` (`401` unverified) |
+| `/api/app/auth/apple` | `{ idToken, deviceId }` | `{ ok, token, account }` (`401` unverified) |
+| `/api/app/auth/me` | `{ token }` | `{ account }` (`401` dead/expired) |
+| `/api/app/auth/logout` | `{ token }` | `{ ok: true }` (idempotent) |
+| `/api/app/auth/link` | `{ token, deviceId }` | `{ ok, account }` (attach a device's pre-existing rows) |
+
+The account model is provider-agnostic: email (where one exists) is the
+shared identity, `googleId`/`appleId` are secondary lookups, and the merge
+rule on sign-in is (1) this provider's sub → that account, (2) else a
+verified email → that account, (3) else create. Sign-in/backfill only ever
+SETS `accountId` on rows the device already owns — nothing is copied, so
+nothing can be lost or duplicated. Account shape in replies: `{ email,
+providers: [{name, linked}] }` — no hashes, no raw provider ids.
+`account` in the table above is that shape.
 
 Collections (created lazily on first use, see `collections.js`):
 `entitlements`, `cloudSaves`, `leaderboard`, `events` (write-budget counter;
-pruned per device after the 1h window).
+pruned per device after the 1h window), `accounts` (email/password or
+provider-linked), `authSessions` (opaque tokens; pruned in place when found
+expired — no cron). `cloudSaves`/`leaderboard`/`entitlements` carry an
+optional `accountId` (the login backfill target).
 
 ## Files
 
@@ -41,10 +70,14 @@ pruned per device after the 1h window).
 - `logic.js` — pure validation/merge/cap/budget logic (no Pocketbase API).
 - `collections.js` — programmatic private-collection setup.
 - `storeVerify.js` — store-side receipt verification (see below).
-- `sidecar/` — the store-verification sidecar (plain Node, zero deps, `node
+- `identityVerify.js` — Pocketbase-side sign-in verification, same modes
+  (fake-token sandbox / sidecar / fail closed).
+- `sidecar/` — the verification sidecar (plain Node, zero deps, `node
   sidecar/server.js`): `verify.js` (pure, fetch-injectables — signs the RS256/ES256
   JWTs the goja runtime can't and calls Play/Apple) and `server.js` (the tiny
-  HTTP front: `GET /healthz`, `POST /verify`).
+  HTTP front: `GET /healthz`, `POST /verify`, `POST /identity`).
+- `__test__/identityVerify.test.js` — Pocketbase-side identity (sandbox /
+  fail-closed / sidecar) against the pinned `$http` contract.
 - `__test__/logic.test.js` — pure-logic jest unit tests (app suite).
 - `__test__/storeVerify.test.js` — Pocketbase-side verify (sandbox / fail-closed /
   sidecar modes) against the pinned `$http` contract.
@@ -116,8 +149,54 @@ inside a handler**, and not shared between pooled VMs. Rules this code follows:
   beats that. A sidecar that's down, slow, or non-2xx also refuses — the
   side call degrades to "not purchased", never to "granted".
 
-The `$http` contract `storeVerify.js` relies on (pinned by probing a live
-v0.40.2 sandbox; the probe route was one-off and is not in this folder):
+## Identity verification (optional login)
+
+`identityVerify.js` has the same three modes, first match wins:
+
+- **Sandbox** (`MDOOM_DEV_FAKE_TOKEN=1`): the token must be a compact JWT
+  whose PAYLOAD is trusted WITHOUT a signature (`sub` required, email
+  optional). Dev builds mint such a token locally — no Google/Apple account
+  needed. NEVER on a real deployment.
+- **Sidecar** (`MDOOM_SIDECAR_URL` set): the hook POSTs `{ provider,
+  idToken }` to `<MDOOM_SIDECAR_URL>/identity`; the sidecar verifies the
+  provider JWT against the provider's PUBLISHED keys (Google RS256 via the
+  well-known JWKS, `kid` + `alg` pinned; Apple ES256 via
+  `appleid.apple.com/auth/keys`) and checks `iss`/`aud` (`aud` =
+  `GOOGLE_CLIENT_ID` or `APPLE_BUNDLE_ID`) + `exp`. Only `valid: true` with a
+  `sub` is accepted.
+- **Default (fail closed)**: no sidecar URL → refuse and log. An unverified
+  sign-in is an account takeover (the token links the caller's device rows
+  to the victim's account), so the stakes are higher than a fake purchase:
+  refuse, never grant.
+
+`$http` contract and the defensive reply parsing are identical to the
+store path. The fake-token sandbox decodes the payload with a pure-JS
+base64url/UTF-8 decoder (the goja runtime has no `Buffer`) — exercised in
+`__test__/identityVerify.test.js`.
+
+## Production env vars (container env — never in the repo)
+
+Pocketbase container:
+
+| Var | Meaning |
+|---|---|
+| `MDOOM_DEV_FAKE_TOKEN` | `1`/`true` = sandbox mode (fake IAP receipts AND fake identity JWTs). **Must be unset in production.** |
+| `MDOOM_SIDECAR_URL` | Sidecar base URL (no trailing slash needed). Set → real store + identity verification via the sidecar. Unset → fail closed. |
+| `MDOOM_SIDECAR_SECRET` | Optional shared key; sent as `x-mdoom-key` on verify/identity POSTs. |
+
+Sidecar container (the Play/Apple/Google credentials live here, never in
+Pocketbase):
+
+| Var | Meaning |
+|---|---|
+| `MDOOM_SIDECAR_PORT` / `MDOOM_SIDECAR_HOST` | Listen address (default `127.0.0.1:8180`). |
+| `MDOOM_SIDECAR_SECRET` | If set, `/verify` + `/identity` require the same value in `x-mdoom-key` (constant-time compare). |
+| `PLAY_SERVICE_ACCOUNT_JSON` | Play service-account JSON (Play Console → API access), inline or a path / `@path` to the file. Absent → Android verifies nothing (fail closed), iOS unaffected. |
+| `PLAY_PACKAGE` | Play package name (default `com.minus4kelvin.minesofdoom`). |
+| `APPLE_BUNDLE_ID` / `APPLE_APP_ID` / `APPLE_KEY_ID` | App Store Connect API key identity (App Store Connect → Users and Access → Integrations → App Store Server API). All three required for iOS purchase verification. |
+| `APPLE_PRIVATE_KEY` | The P-256 `.p8` key, inline or a path / `@path`. |
+| `APPLE_IAP_ENV` | `sandbox` (default) or `production` for the App Store Server API. Anything else disables iOS verification (never an implicit sandbox). |
+| `GOOGLE_CLIENT_ID` | The Web/OAuth client id for Google sign-in (the `aud` for Google ID tokens). Absent → Google sign-in refuses (fail closed). |
 
 ```
 $http.send({ url, method, headers, body: <JSON string> })
@@ -168,6 +247,11 @@ curl -s $B/api/app/leaderboard/top    -d '{"limit":10}'
 curl -s $B/api/app/leaderboard/rank   -d '{"deviceId":"dev-1"}'
 # write budget: the 31st write within an hour 429s
 # rejections: saveVersion > app version, stats above sanity caps, bad deviceId
+# optional login (fake-token sandbox: mint a compact JWT with the payload
+# you want, e.g. {"sub":"g-1","email":"d@example.com"} — no signature needed)
+curl -s $B/api/app/auth/register -d '{"email":"d@example.com","password":"hunter22","deviceId":"dev-1"}'
+curl -s $B/api/app/auth/login -d '{"email":"d@example.com","password":"hunter22","deviceId":"dev-1"}'
+curl -s $B/api/app/auth/google -d '{"idToken":"<fake-jwt>","deviceId":"dev-1"}'
 # GDPR
 curl -s $B/api/app/delete -d '{"deviceId":"dev-1"}'
 curl -s $B/api/app/restore -d '{"deviceId":"dev-1"}'  # entitlements survive
@@ -186,33 +270,12 @@ curl -s http://127.0.0.1:8180/healthz   # → { ok, configured: { android, ios }
 # — the honest fail-closed verdict; with credentials it is a real store call.
 ```
 
-## Production env vars (container env — never in the repo)
-
-Pocketbase container:
-
-| Var | Meaning |
-|---|---|
-| `MDOOM_DEV_FAKE_TOKEN` | `1`/`true` = sandbox fake-token mode. **Must be unset in production.** |
-| `MDOOM_SIDECAR_URL` | Sidecar base URL (no trailing slash needed). Set → real store verification via the sidecar. Unset → fail closed. |
-| `MDOOM_SIDECAR_SECRET` | Optional shared key; sent as `x-mdoom-key` on the verify POST. |
-
-Sidecar container (the Play/Apple credentials live here, never in
-Pocketbase):
-
-| Var | Meaning |
-|---|---|
-| `MDOOM_SIDECAR_PORT` / `MDOOM_SIDECAR_HOST` | Listen address (default `127.0.0.1:8180`). |
-| `MDOOM_SIDECAR_SECRET` | If set, `/verify` requires the same value in `x-mdoom-key` (constant-time compare). |
-| `PLAY_SERVICE_ACCOUNT_JSON` | Play service-account JSON (Play Console → API access), inline or a path / `@path` to the file. Absent → Android verifies nothing (fail closed), iOS unaffected. |
-| `PLAY_PACKAGE` | Play package name (default `com.minus4kelvin.minesofdoom`). |
-| `APPLE_BUNDLE_ID` / `APPLE_APP_ID` / `APPLE_KEY_ID` | App Store Connect API key identity (App Store Connect → Users and Access → Integrations → App Store Server API). All three required for iOS verification. |
-| `APPLE_PRIVATE_KEY` | The P-256 `.p8` key, inline or a path / `@path`. |
-| `APPLE_IAP_ENV` | `sandbox` (default) or `production` for the App Store Server API. Anything else disables iOS verification (never an implicit sandbox). |
-
-A sidecar with neither platform configured still serves `/healthz` and
-refuses `/verify` per-platform (`"<platform> not configured"`) — so the
-Pocketbase deployment can go up with the sidecar running before the
-credentials exist.
+A sidecar with nothing configured still serves `/healthz` and refuses
+`/verify` per-platform and `/identity` per-provider (`"<provider> not
+configured"`) — so the Pocketbase deployment can go up with the sidecar
+running before the credentials exist. `APPLE_BUNDLE_ID` does double duty:
+with the IAP env vars it configures purchase verification, and it is
+ALSO the `aud` for Apple identity — one value, two verifiers.
 
 Ops: one volume (`/pb_data`) is the whole state — nightly copy is the
 backup; the dataset is rows-per-device, i.e. tiny. The superuser credentials
