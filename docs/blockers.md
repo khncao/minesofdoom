@@ -8,15 +8,17 @@ unblocks, delete its section and re-scope the todo.
 
 **Blocked on (external):** the Google **AdMob account** — the Android App ID
 and the production combo-save rewarded unit have landed; still outstanding:
-the iOS app entry, the rewarded units for the other three placements
+the rewarded units for the other three placements
 (gem rolls, offline double, offline top-up — the other slots currently run
 AdMob's public test unit ids) and registering test devices. Nothing
-in-repo can produce those ids.
+in-repo can produce those ids. (The iOS app entry + App ID is deferred to
+`docs/backlog.md` — it is not on the active path.)
 
 **Note:** Android is now fully configured (app id + all placement units,
 three of them test ids) and runs the real `AdMobAdProvider` in production
-builds. iOS stays on the no-op until `iosAppId` lands — `isAdMobIdsConfigured`
-requires the app id plus a unit id for every placement.
+builds. iOS stays on the no-op until `iosAppId` lands (`docs/backlog.md`) —
+`isAdMobIdsConfigured` requires the app id plus a unit id for every
+placement.
 
 **Done in-repo:** the `AdMobAdProvider` behind `selectAdProvider` (v16
 `react-native-google-mobile-ads`): `src/mines_of_doom/adProvider.ts` (+
@@ -35,9 +37,10 @@ docs/store-integration.md §1/§3.
 ## IAP (Pocketbase + store products + on-device verification) — `todo.md` "IAP — Pocketbase deploy + store products + on-device verification"
 
 **Blocked on (external):** a deployed **Pocketbase** server (hook
-endpoints + collections per `docs/pocketbase-plan.md`) and the four store
-products (Play Console SKUs / App Store Connect ids per
-`docs/store-integration.md` §2). Neither can be produced in-repo.
+endpoints + collections per `docs/pocketbase-plan.md`) and the store
+products (Play Console SKUs per `docs/store-integration.md` §2; the
+App Store Connect half is deferred to `docs/backlog.md`). Neither can be
+produced in-repo.
 
 **Done in-repo:** the full client half, mirroring the ads pattern —
 `iapProvider.ts` (expo-iap → `finishTransaction` → POST `/api/app/verify`,
