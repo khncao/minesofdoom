@@ -35,6 +35,8 @@ function MenuPanel({
   cosmetics,
   mute,
   onMuteChange,
+  onScreenKeypad,
+  onKeypadChange,
   hardModeUnlocked,
   stats,
   analytics,
@@ -53,6 +55,11 @@ function MenuPanel({
   cosmetics: ComponentProps<typeof CosmeticsSection>;
   mute: boolean;
   onMuteChange: (newVal: boolean) => void;
+  /** On-screen keypad setting (todo: keypad tab view): an
+   *  AsyncStorage-backed display preference, so it applies immediately —
+   *  unlike the SettingsData switches, which wait for the Save tap. */
+  onScreenKeypad: boolean;
+  onKeypadChange: (newVal: boolean) => void;
   hardModeUnlocked: boolean;
   /** Lifetime save data — feeds the goals view's derived progress. */
   stats: SaveData;
@@ -84,6 +91,8 @@ function MenuPanel({
         onExportSaveCode={onExportSaveCode}
         onImportSaveCode={onImportSaveCode}
         cosmetics={cosmetics}
+        onScreenKeypad={onScreenKeypad}
+        onKeypadChange={onKeypadChange}
         hardModeUnlocked={hardModeUnlocked}
         analytics={analytics}
         onClearAnalytics={onClearAnalytics}
@@ -101,6 +110,8 @@ function MenuPanel({
       onExportSaveCode,
       onImportSaveCode,
       cosmetics,
+      onScreenKeypad,
+      onKeypadChange,
       hardModeUnlocked,
       analytics,
       onClearAnalytics,

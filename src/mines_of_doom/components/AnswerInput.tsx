@@ -17,7 +17,6 @@ import {
   type ViewStyle,
 } from "react-native";
 import { styles } from "../styles";
-import NumericKeypad from "src/components/NumericKeypad";
 
 /**
  * The OS-keyboard path (plan §2.1, web-parity item): on native the answer
@@ -38,8 +37,10 @@ const AvoidingView: ComponentType<AvoidingViewProps> =
     : (KeyboardAvoidingView as unknown as ComponentType<AvoidingViewProps>);
 
 // Answers are small integers; 12 digits is far beyond any equation, so
-// this just stops the display box from overflowing.
-const MAX_ANSWER_LENGTH = 12;
+// this just stops the display box from overflowing. Exported: the
+// on-screen keypad (MinesOfDoom's purchase-section tab) applies the same
+// cap when appending digits.
+export const MAX_ANSWER_LENGTH = 12;
 
 // memo: the parent re-renders every tick and on every tap flush; without
 // this the (focused) TextInput re-rendered with it. Safe now that onSubmit
@@ -56,22 +57,17 @@ const AnswerInput = memo(function AnswerInput({
   onSubmit: () => void;
   shakeAnim: Animated.Value;
   /**
-   * On-screen keypad mode (plan §2.1): when on, no TextInput is mounted
-   * at all, so the game never depends on the OS keyboard (this is also
-   * the web-parity path — there, `inputMode="numeric"` is ignored).
-   * HIDDEN FOR NOW (plan "Adjust"): the parent passes false and no toggle
-   * is rendered; the `NumericKeypad` wiring below stays for revival.
+   * On-screen keypad mode (todo: "Reimplement custom numeric keypad"): when
+   * on, no TextInput is mounted at all, so the game never depends on the OS
+   * keyboard (this is also the web-parity path — there,
+   * `inputMode="numeric"` is ignored). The value is then driven by the
+   * NumericKeypad in MinesOfDoom's purchase-section tab view, and this
+   * component renders a read-only display box instead of an input.
+   * Off (default) the native keypad path is unchanged.
    */
   useKeypad: boolean;
 }) {
   const textInputRef = useRef<null | TextInput>(null);
-
-  const handleDigit = (digit: string) =>
-    setTextInput((old) =>
-      old.length >= MAX_ANSWER_LENGTH ? old : old + digit,
-    );
-  const handleBackspace = () => setTextInput((old) => old.slice(0, -1));
-  const handleClear = () => setTextInput("");
 
   // `behavior` is a native-only KAV prop; the web View must not receive it.
   return (
@@ -110,19 +106,7 @@ const AnswerInput = memo(function AnswerInput({
               }}
             />
           )}
-          {/* Keypad toggle HIDDEN for now (plan "Adjust", 2026-09-02):
-              revival = re-add a Pressable here (the old 🔢/⌨️ one was 44px,
-              same row) and pass the stored `onScreenKeypad` value from
-              MinesOfDoom instead of the literal false. */}
         </View>
-        {useKeypad && (
-          <NumericKeypad
-            onDigit={handleDigit}
-            onBackspace={handleBackspace}
-            onClear={handleClear}
-            onSubmit={onSubmit}
-          />
-        )}
       </Animated.View>
     </AvoidingView>
   );

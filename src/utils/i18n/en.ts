@@ -41,6 +41,9 @@ export const en = {
   "main.upgrades": "UPGRADES",
   "main.a11yShowUpgrades": "Show upgrades",
   "main.a11yHideUpgrades": "Hide upgrades",
+  "main.keypad": "KEYPAD",
+  "main.a11yUpgradesTab": "Upgrades tab",
+  "main.a11yKeypadTab": "Keypad tab",
   "main.a11yMenu": "Menu",
   "main.a11yLeaderboard": "Leaderboard — the top diggers",
 
@@ -275,6 +278,12 @@ export const en = {
     "uncluttered as the shop grows. The three core buttons (upgrade " +
     "power, buy a miner, buy a gem) are always visible. On: every upgrade " +
     "button is shown at all times, locked or not.",
+  "settings.onScreenKeypad": "On-screen keypad: ",
+  "settings.onScreenKeypadHelp":
+    "Off (default): the answer is typed with the OS keyboard. On: the " +
+    "answer box never opens the OS keyboard — a 3-column keypad appears " +
+    "as a tab next to the upgrades list below the cave, and answers are " +
+    "typed there. Takes effect immediately, no Save tap needed.",
   "settings.saveCode": "Save code (backup / share)",
   "settings.export": "Export code",
   "settings.import": "Import code",

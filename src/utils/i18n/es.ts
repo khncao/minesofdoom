@@ -26,6 +26,9 @@ export const es: Record<TranslationKey, string> = {
   "main.upgrades": "MEJORAS",
   "main.a11yShowUpgrades": "Mostrar mejoras",
   "main.a11yHideUpgrades": "Ocultar mejoras",
+  "main.keypad": "TECLADO",
+  "main.a11yUpgradesTab": "Pestaña de mejoras",
+  "main.a11yKeypadTab": "Pestaña de teclado",
   "main.a11yMenu": "Menú",
   "main.a11yLeaderboard": "Clasificación — los mejores mineros",
 
@@ -268,6 +271,13 @@ export const es: Record<TranslationKey, string> = {
     "pantalla no se satura a medida que la tienda crece. Los tres botones " +
     "básicos (mejorar poder, comprar un minero, comprar una gema) siempre se " +
     "ven. Activado: se ven todos los botones siempre, bloqueados o no.",
+  "settings.onScreenKeypad": "Teclado en pantalla: ",
+  "settings.onScreenKeypadHelp":
+    "Desactivado (por defecto): la respuesta se escribe con el teclado del " +
+    "sistema. Activado: la casilla de respuesta nunca abre el teclado del " +
+    "sistema — aparece un teclado de 3 columnas como pestaña junto a la " +
+    "lista de mejoras, debajo de la cueva, y las respuestas se escriben " +
+    "allí. Se aplica de inmediato, sin necesidad de guardar.",
   "settings.saveCode": "Código de guardado (copia / compartir)",
   "settings.export": "Exportar código",
   "settings.import": "Importar código",

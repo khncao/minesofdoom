@@ -4,7 +4,6 @@ Legend: [ ] not started, [o] in progress
 Completed items are removed from this file (see git history); only remaining work is tracked here.
 
 - [ ] Fix layouts to display properly on tablet/wide screens
-- [ ] Reimplement custom numeric keypad to standard 3 column and have it appear in a tab view with upgrades if enabled (add setting to override native keypad)
 - [ ] If no more todo items to work on, examine features and update todo with feature gaps for user acquisition, user retention, and monetization
 
 - [o] Rewarded ads (AdMob) — production unit ids + on-device verification

@@ -36,8 +36,13 @@ export const styles = StyleSheet.create({
   purchasesHeader: {
     flexDirection: "row",
     justifyContent: "center",
+    alignItems: "center",
+    gap: 4,
     paddingTop: 2,
   },
+  // Collapse toggle + the upgrades/keypad tab bar (todo: keypad in a tab
+  // view with upgrades). The toggle shows only the arrow; the tabs carry
+  // the labels.
   purchasesToggle: {
     backgroundColor: "#3a3a3a",
     borderRadius: 8,
@@ -49,6 +54,16 @@ export const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "bold",
     userSelect: "none",
+  },
+  purchasesTabs: {
+    flexDirection: "row",
+    gap: 4,
+  },
+  purchasesTabActive: {
+    backgroundColor: "#555",
+  },
+  purchasesTabActiveText: {
+    color: "#fff",
   },
   purchasesScroll: {
     flexGrow: 1,

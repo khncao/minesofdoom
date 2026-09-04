@@ -92,6 +92,8 @@ const SettingsContent = memo(function SettingsContent({
   onExportSaveCode,
   onImportSaveCode,
   cosmetics,
+  onScreenKeypad,
+  onKeypadChange,
   hardModeUnlocked,
   analytics,
   onClearAnalytics,
@@ -109,6 +111,11 @@ const SettingsContent = memo(function SettingsContent({
   /** Plan §4.3: imports a save code; returns false (and toasts) on failure. */
   onImportSaveCode: (code: string) => boolean;
   cosmetics: ComponentProps<typeof CosmeticsSection>;
+  /** On-screen keypad (todo: keypad tab view) — an
+   *  AsyncStorage-backed display preference owned by MinesOfDoom; the
+   *  switch applies immediately (no Save tap), like the mute toggle. */
+  onScreenKeypad: boolean;
+  onKeypadChange: (newVal: boolean) => void;
   /** Tier-5 (Motherlode) complete → the switch is live, otherwise it
    *  renders locked (visible-but-locked, plan §4.6). */
   hardModeUnlocked: boolean;
@@ -398,6 +405,29 @@ const SettingsContent = memo(function SettingsContent({
                 showAllPurchases: newVal,
               });
             }}
+          />
+        </View>
+      </Tooltip>
+      {/* On-screen keypad (todo: keypad tab view): overrides the native
+          keypad when on — the answer box becomes read-only and the
+          3-column keypad appears as a tab beside the upgrades list. */}
+      <Tooltip
+        label={t("settings.onScreenKeypad")}
+        content={t("settings.onScreenKeypadHelp")}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Text style={{ ...styles.text, fontSize: 11 }}>
+            {t("settings.onScreenKeypad")}
+          </Text>
+          <Switch
+            value={onScreenKeypad}
+            onValueChange={onKeypadChange}
           />
         </View>
       </Tooltip>

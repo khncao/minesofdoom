@@ -10,7 +10,8 @@ import { getCaveTheme, getThemeTint } from "./cosmetics";
 import { styles } from "./styles";
 import DepthBanner from "./components/DepthBanner";
 import EquationDisplay from "./components/EquationDisplay";
-import AnswerInput from "./components/AnswerInput";
+import AnswerInput, { MAX_ANSWER_LENGTH } from "./components/AnswerInput";
+import NumericKeypad from "src/components/NumericKeypad";
 import ComboIndicator from "./components/ComboIndicator";
 import PurchaseButtons from "./components/PurchaseButtons";
 import MiningCanvas from "./components/MiningCanvas";
@@ -88,10 +89,30 @@ export default function MinesOfDoom() {
   // currently doesn't mute android touch sounds, but can in the future
   const [mute, setMute] = useLocalStorage<boolean>("mute", false);
 
-  // On-screen keypad (plan §2.1): HIDDEN for now (plan "Adjust",
-  // 2026-09-02) — the stored `onScreenKeypad` value and the NumericKeypad
-  // wiring stay for revival; AnswerInput receives a literal false and no
-  // longer renders its toggle.
+  // On-screen keypad (todo: "Reimplement custom numeric keypad"): the
+  // stored preference decides how answers are typed. Off (default): the OS
+  // keyboard path in AnswerInput. On: no TextInput is mounted at all, so
+  // the native keypad is fully overridden — the 3-column NumericKeypad
+  // renders as a tab next to the upgrades list in the purchase section
+  // (see the tab bar below). Like `mute`/`hidePurchases`, it's a plain
+  // display preference persisted in AsyncStorage and applies immediately.
+  const [onScreenKeypad, setOnScreenKeypad] = useLocalStorage<boolean>(
+    "onScreenKeypad",
+    false,
+  );
+
+  // The upgrades/keypad tab inside the purchase section: "upgrades" is
+  // the default; the keypad tab exists only while the setting is on.
+  const [purchaseTab, setPurchaseTab] = useState<"upgrades" | "keypad">(
+    "upgrades",
+  );
+  // Setting flipped off while the keypad tab was selected: fall back to
+  // upgrades so the tab state can't dangle on a tab that no longer exists.
+  useEffect(() => {
+    if (!onScreenKeypad && purchaseTab === "keypad") {
+      setPurchaseTab("upgrades");
+    }
+  }, [onScreenKeypad, purchaseTab]);
 
   // First-run onboarding (plan §2.1): shown until dismissed; the flag
   // persists in AsyncStorage so a skip/finish never resurfaces. The
@@ -620,6 +641,38 @@ export default function MinesOfDoom() {
 
   const handleMuteChange = useCallback((newVal: boolean) => setMute(newVal), [setMute]);
 
+  // Settings toggle handler for the on-screen keypad (takes effect
+  // immediately, no Save tap): enabling opens the section on the keypad
+  // tab so the first tap after the settings sheet closes lands on a key,
+  // not a collapsed header.
+  const handleKeypadSettingChange = useCallback(
+    (newVal: boolean) => {
+      setOnScreenKeypad(newVal);
+      if (newVal) {
+        setHidePurchases(false);
+        setPurchaseTab("keypad");
+      } else {
+        setPurchaseTab("upgrades");
+      }
+    },
+    [setOnScreenKeypad, setHidePurchases],
+  );
+  // Keypad handlers: setTextInput (useState) and handleSubmit (useCallback)
+  // are stable, so these are stable too and the memoized keypad skips
+  // re-rendering on the per-tick parent renders.
+  const handleKeypadDigit = useCallback(
+    (digit: string) =>
+      setTextInput((old) =>
+        old.length >= MAX_ANSWER_LENGTH ? old : old + digit,
+      ),
+    [setTextInput],
+  );
+  const handleKeypadBackspace = useCallback(
+    () => setTextInput((old) => old.slice(0, -1)),
+    [setTextInput],
+  );
+  const handleKeypadClear = useCallback(() => setTextInput(""), [setTextInput]);
+
   // Crash-context tracing (plan "Adjust"): the unreproducible Android
   // `describe` crash is diagnosed from its next occurrence, and a stack
   // alone doesn't say WHAT the game was doing. This records a bounded
@@ -878,7 +931,7 @@ export default function MinesOfDoom() {
           setTextInput={setTextInput}
           onSubmit={handleSubmit}
           shakeAnim={shakeAnim}
-          useKeypad={false}
+          useKeypad={onScreenKeypad}
         />
         <ComboIndicator
           combo={combo}
@@ -887,7 +940,10 @@ export default function MinesOfDoom() {
         />
         {/* Plan "Adjust" — canvas always visible: the cave sits ABOVE the
             purchase section, which is height-capped, scrollable, and
-            collapsible, so no unlock count can ever push the canvas off. */}
+            collapsible, so no unlock count can ever push the canvas off.
+            The section doubles as the keypad home (todo: keypad in a tab
+            view with upgrades): the keypad tab renders only while the
+            on-screen keypad setting is on. */}
         <MiningCanvas
           depth={depth}
           depthProgress={getDepthTierProgress(gameState.lifetimeMinerals)}
@@ -922,12 +978,77 @@ export default function MinesOfDoom() {
               style={styles.purchasesToggle}
             >
               <Text style={styles.purchasesToggleText}>
-                {hidePurchases ? "▼ " : "▲ "}
-                {t("main.upgrades")}
+                {hidePurchases ? "▼" : "▲"}
               </Text>
             </Pressable>
+            {!hidePurchases && (
+              <View style={styles.purchasesTabs}>
+                <Pressable
+                  testID="upgrades-tab"
+                  accessibilityRole="button"
+                  accessibilityLabel={t("main.a11yUpgradesTab")}
+                  accessibilityState={{
+                    selected: purchaseTab === "upgrades",
+                  }}
+                  onPress={() => setPurchaseTab("upgrades")}
+                  style={[
+                    styles.purchasesToggle,
+                    purchaseTab === "upgrades"
+                      ? styles.purchasesTabActive
+                      : null,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.purchasesToggleText,
+                      purchaseTab === "upgrades"
+                        ? styles.purchasesTabActiveText
+                        : null,
+                    ]}
+                  >
+                    {t("main.upgrades")}
+                  </Text>
+                </Pressable>
+                {onScreenKeypad && (
+                  <Pressable
+                    testID="keypad-tab"
+                    accessibilityRole="button"
+                    accessibilityLabel={t("main.a11yKeypadTab")}
+                    accessibilityState={{
+                      selected: purchaseTab === "keypad",
+                    }}
+                    onPress={() => setPurchaseTab("keypad")}
+                    style={[
+                      styles.purchasesToggle,
+                      purchaseTab === "keypad"
+                        ? styles.purchasesTabActive
+                        : null,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.purchasesToggleText,
+                        purchaseTab === "keypad"
+                          ? styles.purchasesTabActiveText
+                          : null,
+                      ]}
+                    >
+                      {t("main.keypad")}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
           </View>
-          {!hidePurchases && (
+          {!hidePurchases &&
+            (onScreenKeypad && purchaseTab === "keypad" ? (
+              <NumericKeypad
+                onDigit={handleKeypadDigit}
+                onBackspace={handleKeypadBackspace}
+                onClear={handleKeypadClear}
+                onSubmit={handleSubmit}
+              />
+            ) : (
             <ScrollView style={styles.purchasesScroll}>
               <PurchaseButtons
                 visible={visiblePurchases}
@@ -959,7 +1080,7 @@ export default function MinesOfDoom() {
                 onSinkNewShaft={sinkNewShaft}
               />
             </ScrollView>
-          )}
+            ))}
         </View>
         {showMessage && (
           <View style={styles.messageOverlay} pointerEvents="none">
@@ -991,6 +1112,8 @@ export default function MinesOfDoom() {
             cosmetics={cosmetics}
             mute={mute}
             onMuteChange={handleMuteChange}
+            onScreenKeypad={onScreenKeypad}
+            onKeypadChange={handleKeypadSettingChange}
             hardModeUnlocked={gameState.completedTiers.includes(
               HARD_MODE_UNLOCK_TIER,
             )}
