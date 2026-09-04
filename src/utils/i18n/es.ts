@@ -306,6 +306,32 @@ export const es: Record<TranslationKey, string> = {
     "clasificación del servidor. Las compras de este dispositivo se " +
     "conservan, así que la restauración sigue funcionando. No se puede " +
     "deshacer.",
+  // --- Cuenta opcional (docs/todo.md "Optional login") --------------
+  "settings.account": "Cuenta",
+  "settings.accountDefault":
+    "Continuar sin cuenta — tu progreso se guarda solo en este " +
+    "dispositivo. La cuenta es opcional: te permite llevar tu partida, " +
+    "compras y fila de clasificación a un dispositivo nuevo.",
+  "settings.accountEmail": "Correo",
+  "settings.accountPassword": "Contraseña (8–72 caracteres)",
+  "settings.accountSignIn": "Iniciar sesión",
+  "settings.accountRegister": "Crear cuenta",
+  "settings.accountEmailTaken":
+    "Ese correo ya tiene una cuenta — inicia sesión en su lugar.",
+  "settings.accountBadCredentials":
+    "Ese correo y contraseña no coinciden. Revísalo o crea una cuenta " +
+    "nueva.",
+  "settings.accountError":
+    "No se pudo alcanzar el servicio de cuentas — comprueba tu conexión " +
+    "e inténtalo de nuevo.",
+  "settings.accountLinked":
+    "Este dispositivo está vinculado a tu cuenta — la partida, las " +
+    "compras y la clasificación la siguen a un dispositivo nuevo.",
+  "settings.accountSignOut": "Cerrar sesión",
+  "settings.deleteDataAccountDescription":
+    "Elimina tu cuenta y TODOS los datos vinculados en todos los " +
+    "dispositivos — partidas, compras y clasificación — del servidor. " +
+    "Se cerrará la sesión en todas partes. No se puede deshacer.",
   "leaderboard.title": "🏆 Top {limit} — el pozo más profundo",
   "leaderboard.name": "Nombre de pantalla (se muestra en la clasificación)",
   "leaderboard.refresh": "Actualizar",

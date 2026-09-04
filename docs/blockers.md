@@ -128,14 +128,24 @@ folder as the IAP ones, so their server phase starts exactly when the IAP
 sandbox does. Client work (providers, UI, tests against scripted fetch) is
 **not** blocked and can start in the sandbox.
 
-**Progress (optional login):** the SERVER half of that scope is done and
-unit-tested — the seven `auth/*` endpoints in `pb_hooks/` (provider-
-agnostic accounts: the three mechanisms share one account, email where it
-exists the shared identity; sign-in backfills `accountId` onto the device's
-existing rows so nothing is lost or duplicated; GDPR delete gains the
-account target) plus the sidecar's `POST /identity` route (Google RS256 /
-Apple ES256 against the providers' published keys, with the same
-fake-token sandbox / fail-closed modes as the store path). What remains is
-the client half (sign-in UI, secure-storage token, the two native SDKs) —
-in-repo work, unblocked, and it does not block release (anonymous play is
-the shipped default).
+**Progress (optional login):** the SERVER half is done and unit-tested —
+the seven `auth/*` endpoints in `pb_hooks/` (provider-agnostic accounts:
+the three mechanisms share one account, email where it exists the shared
+identity; sign-in backfills `accountId` onto the device's existing rows so
+nothing is lost or duplicated; GDPR delete gains the account target) plus
+the sidecar's `POST /identity` route (Google RS256 / Apple ES256 against
+the providers' published keys, with the same fake-token sandbox /
+fail-closed modes as the store path). The CLIENT half now landed too:
+`auth.ts` (the provider core: dev-sim in dev, no-op on web and until the
+backend is configured, store provider against `pb_hooks` — the same
+"hidden until configured" rule as the cloud entries), `secureToken.ts`
+(react-native-keychain on native, in-memory on web — the token never
+touches AsyncStorage), `useAccount` (session restore on launch, the claim
+running best-effort after every sign-in), the settings account section
+(sign in / create account with the single inline error, sign out, delete
+switching to account scope when signed in), and the session threaded into
+the cloud / leaderboard / IAP round-trips (device-scoped until a session
+exists). What remains is the two native SDKs (Google / Apple buttons —
+the provider core already accepts their idTokens) — in-repo work,
+unblocked, and it does not block release (anonymous play is the shipped
+default).

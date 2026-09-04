@@ -288,16 +288,27 @@ export interface IapProvider {
   /** Whether store purchases can be completed on this platform right now. */
   isAvailable(): boolean;
   /**
-   * Purchase a product. Resolves (never rejects, callers shouldn't need a
-   * catch for the happy path) to "purchased" only if the store confirmed
-   * and validated the purchase; "cancelled" / "error" otherwise.
+   * Purchase a product. The optional `sessionToken` (optional login)
+   * is threaded to the server verify so the minted entitlement row is
+   * tagged with the account (cross-device restore of purchases). Resolves
+   * (never rejects, callers shouldn't need a catch for the happy path)
+   * to "purchased" only if the store confirmed and validated the
+   * purchase; "cancelled" / "error" otherwise.
    */
-  purchase(productId: IapProductId): Promise<PurchaseResult>;
+  purchase(
+    productId: IapProductId,
+    sessionToken?: string | null,
+  ): Promise<PurchaseResult>;
   /**
    * Round-trip the store's record of past purchases for "Restore
-   * purchases". Returns the products the store says the player owns.
+   * purchases". With a `sessionToken` the server answers the union of
+   * this device's and the account's linked rows (a fresh install
+   * recovers the old device's purchases). Returns the products the store
+   * says the player owns.
    */
-  restore(): Promise<Partial<Record<IapProductId, boolean>>>;
+  restore(sessionToken?: string | null): Promise<
+    Partial<Record<IapProductId, boolean>>
+  >;
 }
 
 /**

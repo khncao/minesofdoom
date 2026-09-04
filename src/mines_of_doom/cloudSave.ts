@@ -14,13 +14,21 @@
  *
  * REST contract (mirrored by the server, plan §Backend):
  *   POST {base}/api/app/cloud/push
- *        { deviceId, blob, saveVersion, updatedAt }
+ *        { deviceId, blob, saveVersion, updatedAt, sessionToken? }
  *        → { updatedAt }  // the STORED value after the upsert: the
  *          // server keeps the newer of (stored, pushed), so a stale
  *          // client learns it lost by comparing to its own timestamp.
- *   POST {base}/api/app/cloud/pull { deviceId }
+ *   POST {base}/api/app/cloud/pull { deviceId, sessionToken? }
  *        → { snapshot: <CloudSaveSnapshot> | null }
- *   POST {base}/api/app/delete { deviceId } → { ok: true }
+ *   POST {base}/api/app/delete { deviceId, sessionToken? } → { ok: true }
+ *
+ * `sessionToken` (optional login, pb_hooks/README.md): OPTIONAL on every
+ * round-trip — with a live session the server tags the row with the
+ * account (cross-device restore), a pull is the newest across the
+ * account's linked devices, and delete takes the ACCOUNT target (the
+ * legal erasure: entitlements go too, every device signs out). Without
+ * it the round-trip is byte-identical to the anonymous device default —
+ * login is never a prerequisite for anything (guardrail: F2P parity).
  *
  * Gating: until the Pocketbase URL is configured (and it is ALWAYS a
  * no-op on web — save codes cover web backup, and this module imports no
@@ -64,18 +72,32 @@ export interface CloudSaveProvider {
   /** Whether cloud saves can sync on this platform right now. */
   isAvailable(): boolean;
   /**
-   * Back up a snapshot. Resolves (never rejects) to the outcome; a
-   * failure is an "error" outcome, not a thrown error.
+   * Back up a snapshot. `sessionToken` (optional): the live account
+   * session — with it, the server tags the row with the account (a
+   * sibling device can then restore it) and delete takes the account
+   * target. Null/omitted = the anonymous device default. Resolves
+   * (never rejects) to the outcome; a failure is an "error" outcome, not
+   * a thrown error.
    */
-  push(snapshot: CloudSaveSnapshot): Promise<CloudSavePushResult>;
+  push(
+    snapshot: CloudSaveSnapshot,
+    sessionToken?: string | null,
+  ): Promise<CloudSavePushResult>;
   /**
    * Fetch this device's latest snapshot, or null (no backup, network
    * failure, or a server reply the client can't trust — a bad blob is
    * "no backup", because importing garbage would be worse than none).
+   * With a `sessionToken`, the newest across the account's linked
+   * devices (a fresh install recovers the old one's backup).
    */
-  pull(): Promise<CloudSaveSnapshot | null>;
-  /** GDPR "delete my data" (plan §Backend). Resolves true only on 2xx. */
-  delete(): Promise<boolean>;
+  pull(sessionToken?: string | null): Promise<CloudSaveSnapshot | null>;
+  /**
+   * GDPR "delete my data" (plan §Backend). Device scope without a
+   * `sessionToken` (purchases survive); ACCOUNT scope with one (the
+   * legal erasure — entitlements go too, every device signs out). The
+   * settings copy says which one is happening. Resolves true only on 2xx.
+   */
+  delete(sessionToken?: string | null): Promise<boolean>;
 }
 
 /** Round-trips to a small VPS should not take long (same as IAP). */
@@ -133,6 +155,7 @@ export const noopCloudSaveProvider: CloudSaveProvider = {
   push: async () => ({ status: "error" }),
   pull: async () => null,
   delete: async () => false,
+  // (sessionToken parameters: the no-op ignores them by construction.)
 };
 
 /**
@@ -166,7 +189,7 @@ export const storeCloudSaveProvider: CloudSaveProvider = {
   id: "pocketbase",
   isAvailable: () => isPocketbaseConfigured(),
 
-  async push(snapshot) {
+  async push(snapshot, sessionToken) {
     if (!isPocketbaseConfigured()) return { status: "error" };
     const deviceId = await getIapDeviceId();
     const res = await postJson(`${storeConfig.pocketbaseUrl}/api/app/cloud/push`, {
@@ -174,6 +197,7 @@ export const storeCloudSaveProvider: CloudSaveProvider = {
       blob: snapshot.blob,
       saveVersion: snapshot.saveVersion,
       updatedAt: snapshot.updatedAt,
+      ...sessionFields(sessionToken),
     });
     const stored = res?.updatedAt;
     if (typeof stored !== "number" || !Number.isFinite(stored)) {
@@ -187,26 +211,38 @@ export const storeCloudSaveProvider: CloudSaveProvider = {
       : { status: "stale", storedUpdatedAt: stored };
   },
 
-  async pull() {
+  async pull(sessionToken) {
     if (!isPocketbaseConfigured()) return null;
     const deviceId = await getIapDeviceId();
     const res = await postJson(
       `${storeConfig.pocketbaseUrl}/api/app/cloud/pull`,
-      { deviceId },
+      { deviceId, ...sessionFields(sessionToken) },
     );
     if (res === null) return null;
     return parseSnapshot(res.snapshot);
   },
 
-  async delete() {
+  async delete(sessionToken) {
     if (!isPocketbaseConfigured()) return false;
     const deviceId = await getIapDeviceId();
     const res = await postJson(`${storeConfig.pocketbaseUrl}/api/app/delete`, {
       deviceId,
+      ...sessionFields(sessionToken),
     });
     return res?.ok === true;
   },
 };
+
+/** The optional-login body field: only present while signed in (the
+ *  server's sessionOfToken treats a missing/invalid token as "no
+ *  session" — the anonymous device default, byte-identical requests). */
+function sessionFields(
+  sessionToken?: string | null,
+): { sessionToken?: string } {
+  return sessionToken === null || sessionToken === undefined || sessionToken === ""
+    ? {}
+    : { sessionToken };
+}
 
 /** The inputs to provider selection — a pure decision so the swap point
  *  stays unit-testable (same pattern as pickIapProvider in iaps.ts). */

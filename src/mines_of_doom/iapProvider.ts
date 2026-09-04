@@ -104,13 +104,19 @@ async function enqueueVerify(
   await savePendingVerifies(list);
 }
 
-/** Re-attempt every queued verify, dropping the ones that succeed. */
-async function replayPendingVerifies(deviceId: string): Promise<void> {
+/** Re-attempt every queued verify, dropping the ones that succeed.
+ *  `sessionToken` (optional login): re-verified rows get the account tag
+ *  too (a purchase queued while anonymous, re-verified while signed in,
+ *  joins the account). */
+async function replayPendingVerifies(
+  deviceId: string,
+  sessionToken?: string | null,
+): Promise<void> {
   const list = await loadPendingVerifies();
   if (list.length === 0) return;
   const remaining: PendingVerify[] = [];
   for (const p of list) {
-    const ok = await postVerify(deviceId, p.productId, p.token);
+    const ok = await postVerify(deviceId, p.productId, p.token, sessionToken);
     if (!ok) remaining.push(p);
   }
   if (remaining.length !== list.length) {
@@ -128,16 +134,34 @@ async function postVerify(
   deviceId: string,
   productId: IapProductId,
   token: string,
+  sessionToken?: string | null,
 ): Promise<boolean> {
   try {
     const res = await postJson(
       `${storeConfig.pocketbaseUrl}/api/app/verify`,
-      { deviceId, platform: Platform.OS, productId, token },
+      {
+        deviceId,
+        platform: Platform.OS,
+        productId,
+        token,
+        ...sessionFields(sessionToken),
+      },
     );
     return res !== null;
   } catch {
     return false;
   }
+}
+
+/** The optional-login body field: only present while signed in (a
+ *  missing token is the anonymous device default — byte-identical
+ *  requests, same rule as cloudSave/leaderboard). */
+function sessionFields(
+  sessionToken?: string | null,
+): { sessionToken?: string } {
+  return sessionToken === null || sessionToken === undefined || sessionToken === ""
+    ? {}
+    : { sessionToken };
 }
 
 /** POST JSON with a timeout; null on any failure (never throws). */
@@ -170,10 +194,11 @@ async function postJson(
  *  partial local entitlements (additive — a restore can never revoke). */
 async function restoreFromServer(
   deviceId: string,
+  sessionToken?: string | null,
 ): Promise<Partial<Record<IapProductId, boolean>>> {
   const res = await postJson(
     `${storeConfig.pocketbaseUrl}/api/app/restore`,
-    { deviceId },
+    { deviceId, ...sessionFields(sessionToken) },
   );
   const raw = res?.entitlements;
   if (!Array.isArray(raw)) return {};
@@ -270,14 +295,14 @@ export const storeIapProvider: IapProvider = {
   id: "store",
   isAvailable: () => isPocketbaseConfigured(),
 
-  async purchase(productId) {
+  async purchase(productId, sessionToken) {
     if (!isPocketbaseConfigured()) return "error";
     await ensureConnected();
     const deviceId = await getIapDeviceId();
     // A previous launch may have queued this purchase with a dead network;
     // a fresh launch heals the queue before the player even opens the
     // panel (plan: re-verify on next launch).
-    await replayPendingVerifies(deviceId);
+    await replayPendingVerifies(deviceId, sessionToken);
     const outcome = await awaitStoreOutcome(IAP_STORE_IDS[productId]);
     if (outcome.result !== "purchased") return outcome.result;
     if (!outcome.purchase) return "purchased"; // AlreadyOwned path
@@ -292,6 +317,7 @@ export const storeIapProvider: IapProvider = {
       deviceId,
       productId,
       outcome.purchase.purchaseToken ?? "",
+      sessionToken,
     );
     if (verified) return "purchased";
     // The purchase itself succeeded — queue it for re-verify and grant
@@ -301,11 +327,11 @@ export const storeIapProvider: IapProvider = {
     return "purchased";
   },
 
-  async restore() {
+  async restore(sessionToken) {
     if (!isPocketbaseConfigured()) return {};
     await ensureConnected();
     const deviceId = await getIapDeviceId();
-    await replayPendingVerifies(deviceId);
-    return restoreFromServer(deviceId);
+    await replayPendingVerifies(deviceId, sessionToken);
+    return restoreFromServer(deviceId, sessionToken);
   },
 };

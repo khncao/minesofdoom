@@ -7,7 +7,9 @@ import { EquationSettings } from "src/utils/math/equations";
 import { AnalyticsState } from "../analytics";
 import type { CloudSaveSettingsProps } from "../hooks/useCloudSave";
 import type { ComponentProps } from "react";
-import SettingsContent from "./SettingsPanel";
+import SettingsContent, {
+  type AccountSettingsProps,
+} from "./SettingsPanel";
 import GoalsContent from "./GoalsPanel";
 import RecordsContent from "./RecordsPanel";
 import CosmeticsSection from "./CosmeticsSection";
@@ -42,6 +44,7 @@ function MenuPanel({
   analytics,
   onClearAnalytics,
   cloudSave,
+  account,
 }: {
   settingsData: SettingsData;
   onChangeSettingsData: (newSettings: SettingsData) => void;
@@ -72,6 +75,9 @@ function MenuPanel({
   /** Cloud-backup settings bundle (see useCloudSave); the section hides
    *  itself while the provider is unavailable. */
   cloudSave: CloudSaveSettingsProps;
+  /** Optional-account settings bundle (see AccountSettingsProps); the
+   *  section hides itself while the provider is unavailable. */
+  account: AccountSettingsProps;
 }) {
   const t = useT();
   const [view, setView] = useState<MenuView>("settings");
@@ -97,6 +103,7 @@ function MenuPanel({
         analytics={analytics}
         onClearAnalytics={onClearAnalytics}
         cloudSave={cloudSave}
+        account={account}
       />
     ),
     [
@@ -116,6 +123,7 @@ function MenuPanel({
       analytics,
       onClearAnalytics,
       cloudSave,
+      account,
     ],
   );
   const goalsChildren = useMemo(() => <GoalsContent stats={stats} />, [stats]);

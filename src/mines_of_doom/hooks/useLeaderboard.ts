@@ -61,6 +61,12 @@ export interface LeaderboardOptions {
   /** The current save's lifetime stats (stable callback reading a ref);
    *  null = not ready (e.g. before the first save load). */
   getStats: () => LeaderboardStatsInput | null;
+  /** Optional login: the live account session token (null when
+   *  anonymous), STABLE callback read at call time. With it, submitted
+   *  rows carry the account tag and the rank is the best across the
+   *  account's linked devices; without, the anonymous device default
+   *  (byte-identical round-trips). */
+  getSessionToken?: () => string | null;
 }
 
 export interface LeaderboardHandle {
@@ -100,6 +106,10 @@ export function useLeaderboard(opts: LeaderboardOptions): LeaderboardHandle {
   providerRef.current = opts.provider;
   const getStatsRef = useRef(opts.getStats);
   getStatsRef.current = opts.getStats;
+  const getSessionTokenRef = useRef(opts.getSessionToken);
+  getSessionTokenRef.current = opts.getSessionToken;
+  /** The token threaded into the provider calls (null = anonymous). */
+  const token = (): string | null => getSessionTokenRef.current?.() ?? null;
   const displayNameRef = useRef(displayName);
   displayNameRef.current = displayName;
 
@@ -124,7 +134,8 @@ export function useLeaderboard(opts: LeaderboardOptions): LeaderboardHandle {
         // Sanitize here so the board never shows control chars / blanks
         // (the server sanitizes too — the client pre-truncates, plan).
         displayName: sanitizeDisplayName(displayNameRef.current),
-      })
+      },
+      token())
       .catch(() => {
         // The provider contract is "never rejects"; a status line is
         // cheaper than an unhandled rejection.
@@ -154,7 +165,7 @@ export function useLeaderboard(opts: LeaderboardOptions): LeaderboardHandle {
     setStatus((prev) => (prev === "loaded" ? "loaded" : "loading"));
     void Promise.all([
       prov.top(LEADERBOARD_TOP_LIMIT),
-      prov.rank(),
+      prov.rank(token()),
     ])
       .then(([top, rank]) => {
         if (top == null) {

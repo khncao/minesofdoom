@@ -16,13 +16,20 @@
  * REST contract (mirrored by the server, plan §Backend):
  *   POST {base}/api/app/leaderboard/submit
  *        { deviceId, displayName, bestDepth, maxCombo,
- *          lifetimeMinerals, achievementIds }
+ *          lifetimeMinerals, achievementIds, sessionToken? }
  *        → { ok: true }   // monotonic-only upsert: the server keeps the
  *          // per-field max, so a resubmit never pushes a row backwards.
  *   POST {base}/api/app/leaderboard/top { limit }
  *        → { rows: <LeaderboardRow[]> }  // by bestDepth desc
- *   POST {base}/api/app/leaderboard/rank { deviceId }
+ *   POST {base}/api/app/leaderboard/rank { deviceId, sessionToken? }
  *        → { entry: { rank, bestDepth } | null }
+ *
+ * `sessionToken` (optional login, pb_hooks/README.md): OPTIONAL — with a
+ * live session the submitted row is tagged with the account and the rank
+ * is the best across the account's linked devices (a fresh install keeps
+ * the old device's board standing). Without it the round-trip is
+ * byte-identical to the anonymous device default (guardrail: login is
+ * never a prerequisite for anything).
  *
  * Gating: until the Pocketbase URL is configured (and it is ALWAYS a
  * no-op on web), the no-op provider keeps every leaderboard entry point
@@ -91,13 +98,15 @@ export interface LeaderboardProvider {
   readonly id: "noop" | "dev-sim" | "pocketbase";
   /** Whether the board is live on this platform right now. */
   isAvailable(): boolean;
-  /** Monotonic upsert of this device's row. Resolves (never rejects). */
-  submit(stats: LeaderboardStats): Promise<boolean>;
+  /** Monotonic upsert of this device's row (optional `sessionToken`
+   *  tags the row with the signed-in account — see module docs). */
+  submit(stats: LeaderboardStats, sessionToken?: string | null): Promise<boolean>;
   /** Top N by bestDepth desc; null = network/parse failure (the UI shows
    *  an "unavailable right now" line, never a spinner trap). */
   top(limit: number): Promise<LeaderboardRow[] | null>;
-  /** This device's rank, or null (no row yet, or failure). */
-  rank(): Promise<LeaderboardRank | null>;
+  /** This device's rank, or null (no row yet, or failure). With a
+   *  `sessionToken`: the best rank across the account's linked devices. */
+  rank(sessionToken?: string | null): Promise<LeaderboardRank | null>;
 }
 
 /** Round-trips to a small VPS should not take long (same as IAP/cloud). */
@@ -245,7 +254,7 @@ export const storeLeaderboardProvider: LeaderboardProvider = {
   id: "pocketbase",
   isAvailable: () => isPocketbaseConfigured(),
 
-  async submit(stats) {
+  async submit(stats, sessionToken) {
     if (!isPocketbaseConfigured()) return false;
     const deviceId = await getIapDeviceId();
     const res = await postJson(
@@ -257,6 +266,7 @@ export const storeLeaderboardProvider: LeaderboardProvider = {
         maxCombo: stats.maxCombo,
         lifetimeMinerals: stats.lifetimeMinerals,
         achievementIds: stats.achievementIds,
+        ...sessionFields(sessionToken),
       },
     );
     return res?.ok === true;
@@ -276,17 +286,27 @@ export const storeLeaderboardProvider: LeaderboardProvider = {
     return parsed.slice(0, limit);
   },
 
-  async rank() {
+  async rank(sessionToken) {
     if (!isPocketbaseConfigured()) return null;
     const deviceId = await getIapDeviceId();
     const res = await postJson(
       `${storeConfig.pocketbaseUrl}/api/app/leaderboard/rank`,
-      { deviceId },
+      { deviceId, ...sessionFields(sessionToken) },
     );
     if (res == null) return null;
     return parseRankEntry(res.entry);
   },
 };
+
+/** The optional-login body field: only present while signed in (a
+ *  missing token is the anonymous device default, byte-identical). */
+function sessionFields(
+  sessionToken?: string | null,
+): { sessionToken?: string } {
+  return sessionToken === null || sessionToken === undefined || sessionToken === ""
+    ? {}
+    : { sessionToken };
+}
 
 /** The inputs to provider selection — a pure decision so the swap point
  *  stays unit-testable (same pattern as the cloud-save and IAP

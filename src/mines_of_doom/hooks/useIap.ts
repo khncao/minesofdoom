@@ -29,11 +29,17 @@ export function useIap({
   provider,
   onPurchased,
   displayMessage,
+  getSessionToken,
 }: {
   provider: IapProvider;
   /** Fired once per validated purchase (analytics first-IAP / counts). */
   onPurchased?: (id: IapProductId) => void;
   displayMessage: (message: string, timeout: number) => void;
+  /** Optional login: the live account session token (null when
+   *  anonymous), STABLE callback read at call time. Threaded to the
+   *  server verify/restore so minted entitlement rows carry the account
+   *  tag (a fresh install restores the old device's purchases). */
+  getSessionToken?: () => string | null;
 }) {
   const { t } = useI18n();
   const [entitlements, setEntitlements] = useLocalStorage<IapEntitlements>(
@@ -45,6 +51,10 @@ export function useIap({
   // before that render would otherwise double-fire the store sheet.
   const entitlementsRef = useRef(entitlements);
   entitlementsRef.current = entitlements;
+  const getSessionTokenRef = useRef(getSessionToken);
+  getSessionTokenRef.current = getSessionToken;
+  /** The token threaded into the provider calls (null = anonymous). */
+  const token = (): string | null => getSessionTokenRef.current?.() ?? null;
   // One purchase at a time, ever — the in-flight guard lives in a ref
   // (setState only lands on the next render).
   const inFlightRef = useRef(false);
@@ -61,7 +71,7 @@ export function useIap({
       inFlightRef.current = true;
       setPurchasing(id);
       provider
-        .purchase(id)
+        .purchase(id, token())
         .then((result) => {
           if (result === "purchased") {
             setEntitlements(
@@ -96,7 +106,7 @@ export function useIap({
     restoringRef.current = true;
     setRestoring(true);
     provider
-      .restore()
+      .restore(token())
       .then((restored) => {
         const merged = mergeIapEntitlements(
           entitlementsRef.current,

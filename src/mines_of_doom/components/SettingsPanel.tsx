@@ -14,6 +14,12 @@ import {
   formatAgo,
   type CloudSaveSettingsProps,
 } from "../hooks/useCloudSave";
+import type { AuthAccountInfo, AuthSigninOutcome } from "../auth";
+import type { AccountStatus } from "../hooks/useAccount";
+import {
+  isValidEmailInput,
+  isValidPasswordInput,
+} from "../auth";
 import {
   EquationSettings,
   OPERATOR_KEYS,
@@ -98,6 +104,7 @@ const SettingsContent = memo(function SettingsContent({
   analytics,
   onClearAnalytics,
   cloudSave,
+  account,
 }: {
   settingsData: SettingsData;
   onChangeSettingsData: (newSettings: SettingsData) => void;
@@ -128,6 +135,10 @@ const SettingsContent = memo(function SettingsContent({
    *  only while its `available` flag is set (the "hidden until
    *  configured" rule lives in the hook's provider). */
   cloudSave: CloudSaveSettingsProps;
+  /** Optional-account section (docs/todo.md "Optional login"); the
+   *  section renders only while its `available` flag is set (the same
+   *  "hidden until configured" rule). */
+  account: AccountSettingsProps;
 }) {
   const [exportedCode, setExportedCode] = useState<string | null>(null);
   const [importCode, setImportCode] = useState("");
@@ -487,6 +498,7 @@ const SettingsContent = memo(function SettingsContent({
           onPress={onReset}
         />
       </View>
+      <AccountSection account={account} />
       <CloudSaveSection cloudSave={cloudSave} />
       <AnalyticsSection analytics={analytics} onClear={onClearAnalytics} />
       <CrashLogSection />
@@ -564,6 +576,176 @@ function TipsSection() {
 }
 
 /**
+ * The bundle MinesOfDoom hands to the account section (memo-friendly:
+ * the callbacks come from useAccount and are stable; status/account move
+ * at sign-in and sign-out only).
+ */
+export interface AccountSettingsProps {
+  /** Provider live on this platform (the section renders only when true
+   *  — the "hidden until configured" rule). */
+  available: boolean;
+  /** Dev build (the labeled in-memory simulation — it never survives a
+   *  restart and the section says so). */
+  isDevSim: boolean;
+  status: AccountStatus;
+  /** The account view (null unless signed in) — renders the email line. */
+  account: AuthAccountInfo | null;
+  /** Register a new account; the section renders the inline outcome.
+   *  Stable (useCallback) — safe in memo deps. */
+  onRegister: (
+    email: string,
+    password: string,
+  ) => Promise<AuthSigninOutcome>;
+  /** Log into an existing account (the single error path — the server
+   *  never confirms which half is wrong, the copy must not either). */
+  onLogin: (
+    email: string,
+    password: string,
+  ) => Promise<AuthSigninOutcome>;
+  /** Sign out (server session killed best-effort + stored token
+   *  cleared). */
+  onSignOut: () => Promise<void>;
+}
+
+/**
+ * The optional account section (docs/todo.md "Optional login", the
+ * "UI" bullet): sign in / sign out from settings, rendered only while
+ * the provider is available (the "hidden until configured" rule — the
+ * same one as the cloud/IAP/ad entry points, and the dev build's
+ * labeled simulation is the first thing it exercises on a dev device).
+ *
+ * The signed-out view leads with the DEFAULT ("continue without an
+ * account" — the anonymous device play is untouched, guardrail: F2P
+ * parity), then the email/password form. Google/Apple buttons are not
+ * rendered yet: they land with the native sign-in SDKs (external, see
+ * pb_hooks/README.md) — the provider core already speaks both.
+ */
+function AccountSection({ account }: { account: AccountSettingsProps }) {
+  const { t } = useI18n();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  if (!account.available) return null;
+
+  const emailOk = isValidEmailInput(email);
+  const passwordOk = isValidPasswordInput(password);
+
+  const submit = async (mode: "login" | "register") => {
+    if (busy || !emailOk || !passwordOk) return;
+    setBusy(true);
+    setFormError(null);
+    try {
+      const outcome =
+        mode === "register"
+          ? await account.onRegister(email, password)
+          : await account.onLogin(email, password);
+      if (outcome.status === "emailTaken") {
+        setFormError(t("settings.accountEmailTaken"));
+      } else if (
+        outcome.status === "badCredentials" ||
+        outcome.status === "unverified"
+      ) {
+        setFormError(t("settings.accountBadCredentials"));
+      } else if (outcome.status === "error") {
+        setFormError(t("settings.accountError"));
+      }
+      // "signedIn": the status prop flips to "in" and this view swaps
+      // to the signed-in branch on the next render.
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (account.status === "in" && account.account !== null) {
+    return (
+      <View style={{ gap: 6, marginTop: 10 }} testID="account-section">
+        <Text style={{ ...styles.text, fontWeight: "bold" }}>
+          {t("settings.account")}
+          {account.isDevSim ? t("settings.cloudSim") : ""}
+        </Text>
+        {account.account.email.length > 0 && (
+          <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+            {account.account.email}
+          </Text>
+        )}
+        <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+          {t("settings.accountLinked")}
+        </Text>
+        <Button
+          title={t("settings.accountSignOut")}
+          onPress={() => {
+            void account.onSignOut();
+          }}
+          testId="account-signout"
+        />
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ gap: 6, marginTop: 10 }} testID="account-section">
+      <Text style={{ ...styles.text, fontWeight: "bold" }}>
+        {t("settings.account")}
+        {account.isDevSim ? t("settings.cloudSim") : ""}
+      </Text>
+      <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+        {t("settings.accountDefault")}
+      </Text>
+      <TextInput
+        testID="account-email"
+        style={{ ...styles.text, ...styles.textInputBox }}
+        placeholder={t("settings.accountEmail")}
+        placeholderTextColor="#888"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="email-address"
+        textContentType="emailAddress"
+        maxLength={254}
+      />
+      <TextInput
+        testID="account-password"
+        style={{ ...styles.text, ...styles.textInputBox }}
+        placeholder={t("settings.accountPassword")}
+        placeholderTextColor="#888"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        textContentType="password"
+        maxLength={72}
+      />
+      {formError !== null && (
+        <Text style={{ ...styles.text, fontSize: 11, color: "#e07070" }}>
+          {formError}
+        </Text>
+      )}
+      <View
+        style={{ flexDirection: "row", gap: 6 }}
+        testID="account-signin-buttons"
+      >
+        <Button
+          title={t("settings.accountSignIn")}
+          disabled={!emailOk || !passwordOk || busy}
+          onPress={() => void submit("login")}
+          style={{ flex: 1 }}
+          testId="account-login"
+        />
+        <Button
+          title={t("settings.accountRegister")}
+          disabled={!emailOk || !passwordOk || busy}
+          onPress={() => void submit("register")}
+          style={{ flex: 1 }}
+          testId="account-register"
+        />
+      </View>
+    </View>
+  );
+}
+
+/**
  * Cloud backup section (docs/store-integration.md §3):
  * the toggle, the "last sync" status line, and the manual restore.
  * Rendered only while the provider is available (dev-sim in dev builds,
@@ -607,10 +789,16 @@ function CloudSaveSection({ cloudSave }: { cloudSave: CloudSaveSettingsProps }) 
       {/* GDPR "delete my data" (plan §Backend): a real, reachable button
           with plain wording about what it does and doesn't remove (the
           section renders only while the provider is available, so the
-          button is never a no-op — transparency guardrail). */}
+          button is never a no-op — transparency guardrail). With a live
+          account session the DELETE is ACCOUNT scope (the legal
+          erasure), so the copy says exactly that. */}
       <ConfirmableButton
         title={t("settings.deleteData")}
-        description={t("settings.deleteDataDescription")}
+        description={
+          cloudSave.signedIn
+            ? t("settings.deleteDataAccountDescription")
+            : t("settings.deleteDataDescription")
+        }
         onPress={cloudSave.onDeleteData}
       />
     </View>

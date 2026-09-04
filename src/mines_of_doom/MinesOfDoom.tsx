@@ -16,6 +16,7 @@ import ComboIndicator from "./components/ComboIndicator";
 import PurchaseButtons from "./components/PurchaseButtons";
 import MiningCanvas from "./components/MiningCanvas";
 import MenuPanel from "./components/MenuPanel";
+import type { AccountSettingsProps } from "./components/SettingsPanel";
 import SavePill from "./components/SavePill";
 import OnboardingOverlay from "./components/OnboardingOverlay";
 import DailyBonusButton from "./components/DailyBonusButton";
@@ -69,6 +70,9 @@ import { useAnalytics } from "./hooks/useAnalytics";
 import { useAdRewards } from "./hooks/useAdRewards";
 import { useCloudSave, type CloudSaveSettingsProps } from "./hooks/useCloudSave";
 import { selectCloudSaveProvider } from "./cloudSave";
+import { selectAuthProvider } from "./auth";
+import { selectTokenStore } from "./secureToken";
+import { useAccount } from "./hooks/useAccount";
 import { useLeaderboard } from "./hooks/useLeaderboard";
 import { selectLeaderboardProvider } from "./leaderboard";
 import LeaderboardPanel from "./components/LeaderboardPanel";
@@ -299,6 +303,16 @@ export default function MinesOfDoom() {
   // Pocketbase URL lands; entry points — the settings section — are
   // hidden on the no-op, same rule as the ad/IAP entry points).
   const cloudProvider = useMemo(() => selectCloudSaveProvider(__DEV__), []);
+  // Optional login (docs/todo.md "Optional login"): the auth provider
+  // (dev-sim in dev, Pocketbase once configured, no-op elsewhere — same
+  // "hidden until configured" rule as the cloud entry point) + the OS
+  // secure token store (web: in-memory). The hook owns the session; the
+  // stable getSessionToken below is what threads the session into the
+  // cloud/leaderboard/IAP round-trips (null = the anonymous default).
+  const authProvider = useMemo(() => selectAuthProvider(__DEV__), []);
+  const tokenStore = useMemo(() => selectTokenStore(), []);
+  const account = useAccount({ provider: authProvider, tokenStore });
+  const { getSessionToken: accountSessionToken } = account;
   // Snapshot source: the latest state read from a ref so getCloudSnapshot
   // stays stable while always serializing the current save (the engine's
   // own saveGame does the same ref dance). updatedAt is the push time —
@@ -324,6 +338,7 @@ export default function MinesOfDoom() {
     saveLoadFailed,
     displayMessage,
     t,
+    getSessionToken: accountSessionToken,
   });
   // Destructure the stable members: effect/callback deps reference the
   // bindings directly (exhaustive-deps happy without re-running on the
@@ -366,6 +381,7 @@ export default function MinesOfDoom() {
   const leaderboard = useLeaderboard({
     provider: leaderboardProvider,
     getStats: getLeaderboardStats,
+    getSessionToken: accountSessionToken,
   });
   const { requestSubmit: leaderboardRequestSubmit } = leaderboard;
 
@@ -395,6 +411,7 @@ export default function MinesOfDoom() {
     () => ({
       available: cloudProvider.isAvailable(),
       isDevSim: cloudProvider.id === "dev-sim",
+      signedIn: account.status === "in",
       enabled: cloudSave.enabled,
       setEnabled: cloudSave.setEnabled,
       lastSync: cloudSave.lastSync,
@@ -403,11 +420,34 @@ export default function MinesOfDoom() {
     }),
     [
       cloudProvider,
+      account.status,
       cloudSave.enabled,
       cloudSave.lastSync,
       cloudSave.setEnabled,
       handleCloudRestore,
       handleDeleteData,
+    ],
+  );
+  // Settings bundle for the optional-account section (see
+  // AccountSettingsProps): the callbacks are stable useAccount callbacks,
+  // status/account move at sign-in/out only — the memo stays quiet.
+  const accountSettings = useMemo<AccountSettingsProps>(
+    () => ({
+      available: authProvider.isAvailable(),
+      isDevSim: authProvider.id === "dev-sim",
+      status: account.status,
+      account: account.account,
+      onRegister: account.register,
+      onLogin: account.login,
+      onSignOut: account.signOut,
+    }),
+    [
+      authProvider,
+      account.status,
+      account.account,
+      account.register,
+      account.login,
+      account.signOut,
     ],
   );
 
@@ -822,6 +862,7 @@ export default function MinesOfDoom() {
     provider: iapProvider,
     onPurchased: onFirstIap,
     displayMessage,
+    getSessionToken: accountSessionToken,
   });
 
   // Cosmetic IAP packs (plan §5.2): a validated purchase (or a restore /
@@ -1118,6 +1159,7 @@ export default function MinesOfDoom() {
             analytics={analytics}
             onClearAnalytics={onClearAnalytics}
             cloudSave={cloudSaveSettings}
+            account={accountSettings}
           />
           <DailyBonusButton
             claimable={dailyBonus.claimable}

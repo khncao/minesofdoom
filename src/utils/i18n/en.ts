@@ -309,6 +309,32 @@ export const en = {
     "Removes your cloud backup and leaderboard row from the server. " +
     "Purchases on this device are kept, so a restore still works. " +
     "This can't be undone.",
+  // --- Optional account (docs/todo.md "Optional login") ------------
+  "settings.account": "Account",
+  "settings.accountDefault":
+    "Continue without an account — your progress is saved on this " +
+    "device only. An account is optional: it lets you move your save, " +
+    "purchases and leaderboard row to a new device.",
+  "settings.accountEmail": "Email",
+  "settings.accountPassword": "Password (8–72 characters)",
+  "settings.accountSignIn": "Sign in",
+  "settings.accountRegister": "Create account",
+  "settings.accountEmailTaken":
+    "That email already has an account — sign in instead.",
+  "settings.accountBadCredentials":
+    "That email and password don't match. Check both, or create a new " +
+    "account.",
+  "settings.accountError":
+    "Couldn't reach the account service — check your connection and " +
+    "try again.",
+  "settings.accountLinked":
+    "This device is linked to your account — save, purchases and " +
+    "leaderboard follow it to a new device.",
+  "settings.accountSignOut": "Sign out",
+  "settings.deleteDataAccountDescription":
+    "Removes your account and ALL data linked to it on every device — " +
+    "saves, purchases and leaderboard — from the server. You'll be " +
+    "signed out everywhere. This can't be undone.",
   "leaderboard.title": "🏆 Top {limit} — deepest shaft",
   "leaderboard.name": "Display name (shown on the leaderboard)",
   "leaderboard.refresh": "Refresh",

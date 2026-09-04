@@ -70,6 +70,11 @@ export interface CloudSaveOptions {
   provider: CloudSaveProvider;
   /** The current save as a snapshot (stable callback reading a ref). */
   getSnapshot: () => CloudSaveSnapshot | null;
+  /** Optional login: the live account session token (null when
+   *  anonymous). STABLE callback reading a ref — read at call time,
+   *  never at render time (a session can start or end mid-round-trip).
+   *  Omitted = the anonymous device default, byte-identical requests. */
+  getSessionToken?: () => string | null;
   /** The engine's blob importer (validate/migrate/offline-pay); false =
    *  the blob was unusable. */
   restore: (blob: string) => boolean;
@@ -108,6 +113,11 @@ export interface CloudSaveSettingsProps {
   available: boolean;
   /** Dev build (the labeled in-memory simulation). */
   isDevSim: boolean;
+  /** Optional login: a live account session. Switches the "delete my
+   *  data" copy to the account scope (the legal erasure — every
+   *  device's data + the account) vs the device scope (purchases
+   *  survive). */
+  signedIn: boolean;
   enabled: boolean;
   setEnabled: (enabled: boolean) => void;
   lastSync: CloudSaveSyncStatus;
@@ -144,6 +154,10 @@ export function useCloudSave(opts: CloudSaveOptions): CloudSaveHandle {
   enabledRef.current = enabled;
   const providerRef = useRef(provider);
   providerRef.current = provider;
+  const getSessionTokenRef = useRef(opts.getSessionToken);
+  getSessionTokenRef.current = opts.getSessionToken;
+  /** The token threaded into the provider calls (null = anonymous). */
+  const token = (): string | null => getSessionTokenRef.current?.() ?? null;
   const getSnapshotRef = useRef(opts.getSnapshot);
   getSnapshotRef.current = opts.getSnapshot;
   const restoreRef = useRef(opts.restore);
@@ -175,7 +189,7 @@ export function useCloudSave(opts: CloudSaveOptions): CloudSaveHandle {
       pushingRef.current = true;
       lastPushAtRef.current = now;
       void prov
-        .push(snapshot)
+        .push(snapshot, token())
         .then((res) => {
           if (res.status === "error") {
             setLastSync({ state: "failed", at: Date.now() });
@@ -188,7 +202,7 @@ export function useCloudSave(opts: CloudSaveOptions): CloudSaveHandle {
             // local view from the stored one (same import pipeline; it is
             // the newer backup, so offline earnings from it, if any, are
             // legitimately owed).
-            void providerRef.current.pull().then((stored) => {
+            void providerRef.current.pull(token()).then((stored) => {
               if (stored != null) restoreRef.current(stored.blob);
             });
           }
@@ -219,7 +233,7 @@ export function useCloudSave(opts: CloudSaveOptions): CloudSaveHandle {
     const prov = providerRef.current;
     if (!prov.isAvailable()) return;
     recoveryStartedRef.current = true;
-    void prov.pull().then((snapshot) => {
+    void prov.pull(token()).then((snapshot) => {
       if (snapshot != null && restoreRef.current(snapshot.blob)) {
         displayMessageRef.current(tRef.current("toast.cloudRestored"), 6000);
       }
@@ -230,7 +244,7 @@ export function useCloudSave(opts: CloudSaveOptions): CloudSaveHandle {
   const restoreFromCloud = useCallback(async () => {
     const prov = providerRef.current;
     const t = tRef.current;
-    const snapshot = await prov.pull();
+    const snapshot = await prov.pull(token());
     if (snapshot == null) {
       displayMessageRef.current(t("toast.cloudNoBackup"), 4000);
       return;
@@ -248,7 +262,11 @@ export function useCloudSave(opts: CloudSaveOptions): CloudSaveHandle {
   // plain wording is the component's job (a ConfirmableButton in the
   // settings section); this is just the round-trip + the outcome toast.
   const deleteMyData = useCallback(async () => {
-    const ok = await providerRef.current.delete().catch(() => false);
+    // Optional login: with a live session the DELETE is ACCOUNT scope —
+    // the legal erasure (every device's data + the account itself);
+    // without one it's device scope (purchases survive). The settings
+    // copy (SettingsPanel) says which one is happening.
+    const ok = await providerRef.current.delete(token()).catch(() => false);
     displayMessageRef.current(
       ok ? tRef.current("toast.dataDeleted") : tRef.current("toast.dataDeleteFailed"),
       4000,

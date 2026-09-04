@@ -159,7 +159,8 @@ describe("useIap — purchase", () => {
       makeProps({ provider, displayMessage, onPurchased }),
     );
     await buy(result, "removeAds");
-    expect(provider.purchase).toHaveBeenCalledWith("removeAds");
+    // The second arg is the session slot: null while anonymous.
+    expect(provider.purchase).toHaveBeenCalledWith("removeAds", null);
     expect(result.current.removeAds).toBe(true);
     expect(result.current.entitlements.removeAds).toBe(true);
     expect(onPurchased).toHaveBeenCalledWith("removeAds");
