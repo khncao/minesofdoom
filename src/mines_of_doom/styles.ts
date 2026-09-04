@@ -11,6 +11,21 @@ export const styles = StyleSheet.create({
     gap: 3,
     flex: 4,
   },
+  // Tablet/wide-screen fix (todo): the app is portrait-only, but
+  // portrait tablets are still ~1.7× phone width. The game column caps
+  // there and centers (the container's alignItems: "center" does the
+  // centering once the width is clamped); the canvas's flex still gives
+  // it all the vertical room. Full-bleed overlays (toasts, onboarding)
+  // deliberately stay OUTSIDE this column, so dim backdrops cover the
+  // whole screen, not just the column.
+  contentColumn: {
+    width: "100%",
+    maxWidth: 640,
+    // The column's children keep the container's vertical rhythm (the gap
+    // moves with the content); alignItems: "center" mirrors the container.
+    alignItems: "center",
+    gap: 3,
+  },
   canvas: {
     flex: 3,
     minWidth: "98%",
@@ -173,6 +188,7 @@ export const styles = StyleSheet.create({
   footerRow: {
     flexDirection: "row",
     alignItems: "flex-end",
+    justifyContent: "center",
     alignSelf: "stretch",
     paddingTop: 2,
   },

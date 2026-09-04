@@ -3,7 +3,8 @@
 Legend: [ ] not started, [o] in progress
 Completed items are removed from this file (see git history); only remaining work is tracked here.
 
-- [ ] Fix layouts to display properly on tablet/wide screens
+- [o] Fix layouts to display properly on tablet/wide screens
+  The game column is now width-capped (640px) and centered (`styles.contentColumn`), full-bleed overlays (toasts, onboarding) stay outside it, and the footer row centers its buttons — the app is portrait-only, so portrait tablets are the wide case. Needs an on-device/tablet visual pass to close.
 - [ ] If no more todo items to work on, examine features and update todo with feature gaps for user acquisition, user retention, and monetization
 
 - [o] Rewarded ads (AdMob) — production unit ids + on-device verification

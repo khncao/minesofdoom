@@ -910,6 +910,11 @@ export default function MinesOfDoom() {
   return (
     <Context.Provider value={contextValue}>
       <View style={styles.container}>
+        {/* Tablet/wide fix (todo): the game column is width-capped and
+            centered (styles.contentColumn); the full-bleed overlays
+            (toasts, onboarding) deliberately stay OUTSIDE it so their
+            absolute inset: 0 backdrops still cover the whole screen. */}
+        <View style={styles.contentColumn}>
         <DepthBanner
           depth={depth}
           mineralsPerSec={mineralsPerSec}
@@ -1082,14 +1087,6 @@ export default function MinesOfDoom() {
             </ScrollView>
             ))}
         </View>
-        {showMessage && (
-          <View style={styles.messageOverlay} pointerEvents="none">
-            <Text style={styles.messageText}>{showMessage}</Text>
-          </View>
-        )}
-        {!onboardingLoading && onboardingDone !== true && (
-          <OnboardingOverlay onDismiss={() => setOnboardingDone(true)} />
-        )}
         {/* Plan "Adjust": the footer is one menu button (settings + goals
             live inside it) plus the daily bonus; the freed space goes to
             the cave canvas (its flex absorbs the removed spacer). */}
@@ -1170,7 +1167,15 @@ export default function MinesOfDoom() {
             />
           )}
         </View>
-
+        </View>
+        {showMessage && (
+          <View style={styles.messageOverlay} pointerEvents="none">
+            <Text style={styles.messageText}>{showMessage}</Text>
+          </View>
+        )}
+        {!onboardingLoading && onboardingDone !== true && (
+          <OnboardingOverlay onDismiss={() => setOnboardingDone(true)} />
+        )}
         <StatusBar style="auto" />
       </View>
     </Context.Provider>
