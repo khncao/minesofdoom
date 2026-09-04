@@ -42,20 +42,20 @@ export const storeConfig = {
     androidAppId: "ca-app-pub-2101316086878618~4973124022",
     iosAppId: "",
     // AdMob console → Ad units → Rewarded → unit id, one per placement
-    // (AdKind) per platform. The combo-save unit is production; the other
-    // placements run AdMob's PUBLIC TEST unit ids (TestIds.ANDROID_REWARDED
-    // / TestIds.IOS_REWARDED) until their production units are created
-    // (docs/store-integration.md §2).
+    // (AdKind) per platform. All four placements are production (one set
+    // serves both platforms — ad units aren't platform-scoped; the App ID
+    // is). AdMob's public test unit ids must never appear here —
+    // storeConfig.test.ts fails on them (docs/store-integration.md §1).
     rewardedUnitAndroid: {
-      gemRolls: "ca-app-pub-3940256099942544/5224354917",
-      offlineDouble: "ca-app-pub-3940256099942544/5224354917",
-      offlineTopUp: "ca-app-pub-3940256099942544/5224354917",
+      gemRolls: "ca-app-pub-2101316086878618/8308813932",
+      offlineDouble: "ca-app-pub-2101316086878618/9024953635",
+      offlineTopUp: "ca-app-pub-2101316086878618/1898589303",
       comboSave: "ca-app-pub-2101316086878618/9285949727",
     },
     rewardedUnitIos: {
-      gemRolls: "ca-app-pub-3145189286508883/1712485313",
-      offlineDouble: "ca-app-pub-3145189286508883/1712485313",
-      offlineTopUp: "ca-app-pub-3145189286508883/1712485313",
+      gemRolls: "ca-app-pub-2101316086878618/8308813932",
+      offlineDouble: "ca-app-pub-2101316086878618/9024953635",
+      offlineTopUp: "ca-app-pub-2101316086878618/1898589303",
       // AdMob ad units aren't platform-scoped (the App ID is), so the same
       // production unit serves iOS — moot until iosAppId lands (the pair
       // stays hidden with an empty App ID).
