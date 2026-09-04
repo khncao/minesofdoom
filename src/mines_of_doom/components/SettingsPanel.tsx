@@ -319,6 +319,10 @@ const SettingsContent = memo(function SettingsContent({
           />
         </View>
       </Tooltip>
+      {/* Mental math tips (todo): a short teaching section on the
+          equation-solving tricks — rendered before the cosmetics/shop
+          sections so it sits with the equation settings it explains. */}
+      <TipsSection />
       {/* Always available (no tier gate): timed mode is opt-in risk/
           reward — the timeout penalty goes through the normal wrong-answer
           path, so it's strictly self-inflicted when off (the default). */}
@@ -470,6 +474,64 @@ const SettingsContent = memo(function SettingsContent({
     </View>
   );
 });
+
+/**
+ * The eight tips, in display order (title + body are separate keys so
+ * the title can be bolded in the UI without parsing a template).
+ */
+const TIPS: readonly { title: TranslationKey; body: TranslationKey }[] = [
+  { title: "settings.tip.add.title", body: "settings.tip.add.body" },
+  { title: "settings.tip.five.title", body: "settings.tip.five.body" },
+  { title: "settings.tip.nine.title", body: "settings.tip.nine.body" },
+  { title: "settings.tip.dblhalve.title", body: "settings.tip.dblhalve.body" },
+  { title: "settings.tip.percent.title", body: "settings.tip.percent.body" },
+  { title: "settings.tip.square.title", body: "settings.tip.square.body" },
+  {
+    title: "settings.tip.missing.title",
+    body: "settings.tip.missing.body",
+  },
+  {
+    title: "settings.tip.division.title",
+    body: "settings.tip.division.body",
+  },
+];
+
+/**
+ * Mental math tips (todo: "Add a tips section in settings menu teaching
+ * techniques for mental arithmetic"). Pure presentation over i18n keys —
+ * no state, so it memoizes trivially by being a top-level component.
+ */
+function TipsSection() {
+  const { t } = useI18n();
+  return (
+    <View style={{ gap: 6, marginTop: 10 }} testID="tips-section">
+      <Text style={{ ...styles.text, fontWeight: "bold" }}>
+        {t("settings.tips")}
+      </Text>
+      {TIPS.map((tip) => (
+        <View
+          key={tip.title}
+          style={{
+            backgroundColor: "#1f1f1f",
+            borderRadius: 6,
+            borderWidth: 1,
+            borderColor: "#444",
+            paddingHorizontal: 10,
+            paddingVertical: 6,
+            gap: 2,
+          }}
+        >
+          <Text style={{ ...styles.text, fontSize: 12, fontWeight: "bold" }}>
+            {t(tip.title)}
+          </Text>
+          <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+            {t(tip.body)}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 /**
  * Cloud backup section (docs/store-integration.md §3):

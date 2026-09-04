@@ -218,6 +218,42 @@ export const es: Record<TranslationKey, string> = {
     "exactamente como con una respuesta errada (la resistencia de combo aún " +
     "aplica) — y sale una nueva. Se acumula con modo difícil: una ecuación " +
     "de 3 términos respondida a tiempo paga ×4 además del bonus de operador.",
+  // --- Trucos de cálculo mental (todo: sección de consejos) ---------------
+  "settings.tips": "Trucos de cálculo mental",
+  "settings.tip.add.title": "Suma por trozos",
+  "settings.tip.add.body":
+    "Descompón el número hasta llegar a uno redondo: 47 + 28 = 47 + 30 − 2 " +
+    "= 75. Redondear arriba y luego restar lo que sobra suele ser más " +
+    "rápido que sumar la última cifra.",
+  "settings.tip.five.title": "Multiplicar por 5",
+  "settings.tip.five.body":
+    "×5 es ×10 y luego dividir entre 2: 24 × 5 = 240 ÷ 2 = 120. También " +
+    "funciona al revés: divide entre 2 y luego ×10.",
+  "settings.tip.nine.title": "Multiplicar por 9",
+  "settings.tip.nine.body":
+    "×9 es ×10 y luego restar el número: 9 × 7 = 70 − 7 = 63.",
+  "settings.tip.dblhalve.title": "Doblar y dividir",
+  "settings.tip.dblhalve.body":
+    "×4 es doblar dos veces; ×8 es doblar tres. Dividir entre 2 es la otra " +
+    "mitad del mismo truco: 36 ÷ 4 = 18 ÷ 2 = 9.",
+  "settings.tip.percent.title": "El porcentaje es solo × y luego ÷100",
+  "settings.tip.percent.body":
+    "Los dos números pueden intercambiar libremente: el 8% de 50 = el 50% " +
+    "de 8 = 25. Rápidos: el 50% es dividir entre 2, el 25% es dividir entre " +
+    "4, el 10% es mover la coma un lugar a la izquierda.",
+  "settings.tip.square.title": "Cuadrados que terminan en 5",
+  "settings.tip.square.body":
+    "Para a5: multiplica a por a+1 y añade 25 al final. 35² → 3 × 4 = 12, " +
+    "luego 1225. 65² → 6 × 7 = 42, luego 4225.",
+  "settings.tip.missing.title": "Número faltante: trabaja al revés",
+  "settings.tip.missing.body":
+    "El número que falta deshace la otra operación: en a + b = ? resta; en " +
+    "a × b = ? divide. Pregúntate qué operación esconde el ? y ejecútala en " +
+    "sentido inverso.",
+  "settings.tip.division.title": "La división es multiplicar al revés",
+  "settings.tip.division.body":
+    "Lee a ÷ b como «b × cuánto = a?»: 48 ÷ 6 → 6 × 8 = 48, luego 8. Si no " +
+    "te suena, recorre los múltiplos de b desde 1.",
   "settings.emojiArt": "Arte de emoji (modo ligero): ",
   "settings.emojiArtHelp":
     "Desactivado (por defecto): mineros, monedas, escombros y el fondo de la " +

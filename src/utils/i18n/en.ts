@@ -227,6 +227,41 @@ export const en = {
     "drops exactly like a wrong answer (combo resistance still applies) " +
     "— and a new one rolls. Stacks with hard mode: a 3-term equation " +
     "answered in time pays ×4 on top of the operator bonus.",
+  // --- Mental math tips (todo: "Add a tips section") ----------------------
+  "settings.tips": "Mental math tips",
+  "settings.tip.add.title": "Add in chunks",
+  "settings.tip.add.body":
+    "Break the number up to make a round one: 47 + 28 = 47 + 30 − 2 = 75. " +
+    "Rounding up and then subtracting the leftover is usually faster than " +
+    "adding the last digit.",
+  "settings.tip.five.title": "Multiplying by 5",
+  "settings.tip.five.body":
+    "×5 is ×10 then halve: 24 × 5 = 240 ÷ 2 = 120. It also works backwards " +
+    "— halve first, then ×10.",
+  "settings.tip.nine.title": "Multiplying by 9",
+  "settings.tip.nine.body":
+    "×9 is ×10 then subtract the number: 9 × 7 = 70 − 7 = 63.",
+  "settings.tip.dblhalve.title": "Double and halve",
+  "settings.tip.dblhalve.body":
+    "×4 is double twice; ×8 is double three times. Halving is the other " +
+    "half of the same trick: 36 ÷ 4 = 18 ÷ 2 = 9.",
+  "settings.tip.percent.title": "Percent is just × then ÷100",
+  "settings.tip.percent.body":
+    "The two numbers swap freely: 8% of 50 = 50% of 8 = 25. Quick ones: " +
+    "50% is halve, 25% is divide by 4, 10% is move the point one left.",
+  "settings.tip.square.title": "Squares ending in 5",
+  "settings.tip.square.body":
+    "For a5: multiply a by a+1 and stick 25 on the end. 35² → 3 × 4 = 12, " +
+    "so 1225. 65² → 6 × 7 = 42, so 4225.",
+  "settings.tip.missing.title": "Missing number: work backwards",
+  "settings.tip.missing.body":
+    "The missing number undoes the other operation: in a + b = ? subtract, " +
+    "in a × b = ? divide. Ask which operation the ? is hiding, then run it " +
+    "in reverse.",
+  "settings.tip.division.title": "Division is multiplication in reverse",
+  "settings.tip.division.body":
+    "Read a ÷ b as “b × what = a?”: 48 ÷ 6 → 6 × 8 = 48, so 8. If it " +
+    "doesn't ring a bell, walk the multiples of b up from 1.",
   "settings.emojiArt": "Emoji art (low-end mode): ",
   "settings.emojiArtHelp":
     "Off (default): miners, currency icons, debris and the cave backdrop " +

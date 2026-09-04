@@ -3,6 +3,10 @@
 Legend: [ ] not started, [o] in progress
 Completed items are removed from this file (see git history); only remaining work is tracked here.
 
+- [ ] Fix layouts to display properly on tablet/wide screens
+- [ ] Reimplement custom numeric keypad to standard 3 column and have it appear in a tab view with upgrades if enabled (add setting to override native keypad)
+- [ ] If no more todo items to work on, examine features and update todo with feature gaps for user acquisition, user retention, and monetization
+
 - [o] Rewarded ads (AdMob) — production unit ids + on-device verification
   Integration is done: the AdMob provider behind `selectAdProvider`, the Android App ID + the production combo-save unit in `storeConfig.adMob` (rest are AdMob test unit ids) + `adMobAppIds` in `app.config.ts` (pinned by `storeConfig.test.ts`). Remaining work is external — see `docs/blockers.md`; the iOS half (app entry + `iosAppId`) is in `docs/backlog.md`.
   - [ ] **External:** create the remaining rewarded units (gem rolls, offline double, offline top-up — one per placement; AdMob units aren't platform-scoped so one set serves both platforms) → fill the slots in `storeConfig.adMob.rewardedUnitAndroid/Ios` **and** the `adMobAppIds` block in `app.config.ts` → `npx expo prebuild` → verify on device per `docs/store-integration.md` §1/§4.
@@ -28,4 +32,3 @@ Completed items are removed from this file (see git history); only remaining wor
   - [ ] Client: settings sign-in/out with all three options visible ("continue without an account" is the visible default), claim/link flow for pre-existing device data, and the settings copy that is currently drafted for the device-only model (`delete my data`, reinstall caveats). The session token goes in secure storage (Keychain/Keystore — never AsyncStorage) and threads through `cloudSave.ts` / `iapProvider.ts` / `leaderboard.ts` as `sessionToken`. The two native SDKs (Google sign-in, Sign in with Apple; + secure storage for the email credentials) land in provider files behind the same pick-pattern as the store providers → `npx expo prebuild` after adding them.
   - [ ] Tests: server merge/link/session logic DONE (new suites in `pb_hooks/__test__/` — `logic.test.js` accounts section, `identityVerify.test.js`, the identity flows in `verifySidecar.test.js`, all in the app jest suite); client tests against scripted fetch still to write. On-device verification goes into the §Phases 6 list.
 
-- [ ] Add a tips section in settings menu teaching techniques for mental arithmetic
