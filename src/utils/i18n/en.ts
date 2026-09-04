@@ -319,6 +319,8 @@ export const en = {
   "settings.accountPassword": "Password (8–72 characters)",
   "settings.accountSignIn": "Sign in",
   "settings.accountRegister": "Create account",
+  "settings.accountGoogle": "Continue with Google",
+  "settings.accountApple": "Continue with Apple",
   "settings.accountEmailTaken":
     "That email already has an account — sign in instead.",
   "settings.accountBadCredentials":
@@ -327,6 +329,7 @@ export const en = {
   "settings.accountError":
     "Couldn't reach the account service — check your connection and " +
     "try again.",
+  "settings.accountProviderError": "Sign-in failed — try again.",
   "settings.accountLinked":
     "This device is linked to your account — save, purchases and " +
     "leaderboard follow it to a new device.",

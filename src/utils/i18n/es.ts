@@ -316,6 +316,8 @@ export const es: Record<TranslationKey, string> = {
   "settings.accountPassword": "Contraseña (8–72 caracteres)",
   "settings.accountSignIn": "Iniciar sesión",
   "settings.accountRegister": "Crear cuenta",
+  "settings.accountGoogle": "Continuar con Google",
+  "settings.accountApple": "Continuar con Apple",
   "settings.accountEmailTaken":
     "Ese correo ya tiene una cuenta — inicia sesión en su lugar.",
   "settings.accountBadCredentials":
@@ -324,6 +326,7 @@ export const es: Record<TranslationKey, string> = {
   "settings.accountError":
     "No se pudo alcanzar el servicio de cuentas — comprueba tu conexión " +
     "e inténtalo de nuevo.",
+  "settings.accountProviderError": "No se pudo iniciar sesión — inténtalo de nuevo.",
   "settings.accountLinked":
     "Este dispositivo está vinculado a tu cuenta — la partida, las " +
     "compras y la clasificación la siguen a un dispositivo nuevo.",

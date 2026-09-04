@@ -145,7 +145,16 @@ running best-effort after every sign-in), the settings account section
 (sign in / create account with the single inline error, sign out, delete
 switching to account scope when signed in), and the session threaded into
 the cloud / leaderboard / IAP round-trips (device-scoped until a session
-exists). What remains is the two native SDKs (Google / Apple buttons —
-the provider core already accepts their idTokens) — in-repo work,
-unblocked, and it does not block release (anonymous play is the shipped
-default).
+exists). The two native SDKs landed too (`signinSdks.ts`): Google via
+`@react-native-google-signin/google-signin` (android + ios) and Apple
+via `expo-apple-authentication` (ios) — one settings button per kind,
+hidden-until-ready by platform, the SDK modules lazily required so web
+never evaluates them; android prebuild done with the two
+`build.gradle` patches re-applied. The only remaining external step:
+the OS sheets need app-side credentials to mint a REAL idToken — a
+Google Cloud OAuth client (android package + SHA-1, ios bundle id) and
+the Sign in with Apple capability (picked up by the iOS prebuild on
+macOS, `docs/backlog.md`). Until then the buttons fail closed to the
+single inline error — an honest refusal, never a faked sign-in — and
+the device verification joins the store-integration §4 list. Nothing
+blocks release: anonymous play is the shipped default.

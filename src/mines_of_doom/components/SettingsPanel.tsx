@@ -21,6 +21,11 @@ import {
   isValidPasswordInput,
 } from "../auth";
 import {
+  type ProviderKind,
+  mintIdToken,
+  SignInCancelledError,
+} from "../signinSdks";
+import {
   EquationSettings,
   OPERATOR_KEYS,
   Ops,
@@ -605,6 +610,16 @@ export interface AccountSettingsProps {
   /** Sign out (server session killed best-effort + stored token
    *  cleared). */
   onSignOut: () => Promise<void>;
+  /** Provider sign-in with a native-SDK idToken (the SDK mints the
+   *  token via the OS sheet; the server's sidecar verifies it). */
+  onProviderSignIn: (
+    kind: ProviderKind,
+    idToken: string,
+  ) => Promise<AuthSigninOutcome>;
+  /** The native sign-in SDKs in THIS build for the running platform
+   *  ("hidden until ready" — web is [], android ["google"], ios
+   *  both). The section renders one button per kind, nothing else. */
+  providerKinds: ProviderKind[];
 }
 
 /**
@@ -616,9 +631,9 @@ export interface AccountSettingsProps {
  *
  * The signed-out view leads with the DEFAULT ("continue without an
  * account" — the anonymous device play is untouched, guardrail: F2P
- * parity), then the email/password form. Google/Apple buttons are not
- * rendered yet: they land with the native sign-in SDKs (external, see
- * pb_hooks/README.md) — the provider core already speaks both.
+ * parity), then the email/password form, then one button per available
+ * native sign-in SDK (Google/Apple — "hidden until ready": the button
+ * renders only when `providerKinds` carries that kind for this build).
  */
 function AccountSection({ account }: { account: AccountSettingsProps }) {
   const { t } = useI18n();
@@ -653,6 +668,39 @@ function AccountSection({ account }: { account: AccountSettingsProps }) {
       }
       // "signedIn": the status prop flips to "in" and this view swaps
       // to the signed-in branch on the next render.
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** One button per native SDK: mint the idToken through the OS sheet,
+   *  then hand it to the provider core. A dismissed sheet (cancel) is
+   *  NOT an error — the UI stays quiet; everything else gets the
+   *  single inline error. */
+  const signInWithProvider = async (kind: ProviderKind) => {
+    if (busy) return;
+    setBusy(true);
+    setFormError(null);
+    try {
+      let idToken: string;
+      try {
+        idToken = await mintIdToken(kind);
+      } catch (err) {
+        if (err instanceof SignInCancelledError) return;
+        throw err;
+      }
+      const outcome = await account.onProviderSignIn(kind, idToken);
+      if (outcome.status !== "signedIn") {
+        // "unverified" (the server's sidecar refused the idToken — e.g.
+        // a dev build without a real Google/Apple account) and
+        // "error" (network) share the one retry copy, like the email
+        // form's single error path.
+        setFormError(t("settings.accountProviderError"));
+      }
+      // "signedIn": the status prop flips to "in" and this view swaps
+      // to the signed-in branch on the next render.
+    } catch {
+      setFormError(t("settings.accountProviderError"));
     } finally {
       setBusy(false);
     }
@@ -741,6 +789,23 @@ function AccountSection({ account }: { account: AccountSettingsProps }) {
           testId="account-register"
         />
       </View>
+      {account.providerKinds.length > 0 && (
+        <View style={{ gap: 4 }} testID="account-provider-buttons">
+          {account.providerKinds.map((kind) => (
+            <Button
+              key={kind}
+              title={
+                kind === "google"
+                  ? t("settings.accountGoogle")
+                  : t("settings.accountApple")
+              }
+              disabled={busy}
+              onPress={() => void signInWithProvider(kind)}
+              testId={kind === "google" ? "account-google" : "account-apple"}
+            />
+          ))}
+        </View>
+      )}
     </View>
   );
 }

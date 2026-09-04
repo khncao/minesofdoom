@@ -72,6 +72,7 @@ import { useCloudSave, type CloudSaveSettingsProps } from "./hooks/useCloudSave"
 import { selectCloudSaveProvider } from "./cloudSave";
 import { selectAuthProvider } from "./auth";
 import { selectTokenStore } from "./secureToken";
+import { availableProviderKinds } from "./signinSdks";
 import { useAccount } from "./hooks/useAccount";
 import { useLeaderboard } from "./hooks/useLeaderboard";
 import { selectLeaderboardProvider } from "./leaderboard";
@@ -440,6 +441,10 @@ export default function MinesOfDoom() {
       onRegister: account.register,
       onLogin: account.login,
       onSignOut: account.signOut,
+      onProviderSignIn: account.providerSignIn,
+      // Platform constant ("hidden until ready" — [] on web, ["google"]
+      // on android, both on ios); stable, no memo deps needed.
+      providerKinds: availableProviderKinds,
     }),
     [
       authProvider,
@@ -448,6 +453,7 @@ export default function MinesOfDoom() {
       account.register,
       account.login,
       account.signOut,
+      account.providerSignIn,
     ],
   );
 

@@ -364,8 +364,10 @@ design + status.)
   launch, persisted AsyncStorage `deviceId`. This is the **primary key
   of every cloud row**. The client already generates one for IAP
   entitlements; reuse it, don't mint a second.
-- **Optional login (Phase 4)**: a Pocketbase email+password (or
-  later, a Google sign-in) that *binds* a `deviceId` to an account.
+- **Optional login (Phase 4, built — email+password, Google and
+  Apple)**: a Pocketbase account (any of the three mechanisms, all
+  provider-agnostic — see `pb_hooks/README.md`) that *binds* a
+  `deviceId` to an account.
   The account is **never** the identity for data routing — it's a
   **restore bridge**: on a new device, the player logs in and the
   server returns *that account's other devices'* cloud rows (save +
@@ -409,9 +411,10 @@ route is the one the LegalSection links.
   `pb_hooks/` is deployed on servarica (deployment + credentials in
   `docs/pocketbase-plan.md`).
 - **Phases 4–5 (client cloud save w/ recovery + settings;
-  leaderboard panel; achievement share; GDPR delete)**: ✅ — wired and
-  tested (client is pointed at the live URL; the design above is what
-  was built).
+  leaderboard panel; achievement share; GDPR delete; optional login —
+  email/password + Google/Apple native SDKs, session threaded through
+  the cloud/leaderboard/IAP routes)**: ✅ — wired and tested (client
+  is pointed at the live URL; the design above is what was built).
 - **Phase 6 (iOS: App Store products + the sidecar's `APPLE_*`
   credentials; TestFlight)**: ⬜ — `docs/backlog.md` (iOS section).
 - **Phase 7 (metrics: first-time-ad-view, IAP purchase, D1/D7
