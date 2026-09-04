@@ -7,9 +7,9 @@
  * native-stack interaction: expo-router's root stack is a forked navigator
  * (`expo-router/build/fork/native-stack/createNativeStackNavigator`) that
  * destructures `describe` from `useNavigationBuilder` and passes it — together
- * with `state` / `descriptors` — to `@react-navigation/native-stack`'s
- * `NativeStackView`, which dereferences `describe(route, true)` for preloaded
- * routes. If any of that wiring ever loses the `describe` prop (dependency
+ * with `state` / `descriptors` — to the vendored
+ * `expo-router/build/react-navigation/native-stack` `NativeStackView`, which
+ * dereferences `describe(route, true)` for preloaded routes. If any of that wiring ever loses the `describe` prop (dependency
  * bump, fork change), Android crashes with exactly the error above.
  *
  * This test renders that exact wiring in Jest. Two things make it a real
@@ -31,16 +31,23 @@
  */
 import type * as React from "react";
 import { Text, View } from "react-native";
+// SDK 57's expo-router vendors its react-navigation copy inside its own
+// build directory (no more `@react-navigation/*` packages), so the imports
+// that used to come from `@react-navigation/*` now come from the vendored
+// copies — the same modules expo-router's own fork uses.
 import {
   NavigationContainer,
   StackRouter,
   useNavigationBuilder,
-} from "@react-navigation/native";
+} from "expo-router/build/react-navigation/native";
 import { render } from "@testing-library/react-native";
 import {
   createNativeStackNavigator,
 } from "expo-router/build/fork/native-stack/createNativeStackNavigator";
-import { NativeStackView } from "@react-navigation/native-stack";
+import { NativeStackView } from "expo-router/build/react-navigation/native-stack";
+// SDK 57's forked navigator also reads the link-preview context that
+// `ExpoRoot` provides in a real app; the isolated render needs it too.
+import { LinkPreviewContextProvider } from "expo-router/build/link/preview/LinkPreviewContext";
 
 type MockProps = { children?: React.ReactNode; [key: string]: unknown };
 
@@ -129,21 +136,23 @@ describe("expo-router native-stack `describe` wiring (plan Adjust)", () => {
     // specifiers.
     const nativeViewModule =
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      require("../../node_modules/@react-navigation/native-stack/lib/module/views/NativeStackView.native.js");
+      require("../../node_modules/expo-router/build/react-navigation/native-stack/views/NativeStackView.native.js");
     expect(NativeStackView).toBe(nativeViewModule.NativeStackView);
   });
 
   it("renders a screen through the Android (.native.js) code path without a ReferenceError", () => {
     const view = render(
-      <NavigationContainer>
-        <Navigator initialRouteName="index">
-          <Screen
-            name="index"
-            options={{ title: "Mines of Doom" }}
-            component={CaveScreen}
-          />
-        </Navigator>
-      </NavigationContainer>,
+      <LinkPreviewContextProvider>
+        <NavigationContainer>
+          <Navigator initialRouteName="index">
+            <Screen
+              name="index"
+              options={{ title: "Mines of Doom" }}
+              component={CaveScreen}
+            />
+          </Navigator>
+        </NavigationContainer>
+      </LinkPreviewContextProvider>,
     );
 
     // If `describe` were missing from the builder output or the NativeStackView

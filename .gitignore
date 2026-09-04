@@ -29,8 +29,13 @@ project.xcworkspace
 /packages/react-native-gradle-plugin/build/
 /packages/rn-tester/build
 # Play Console upload key — NEVER commit (see docs/store-integration.md §2.5)
-/android/keystore.properties
-/android/keystore/
+# Play upload key + its properties live at the PROJECT ROOT, never under
+# android/ — `expo prebuild` wipes android/ (it already wiped the old
+# android/keystore/ + android/keystore.properties once). See §2.5 of
+# docs/store-integration.md.
+/keystore.properties
+*.keystore
+*.jks
 
 /packages/rn-tester/android/app/.cxx/
 /packages/rn-tester/android/app/build/
@@ -79,7 +84,6 @@ local.properties
 node_modules
 *.log
 .nvm
-package-lock.json
 
 # OS X
 .DS_Store

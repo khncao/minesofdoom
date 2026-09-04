@@ -117,7 +117,9 @@ export default React.memo(CaveBackground);
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
+    // RN 0.86 removed StyleSheet.absoluteFillObject; keep the literal
+    // instead (absoluteFill is an opaque array, not spreadable).
+    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
     overflow: "hidden",
     opacity: 0.35,
   },

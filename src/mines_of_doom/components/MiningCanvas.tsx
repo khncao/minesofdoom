@@ -72,9 +72,9 @@ const MiningCanvas = memo(function MiningCanvas({
   reduceMotion: boolean;
   /** Low-end fallback (plan §4.5): emoji instead of pixel sprites. */
   emojiArt: boolean;
-  debrisRef: RefObject<DebrisParticlesRef>;
-  blockBreakRef: RefObject<BlockBreakRef>;
-  floatingTextRef: RefObject<FloatingTextRef>;
+  debrisRef: RefObject<DebrisParticlesRef | null>;
+  blockBreakRef: RefObject<BlockBreakRef | null>;
+  floatingTextRef: RefObject<FloatingTextRef | null>;
 }) {
   // Refs only — hold duration must not trigger re-renders per press.
   const holdStartRef = useRef(0);

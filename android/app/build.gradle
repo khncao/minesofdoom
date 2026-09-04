@@ -11,18 +11,14 @@ def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 react {
     entryFile = file(["node", "-e", "require('expo/scripts/resolveAppEntry')", projectRoot, "android", "absolute"].execute(null, rootDir).text.trim())
     reactNativeDir = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
-    hermesCommand = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsolutePath() + "/sdks/hermesc/%OS-BIN%/hermesc"
+    hermesCommand = new File(["node", "--print", "require.resolve('hermes-compiler/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile().getAbsolutePath() + "/hermesc/%OS-BIN%/hermesc"
     codegenDir = new File(["node", "--print", "require.resolve('@react-native/codegen/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
 
+    enableBundleCompression = (findProperty('android.enableBundleCompression') ?: false).toBoolean()
     // Use Expo CLI to bundle the app, this ensures the Metro config
     // works correctly with Expo projects.
     cliFile = new File(["node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })"].execute(null, rootDir).text.trim())
     bundleCommand = "export:embed"
-    // Embed the JS bundle in debuggable variants too, so debug APKs boot
-    // standalone (no Metro dev server required). This is what the e2e
-    // emulator tests rely on; dev mode (npm run android) still prefers the
-    // running Metro server and only falls back to the embedded bundle.
-    debuggableVariants = []
 
     /* Folders */
      //   The root of your project, i.e. where "package.json" lives. Default is '../..'
@@ -37,6 +33,11 @@ react {
     //   skip the bundling of the JS bundle and the assets. By default is just 'debug'.
     //   If you add flavors like lite, prod, etc. you'll have to list your debuggableVariants.
     // debuggableVariants = ["liteDebug", "prodDebug"]
+
+    // Embed the JS bundle in debug APKs so they boot standalone on an
+    // emulator without a Metro dev server (e2e flow). See AGENTS.md.
+    // Re-apply after every `expo prebuild` — it wipes this line.
+    debuggableVariants = []
 
     /* Bundling */
     //   A list containing the node command and its flags. Default is just 'node'.
@@ -68,9 +69,9 @@ react {
 }
 
 /**
- * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
+ * Set this to true in release builds to optimize the app using [R8](https://developer.android.com/topic/performance/app-optimization/enable-app-optimization).
  */
-def enableProguardInReleaseBuilds = (findProperty('android.enableProguardInReleaseBuilds') ?: false).toBoolean()
+def enableMinifyInReleaseBuilds = (findProperty('android.enableMinifyInReleaseBuilds') ?: false).toBoolean()
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -83,7 +84,7 @@ def enableProguardInReleaseBuilds = (findProperty('android.enableProguardInRelea
  * give correct results when using with locales other than en-US. Note that
  * this variant is about 6MiB larger per architecture than default.
  */
-def jscFlavor = 'org.webkit:android-jsc:+'
+def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
 android {
     ndkVersion rootProject.ext.ndkVersion
@@ -98,12 +99,16 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 8
         versionName "1.0.8"
+
+        buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
-    // Release (upload) signing for Play Console. The upload keystore is
-    // NEVER committed: keystore.properties + the JKS live in
-    // android/keystore/ (both gitignored) and are loaded from the Play
-    // Console App-signing page — see docs/store-integration.md §2.5.
-    def keystorePropertiesFile = rootProject.file('keystore.properties')
+    // Release (upload) signing for Play Console. The upload keystore and its
+    // properties NEVER get committed and live at the PROJECT ROOT (not under
+    // android/ — `expo prebuild` wipes that directory): my-upload-key.keystore
+    // + keystore.properties (both gitignored). Re-download the JKS from the
+    // Play Console App-signing page if lost. See docs/store-integration.md §2.5.
+    // Re-apply this block after every `expo prebuild`.
+    def keystorePropertiesFile = rootProject.file('../keystore.properties')
     def keystoreProperties = new Properties()
     if (keystorePropertiesFile.exists()) {
         keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
@@ -117,7 +122,7 @@ android {
         }
         if (keystorePropertiesFile.exists()) {
             release {
-                storeFile rootProject.file(keystoreProperties['storeFile'])
+                storeFile rootProject.file('../my-upload-key.keystore')
                 storePassword keystoreProperties['storePassword']
                 keyAlias keystoreProperties['keyAlias']
                 keyPassword keystoreProperties['keyPassword']
@@ -129,24 +134,27 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-            // Play Console upload key when android/keystore.properties is
-            // present; otherwise the debug signature (a keyless release
-            // build is for local smoke tests only — Play rejects
-            // debug-signed AABs, so it can never be the one that ships).
+            // Play Console upload key when ../keystore.properties is present;
+            // otherwise the debug signature (a keyless release build is for
+            // local smoke tests only — Play rejects debug-signed AABs, so it
+            // can never be the one that ships).
             if (keystorePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
             } else {
                 signingConfig signingConfigs.debug
             }
-            shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
-            minifyEnabled enableProguardInReleaseBuilds
+            def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
+            shrinkResources enableShrinkResources.toBoolean()
+            minifyEnabled enableMinifyInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
-            crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
+            def enablePngCrunchInRelease = findProperty('android.enablePngCrunchInReleaseBuilds') ?: 'true'
+            crunchPngs enablePngCrunchInRelease.toBoolean()
         }
     }
     packagingOptions {
         jniLibs {
-            useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
+            def enableLegacyPackaging = findProperty('expo.useLegacyPackaging') ?: 'false'
+            useLegacyPackaging enableLegacyPackaging.toBoolean()
         }
     }
     androidResources {
@@ -184,15 +192,15 @@ dependencies {
 
     if (isGifEnabled) {
         // For animated gif support
-        implementation("com.facebook.fresco:animated-gif:${reactAndroidLibs.versions.fresco.get()}")
+        implementation("com.facebook.fresco:animated-gif:${expoLibs.versions.fresco.get()}")
     }
 
     if (isWebpEnabled) {
         // For webp support
-        implementation("com.facebook.fresco:webpsupport:${reactAndroidLibs.versions.fresco.get()}")
+        implementation("com.facebook.fresco:webpsupport:${expoLibs.versions.fresco.get()}")
         if (isWebpAnimatedEnabled) {
             // Animated webp support
-            implementation("com.facebook.fresco:animated-webp:${reactAndroidLibs.versions.fresco.get()}")
+            implementation("com.facebook.fresco:animated-webp:${expoLibs.versions.fresco.get()}")
         }
     }
 

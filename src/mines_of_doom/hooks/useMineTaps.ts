@@ -23,8 +23,8 @@ export function useMineTaps({
   clickPower: bigint;
   play: (key: SoundKey, minInterval?: number) => void;
   playerPickaxeAnimRef: MutableRefObject<() => void>;
-  debrisRef: RefObject<DebrisParticlesRef>;
-  blockBreakRef: RefObject<BlockBreakRef>;
+  debrisRef: RefObject<DebrisParticlesRef | null>;
+  blockBreakRef: RefObject<BlockBreakRef | null>;
   addTapGain: (gain: bigint) => void;
   onResetCombo: () => void;
   /** Optional per-tap feedback hook (e.g. floating "+N" text). */

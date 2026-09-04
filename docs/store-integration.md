@@ -244,10 +244,13 @@ against a release (upload-key-signed) build before shipping.
 Play Console needs an **app build uploaded before one-time in-app
 products can be created** — this section produces it. The AAB must be
 signed with the **Play upload key**; the keystore never enters the
-repo (`android/keystore.properties` + `android/keystore/` are
+repo. Both key files live at the **project root** — never under
+`android/`, because `expo prebuild` wipes that directory (it wiped the
+old `android/keystore/` + `android/keystore.properties` during the SDK 57
+upgrade). The root `keystore.properties` + `my-upload-key.keystore` are
 gitignored, and `android/app/build.gradle` falls back to the debug
-signature without them, so a keyless build can never be uploaded by
-mistake — Play rejects debug-signed AABs).
+signature when the properties file is missing, so a keyless build can
+never be uploaded by mistake — Play rejects debug-signed AABs.
 
 1. **Play Console → App integrity → App signing.** Generate (or
    select) the app-signing key and **download the `.jks`** (the page
@@ -256,15 +259,21 @@ mistake — Play rejects debug-signed AABs).
      (e.g. Google generated one earlier), you cannot sign locally —
      that AAB would need EAS/CI remote signing instead; in that case
      use *"Use an existing key"* with a key you control.
-2. **Place the key** (local machine only):
-   - `android/keystore/upload-keystore.jks`
-   - `android/keystore.properties`:
+2. **Place the key** (local machine only, at the PROJECT ROOT so
+   `expo prebuild` can't wipe it):
+   - `my-upload-key.keystore` (the downloaded `.jks`/`.keystore`)
+   - `keystore.properties` (no `storeFile` — the path is hard-coded in
+     `android/app/build.gradle`):
      ```properties
-     storeFile=keystore/upload-keystore.jks
      storePassword=<from the App signing page>
      keyAlias=<key alias>
      keyPassword=<key password, usually the keystore password>
      ```
+   Verify with:
+   ```sh
+   keytool -list -keystore my-upload-key.keystore -storepass <password>
+   ```
+   (prints the key alias).
 3. **Build** (repo root; the Android SDK must be on the machine):
    ```sh
    cd android && gradlew.bat bundleRelease

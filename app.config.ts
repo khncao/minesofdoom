@@ -46,11 +46,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   orientation: "portrait",
   icon: pickaxePng,
   userInterfaceStyle: "light",
-  splash: {
-    image: pickaxePng,
-    resizeMode: "contain",
-    backgroundColor: "#ffffff",
-  },
   assetBundlePatterns: ["**/*"],
   ios: {
     supportsTablet: true,
@@ -72,6 +67,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     ["expo-router", { root: "src/app" }],
     ["react-native-google-mobile-ads", googleMobileAdsPluginOptions],
+    // SDK 57 dropped the top-level `splash` key from the config schema; the
+    // splash screen is now configured through the expo-splash-screen plugin.
+    [
+      "expo-splash-screen",
+      {
+        image: pickaxePng,
+        resizeMode: "contain",
+        backgroundColor: "#ffffff",
+      },
+    ],
   ],
   // Let Metro honor the tsconfig.json "paths" mapping (assets/* ->
   // dist/assets/*), otherwise "assets/index" imports don't resolve.

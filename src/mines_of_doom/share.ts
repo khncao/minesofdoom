@@ -54,6 +54,6 @@ export async function shareText(text: string): Promise<void> {
     await navigator.share({ title: "", text });
     return;
   }
-  // RN 0.76's Share takes a ShareContent object ({message}, or a url).
+  // RN 0.86's Share takes a ShareContent object ({message}, or a url).
   await Share.share({ message: text });
 }

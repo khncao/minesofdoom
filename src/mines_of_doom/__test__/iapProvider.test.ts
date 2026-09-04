@@ -51,7 +51,7 @@ function configure(base: string) {
 /** Yield to the microtask queue a few times (async storage + provider). */
 async function settle() {
   for (let i = 0; i < 8; i++) {
-    await new Promise((r) => setImmediate(r));
+    await new Promise<void>((r) => setImmediate(() => r()));
   }
 }
 

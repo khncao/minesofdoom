@@ -83,7 +83,7 @@ export function recordCrash(
  * `ReferenceError: Property 'describe' doesn't exist` was suspected to come
  * from an expo-router/native-stack interaction, and those run in native
  * module callbacks / stack-state listeners — OUTSIDE the React render
- * tree, where an error boundary never sees anything. RN 0.76 still exports
+ * tree, where an error boundary never sees anything. RN 0.86 still exports
  * `ErrorUtils` from the main entry (the earlier note that it was removed
  * was wrong), so we wrap the global handler: record the crash, then hand
  * the error to the PREVIOUS handler so the dev red box and console
