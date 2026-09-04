@@ -19,8 +19,9 @@ appId: com.minus4kelvin.minesofdoom
 - assertVisible:
     id: equation-display
 - assertVisible:
-    id: mineral-count  # depth-banner excluded: native view renders but never
-  # paints on phone layouts (see docs/blockers.md — depth-banner layout bug)
+    id: mineral-count
+- assertVisible:
+    id: depth-banner
 
 # The sheet starts closed.
 - assertNotVisible:

@@ -26,20 +26,21 @@ rendered unconditionally as the first child of `styles.contentColumn`
 `display: none`, no duplicate style key. The component itself is a plain
 `<View testID><Text>…</Text></View>` (always renders, `memo`-wrapped).
 
-**Suspect:** the `contentColumn` wrapper from the tablet/wide fix
-(`width: 100%, maxWidth: 640, alignItems: center, gap: 3` with no
-`flex`) — the same commit that changed the top-of-screen layout. Needs an
-on-device layout pass (devtools / `onLayout` bounds) to pin the native
-measurement that zeroes the first child.
+**Fix landed (2026-09-05, unverified on device):** the window runs
+edge-to-edge on RN 0.86, so `MinesOfDoom.tsx` now reserves the
+safe-area insets (`useSafeAreaInsets()` — provided by expo-router's root
+`SafeAreaProvider`, zero on web) as top/bottom padding on the container,
+and `styles.contentColumn` gained `flex: 1` so the column (and its first
+child, the banner) get a definite measured height instead of being sized
+purely by content inside a centered flex row. The `depth-banner`
+asserts are restored in the three flows (`boot_up`, `mining`,
+`menu_settings`).
 
-**Interim e2e state:** the three flows that asserted
-`id: depth-banner` (`boot_up`, `mining`, `menu_settings`) now assert
-`id: mineral-count` instead — the banner node is unusable as a selector
-until this is fixed.
-
-**Unblocks when:** someone with a working dev-tools setup reproduces the
-bounds, fixes the layout (or the RN flex quirk it hits), and restores the
-`depth-banner` asserts in the three flows.
+**Still blocked on:** an on-device/CI e2e run to confirm the banner
+paints (iteration 7's e2e run was cancelled by the user — the fix is
+in, the asserts are back, it just hasn't been exercised on an emulator
+yet). If the next e2e run still fails on `depth-banner`, this section
+reopens with the bounds from that run.
 
 ## Rewarded ads (AdMob) — `todo.md` "Rewarded ads (AdMob) — production ids + on-device verification"
 

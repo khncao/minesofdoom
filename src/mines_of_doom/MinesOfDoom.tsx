@@ -1,6 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useContent, useI18n } from "src/hooks/useI18n";
 import { useLocalStorage } from "src/hooks/useLocalStorage";
 import type { DebrisParticlesRef } from "src/components/DebrisParticles";
@@ -93,6 +94,12 @@ import IapPanel from "./components/IapPanel";
 export default function MinesOfDoom() {
   // currently doesn't mute android touch sounds, but can in the future
   const [mute, setMute] = useLocalStorage<boolean>("mute", false);
+
+  // Edge-to-edge (RN 0.86 / SDK 57): the window runs behind the status
+  // bar and nav bar, so the game column's top (depth banner) and bottom
+  // (footer row) must reserve the insets or the system bars eat them.
+  // Zero on web/landscape-less cases where the OS reports no inset.
+  const insets = useSafeAreaInsets();
 
   // On-screen keypad (todo: "Reimplement custom numeric keypad"): the
   // stored preference decides how answers are typed. Off (default): the OS
@@ -956,7 +963,16 @@ export default function MinesOfDoom() {
 
   return (
     <Context.Provider value={contextValue}>
-      <View style={styles.container}>
+      <View
+        style={[
+          styles.container,
+          // Edge-to-edge insets (see useSafeAreaInsets above): keep the
+          // depth banner out from under the status bar and the footer row
+          // out from under the nav bar. Full-bleed overlays use absolute
+          // inset: 0, which still covers the whole screen (padding box).
+          { paddingTop: insets.top, paddingBottom: insets.bottom },
+        ]}
+      >
         {/* Tablet/wide fix (todo): the game column is width-capped and
             centered (styles.contentColumn); the full-bleed overlays
             (toasts, onboarding) deliberately stay OUTSIDE it so their

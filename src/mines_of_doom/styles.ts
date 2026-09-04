@@ -19,6 +19,7 @@ export const styles = StyleSheet.create({
   // deliberately stay OUTSIDE this column, so dim backdrops cover the
   // whole screen, not just the column.
   contentColumn: {
+    flex: 1,
     width: "100%",
     maxWidth: 640,
     // The column's children keep the container's vertical rhythm (the gap
