@@ -18,11 +18,23 @@ verification checklist, and the iOS/TestFlight half.
   store-verification sidecar on servarica at
   `https://minesofdoom.minus4kelvin.com` (`pb_hooks/` in the repo,
   deployed per `docs/pocketbase-plan.md`; deployment ops live there).
-- ⬜ **Store accounts + credentials remain** — the 26 products in the
-  §2 table must be created in the Play Console / App Store Connect UIs
-  (no API for one-time products), and the sidecar's Play/Apple service
-  credentials must be configured. Nothing in this doc can be skipped;
-  the §4 checklist is the release gate.
+- ✅ **Play Console CLI** — `scripts/play/play.mjs` (`npm run play`) wraps
+  the Play Developer API v3: store listings, store images, tracks,
+  AAB upload + release, and **full one-time-product CRUD** (new publishing
+  API `monetization.onetimeproducts` — the old `inappproducts` API is
+  retired and returns "Please migrate to the new publishing API"; the
+  API is *not* read-only for one-time products). Everything Play-store-side
+  is scriptable; the
+  same service-account key works for the CLI and the sidecar
+  (`./play-service-account.json` (gitignored) or `PLAY_SERVICE_ACCOUNT_JSON`).
+- ✅ **Play store side is live** — the 26 products in the §2 table are
+  created and ACTIVE (via the CLI, §2.2), the release AAB (1.0.8) is on
+  the internal track, and the sidecar carries the Play service-account
+  credentials (`/healthz` → `configured.android: true`).
+- ⬜ **Apple store side remains** (backlog) — the App Store Connect
+  products + the sidecar's `APPLE_*` credentials.
+  Nothing in this doc can be skipped; the §4 checklist is the release
+  gate.
 
 Guardrails (AGENTS.md) in force throughout: rewarded ads only
 (§2.1.3), no dark patterns (transparency lines in every purchase row),
@@ -127,26 +139,52 @@ guardrail 1).
 
 ### 2.2 Create the products
 
-The **Play Developer API has no create/update for one-time in-app
-products** (it is read-only: `products.products.get` / `.list`); the
-products themselves are a one-time UI job in the console (subscription
-products *are* API-manageable, but we ship one-time products). The
-**verification side is fully API-driven** (the sidecar calls
-`purchases.products.get` — already built).
+The **Play Developer API fully manages one-time products** via the new
+publishing API `monetization.onetimeproducts` (`list` / `get` / `patch` /
+`delete`; there is no `insert` — creation is a `patch` with
+`allowMissing: true` plus the current `regionsVersion.version`, fetched
+from `monetization.convertRegionPrices`, which is also where
+`--auto-convert-prices` gets its per-region prices; the legacy
+`inappproducts` API is retired). `scripts/play/play.mjs` wraps it, so the
+catalog is scriptable. The **verification side is also fully API-driven**
+(the sidecar calls `purchases.products.get` — already built). Note:
+product creation additionally requires the service account to hold the
+Play Console **billing permissions** ("Manage orders and subscriptions" +
+"View financial data, orders, and cancellation survey responses").
 
-1. **Play Console** (play.google.com/console → your app → Monetize →
-   In-app products → *one-time* products): create **all 26** products
-   above by the exact `storeId`. Prices: use the table as the base and
-   let Play's price tiers localize it.
+1. **Create the products with the CLI** (after a build is on a track,
+   §2.5 — Play refuses product creation until then): one
+   `create-product` per row of the §2.1 table (exact `sku` + price from
+   that table), then diff the live catalog against `iaps.ts`:
+   ```sh
+   npm run play -- create-product --sku=pack_gold --title="Golden Pickaxe" \
+     --desc="Unlocks the Golden Pickaxe (also earnable in-game for 25 💎)." \
+     --price=0.99 --auto-convert-prices
+   # …repeat for every §2.1 row (remove_ads, the rest of the packs)…
+   npm run play -- products-check
+   ```
+   `--auto-convert-prices` localizes the tier to every targeted region the
+   same way the console does; sanity-check one with
+   `npm run play -- products --sku=pack_gold`. If a price state comes back
+   draft, activate it with `npm run play -- activate-product --sku=…`
+   (the API equivalent of the console's one-time step) — `products-check`
+   flags anything not live.
 2. **App Store Connect** (if/when iOS ships — §5): create the same
    products by the same `storeId` (App Store product ids accept the
    same slug).
 3. **Service accounts / credentials** (server-side only — never in
    the repo, never in the app bundle):
-   - **Play**: a service account with "View app details (read-only)"
-     + "Manage orders and subscriptions" on the app; the JSON key goes
+   - **Play**: a service account with "Manage apps (full access)" (or at
+     minimum "View app details" + "Manage app releases" +
+     "Manage orders and subscriptions") on the app; the JSON key goes
      to the sidecar's `PLAY_SERVICE_ACCOUNT_JSON` env
-     (`docs/pocketbase-plan.md` §Credentials).
+     (`docs/pocketbase-plan.md` §Credentials). The **same key** drives
+     the CLI: put it at `./play-service-account.json` (gitignored),
+     pass `--key <path>`, or skip the key file entirely and use the
+     Google Cloud default app credentials (`gcloud auth application-
+     default login`, or `GOOGLE_APPLICATION_CREDENTIALS` pointing at the
+     key — e.g. on a Cloud Run/GCE host). The CLI tries the key file
+     first, ADC second; the ADC credential needs the same Play access.
    - **Apple**: an App Store Connect API key (`.p8`) with the
      "In-App Purchase" capability, bundle id + app id + key id → the
      sidecar's `APPLE_*` envs (same doc).
@@ -281,8 +319,11 @@ never be uploaded by mistake — Play rejects debug-signed AABs.
    Output: `android/app/build/outputs/bundle/release/app-release.aab`
    (the JS bundle is embedded by the RN gradle plugin — no Metro
    needed). On non-Windows: `./gradlew bundleRelease`.
-4. **Upload**: Play Console → Release → Internal testing → create
-   release → upload the AAB. The console verifies the signature
+4. **Upload + release** (CLI, or the console UI): `npm run play -- upload
+   --aab=app-release.aab` then
+   `npm run play -- release --track=internal --upload=<id>`.
+   Console path: Release → Internal testing → create release → upload
+   the AAB. The console verifies the signature
    matches the App signing page. Once a build is on a track, the
    **Monetize → In-app products** section unlocks and the §2.2 table
    can be created.

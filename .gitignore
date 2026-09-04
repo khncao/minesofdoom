@@ -171,3 +171,6 @@ vendor/
 
 # Pocketbase sandbox data dir (never commit a data volume)
 /pb_data/
+
+# Play service-account key for scripts/play/play.mjs (NEVER commit)
+/play-service-account.json

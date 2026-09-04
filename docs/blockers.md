@@ -42,19 +42,21 @@ in, the asserts are back, it just hasn't been exercised on an emulator
 yet). If the next e2e run still fails on `depth-banner`, this section
 reopens with the bounds from that run.
 
-## Rewarded ads (AdMob) — `todo.md` "Rewarded ads (AdMob) — production ids + on-device verification"
+## Rewarded ads (AdMob) — `todo.md` "Rewarded ads (AdMob) — on-device verification"
 
 **Blocked on (external):** the Google **AdMob account** — the Android App ID
-and the production combo-save rewarded unit have landed; still outstanding:
-the rewarded units for the other three placements
-(gem rolls, offline double, offline top-up — the other slots currently run
-AdMob's public test unit ids) and registering test devices. Nothing
-in-repo can produce those ids. (The iOS app entry + App ID is deferred to
-`docs/backlog.md` — it is not on the active path.)
+and the production rewarded units for **all four placements** have landed
+in `storeConfig.adMob` (one set serves both platforms — ad units aren't
+platform-scoped). What remains: registering test devices in AdMob (a
+production unit serves only test devices + personalization-targeted real
+traffic) and the on-device verification below. (The iOS app entry + App ID
+is deferred to `docs/backlog.md` — it is not on the active path.)
 
-**Note:** Android is now fully configured (app id + all placement units,
-three of them test ids) and runs the real `AdMobAdProvider` in production
-builds. iOS stays on the no-op until `iosAppId` lands (`docs/backlog.md`) —
+**Note:** Android is now fully configured (app id + all four production
+placement units) and runs the real `AdMobAdProvider` in production builds.
+`storeConfig.test.ts` pins every unit id and fails on AdMob's public test
+unit ids (a leaked test id would silently replace a production unit). iOS
+stays on the no-op until `iosAppId` lands (`docs/backlog.md`) —
 `isAdMobIdsConfigured` requires the app id plus a unit id for every
 placement.
 
@@ -62,22 +64,26 @@ placement.
 `react-native-google-mobile-ads`): `src/mines_of_doom/adProvider.ts` (+
 `adProvider.web.ts` no-op for the web target), `storeConfig.ts` as the single
 config point, and the config plugin in `app.config.ts` that bakes the app
-ids into the native manifests at prebuild. Until the ids land, entry points
-stay hidden (no-op provider) — pinned by `ads.test.ts` / `storeConfig.test.ts`.
-The full watch → reward → caps flow is device-testable with AdMob's *public
-test unit ids*, and the dev-sim provider covers `__DEV__` builds.
+ids into the native manifests at prebuild. Entry points stay hidden on
+platforms where the pair is unconfigured (no-op provider — currently iOS,
+which lacks its App ID) — pinned by `ads.test.ts` /
+`storeConfig.test.ts`. The full watch → reward → caps flow is now
+device-testable against the production units on a test device registered
+in AdMob, and the dev-sim provider covers `__DEV__` builds.
 
-**Unblocks when:** production AdMob ids from the AdMob console land in
-`storeConfig.adMob` + the `adMobAppIds` block in `app.config.ts`, followed
-by `npx expo prebuild` and the on-device verification in
-docs/store-integration.md §1/§4.
+**Unblocks when:** the on-device verification in
+`docs/store-integration.md` §1/§4 passes on a device registered in AdMob —
+watch → reward for every placement against the production units (fill,
+reward exactly once, panel hides while backgrounded).
 
 ## IAP (Pocketbase + store products + on-device verification) — `todo.md` "IAP — Pocketbase deploy + store products + on-device verification"
 
-**Blocked on (external):** the store products (`docs/store-integration.md` §2.1 — 26 products; the App Store Connect half is deferred to
-`docs/backlog.md`) and the store credentials that go on the sidecar once
-they exist. Neither can be produced in-repo. (The Pocketbase deployment
-itself is DONE — see below.)
+**Blocked on (external):** the iOS store credentials only — the `APPLE_*`
+App Store Connect API key for the sidecar (`docs/backlog.md`, iOS
+section). The 26 Play products are live and ACTIVE (`products-check`
+clean), the Android Play credentials are on the sidecar (`/healthz` →
+`configured.android: true`), and a release AAB (1.0.8) sits on the
+internal track. The Pocketbase deployment itself is DONE (below).
 
 **Done in-repo:** the full client half, mirroring the ads pattern —
 `iapProvider.ts` (expo-iap → `finishTransaction` → POST `/api/app/verify`,
@@ -96,8 +102,9 @@ local sandbox (fake-token mode — the full curl matrix in
 `pb_hooks/README.md` passes: IAP verify/restore, cloud LWW push/pull,
 monotonic leaderboard merge + top/rank, the 30-write/hour durable budget
 429-ing on the 31st write, GDPR delete with entitlements surviving). The
-deploy + URL are DONE (see "Deployment status" below); only the store
-credentials remain external. Note the v0.40 hooks API is a major
+deploy + URL are DONE (see "Deployment status" below); the Android store
+credentials are on the sidecar, the iOS `APPLE_*` are the only remaining
+credential gap. Note the v0.40 hooks API is a major
 rewrite from v0.2x (pooled handler VMs, sync-only, self-contained
 handlers) — see the "v0.40 hook model" section in `pb_hooks/README.md`
 before editing that folder.
@@ -122,14 +129,16 @@ VPS (`~/docker/pocketbase`), Caddy TLS on
 the sidecar container on the internal compose network, `MDOOM_SIDECAR_URL`
 set, no fake-token flag (a public endpoint must never mint on fake
 tokens). Smoke-tested live: restore/leaderboard/cloud serve; a fake
-token is refused (fail closed). `storeConfig.pocketbaseUrl` is set and
-pinned by `storeConfig.test.ts`; the `iaps.test.ts` live pin now expects
-the store provider.
+token is refused (fail closed). The sidecar carries the Android store
+credentials (read-only `secrets/` mount → `PLAY_SERVICE_ACCOUNT_JSON`,
+`/healthz` → `configured.android: true`); iOS/Google identity stay
+fail-closed until those credentials exist. `storeConfig.pocketbaseUrl` is
+set and pinned by `storeConfig.test.ts`; the `iaps.test.ts` live pin now
+expects the store provider.
 
-**Unblocks when:** the Play Console products + service account exist, the
-sidecar's env carries the `PLAY_*` credentials, and the on-device
-verification in docs/store-integration.md §4 passes (test purchase →
-entitlement → restore after wiping the local key; web bundle grep).
+**Unblocks when:** the on-device verification in
+docs/store-integration.md §4 passes (test purchase → entitlement →
+restore after wiping the local key; web bundle grep).
 
 (Decision log: the earlier "signing gap" item is resolved in-repo by the
 sidecar above — option 1 of the three options that were on the table;

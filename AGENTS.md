@@ -22,6 +22,7 @@ All commands run from the repo root:
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint (flat config, `eslint.config.mjs`) |
 | `npm run deploy` | Export static web build to `dist/` and push via `gh-pages` (`predeploy` runs `expo export -p web`) |
+| `npm run play -- <cmd>` | Play Console CLI (`scripts/play/play.mjs`, Play Developer API v3): listings, images, tracks, AAB upload/release, one-time-product CRUD. Needs a service-account key (`./play-service-account.json`, gitignored, or `PLAY_SERVICE_ACCOUNT_JSON`) |
 
 **CI (`.github/workflows/ci.yml`) gates on: typecheck, lint, and tests.** All three must pass before committing changes to code. A second workflow, `e2e-android.yml`, builds the debug APK and runs the Maestro e2e flows (`maestro/`) on a fresh Android emulator — the boot-up check (`maestro/flows/boot_up.yaml`) is the minimum bar for "the Android app still boots".
 
@@ -140,6 +141,18 @@ So test/source files import like `import ... from "src/mines_of_doom/game"` or
   wiped the old `android/keystore/` during the SDK 57 upgrade). If the keystore
   is ever lost, re-download it from Play Console → App integrity → App signing
   (see `docs/store-integration.md` §2.5).
+- **Windows release-AAB builds need a newer ninja in the Android SDK.**
+  The SDK's cmake 3.22.1 ships ninja 1.10.2, which hard-fails on paths
+  longer than 260 chars ("Filename longer than 260 characters") — and the
+  RN codegen CMake object paths (e.g. `...\.cxx\RelWithDebInfo\<hash>\arm64-v8a\
+  rngesturehandler_codegen_autolinked_build\...\RNGestureHandlerDetectorShadowNode.cpp.o`)
+  exceed that on this machine, so `bundleRelease` dies. Fix applied: replaced
+  `C:\Users\mrpag\AppData\Local\Android\Sdk\cmake\3.22.1\bin\ninja.exe`
+  with official ninja 1.13.2 (long-path capable; backup of the original at
+  `C:\Users\mrpag\ninja13\ninja-1.10.2.bak.exe`). If the SDK is reinstalled,
+  swap 1.13.2 back in (`ninja-win.zip` from the ninja-build releases).
+  Subst-drive workarounds don't work: expo autolinking can't find the root
+  `package.json` on a subst drive root (node `path.dirname` quirk).
 - Number formatting is capped at Qi (1e30) by design (see `docs/todo.md` — BigInt
   for minerals is deliberately deferred). Don't "fix" large-number handling without
   revisiting that decision.

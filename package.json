@@ -13,7 +13,8 @@
     "test": "jest",
     "test:e2e": "maestro test maestro/flows",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "play": "node scripts/play/play.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.15",
@@ -53,6 +54,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "gh-pages": "^6.1.1",
     "globals": "^15.0.0",
+    "googleapis": "^178.0.0",
     "metro": "^0.84.4",
     "react-test-renderer": "19.2.3",
     "typescript": "~6.0.3",
