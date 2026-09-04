@@ -10,14 +10,15 @@ appId: com.minus4kelvin.minesofdoom
 ---
 - launchApp: com.minus4kelvin.minesofdoom
 
-- repeat:
-    while:
-      visible:
-        id: onboarding-overlay
-    times: 1
-    commands:
-      - tapOn:
-          id: onboarding-skip
+# Onboarding overlay guard (first launch only) — see boot_up.yaml for the
+# optional/when rationale.
+- assertVisible:
+    id: onboarding-skip
+    optional: true
+- tapOn:
+    id: onboarding-skip
+
+    optional: true
 
 - assertVisible:
     id: equation-display
@@ -25,60 +26,57 @@ appId: com.minus4kelvin.minesofdoom
     id: mineral-count
 
 # Earn a characteristic amount.
-- loop:
-    - touchDown:
-        id: mining-canvas
-    - sleep: 400
-    - touchUp:
-        id: mining-canvas
-  times: 6
+- repeat:
+    times: 6
+    commands:
+      - longPressOn:
+          id: mining-canvas
 
-- extract:
-    variable: minerals_before
-    from:
-      id: mineral-count
-    regex: "([0-9][0-9,]*)"
+- copyTextFrom:
+    id: mineral-count
+- evalScript: ${output.mineralsBefore = maestro.copiedText}
+- assertTrue:
+    condition: ${Number(output.mineralsBefore.replace(/,/g, "")) > 0}
+    label: "mined some minerals before saving (${output.mineralsBefore})"
 
 # Explicit save (autosave would eventually write it too, but the pill is
 # the first-class path this flow is meant to exercise).
 - tapOn:
     id: save-pill
 
-# Give the AsyncStorage write a beat before the hard kill — the save is
-# an async setItem and a slow CI emulator could still be mid-write.
-- sleep: 1000
+# The write is an async setItem — a hard kill mid-write would lose the
+# save. useGameEngine clears saveDirty in the .then() of the write, which
+# flips the pill's accessibility label off "Save game (unsaved changes)",
+# so waiting for that label to disappear is a real sync point, not a sleep.
+- extendedWaitUntil:
+    notVisible:
+      text: "Save game \\(unsaved changes\\)"
+    timeout: 5000
 
 # Kill the process and boot cold again.
 - stopApp: com.minus4kelvin.minesofdoom
 - launchApp: com.minus4kelvin.minesofdoom
 
-# Onboarding never resurfaces (it persists on first dismiss); the repeat
-# block is a no-op here but keeps the flow safe against fresh installs.
-- repeat:
-    while:
-      visible:
-        id: onboarding-overlay
-    times: 1
-    commands:
-      - tapOn:
-          id: onboarding-skip
+# Onboarding never resurfaces (it persists on first dismiss); the guard
+# below is a no-op here but keeps the flow safe against fresh installs.
+- assertVisible:
+    id: onboarding-skip
+    optional: true
+- tapOn:
+    id: onboarding-skip
+
+    optional: true
 
 - assertVisible:
     id: equation-display
 - assertVisible:
     id: mineral-count
 
-- extract:
-    variable: minerals_after
-    from:
-      id: mineral-count
-    regex: "([0-9][0-9,]*)"
-
-- script: |
-    val before = extract("minerals_before")
-    val after = extract("minerals_after")
-    assert(before != null && after != null, "missing mineral counts")
-    assert(before == after, "minerals changed across save/reload: $before -> $after")
+- copyTextFrom:
+    id: mineral-count
+- assertTrue:
+    condition: ${output.mineralsBefore !== null && maestro.copiedText === output.mineralsBefore}
+    label: "minerals identical across save/reload (${output.mineralsBefore} -> ${maestro.copiedText})"
 
 # And no loading screen is stuck on top.
 - assertNotVisible:

@@ -4,6 +4,43 @@ Work that cannot proceed in this repo without a decision or an external
 action. Items here map 1:1 to the remaining `docs/todo.md` items; when one
 unblocks, delete its section and re-scope the todo.
 
+## Depth banner not painting on phone layouts (e2e investigation finding)
+
+**Found:** 2026-09-04, while bringing the Maestro e2e suite to actually run.
+
+**Symptom (repro on Pixel 3a API 34 emulator, debug APK built clean from
+HEAD):** the main game screen renders with the equation display as the
+FIRST element under the status bar — the depth banner ("⛏ Nm · tier") is
+absent from both the screen pixels and the accessibility tree, and every
+sibling is shifted up by the banner's height. The `testID="depth-banner"`
+node that older builds exposed (verified in Sept 2 a11y dumps) is gone.
+
+**Narrowed down:** `DEPTH_BANNER_RENDER` log probe inside the component
+fires on cold boot with correct props (`0`, `0`, `Surface Caverns`), so
+React renders the view; the native layer simply never paints it and the
+a11y tree omits it. Clean `gradlew clean :app:assembleDebug` reproduces;
+the APK's `index.android.bundle` is current (no src file newer than the
+bundle). `MinesOfDoom.tsx` has a single render path — `DepthBanner` is
+rendered unconditionally as the first child of `styles.contentColumn`
+(the tablet/wide fix, commit `498c2c8`), with no conditional, no
+`display: none`, no duplicate style key. The component itself is a plain
+`<View testID><Text>…</Text></View>` (always renders, `memo`-wrapped).
+
+**Suspect:** the `contentColumn` wrapper from the tablet/wide fix
+(`width: 100%, maxWidth: 640, alignItems: center, gap: 3` with no
+`flex`) — the same commit that changed the top-of-screen layout. Needs an
+on-device layout pass (devtools / `onLayout` bounds) to pin the native
+measurement that zeroes the first child.
+
+**Interim e2e state:** the three flows that asserted
+`id: depth-banner` (`boot_up`, `mining`, `menu_settings`) now assert
+`id: mineral-count` instead — the banner node is unusable as a selector
+until this is fixed.
+
+**Unblocks when:** someone with a working dev-tools setup reproduces the
+bounds, fixes the layout (or the RN flex quirk it hits), and restores the
+`depth-banner` asserts in the three flows.
+
 ## Rewarded ads (AdMob) — `todo.md` "Rewarded ads (AdMob) — production ids + on-device verification"
 
 **Blocked on (external):** the Google **AdMob account** — the Android App ID

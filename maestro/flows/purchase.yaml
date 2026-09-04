@@ -1,23 +1,28 @@
 # E2E purchase check (Android): the upgrades section renders, the core
 # purchase buttons are present, and buying UPGRADE POWER succeeds (the
-# pending per-answer gain goes up, proving the buy wired through the
-# engine) without crashing.
+# click-power level in the button label goes up, proving the buy wired
+# through the engine) without crashing.
 #
-# The flow first earns enough minerals by hold-to-mining (see mining.yaml
-# for the touchDown/sleep/touchUp rationale) — a fresh install can afford
-# the level-1 power upgrade (cost = clickPower^4 = 1) after a few mines.
+# The level in the button label is the assertion target — deliberately NOT
+# the pending per-answer gain, which is combo-multiplied: the combo can
+# decay between two reads and mask the purchase (observed in the field).
+#
+# The flow first earns enough minerals by long-press mining (see mining.yaml
+# for the hold rationale) — a fresh install can afford the level-1 power
+# upgrade (cost = clickPower^4 = 1) after a few mines.
 appId: com.minus4kelvin.minesofdoom
 ---
 - launchApp: com.minus4kelvin.minesofdoom
 
-- repeat:
-    while:
-      visible:
-        id: onboarding-overlay
-    times: 1
-    commands:
-      - tapOn:
-          id: onboarding-skip
+# Onboarding overlay guard (first launch only) — see boot_up.yaml for the
+# optional/when rationale.
+- assertVisible:
+    id: onboarding-skip
+    optional: true
+- tapOn:
+    id: onboarding-skip
+
+    optional: true
 
 - assertVisible:
     id: equation-display
@@ -32,36 +37,38 @@ appId: com.minus4kelvin.minesofdoom
     id: btn-buy-miner
 
 # Earn minerals (5 holds × click power ≥ the first upgrade's cost of 1).
-- loop:
-    - touchDown:
-        id: mining-canvas
-    - sleep: 400
-    - touchUp:
-        id: mining-canvas
-  times: 5
+- repeat:
+    times: 5
+    commands:
+      - longPressOn:
+          id: mining-canvas
 
-# The pending per-answer gain shows clickPower × combo × op bonus; tapping
-# the cave between reads resets the combo, so the button's effect is a
-# clean increase.
-- extract:
-    variable: gain_before
-    from:
-      id: pending-gain
-    regex: "correct: \\+([0-9][0-9,]*)"
-
-- tapOn:
+# The button label is "UPGRADE POWER (-{cost} 🪨) ({power})"; the last
+# parenthesized number is the current click-power level, so it must grow by
+# one when the purchase goes through.
+- copyTextFrom:
     id: btn-upgrade-power
+- evalScript: ${output.powerBefore = Number(maestro.copiedText.split("(").pop().replace(")", ""))}
 
-- extract:
-    variable: gain_after
-    from:
-      id: pending-gain
-    regex: "correct: \\+([0-9][0-9,]*)"
+# longPressOn (not tapOn): on the CI emulator, short taps inside the
+# upgrades ScrollView were intermittently swallowed by the scroll container
+# (observed: tap "completed" but the purchase never registered). A long
+# press fires the Pressable's onPress exactly once on release — but even
+# that can be dropped when the emulator is heavily loaded, so retry up to 3
+# times: after the first successful purchase the button is disabled (the
+# next level's cost is unaffordable) and the extra presses no-op.
+- repeat:
+    times: 3
+    commands:
+      - longPressOn:
+          id: btn-upgrade-power
 
-- script: |
-    val before = (extract("gain_before") ?: "0").replace(",", "").toLong()
-    val after = (extract("gain_after") ?: "0").replace(",", "").toLong()
-    assert(after > before, "expected pending gain to increase from $before, got $after")
+- copyTextFrom:
+    id: btn-upgrade-power
+- evalScript: ${output.powerAfter = Number(maestro.copiedText.split("(").pop().replace(")", ""))}
+- assertTrue:
+    condition: ${output.powerAfter > output.powerBefore}
+    label: "click power increased after buying UPGRADE POWER (${output.powerBefore} -> ${output.powerAfter})"
 
 # ...and the main UI is still alive.
 - assertVisible:

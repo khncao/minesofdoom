@@ -15,35 +15,36 @@ appId: com.minus4kelvin.minesofdoom
 ---
 - launchApp: com.minus4kelvin.minesofdoom
 
-# State 1/4 — the onboarding overlay on a fresh install.
-- repeat:
-    while:
-      visible:
-        id: onboarding-overlay
-    times: 1
-    commands:
-      - takeScreenshot: 01_onboarding.png
-      - tapOn:
-          id: onboarding-skip
+# State 1/4 — the onboarding overlay on a fresh install. The overlay mounts
+# just after the main screen, so assertVisible polls until it appears; on
+# non-fresh installs the shot is just the main screen and the tap no-ops
+# (optional/when).
+- assertVisible:
+    id: onboarding-overlay
+    optional: true
+- takeScreenshot: 01_onboarding
+- tapOn:
+    id: onboarding-skip
+
+    optional: true
 
 - assertVisible:
     id: equation-display
 - assertVisible:
     id: mineral-count
 
-# State 2/4 — mid-mine: a few hold-to-mines so the counters read non-zero
-# (same touchDown/sleep/touchUp rationale as mining.yaml — a plain tapOn is
-# a deliberate no-op by design).
-- loop:
-    - touchDown:
-        id: mining-canvas
-    - sleep: 400
-    - touchUp:
-        id: mining-canvas
-  times: 3
+# State 2/4 — mid-mine: a few long-press mines so the counters read non-zero
+# (same longPressOn rationale as mining.yaml — a plain tapOn is a
+# deliberate no-op by design).
+- repeat:
+    times: 3
+    commands:
+      - longPressOn:
+          id: mining-canvas
 
 # Let the floating "+N" text and debris settle before the shot.
-- sleep: 500
+- waitForAnimationToEnd:
+    timeout: 3000
 - takeScreenshot: 02_mining.png
 
 # State 3/4 — the upgrades panel (open by default; asserting a buy button
