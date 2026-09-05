@@ -4,77 +4,17 @@ Work that cannot proceed in this repo without a decision or an external
 action. Items here map 1:1 to the remaining `docs/todo.md` items; when one
 unblocks, delete its section and re-scope the todo.
 
-## Depth banner not painting on phone layouts (e2e investigation finding)
+## e2e: `mining` flow's minerals assert fails on the emulator — **RESOLVED 2026-09-04, no app bug**
 
-**Found:** 2026-09-04, while bringing the Maestro e2e suite to actually run.
-
-**Symptom (repro on Pixel 3a API 34 emulator, debug APK built clean from
-HEAD):** the main game screen renders with the equation display as the
-FIRST element under the status bar — the depth banner ("⛏ Nm · tier") is
-absent from both the screen pixels and the accessibility tree, and every
-sibling is shifted up by the banner's height. The `testID="depth-banner"`
-node that older builds exposed (verified in Sept 2 a11y dumps) is gone.
-
-**Narrowed down:** `DEPTH_BANNER_RENDER` log probe inside the component
-fires on cold boot with correct props (`0`, `0`, `Surface Caverns`), so
-React renders the view; the native layer simply never paints it and the
-a11y tree omits it. Clean `gradlew clean :app:assembleDebug` reproduces;
-the APK's `index.android.bundle` is current (no src file newer than the
-bundle). `MinesOfDoom.tsx` has a single render path — `DepthBanner` is
-rendered unconditionally as the first child of `styles.contentColumn`
-(the tablet/wide fix, commit `498c2c8`), with no conditional, no
-`display: none`, no duplicate style key. The component itself is a plain
-`<View testID><Text>…</Text></View>` (always renders, `memo`-wrapped).
-
-**Fix landed (2026-09-05, unverified on device):** the window runs
-edge-to-edge on RN 0.86, so `MinesOfDoom.tsx` now reserves the
-safe-area insets (`useSafeAreaInsets()` — provided by expo-router's root
-`SafeAreaProvider`, zero on web) as top/bottom padding on the container,
-and `styles.contentColumn` gained `flex: 1` so the column (and its first
-child, the banner) get a definite measured height instead of being sized
-purely by content inside a centered flex row. The `depth-banner`
-asserts are restored in the three flows (`boot_up`, `mining`,
-`menu_settings`).
-
-**Still blocked on:** an on-device/CI e2e run to confirm the banner
-paints (iteration 7's e2e run was cancelled by the user — the fix is
-in, the asserts are back, it just hasn't been exercised on an emulator
-yet). If the next e2e run still fails on `depth-banner`, this section
-reopens with the bounds from that run.
-
-## Rewarded ads (AdMob) — `todo.md` "Rewarded ads (AdMob) — on-device verification"
-
-**Blocked on (external):** the Google **AdMob account** — the Android App ID
-and the production rewarded units for **all four placements** have landed
-in `storeConfig.adMob` (one set serves both platforms — ad units aren't
-platform-scoped). What remains: registering test devices in AdMob (a
-production unit serves only test devices + personalization-targeted real
-traffic) and the on-device verification below. (The iOS app entry + App ID
-is deferred to `docs/backlog.md` — it is not on the active path.)
-
-**Note:** Android is now fully configured (app id + all four production
-placement units) and runs the real `AdMobAdProvider` in production builds.
-`storeConfig.test.ts` pins every unit id and fails on AdMob's public test
-unit ids (a leaked test id would silently replace a production unit). iOS
-stays on the no-op until `iosAppId` lands (`docs/backlog.md`) —
-`isAdMobIdsConfigured` requires the app id plus a unit id for every
-placement.
-
-**Done in-repo:** the `AdMobAdProvider` behind `selectAdProvider` (v16
-`react-native-google-mobile-ads`): `src/mines_of_doom/adProvider.ts` (+
-`adProvider.web.ts` no-op for the web target), `storeConfig.ts` as the single
-config point, and the config plugin in `app.config.ts` that bakes the app
-ids into the native manifests at prebuild. Entry points stay hidden on
-platforms where the pair is unconfigured (no-op provider — currently iOS,
-which lacks its App ID) — pinned by `ads.test.ts` /
-`storeConfig.test.ts`. The full watch → reward → caps flow is now
-device-testable against the production units on a test device registered
-in AdMob, and the dev-sim provider covers `__DEV__` builds.
-
-**Unblocks when:** the on-device verification in
-`docs/store-integration.md` §1/§4 passes on a device registered in AdMob —
-watch → reward for every placement against the production units (fill,
-reward exactly once, panel hides while backgrounded).
+Triaged with `--debug-output` against the release APK: the assertion
+compares the **displayed, rounded** counter (`mineral-count` shows e.g.
+"1.11M"), and the test device carried an inflated save — 5 hold-mines
+(+tens of minerals) never move a value at the 1.11M scale, so both reads
+came back "1.11M". Neither hypothesis (dead long-press, stale a11y text)
+was right; the long-presses mined fine. On a fresh install (the CI
+condition — "a fresh install is 0") the flow passes clean. The
+precondition is documented in `maestro/flows/mining.yaml`; keep the suite
+on fresh installs.
 
 ## IAP (Pocketbase + store products + on-device verification) — `todo.md` "IAP — Pocketbase deploy + store products + on-device verification"
 
@@ -139,6 +79,27 @@ expects the store provider.
 **Unblocks when:** the on-device verification in
 docs/store-integration.md §4 passes (test purchase → entitlement →
 restore after wiping the local key; web bundle grep).
+
+**Progress (2026-09-04, emulator):** the release-APK (upload-key) pass on
+the Pixel 3a emulator confirmed the §4 pass does NOT need a phone — the
+store sheet on the emulator fetches and lists all live Play products with
+real prices (no Google account required for product retrieval), and the
+web-bundle grep half of §4 is done (clean). What remains is exactly the
+purchase leg and it runs on the SAME emulator: add one Gmail as a Play
+Console **license tester**, sign it into the emulator's Play Store, test
+card purchase → entitlement → wipe local key → restore.
+
+**Research note (2026-09-04):** the §4 pass does NOT require a
+physical Android phone. Google's billing-test doc
+(https://developer.android.com/google/play/billing/test) has no
+emulator exclusion: a **license tester** account (Play Console →
+Users and permissions → Testers) gets test cards that never charge
+real money, test accounts may run on emulators, and license testers
+may even sideload debug builds (package name must match). So the pass
+runs on the Pixel 3a emulator (or any Play-Store-image AVD) once one
+Gmail is added as a Play Console tester and signed into the
+emulator's Play Store — or on a real phone, which needs no extra
+setup. The iOS half is unchanged: StoreKit is real-phone-only.
 
 (Decision log: the earlier "signing gap" item is resolved in-repo by the
 sidecar above — option 1 of the three options that were on the table;

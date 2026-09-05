@@ -10,6 +10,12 @@
 # MiningCanvas.tsx). The counter is read with copyTextFrom (text lands in
 # maestro.copiedText) and compared in a JS expression, because the mineral
 # value is dynamic.
+#
+# PRECONDITION: a low-mineral save (CI runs fresh installs). The assert
+# compares the DISPLAYED, rounded counter — on an aged/inflated save
+# (e.g. 1.11M) five mines never move the display and the flow fails
+# spuriously. Triage of exactly that failure: docs/blockers.md
+# ("mining flow's minerals assert" — RESOLVED, no app bug).
 appId: com.minus4kelvin.minesofdoom
 ---
 - launchApp: com.minus4kelvin.minesofdoom
