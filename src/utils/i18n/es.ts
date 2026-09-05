@@ -26,11 +26,10 @@ export const es: Record<TranslationKey, string> = {
   "main.upgrades": "MEJORAS",
   "main.a11yShowUpgrades": "Mostrar mejoras",
   "main.a11yHideUpgrades": "Ocultar mejoras",
-  "main.keypad": "TECLADO",
   "main.shop": "TIENDA",
+  "main.a11yCloseUpgrades": "Cerrar mejoras",
   "main.a11yUpgradesTab": "Pestaña de mejoras",
   "main.a11yShopTab": "Pestaña de tienda",
-  "main.a11yKeypadTab": "Pestaña de teclado",
   "main.a11yMenu": "Menú",
   "main.a11yLeaderboard": "Clasificación — los mejores mineros",
 

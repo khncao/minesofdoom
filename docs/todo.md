@@ -3,7 +3,6 @@
 Legend: [ ] not started, [o] in progress
 Completed items are removed from this file (see git history); only remaining work is tracked here.
 
-- [ ] Move menu buttons (like settings and bonus) to top of screen and implement upgrades menu as a side hidden overlay on the canvas so it's not covered by the built-in keyboard at the bottom of the screen
 - [ ] Sync settings, cosmetics, progress, etc. if signed in
 - [ ] Avoid any inputs near bottom or top edge of screen as they get cut off
 - [ ] Set app display name to "Mines of Idle Doomath"

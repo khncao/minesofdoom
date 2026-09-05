@@ -104,30 +104,28 @@ export default function MinesOfDoom() {
   // On-screen keypad (todo: "Reimplement custom numeric keypad"): the
   // stored preference decides how answers are typed. On (default): no
   // TextInput is mounted at all, so the native keypad is fully overridden
-  // — the NumericKeypad numpad renders as a tab next to the upgrades list
-  // in the purchase section (see the tab bar below). Off: the OS keyboard
-  // path in AnswerInput. Like `mute`/`hidePurchases`, it's a plain display
-  // preference persisted in AsyncStorage and applies immediately.
+  // — the NumericKeypad numpad renders in its own strip below the canvas
+  // (the core-loop input, always reachable; the upgrades menu lives in
+  // the side drawer over the canvas instead). Off: the OS keyboard path
+  // in AnswerInput. Like `mute`, it's a plain display preference
+  // persisted in AsyncStorage and applies immediately.
   const [onScreenKeypad, setOnScreenKeypad] = useLocalStorage<boolean>(
     "onScreenKeypad",
     true,
   );
 
-  // The upgrades/shop/keypad tabs inside the purchase section: start on
-  // the keypad tab when keypad mode is on (the default) so a fresh
-  // session can type answers immediately; the keypad tab exists only
-  // while the setting is on. The shop tab (todo: "Move cosmetics from
-  // settings to shop") is the cosmetics list — always present.
-  const [purchaseTab, setPurchaseTab] = useState<
-    "upgrades" | "keypad" | "shop"
-  >(onScreenKeypad ? "keypad" : "upgrades");
-  // Setting flipped off while the keypad tab was selected: fall back to
-  // upgrades so the tab state can't dangle on a tab that no longer exists.
-  useEffect(() => {
-    if (!onScreenKeypad && purchaseTab === "keypad") {
-      setPurchaseTab("upgrades");
-    }
-  }, [onScreenKeypad, purchaseTab]);
+  // The tabs inside the upgrades side drawer (todo: "upgrades menu as a
+  // side hidden overlay on the canvas"): upgrades + the shop (cosmetics —
+  // todo: "Move cosmetics from settings to shop"). The keypad is NOT a
+  // drawer tab: when keypad mode is on it lives in its own bottom strip
+  // (the core-loop input, always reachable), when off the OS keyboard
+  // handles answers and there is no on-screen keypad at all.
+  const [drawerTab, setDrawerTab] = useState<"upgrades" | "shop">(
+    "upgrades",
+  );
+  // The drawer is hidden by default: the cave canvas keeps the whole
+  // mid-screen, and the ⚒ UPGRADES button in the top menu row opens it.
+  const [upgradesOpen, setUpgradesOpen] = useState(false);
 
   // First-run onboarding (plan §2.1): shown until dismissed; the flag
   // persists in AsyncStorage so a skip/finish never resurfaces. The
@@ -135,14 +133,6 @@ export default function MinesOfDoom() {
   // so returning players don't flash it for a frame on cold start.
   const [onboardingDone, setOnboardingDone, onboardingLoading] =
     useLocalStorage<boolean>("onboardingDone", false);
-
-  // Purchase section collapsed state (plan "Adjust"): the upgrade list can
-  // be hidden entirely to give the cave canvas the whole mid-screen. Like
-  // `mute`, it's a plain display preference persisted in AsyncStorage.
-  const [hidePurchases, setHidePurchases] = useLocalStorage<boolean>(
-    "hidePurchases",
-    false,
-  );
 
   const { showMessage, displayMessage } = useMessages();
   // Autosave cadence (seconds) read by the game loop; kept in a ref so the
@@ -688,20 +678,14 @@ export default function MinesOfDoom() {
   const handleMuteChange = useCallback((newVal: boolean) => setMute(newVal), [setMute]);
 
   // Settings toggle handler for the on-screen keypad (takes effect
-  // immediately, no Save tap): enabling opens the section on the keypad
-  // tab so the first tap after the settings sheet closes lands on a key,
-  // not a collapsed header.
+  // immediately, no Save tap): on mounts the numpad strip below the
+  // canvas, off unmounts it and the OS keyboard handles answers. The
+  // upgrades drawer is independent either way.
   const handleKeypadSettingChange = useCallback(
     (newVal: boolean) => {
       setOnScreenKeypad(newVal);
-      if (newVal) {
-        setHidePurchases(false);
-        setPurchaseTab("keypad");
-      } else {
-        setPurchaseTab("upgrades");
-      }
     },
-    [setOnScreenKeypad, setHidePurchases],
+    [setOnScreenKeypad],
   );
   // Keypad handlers: setTextInput (useState) and handleSubmit (useCallback)
   // are stable, so these are stable too and the memoized keypad skips
@@ -964,218 +948,31 @@ export default function MinesOfDoom() {
             (toasts, onboarding) deliberately stay OUTSIDE it so their
             absolute inset: 0 backdrops still cover the whole screen. */}
         <View style={styles.contentColumn}>
-        <DepthBanner
-          depth={depth}
-          mineralsPerSec={mineralsPerSec}
-          tierName={content("depthTier", String(depthTier.id), {
-            title: depthTier.name,
-          }).title}
-          clickBonus={depthTier.clickBonus}
-        />
-        <EquationDisplay
-          equation={equation}
-          clickPower={effectiveClickPower}
-          comboMultiplier={comboMultiplier}
-          multiplySymbol={equationSettings.multiplySymbol}
-        />
-        <AnswerInput
-          value={textInput}
-          setTextInput={setTextInput}
-          onSubmit={handleSubmit}
-          shakeAnim={shakeAnim}
-          useKeypad={onScreenKeypad}
-        />
-        <ComboIndicator
-          combo={combo}
-          comboMultiplier={comboMultiplier}
-          flashAnim={flashAnim}
-        />
-        {/* Plan "Adjust" — canvas always visible: the cave sits ABOVE the
-            purchase section, which is height-capped, scrollable, and
-            collapsible, so no unlock count can ever push the canvas off.
-            The section doubles as the keypad home (todo: keypad in a tab
-            view with upgrades): the keypad tab renders only while the
-            on-screen keypad setting is on. */}
-        <MiningCanvas
-          depth={depth}
-          depthProgress={getDepthTierProgress(gameState.lifetimeMinerals)}
-          tint={caveTint}
-          minerals={gameState.minerals}
-          gems={gameState.gems}
-          miners={gameState.miners}
-          fastMiners={gameState.fastMiners}
-          legendaryMiners={gameState.legendaryMiners}
-          onTap={mineTap}
-          playerPickaxeAnimRef={playerPickaxeAnimRef}
-          debrisRef={debrisRef}
-          blockBreakRef={blockBreakRef}
-          floatingTextRef={floatingTextRef}
-          playerSeed={gameState.playerSeed}
-          outfitId={gameState.selectedOutfit}
-          pickaxeId={gameState.selectedPickaxe}
-          reduceMotion={reduceMotion}
-          emojiArt={settingsData.emojiArt}
-        />
-        <View style={styles.purchasesSection}>
-          <View style={styles.purchasesHeader}>
-            <Pressable
-              testID="purchases-toggle"
-              accessibilityRole="button"
-              accessibilityLabel={
-                hidePurchases
-                  ? t("main.a11yShowUpgrades")
-                  : t("main.a11yHideUpgrades")
-              }
-              onPress={() => setHidePurchases(!hidePurchases)}
-              style={styles.purchasesToggle}
-            >
-              <Text style={styles.purchasesToggleText}>
-                {hidePurchases ? "▼" : "▲"}
-              </Text>
-            </Pressable>
-            {!hidePurchases && (
-              <View style={styles.purchasesTabs}>
-                <Pressable
-                  testID="upgrades-tab"
-                  accessibilityRole="button"
-                  accessibilityLabel={t("main.a11yUpgradesTab")}
-                  accessibilityState={{
-                    selected: purchaseTab === "upgrades",
-                  }}
-                  onPress={() => setPurchaseTab("upgrades")}
-                  style={[
-                    styles.purchasesToggle,
-                    purchaseTab === "upgrades"
-                      ? styles.purchasesTabActive
-                      : null,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.purchasesToggleText,
-                      purchaseTab === "upgrades"
-                        ? styles.purchasesTabActiveText
-                        : null,
-                    ]}
-                  >
-                    {t("main.upgrades")}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  testID="shop-tab"
-                  accessibilityRole="button"
-                  accessibilityLabel={t("main.a11yShopTab")}
-                  accessibilityState={{
-                    selected: purchaseTab === "shop",
-                  }}
-                  onPress={() => setPurchaseTab("shop")}
-                  style={[
-                    styles.purchasesToggle,
-                    purchaseTab === "shop"
-                      ? styles.purchasesTabActive
-                      : null,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.purchasesToggleText,
-                      purchaseTab === "shop"
-                        ? styles.purchasesTabActiveText
-                        : null,
-                    ]}
-                  >
-                    {t("main.shop")}
-                  </Text>
-                </Pressable>
-                {onScreenKeypad && (
-                  <Pressable
-                    testID="keypad-tab"
-                    accessibilityRole="button"
-                    accessibilityLabel={t("main.a11yKeypadTab")}
-                    accessibilityState={{
-                      selected: purchaseTab === "keypad",
-                    }}
-                    onPress={() => setPurchaseTab("keypad")}
-                    style={[
-                      styles.purchasesToggle,
-                      purchaseTab === "keypad"
-                        ? styles.purchasesTabActive
-                        : null,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.purchasesToggleText,
-                        purchaseTab === "keypad"
-                          ? styles.purchasesTabActiveText
-                          : null,
-                      ]}
-                    >
-                      {t("main.keypad")}
-                    </Text>
-                  </Pressable>
-                )}
-              </View>
-            )}
-          </View>
-          {!hidePurchases &&
-            (onScreenKeypad && purchaseTab === "keypad" ? (
-              <NumericKeypad
-                onDigit={handleKeypadDigit}
-                onBackspace={handleKeypadBackspace}
-                onClear={handleKeypadClear}
-                onSubmit={handleSubmit}
-              />
-            ) : purchaseTab === "shop" ? (
-              // Shop tab (todo: "Move cosmetics from settings to shop"):
-              // the gem cosmetics list moved here out of the settings
-              // sheet so it lives with the other spend-minerals surface.
-              <ScrollView style={styles.purchasesScroll}>
-                <CosmeticsSection {...cosmetics} />
-              </ScrollView>
-            ) : (
-            <ScrollView style={styles.purchasesScroll}>
-              <PurchaseButtons
-                visible={visiblePurchases}
-                minerals={gameState.minerals}
-                gems={gameState.gems}
-                clickPower={gameState.clickPower}
-                minerPower={gameState.minerPower}
-                minerPowerUnlocked={gameState.completedTiers.includes(MINER_POWER_UNLOCK_TIER)}
-                miners={gameState.miners}
-                fastMiners={gameState.fastMiners}
-                legendaryMiners={gameState.legendaryMiners}
-                gemChanceLevels={gameState.gemChanceLevels}
-                fastMinerUnlocked={gameState.completedTiers.includes(FAST_MINER_UNLOCK_TIER)}
-                legendaryMinerUnlocked={gameState.completedTiers.includes(LEGENDARY_MINER_UNLOCK_TIER)}
-                prestigeLevel={gameState.prestigeLevel}
-                lifetimeMinerals={gameState.lifetimeMinerals}
-                prestigeUnlocked={gameState.completedTiers.includes(PRESTIGE_UNLOCK_TIER)}
-                clickBoostLevels={gameState.clickBoostLevels}
-                comboResistLevels={gameState.comboResistLevels}
-                onUpgradePower={upgradePower}
-                onBuyMiner={buyMiner}
-                onBuyFastMiner={buyFastMiner}
-                onBuyLegendaryMiner={buyLegendaryMiner}
-                onBuyGem={buyGem}
-                onBuyGemChance={buyGemChance}
-                onBuyClickBoost={buyClickBoost}
-                onBuyComboResist={buyComboResist}
-                onUpgradeMinerPower={upgradeMinerPower}
-                onSinkNewShaft={sinkNewShaft}
-              />
-            </ScrollView>
-            ))}
-        </View>
-        {/* Plan "Adjust": the footer is one menu button (settings + goals
-            live inside it) plus the daily bonus; the freed space goes to
-            the cave canvas (its flex absorbs the removed spacer). */}
-        <View style={styles.footerRow}>
+        {/* Top menu row (todo: "move menu buttons to top of screen"): the
+            old footer moved up so no entry point sits behind the OS
+            keyboard. It wraps on narrow screens; the canvas floor below
+            it keeps the cave visible even with every button showing. */}
+        <View style={styles.headerRow}>
           <SavePill
             dirty={saveDirty}
             reduceMotion={reduceMotion}
             onSave={handleSaveNow}
           />
+          <Pressable
+            testID="upgrades-toggle"
+            accessibilityRole="button"
+            accessibilityLabel={
+              upgradesOpen
+                ? t("main.a11yHideUpgrades")
+                : t("main.a11yShowUpgrades")
+            }
+            onPress={() => setUpgradesOpen(!upgradesOpen)}
+            style={styles.upgradesToggle}
+          >
+            <Text style={styles.upgradesToggleText}>
+              ⛏ {t("main.upgrades")}
+            </Text>
+          </Pressable>
           <MenuPanel
             settingsData={settingsData}
             onChangeSettingsData={handleSettingsDataChange}
@@ -1247,6 +1044,193 @@ export default function MinesOfDoom() {
             />
           )}
         </View>
+        <DepthBanner
+          depth={depth}
+          mineralsPerSec={mineralsPerSec}
+          tierName={content("depthTier", String(depthTier.id), {
+            title: depthTier.name,
+          }).title}
+          clickBonus={depthTier.clickBonus}
+        />
+        <EquationDisplay
+          equation={equation}
+          clickPower={effectiveClickPower}
+          comboMultiplier={comboMultiplier}
+          multiplySymbol={equationSettings.multiplySymbol}
+        />
+        <AnswerInput
+          value={textInput}
+          setTextInput={setTextInput}
+          onSubmit={handleSubmit}
+          shakeAnim={shakeAnim}
+          useKeypad={onScreenKeypad}
+        />
+        <ComboIndicator
+          combo={combo}
+          comboMultiplier={comboMultiplier}
+          flashAnim={flashAnim}
+        />
+        {/* The cave keeps the whole mid-screen: the upgrades drawer
+            overlays it (hidden by default) instead of pushing it around,
+            and the keypad strip below renders only while the on-screen
+            keypad setting is on. */}
+        <View style={styles.canvasWrap}>
+        <MiningCanvas
+          depth={depth}
+          depthProgress={getDepthTierProgress(gameState.lifetimeMinerals)}
+          tint={caveTint}
+          minerals={gameState.minerals}
+          gems={gameState.gems}
+          miners={gameState.miners}
+          fastMiners={gameState.fastMiners}
+          legendaryMiners={gameState.legendaryMiners}
+          onTap={mineTap}
+          playerPickaxeAnimRef={playerPickaxeAnimRef}
+          debrisRef={debrisRef}
+          blockBreakRef={blockBreakRef}
+          floatingTextRef={floatingTextRef}
+          playerSeed={gameState.playerSeed}
+          outfitId={gameState.selectedOutfit}
+          pickaxeId={gameState.selectedPickaxe}
+          reduceMotion={reduceMotion}
+          emojiArt={settingsData.emojiArt}
+        />
+        {/* The upgrades drawer (todo: upgrades menu as a side hidden
+            overlay on the canvas): hidden by default, anchored to the
+            canvas wrapper's right edge so the OS keyboard — which covers
+            the bottom strip — can never hide it. A tap on the dimmed
+            backdrop closes it. */}
+        {upgradesOpen && (
+          <>
+            <Pressable
+              testID="upgrades-backdrop"
+              accessibilityRole="button"
+              accessibilityLabel={t("main.a11yCloseUpgrades")}
+              onPress={() => setUpgradesOpen(false)}
+              style={styles.upgradesBackdrop}
+            />
+            <View testID="upgrades-drawer" style={styles.upgradesDrawer}>
+              <View style={styles.purchasesHeader}>
+                <View style={styles.purchasesTabs}>
+                  <Pressable
+                    testID="upgrades-tab"
+                    accessibilityRole="button"
+                    accessibilityLabel={t("main.a11yUpgradesTab")}
+                    accessibilityState={{
+                      selected: drawerTab === "upgrades",
+                    }}
+                    onPress={() => setDrawerTab("upgrades")}
+                    style={[
+                      styles.purchasesToggle,
+                      drawerTab === "upgrades"
+                        ? styles.purchasesTabActive
+                        : null,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.purchasesToggleText,
+                        drawerTab === "upgrades"
+                          ? styles.purchasesTabActiveText
+                          : null,
+                      ]}
+                    >
+                      {t("main.upgrades")}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    testID="shop-tab"
+                    accessibilityRole="button"
+                    accessibilityLabel={t("main.a11yShopTab")}
+                    accessibilityState={{
+                      selected: drawerTab === "shop",
+                    }}
+                    onPress={() => setDrawerTab("shop")}
+                    style={[
+                      styles.purchasesToggle,
+                      drawerTab === "shop"
+                        ? styles.purchasesTabActive
+                        : null,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.purchasesToggleText,
+                        drawerTab === "shop"
+                          ? styles.purchasesTabActiveText
+                          : null,
+                      ]}
+                    >
+                      {t("main.shop")}
+                    </Text>
+                  </Pressable>
+                </View>
+                <Pressable
+                  testID="upgrades-drawer-close"
+                  accessibilityRole="button"
+                  accessibilityLabel={t("main.a11yCloseUpgrades")}
+                  onPress={() => setUpgradesOpen(false)}
+                  style={styles.upgradesDrawerClose}
+                >
+                  <Text style={styles.upgradesDrawerCloseText}>✕</Text>
+                </Pressable>
+              </View>
+              <ScrollView style={styles.purchasesScroll}>
+                {drawerTab === "shop" ? (
+                  // Shop tab (todo: "Move cosmetics from settings to
+                  // shop"): the gem cosmetics list moved here out of the
+                  // settings sheet so it lives with the other spend-
+                  // minerals surface.
+                  <CosmeticsSection {...cosmetics} />
+                ) : (
+                  <PurchaseButtons
+                visible={visiblePurchases}
+                minerals={gameState.minerals}
+                gems={gameState.gems}
+                clickPower={gameState.clickPower}
+                minerPower={gameState.minerPower}
+                minerPowerUnlocked={gameState.completedTiers.includes(MINER_POWER_UNLOCK_TIER)}
+                miners={gameState.miners}
+                fastMiners={gameState.fastMiners}
+                legendaryMiners={gameState.legendaryMiners}
+                gemChanceLevels={gameState.gemChanceLevels}
+                fastMinerUnlocked={gameState.completedTiers.includes(FAST_MINER_UNLOCK_TIER)}
+                legendaryMinerUnlocked={gameState.completedTiers.includes(LEGENDARY_MINER_UNLOCK_TIER)}
+                prestigeLevel={gameState.prestigeLevel}
+                lifetimeMinerals={gameState.lifetimeMinerals}
+                prestigeUnlocked={gameState.completedTiers.includes(PRESTIGE_UNLOCK_TIER)}
+                clickBoostLevels={gameState.clickBoostLevels}
+                comboResistLevels={gameState.comboResistLevels}
+                onUpgradePower={upgradePower}
+                onBuyMiner={buyMiner}
+                onBuyFastMiner={buyFastMiner}
+                onBuyLegendaryMiner={buyLegendaryMiner}
+                onBuyGem={buyGem}
+                onBuyGemChance={buyGemChance}
+                onBuyClickBoost={buyClickBoost}
+                onBuyComboResist={buyComboResist}
+                onUpgradeMinerPower={upgradeMinerPower}
+                onSinkNewShaft={sinkNewShaft}
+                />
+                )}
+              </ScrollView>
+            </View>
+          </>
+        )}
+        </View>
+        {/* Keypad strip (todo: keypad in a tab view with upgrades): the
+            on-screen numpad lives in its own strip below the canvas —
+            the core-loop input, always reachable. Renders only while the
+            on-screen keypad setting is on; off, the OS keyboard handles
+            answers and the strip doesn't exist at all. */}
+        {onScreenKeypad && (
+          <NumericKeypad
+            onDigit={handleKeypadDigit}
+            onBackspace={handleKeypadBackspace}
+            onClear={handleKeypadClear}
+            onSubmit={handleSubmit}
+          />
+        )}
         </View>
         {showMessage && (
           <View style={styles.messageOverlay} pointerEvents="none">

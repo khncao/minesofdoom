@@ -55,11 +55,10 @@ const SavePill = memo(function SavePill({
         dirty ? t("a11y.saveDirty") : t("a11y.save")
       }
       onPress={onSave}
-      // Same 8px margin as the footer icon buttons so the row stays
-      // uniform (plan "Adjust" footer metrics).
+      // Same 8px margin as the top-row icon buttons so the row stays
+      // uniform.
       style={({ pressed }) => ({
         margin: 4,
-        marginBottom: 8,
         flexDirection: "row",
         alignItems: "center",
         gap: 5,

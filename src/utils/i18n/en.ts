@@ -41,11 +41,10 @@ export const en = {
   "main.upgrades": "UPGRADES",
   "main.a11yShowUpgrades": "Show upgrades",
   "main.a11yHideUpgrades": "Hide upgrades",
-  "main.keypad": "KEYPAD",
   "main.shop": "SHOP",
+  "main.a11yCloseUpgrades": "Close upgrades",
   "main.a11yUpgradesTab": "Upgrades tab",
   "main.a11yShopTab": "Shop tab",
-  "main.a11yKeypadTab": "Keypad tab",
   "main.a11yMenu": "Menu",
   "main.a11yLeaderboard": "Leaderboard — the top diggers",
 

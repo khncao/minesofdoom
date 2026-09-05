@@ -27,38 +27,34 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: 3,
   },
-  canvas: {
+  // Canvas wrapper (todo: upgrades side overlay): position:relative so
+  // the upgrades drawer + backdrop can anchor to the canvas rect itself.
+  canvasWrap: {
     flex: 3,
     minWidth: "98%",
-    backgroundColor: "#2f1f1f",
     margin: 4,
-    overflow: "hidden",
+    position: "relative",
     // Floor so the cave is never squeezed out of existence on short
-    // screens (plan "Adjust" — canvas always visible): the purchase
-    // section below it is height-capped, and this stops the canvas from
-    // ever collapsing to zero between the two.
+    // screens (plan "Adjust" — canvas always visible).
     minHeight: 140,
   },
-  // Purchase section (plan "Adjust"): the upgrade list lives BELOW the
-  // canvas in a height-capped, scrollable box that can be collapsed
-  // entirely, so however many buttons the economy unlocks, the cave
-  // canvas keeps its flex space (see MinesOfDoom.tsx).
-  purchasesSection: {
-    alignSelf: "stretch",
-    // Hard cap: the section scrolls instead of growing with the unlock
-    // count, so it can't push the canvas off-screen on any device.
-    maxHeight: 232,
+  canvas: {
+    flex: 1,
+    backgroundColor: "#2f1f1f",
+    overflow: "hidden",
   },
+  // Upgrades drawer header (todo: upgrades menu as a side hidden overlay
+  // on the canvas): the upgrades/shop tab bar + the close button. The
+  // drawer itself anchors to the canvas wrapper's right edge, so it
+  // never sits where the OS keyboard covers the bottom of the screen.
   purchasesHeader: {
     flexDirection: "row",
-    justifyContent: "center",
+    justifyContent: "space-between",
     alignItems: "center",
     gap: 4,
-    paddingTop: 2,
   },
-  // Collapse toggle + the upgrades/keypad tab bar (todo: keypad in a tab
-  // view with upgrades). The toggle shows only the arrow; the tabs carry
-  // the labels.
+  // Drawer tab buttons + the top-row upgrades toggle share these pill
+  // metrics.
   purchasesToggle: {
     backgroundColor: "#3a3a3a",
     borderRadius: 8,
@@ -183,15 +179,71 @@ export const styles = StyleSheet.create({
     fontWeight: "bold",
     userSelect: "none",
   },
-  // Footer row (plan "Adjust"): uniform 46px-tall icon buttons (each
-  // BottomModal/DailyBonusButton is 30px glyph + 8px padding), bottom-
-  // aligned so the cave canvas keeps as much vertical space as possible.
-  footerRow: {
+  // Top menu row (todo): save + upgrades + settings/goals/records +
+  // daily bonus + the leaderboard/ads/IAP entry points moved UP from the
+  // old footer, so nothing the player needs is behind the OS keyboard.
+  // It wraps on narrow screens; the canvas minHeight below it keeps the
+  // cave visible even when everything is shown.
+  headerRow: {
     flexDirection: "row",
-    alignItems: "flex-end",
+    flexWrap: "wrap",
+    alignItems: "center",
     justifyContent: "center",
     alignSelf: "stretch",
     paddingTop: 2,
+  },
+  // The ⚒ UPGRADES button in the top menu row: opens the side drawer
+  // over the canvas (hidden by default — the canvas has the room).
+  upgradesToggle: {
+    margin: 4,
+    backgroundColor: "#3a3a3a",
+    borderRadius: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+  },
+  upgradesToggleText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "bold",
+    userSelect: "none",
+  },
+  // Drawer backdrop: dims the rest of the canvas; a tap closes the
+  // drawer (sibling-of-drawer, both inside the canvas wrapper).
+  upgradesBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    zIndex: 4,
+  },
+  upgradesDrawer: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    // Wide enough for the purchase-button rows, capped so it never
+    // covers the whole canvas on a phone.
+    width: 280,
+    maxWidth: "82%",
+    backgroundColor: "#303030",
+    borderLeftWidth: 1,
+    borderLeftColor: "#555",
+    zIndex: 5,
+    gap: 6,
+    padding: 8,
+  },
+  upgradesDrawerClose: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: "#3a3a3a",
+  },
+  upgradesDrawerCloseText: {
+    color: "#ccc",
+    fontSize: 14,
+    userSelect: "none",
   },
   // First-run onboarding (plan §2.1): full-screen dimmed backdrop above
   // everything (including toasts), centered card, top-right skip button.

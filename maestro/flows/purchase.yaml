@@ -27,10 +27,12 @@ appId: com.minus4kelvin.minesofdoom
 - assertVisible:
     id: equation-display
 
-# The keypad tab is selected at launch by default (the on-screen keypad is
-# the default answer input), so switch to the upgrades tab first; both core
-# currency groups then render (the mineral-spend button and the gem-spend
-# button are always visible).
+# The upgrades drawer (side overlay on the canvas) is hidden by default;
+# open it from the top menu row and switch to the upgrades tab first; both
+# core currency groups then render (the mineral-spend button and the
+# gem-spend button are always visible).
+- tapOn:
+    id: upgrades-toggle
 - tapOn:
     id: upgrades-tab
 - assertVisible:

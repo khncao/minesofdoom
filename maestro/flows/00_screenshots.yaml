@@ -47,10 +47,12 @@ appId: com.minus4kelvin.minesofdoom
     timeout: 3000
 - takeScreenshot: 02_mining.png
 
-# State 3/4 — the upgrades panel. The keypad tab is selected at launch by
-# default (on-screen keypad is the default input), so tap the upgrades tab;
-# asserting a buy button proves the panel is actually rendered, not just
-# its tab bar.
+# State 3/4 — the upgrades drawer. The side overlay on the canvas is
+# hidden by default; open it from the top menu row, then tap the
+# upgrades tab; asserting a buy button proves the drawer is actually
+# rendered, not just its tab bar.
+- tapOn:
+    id: upgrades-toggle
 - tapOn:
     id: upgrades-tab
 - assertVisible:
