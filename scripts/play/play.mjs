@@ -57,7 +57,14 @@
  *                  [--desc=..] [--lang=en-US] [--region=US] [--currency=USD]
  *                  [--auto-convert-prices]  create a one-time product
  *   activate-product --sku=..            activate the purchase option (DRAFT ->
-                                        ACTIVE; the console's one-time step)
+                                        ACTIVE; the console's one-time step).
+ *                              Once ACTIVE a one-time product is available on
+ *                              ALL tracks (the v3 API has no per-track product
+ *                              publishing) — if a tester's purchase says
+ *                              "item could not be found", the account is not a
+ *                              registered license tester (Play Console UI:
+ *                              Testing -> License testers; the API only sets
+ *                              googleGroups).
    delete-product --sku=.. --yes        delete a one-time product
  *   products-check                       compare live products vs iaps.ts
  *

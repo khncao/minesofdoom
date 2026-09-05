@@ -1,5 +1,6 @@
 import { memo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useT } from "src/hooks/useI18n";
 import { styles } from "../styles";
 
@@ -25,6 +26,10 @@ const OnboardingOverlay = memo(function OnboardingOverlay({
 }) {
   const t = useT();
   const [step, setStep] = useState(0);
+  // API 35 enforces edge-to-edge, so the overlay draws under the status bar;
+  // keep the Skip button clear of it (it was un-tappable on tall-status-bar
+  // devices with the old hardcoded top: 12).
+  const insets = useSafeAreaInsets();
   const isLast = step === STEP_KEYS.length - 1;
   const current = STEP_KEYS[step];
   return (
@@ -35,7 +40,7 @@ const OnboardingOverlay = memo(function OnboardingOverlay({
         testID="onboarding-skip"
         onPress={onDismiss}
         // 44×44 tap target: 16px text + 12px vertical / 14px horizontal pad.
-        style={styles.onboardingSkip}
+        style={[styles.onboardingSkip, { top: Math.max(12, insets.top + 8) }]}
       >
         <Text style={styles.onboardingSkipText}>{t("onboarding.skip")}</Text>
       </Pressable>

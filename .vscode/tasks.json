@@ -22,6 +22,43 @@
             "label": "start expo android",
             "type": "shell",
             "command": "npx expo run:android"
+        },
+        {
+            // Boots the phone AVD headless (if not already running), waits for
+            // boot, then `npm run android -- -d <serial>`.
+            "label": "Android: run on phone (Pixel 3a API 34)",
+            "detail": "scripts/run-android-avd.mjs — boot AVD + expo run:android on it",
+            "type": "process",
+            "command": "node",
+            "args": ["scripts/run-android-avd.mjs", "Pixel_3a_API_34_extension_level_7_x86_64"],
+            "problemMatcher": [],
+            "presentation": { "reveal": "always", "panel": "dedicated" }
+        },
+        {
+            "label": "Android: run on 7in tablet (MinesTablet7)",
+            "detail": "scripts/run-android-avd.mjs — boot AVD + expo run:android on it",
+            "type": "process",
+            "command": "node",
+            "args": ["scripts/run-android-avd.mjs", "MinesTablet7"],
+            "problemMatcher": [],
+            "presentation": { "reveal": "always", "panel": "dedicated" }
+        },
+        {
+            "label": "Android: run on 10in tablet (MinesTablet10)",
+            "detail": "scripts/run-android-avd.mjs — boot AVD + expo run:android on it",
+            "type": "process",
+            "command": "node",
+            "args": ["scripts/run-android-avd.mjs", "MinesTablet10"],
+            "problemMatcher": [],
+            "presentation": { "reveal": "always", "panel": "dedicated" }
+        },
+        {
+            "label": "Android: stop all emulators",
+            "detail": "scripts/run-android-avd.mjs --stop",
+            "type": "process",
+            "command": "node",
+            "args": ["scripts/run-android-avd.mjs", "--stop"],
+            "problemMatcher": []
         }
     ]
 }

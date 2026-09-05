@@ -66,13 +66,15 @@ describe("mintIdToken: google", () => {
     });
     await expect(mintIdToken("google")).resolves.toBe("g-id-token");
     expect(GoogleSignin.signIn).toHaveBeenCalledTimes(1);
-    // v16 Android mints the idToken only for the configured WEB client
-    // id (the token's aud — the sidecar's GOOGLE_CLIENT_ID env must
-    // match, see the module header). CURRENT STATE pin: unconfigured
-    // (empty) — paste the console web client id into signinSdks.ts and
-    // update this pin to the real value.
+    // v16 Android mints the idToken only for the configured client id
+    // (the token's aud — the sidecar's GOOGLE_CLIENT_ID env must
+    // match, see the module header). Pin the real value: if the
+    // constant in signinSdks.ts changes, this test fails until the
+    // pin (and the VPS env) follow. Web-application-type id — the
+    // installed-type one minted no token on-device.
     expect(GoogleSignin.configure).toHaveBeenLastCalledWith({
-      webClientId: "",
+      webClientId:
+        "94426274846-7vsqc2habc84b0upion6clsdnl5cqj1f.apps.googleusercontent.com",
     });
   });
 

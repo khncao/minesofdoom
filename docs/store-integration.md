@@ -466,18 +466,54 @@ route is the one the LegalSection links.
 
 ## 4. On-device verification (the release gate)
 
-Run on a **real device** (Play Billing / StoreKit don't work in the
-emulator or on web) with a **test purchase**, after §1 + §2 are done:
+Run with a **test purchase**, after §1 + §2 are done. Web is out (the
+`.web` swaps are no-ops by design). Device requirements (researched
+2026-09-04 against
+[developer.android.com/google/play/billing/test](https://developer.android.com/google/play/billing/test)
+and the
+[OpenIAP testing guide](https://openiap.dev/docs/guides/testing) —
+`expo-iap` is OpenIAP):
 
-- [ ] **Ads** (§1): a configured rewarded slot loads a real test ad,
+- **Android: a real phone is NOT required.** Play Billing works on an
+  **emulator with a Google Play image** (Play Store app installed —
+  check with `adb shell pm list packages | grep com.android.vending`;
+  the Pixel 3a image has it, the `MinesTablet` AVDs need verifying) and
+  **no emulator exclusion exists in Google's docs** — the old
+  "Play Billing doesn't work on emulators" folklore is refuted by the
+  official license-tester path. Requirements:
+  1. A **Play Console license tester** account (Users and permissions →
+     Testers; license response normal) — purchases from it use the
+     special **test cards** (always-approves / declines / slow) and are
+     never really charged; the purchase dialog shows a test banner.
+  2. That account **signed into the emulator's Play Store** (per the
+     official docs, a test account must be on the device).
+  3. Official docs say license testers can even **sideload debug
+     builds** (bypassing the "signed + uploaded" check; package name
+     must match) — so §2.4's license-key debug APK and an
+     internal-track AAB installed from the Play Store test link are
+     both valid routes; the test-track install is the canonical one
+     (the purchase attributes to the account that downloaded the app).
+  4. Housekeeping: license-tester consumables auto-consume after
+     ~3 min; test purchases can be refunded/revoked in Play Console →
+     Order management; product ids must be ACTIVE (ours are).
+  - StoreKit by contrast **does not** work in the iOS simulator —
+    the iOS half of this pass genuinely needs a real phone.
+- **A real phone still counts** as a valid path (it has no extra
+  setup and doubles as the AdMob test device).
+
+- [x] **Ads** (§1): a configured rewarded slot loads a real test ad,
       watching to the end fires `onRewarded` exactly once, the
       daily-bonus double is granted, and the "Remove Ads" panel state
       is reflected (owned → panel hidden).
-- [ ] **IAP purchase** (§2.3): buy one cheap pack on-device → the
-      entitlement is granted, the cosmetic appears in Cosmetics, and a
-      **wipe of the local AsyncStorage key + restore** re-applies it
-      from the store (this is the whole point of Pocketbase verify —
-      the receipt round-trips).
+      *(2026-09-04: done — phone registered as an AdMob test device and
+      the rewarded watch → reward flow verified on device. The
+      "Remove Ads" half rides along with the IAP purchase test below,)
+      since owning it is what hides the panel.)*
+- [ ] **IAP purchase** (§2.3): buy one cheap pack with a **test card**
+      (license tester) → the entitlement is granted, the cosmetic
+      appears in Cosmetics, and a **wipe of the local AsyncStorage key
+      + restore** re-applies it from the store (this is the whole point
+      of Pocketbase verify — the receipt round-trips).
 - [ ] **Remove Ads** (on-device, test price): owning it hides the
       rewarded-ads panel AND the IAP panel permanently.
 - [ ] **Cloud save** (§3): play a bit → the save is pushed; change

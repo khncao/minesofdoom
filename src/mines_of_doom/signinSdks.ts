@@ -79,11 +79,18 @@ export async function mintIdToken(kind: ProviderKind): Promise<string> {
  *  (pb_hooks/sidecar/verify.js `checkIdentityClaims`), so that env must
  *  equal this constant. Not a secret: a leaked client id alone can't
  *  mint tokens — same plain-constant treatment as the Pocketbase URL in
- *  storeConfig.ts. EMPTY (current state) = unconfigured: v16 Android
- *  never requests an idToken without it, so the sheet can open but no
- *  token comes back and the UI shows its single inline error — an
- *  honest refusal, never a faked sign-in. */
-const GOOGLE_WEB_CLIENT_ID = "";
+ *  storeConfig.ts. (Credential is the project's client id from
+ *  google_oauth_web.json — an installed-type client; v16's Android
+ *  path only needs an id to put in the token's `aud`, and the sidecar
+ *  accepts whatever equals its env, so the two must stay in sync.
+ *
+ *  MUST be a WEB-application-type client id, not the installed-type
+ *  `...c6vottone69be2m84n6s0d6ru1f08n...` one: Play Services'
+ *  `requestIdToken()` only mints tokens for web-type audiences — with the
+ *  installed id the sheet completed but returned success with no idToken
+ *  (verified on-device 2026-09-05).) */
+const GOOGLE_WEB_CLIENT_ID =
+  "94426274846-7vsqc2habc84b0upion6clsdnl5cqj1f.apps.googleusercontent.com";
 
 /** Google (android + ios). Lazy require — see the module header. */
 async function mintGoogleIdToken(): Promise<string> {
@@ -93,8 +100,7 @@ async function mintGoogleIdToken(): Promise<string> {
   // Re-setting the same native config is a no-op; doing it here (not at
   // import time) keeps the require-site lazy. No scopes passed: the SDK
   // defaults (profile + email) apply. webClientId is what mints the
-  // idToken at all — v16 Android never requests one without it, so an
-  // empty id = no token = the honest "no idToken" inline error.
+  // idToken at all — v16 Android never requests one without it.
   GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
   const res = await GoogleSignin.signIn();
   // v16+ resolves (it does not throw) when the user cancels.

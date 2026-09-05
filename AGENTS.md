@@ -24,7 +24,7 @@ All commands run from the repo root:
 | `npm run deploy` | Export static web build to `dist/` and push via `gh-pages` (`predeploy` runs `expo export -p web`) |
 | `npm run play -- <cmd>` | Play Console CLI (`scripts/play/play.mjs`, Play Developer API v3): listings, images, tracks, AAB upload/release, one-time-product CRUD. Needs a service-account key (`./play-service-account.json`, gitignored, or `PLAY_SERVICE_ACCOUNT_JSON`) |
 
-**CI (`.github/workflows/ci.yml`) gates on: typecheck, lint, and tests.** All three must pass before committing changes to code. A second workflow, `e2e-android.yml`, builds the debug APK and runs the Maestro e2e flows (`maestro/`) on a fresh Android emulator — the boot-up check (`maestro/flows/boot_up.yaml`) is the minimum bar for "the Android app still boots".
+**CI (`.github/workflows/ci.yml`) gates on: typecheck, lint, and tests.** All three must pass before committing changes to code. The e2e workflow is **disabled** (too slow vs. manual testing, 2026-09-04): the definition lives at `.github/workflows/e2e-android.yml.disabled` — rename it back to `e2e-android.yml` to re-enable. It built the debug APK and ran the Maestro flows (`maestro/`) on fresh emulators (phone + 7"/10" tablet); while it's disabled, "the app still boots" is verified manually.
 
 ## Architecture
 
@@ -98,9 +98,11 @@ So test/source files import like `import ... from "src/mines_of_doom/game"` or
 - **E2E:** Maestro flows in `maestro/flows/` (config: `maestro/maestro.config.yaml`,
   appId must match `android.package` in `app.config.ts`). Selectors use `testID`s
   added to the components (e.g. `equation-display`, `depth-banner`, `onboarding-skip`)
-  — don't match on emoji/text, which is data-driven. CI runs them in
-  `.github/workflows/e2e-android.yml`; locally: `npm run test:e2e` with a device
-  booted.
+  — don't match on emoji/text, which is data-driven. CI runs them only when
+  the disabled workflow is re-enabled (`.github/workflows/e2e-android.yml.disabled`
+  — rename to `e2e-android.yml`); locally: `npm run test:e2e` with a device
+  booted, flows one at a time (parallel mode on a single emulator is
+  unreliable — see `docs/blockers.md`).
 - **Lint:** flat ESLint config with typescript-eslint + react-hooks rules.
   Unused vars are *warn*, not error. Don't add new lint rules without discussion.
 - **No state library** — plain React Context + hooks. Don't introduce Redux/Zustand
