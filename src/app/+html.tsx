@@ -22,10 +22,10 @@ export default function Html({ children }: { children: React.ReactNode }) {
           name="viewport"
           content="width=device-width, initial-scale=1, shrink-to-fit=no"
         />
-        <title>Mines of Doom</title>
+        <title>Mines of Idle Doomath</title>
         <meta
           name="description"
-          content="Mines of Doom — an idle math-mining game. Solve equations, earn minerals, buy miners, sink new shafts."
+          content="Mines of Idle Doomath — an idle math-mining game. Solve equations, earn minerals, buy miners, sink new shafts."
         />
         <meta name="theme-color" content="#2f2f2f" />
         <ScrollViewStyleReset />

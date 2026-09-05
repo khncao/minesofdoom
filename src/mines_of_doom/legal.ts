@@ -43,7 +43,7 @@ const PRIVACY_POLICY: LegalDoc = {
     {
       heading: "Short version",
       body:
-        "Mines of Doom does not collect personal information. Your game data is stored on your device only, nothing is sent over the network, and there is no account system. This policy spells that out and covers the few edges (in-app purchases, and rewarded ads if they become available on your platform).",
+        "Mines of Idle Doomath does not collect personal information. Your game data is stored on your device only, nothing is sent over the network, and there is no account system. This policy spells that out and covers the few edges (in-app purchases, and rewarded ads if they become available on your platform).",
     },
     {
       heading: "What we store, and where",
@@ -90,7 +90,7 @@ const TERMS_OF_USE: LegalDoc = {
     {
       heading: "The game",
       body:
-        "Mines of Doom (“the game”) is a free-to-play idle mining game. “Free to play” means you can reach the full game and all end-game content without spending money; some cosmetic items can also be bought with real money, and everything buyable can also be earned in-game.",
+        "Mines of Idle Doomath (“the game”) is a free-to-play idle mining game. “Free to play” means you can reach the full game and all end-game content without spending money; some cosmetic items can also be bought with real money, and everything buyable can also be earned in-game.",
     },
     {
       heading: "Virtual goods",

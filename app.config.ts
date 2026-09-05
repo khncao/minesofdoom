@@ -31,7 +31,12 @@ const googleMobileAdsPluginOptions = {
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: "minesofdoom",
+  // Display name (todo: "Set app display name"). The device label follows
+  // this on the NEXT prebuild — the checked-in android/ project still
+  // carries the old "minesofdoom" label in res/values/strings.xml until
+  // then, and the two build.gradle patches (debuggableVariants, upload-key
+  // signing) must be re-applied after every prebuild (AGENTS gotchas).
+  name: "Mines of Idle Doomath",
   slug: "minesofdoom",
   scheme: "com.minus4kelvin.minesofdoom",
   version: "1.0.8",
@@ -57,7 +62,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // explicitly; the exported index.html previously had an empty <title>.)
     name: "Mines of Idle Doomath",
     description:
-      "Mines of Doom — an idle math-mining game. Solve equations, earn minerals, buy miners, sink new shafts.",
+      "Mines of Idle Doomath — an idle math-mining game. Solve equations, earn minerals, buy miners, sink new shafts.",
     bundler: "metro",
     output: "static",
   },

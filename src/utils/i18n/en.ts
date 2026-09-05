@@ -455,7 +455,7 @@ export const en = {
   "a11y.settings": "Settings",
 
   // --- Footer misc -------------------------------------------------------------------
-  "inquiries.subject": "Mines of Doom — feedback from a player",
+  "inquiries.subject": "Mines of Idle Doomath — feedback from a player",
   "a11y.inquiries":
     "Inquiries — opens your email app to contact the developer",
   "share.achievement": "I earned '{name}' in Mines of Idle Doomath!",

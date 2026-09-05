@@ -7,6 +7,8 @@ Completed items are removed from this file (see git history); only remaining wor
 - [ ] Move menu buttons (like settings and bonus) to top of screen and implement upgrades menu as a side hidden overlay on the canvas so it's not covered by the built-in keyboard at the bottom of the screen
 - [ ] Show tips one at a time with auto scrolling
 - [ ] Show cosmetic previews in shop listings
+- [ ] Set app display name to "Mines of Idle Doomath"
+  Done in source (2026-09-06): `app.config.ts` `name`, the `+html.tsx` title/description, web description, legal + inquiries copy. Remains: the **device label** still reads "minesofdoom" (checked-in `android/` project, `res/values/strings.xml`) until the next `expo prebuild` — re-apply the two build.gradle patches (debuggableVariants + upload-key signing) after it, per the AGENTS gotchas — and the Play Console listing display name, which is store-side (`scripts/play/play.mjs` / Play Console → Store presence).
 
 - [ ] IAP — on-device verification
   Client and server are done: `iapProvider.ts` / `iapDeviceId.ts` behind `selectIapProvider`; `pb_hooks/` (all 8 endpoints verified live against a Pocketbase v0.40.2 fake-token sandbox) + the store-verification sidecar in `pb_hooks/sidecar/` (the signing-gap resolution). Remaining work is external — see `docs/blockers.md`.
