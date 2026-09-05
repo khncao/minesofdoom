@@ -102,21 +102,23 @@ export default function MinesOfDoom() {
   const insets = useSafeAreaInsets();
 
   // On-screen keypad (todo: "Reimplement custom numeric keypad"): the
-  // stored preference decides how answers are typed. Off (default): the OS
-  // keyboard path in AnswerInput. On: no TextInput is mounted at all, so
-  // the native keypad is fully overridden — the 3-column NumericKeypad
-  // renders as a tab next to the upgrades list in the purchase section
-  // (see the tab bar below). Like `mute`/`hidePurchases`, it's a plain
-  // display preference persisted in AsyncStorage and applies immediately.
+  // stored preference decides how answers are typed. On (default): no
+  // TextInput is mounted at all, so the native keypad is fully overridden
+  // — the NumericKeypad numpad renders as a tab next to the upgrades list
+  // in the purchase section (see the tab bar below). Off: the OS keyboard
+  // path in AnswerInput. Like `mute`/`hidePurchases`, it's a plain display
+  // preference persisted in AsyncStorage and applies immediately.
   const [onScreenKeypad, setOnScreenKeypad] = useLocalStorage<boolean>(
     "onScreenKeypad",
-    false,
+    true,
   );
 
-  // The upgrades/keypad tab inside the purchase section: "upgrades" is
-  // the default; the keypad tab exists only while the setting is on.
+  // The upgrades/keypad tab inside the purchase section: start on the
+  // keypad tab when keypad mode is on (the default) so a fresh session
+  // can type answers immediately; the keypad tab exists only while the
+  // setting is on.
   const [purchaseTab, setPurchaseTab] = useState<"upgrades" | "keypad">(
-    "upgrades",
+    onScreenKeypad ? "keypad" : "upgrades",
   );
   // Setting flipped off while the keypad tab was selected: fall back to
   // upgrades so the tab state can't dangle on a tab that no longer exists.

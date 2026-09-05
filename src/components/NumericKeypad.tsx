@@ -46,9 +46,12 @@ const Key = ({
 
 /**
  * On-screen numeric keypad (plan §2.1): lets the player type answers
- * without ever summoning the OS keyboard. Grid:
- *   1 2 3 / 4 5 6 / 7 8 9 / ⌫ 0 =
- * ⌫ deletes one digit; holding it clears the whole answer.
+ * without ever summoning the OS keyboard. Standard numpad layout:
+ *   7 8 9 ⌫
+ *   4 5 6 C
+ *   1 2 3 =
+ *   0 0 0 0
+ * ⌫ deletes one digit; C (or holding ⌫) clears the whole answer.
  */
 const NumericKeypad = memo(function NumericKeypad({
   onDigit,
@@ -57,52 +60,70 @@ const NumericKeypad = memo(function NumericKeypad({
   onSubmit,
 }: NumericKeypadProps) {
   const t = useT();
+  const digit = (d: string) => (
+    <Key
+      title={d}
+      accessibilityLabel={t("a11y.digit", { d })}
+      onPress={() => onDigit(d)}
+    />
+  );
   return (
     <View style={styles.keypad}>
-      {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
+      <View style={styles.keyRow}>
+        {digit("7")}
+        {digit("8")}
+        {digit("9")}
         <Key
-          key={d}
-          title={d}
-          accessibilityLabel={t("a11y.digit", { d })}
-          onPress={() => onDigit(d)}
+          title="⌫"
+          accessibilityLabel={t("a11y.backspace")}
+          accessibilityHint={t("a11y.holdToClear")}
+          onPress={onBackspace}
+          onLongPress={onClear}
         />
-      ))}
-      <Key
-        title="⌫"
-        accessibilityLabel={t("a11y.backspace")}
-        accessibilityHint={t("a11y.holdToClear")}
-        onPress={onBackspace}
-        onLongPress={onClear}
-      />
-      <Key
-        title="0"
-        accessibilityLabel={t("a11y.digit", { d: "0" })}
-        onPress={() => onDigit("0")}
-      />
-      <Key
-        title="="
-        accessibilityLabel={t("a11y.submitAnswer")}
-        highlighted
-        onPress={onSubmit}
-      />
+      </View>
+      <View style={styles.keyRow}>
+        {digit("4")}
+        {digit("5")}
+        {digit("6")}
+        <Key
+          title="C"
+          accessibilityLabel={t("a11y.clearAnswer")}
+          onPress={onClear}
+        />
+      </View>
+      <View style={styles.keyRow}>
+        {digit("1")}
+        {digit("2")}
+        {digit("3")}
+        <Key
+          title="="
+          accessibilityLabel={t("a11y.submitAnswer")}
+          highlighted
+          onPress={onSubmit}
+        />
+      </View>
+      <View style={styles.keyRow}>{digit("0")}</View>
     </View>
   );
 });
 
 const styles = StyleSheet.create({
   keypad: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 4,
+    gap: 6,
     alignSelf: "stretch",
-    maxWidth: 300,
+    maxWidth: 320,
     marginHorizontal: 8,
+  },
+  keyRow: {
+    flexDirection: "row",
+    gap: 6,
   },
   key: {
     flex: 1,
-    // 44px tap target (plan §2.2).
-    height: 44,
-    borderRadius: 6,
+    // 56px tap target — deliberately larger than the 44px minimum (plan §2.2)
+    // for a comfortable thumb reach on the numpad.
+    height: 56,
+    borderRadius: 8,
     backgroundColor: "#503121",
     alignItems: "center",
     justifyContent: "center",
@@ -115,7 +136,7 @@ const styles = StyleSheet.create({
   },
   keyText: {
     color: "#fff",
-    fontSize: 18,
+    fontSize: 22,
     userSelect: "none",
   },
   keyTextHighlighted: {

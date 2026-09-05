@@ -280,10 +280,10 @@ export const en = {
     "button is shown at all times, locked or not.",
   "settings.onScreenKeypad": "On-screen keypad: ",
   "settings.onScreenKeypadHelp":
-    "Off (default): the answer is typed with the OS keyboard. On: the " +
-    "answer box never opens the OS keyboard — a 3-column keypad appears " +
-    "as a tab next to the upgrades list below the cave, and answers are " +
-    "typed there. Takes effect immediately, no Save tap needed.",
+    "On (default): the answer box never opens the OS keyboard — a " +
+    "numpad-style keypad appears as a tab next to the upgrades list below " +
+    "the cave, and answers are typed there. Off: the answer is typed with " +
+    "the OS keyboard. Takes effect immediately, no Save tap needed.",
   "settings.saveCode": "Save code (backup / share)",
   "settings.export": "Export code",
   "settings.import": "Import code",
@@ -446,6 +446,7 @@ export const en = {
   "ui.confirm": "Confirm",
   "ui.cancel": "Cancel",
   "a11y.backspace": "Backspace",
+  "a11y.clearAnswer": "Clear the whole answer",
   "a11y.submitAnswer": "Submit answer",
   "a11y.holdToMine": "Hold to mine",
   "a11y.digit": "Digit {d}",

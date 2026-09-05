@@ -27,8 +27,12 @@ appId: com.minus4kelvin.minesofdoom
 - assertVisible:
     id: equation-display
 
-# The upgrades section is open by default; both core currency groups render
-# (the mineral-spend button and the gem-spend button are always visible).
+# The keypad tab is selected at launch by default (the on-screen keypad is
+# the default answer input), so switch to the upgrades tab first; both core
+# currency groups then render (the mineral-spend button and the gem-spend
+# button are always visible).
+- tapOn:
+    id: upgrades-tab
 - assertVisible:
     id: btn-upgrade-power
 - assertVisible:

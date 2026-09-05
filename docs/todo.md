@@ -4,7 +4,6 @@ Legend: [ ] not started, [o] in progress
 Completed items are removed from this file (see git history); only remaining work is tracked here.
 
 - [ ] Disable localization for now. English only
-- [ ] Update custom numeric with larger buttons laid out like a standard numeric keypad
 - [ ] Move menu buttons (like settings and bonus) to top of screen and implement upgrades menu as a side hidden overlay on the canvas so it's not covered by the built-in keyboard at the bottom of the screen
 - [ ] Show tips one at a time with auto scrolling
 - [ ] Show cosmetic previews in shop listings

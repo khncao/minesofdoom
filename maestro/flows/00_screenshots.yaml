@@ -47,8 +47,12 @@ appId: com.minus4kelvin.minesofdoom
     timeout: 3000
 - takeScreenshot: 02_mining.png
 
-# State 3/4 — the upgrades panel (open by default; asserting a buy button
-# proves the section is actually rendered, not just its toggle header).
+# State 3/4 — the upgrades panel. The keypad tab is selected at launch by
+# default (on-screen keypad is the default input), so tap the upgrades tab;
+# asserting a buy button proves the panel is actually rendered, not just
+# its tab bar.
+- tapOn:
+    id: upgrades-tab
 - assertVisible:
     id: btn-upgrade-power
 - takeScreenshot: 03_upgrades.png
