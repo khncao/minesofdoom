@@ -158,11 +158,23 @@ exists). The two native SDKs landed too (`signinSdks.ts`): Google via
 via `expo-apple-authentication` (ios) — one settings button per kind,
 hidden-until-ready by platform, the SDK modules lazily required so web
 never evaluates them; android prebuild done with the two
-`build.gradle` patches re-applied. The only remaining external step:
-the OS sheets need app-side credentials to mint a REAL idToken — a
-Google Cloud OAuth client (android package + SHA-1, ios bundle id) and
-the Sign in with Apple capability (picked up by the iOS prebuild on
-macOS, `docs/backlog.md`). Until then the buttons fail closed to the
-single inline error — an honest refusal, never a faked sign-in — and
-the device verification joins the store-integration §4 list. Nothing
-blocks release: anonymous play is the shipped default.
+`build.gradle` patches re-applied.
+
+**Device verification done (2026-09-05, release APK, emulator API 35):**
+the Google half's last step was a **Web-application-type** OAuth client
+id (the installed-type id made Play Services complete the sheet with no
+idToken — the sidecar never saw a request). With the web id pinned in
+`signinSdks.ts` (`GOOGLE_WEB_CLIENT_ID`) AND the sidecar's
+`GOOGLE_CLIENT_ID` env set to the same value, rebuild + install + the
+full optional-login pass is green on the emulator: **email/password**
+(`maestro/adhoc/v10_login.yaml` — register first-run `v4_register.yaml`,
+sign-out `v4b_signout.yaml`): signed-in branch, token in the OS keychain,
+device linked, cloud backup "last sync" live; **Google**
+(`maestro/adhoc/v9_google_signin.yaml`): OS account sheet → pick account
+→ idToken → sidecar verify → signed-in branch (the idToken-missing
+failure mode is gone — the session lands server-side). The Android OS
+sheet needs a device Google account, which the verification AVD has;
+a phone/AVD without one gets the honest single inline error, never a
+faked sign-in. What remains is Apple only (the Sign in with Apple
+capability, picked up by the iOS prebuild on macOS) — `docs/backlog.md`.
+Nothing blocks release: anonymous play is the shipped default.

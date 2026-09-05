@@ -79,16 +79,17 @@ export async function mintIdToken(kind: ProviderKind): Promise<string> {
  *  (pb_hooks/sidecar/verify.js `checkIdentityClaims`), so that env must
  *  equal this constant. Not a secret: a leaked client id alone can't
  *  mint tokens — same plain-constant treatment as the Pocketbase URL in
- *  storeConfig.ts. (Credential is the project's client id from
- *  google_oauth_web.json — an installed-type client; v16's Android
- *  path only needs an id to put in the token's `aud`, and the sidecar
- *  accepts whatever equals its env, so the two must stay in sync.
+ *  storeConfig.ts.
  *
- *  MUST be a WEB-application-type client id, not the installed-type
- *  `...c6vottone69be2m84n6s0d6ru1f08n...` one: Play Services'
- *  `requestIdToken()` only mints tokens for web-type audiences — with the
- *  installed id the sheet completed but returned success with no idToken
- *  (verified on-device 2026-09-05).) */
+ *  MUST be a WEB-application-type client id (the project's
+ *  "Web application" credential in google_oauth_web.json), NOT the
+ *  installed-type Android client `...c6vottone69be2m84n6s0d6ru1f08n...`:
+ *  Play Services' `requestIdToken()` only mints tokens for web-type
+ *  audiences — with the installed id the sheet completed but returned
+ *  success with no idToken (verified on-device 2026-09-05). With the
+ *  web-type id pinned here, on-device sign-in is verified (2026-09-05,
+ *  maestro/adhoc/v9_google_signin.yaml): sheet → idToken → sidecar →
+ *  signed-in branch.) */
 const GOOGLE_WEB_CLIENT_ID =
   "94426274846-7vsqc2habc84b0upion6clsdnl5cqj1f.apps.googleusercontent.com";
 

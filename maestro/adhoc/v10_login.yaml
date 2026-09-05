@@ -1,0 +1,53 @@
+# Ad-hoc: optional account — sign in with the already-registered
+# email/password pair (repeat runs of the 2026-09-04 verification
+# account). Register (v4_register.yaml) is first-run only — the server
+# returns emailTaken for a known email and the signed-in branch never
+# shows. For a brand-new device+account use v4_register.yaml.
+# Run BEFORE this: nothing (fresh install is fine).
+# Run AFTER this (to leave a clean state): v4b_signout.yaml.
+appId: com.minus4kelvin.minesofdoom
+---
+- launchApp: com.minus4kelvin.minesofdoom
+
+- assertVisible:
+    id: equation-display
+
+- tapOn:
+    id: menu-button
+- assertVisible:
+    id: menu-sheet
+- assertVisible:
+    id: settings-view
+
+- scrollUntilVisible:
+    element:
+      id: account-section
+    direction: UP
+
+- tapOn:
+    id: account-email
+- inputText: devvm-fix20260904b@example.com
+- tapOn:
+    id: account-password
+- inputText: Fixvm12026!
+# Close the soft keyboard — with it open the sign-in button's tap lands
+# on the IME window and nothing happens (no error, no request).
+- pressKey: back
+- assertVisible:
+    id: account-login
+- tapOn:
+    id: account-login
+
+# Android's "Save password to Google Password Manager?" dialog can pop up
+# right after the form submit and shadow the UI (flaked the first run —
+# the sign-in SUCCEEDED behind it). Dismiss it if present.
+- tapOn:
+    text: "Not now"
+    optional: true
+
+# Signed-in branch of AccountSection (match on the testID — Maestro's
+# text: is exact and the label continues with "— save, …").
+- assertVisible:
+    id: account-signout
+- takeScreenshot:
+    path: v10_signedin.png

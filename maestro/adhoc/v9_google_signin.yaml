@@ -1,0 +1,55 @@
+# Ad-hoc: optional account — Google sign-in (release build). The button
+# opens the OS sign-in sheet; a signed-in account on the emulator/phone
+# completes with the idToken. Cancelled sheets are silent by design, so
+# the happy-path assertion is the signed-in branch (account-signout).
+# Run AFTER v4b_signout.yaml (no session in the keychain).
+appId: com.minus4kelvin.minesofdoom
+---
+- launchApp: com.minus4kelvin.minesofdoom
+
+- assertVisible:
+    id: equation-display
+
+- tapOn:
+    id: menu-button
+- assertVisible:
+    id: menu-sheet
+- assertVisible:
+    id: settings-view
+
+- scrollUntilVisible:
+    element:
+      id: account-section
+    direction: UP
+
+# The Google button must be present on Android (account.apple must NOT —
+# Apple is iOS-only; it is not in the provider kinds for android).
+- assertVisible:
+    id: account-google
+- assertNotVisible:
+    id: account-apple
+- takeScreenshot:
+    path: v9_account_buttons.png
+
+- tapOn:
+    id: account-google
+
+# The OS "Choose an account" sheet (com.google.android.gms) lists the
+# device's signed-in account — pick it (match the email, the account
+# name line above it is the same row).
+- extendedWaitUntil:
+    visible:
+      text: "minus4kelvin@gmail.com"
+    timeout: 60000
+- tapOn:
+    text: "minus4kelvin@gmail.com"
+
+# The sheet then completes on its own and the settings view swaps to the
+# signed-in branch. Give it plenty of room (Play services handshake on
+# a cold emulator is slow).
+- extendedWaitUntil:
+    visible:
+      id: account-signout
+    timeout: 60000
+- takeScreenshot:
+    path: v9_signedin.png
