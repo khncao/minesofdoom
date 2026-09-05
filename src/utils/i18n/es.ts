@@ -223,6 +223,7 @@ export const es: Record<TranslationKey, string> = {
     "de 3 términos respondida a tiempo paga ×4 además del bonus de operador.",
   // --- Trucos de cálculo mental (todo: sección de consejos) ---------------
   "settings.tips": "Trucos de cálculo mental",
+  "settings.tip.next": "Consejo siguiente",
   "settings.tip.add.title": "Suma por trozos",
   "settings.tip.add.body":
     "Descompón el número hasta llegar a uno redondo: 47 + 28 = 47 + 30 − 2 " +

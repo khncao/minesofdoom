@@ -1,4 +1,4 @@
-import { memo, useState, type ComponentProps } from "react";
+import { memo, useEffect, useState, type ComponentProps } from "react";
 import { Pressable, Switch, Text, TextInput, View } from "react-native";
 import Button from "src/components/Button";
 import ConfirmableButton from "src/components/ConfirmableButton";
@@ -508,39 +508,74 @@ const TIPS: readonly { title: TranslationKey; body: TranslationKey }[] = [
   },
 ];
 
+/** How long one tip stays on screen before the auto-advance scrolls to
+ *  the next (todo: "Show tips one at a time with auto scrolling"). */
+const TIP_INTERVAL_MS = 8000;
+
 /**
  * Mental math tips (todo: "Add a tips section in settings menu teaching
- * techniques for mental arithmetic"). Pure presentation over i18n keys —
- * no state, so it memoizes trivially by being a top-level component.
+ * techniques for mental arithmetic", then "Show tips one at a time with
+ * auto scrolling"): the eight tips used to stack into a long column that
+ * pushed the rest of settings off-screen; now ONE tip is shown at a time
+ * and the card auto-advances every TIP_INTERVAL_MS (the "auto scroll",
+ * looping back to the first). Tapping the card skips to the next tip
+ * immediately (and restarts the timer — the effect re-runs on index
+ * change), so a skimmer is never caught waiting behind a long tip they
+ * already read.
  */
 function TipsSection() {
   const { t } = useI18n();
+  const [index, setIndex] = useState(0);
+  const tip = TIPS[index % TIPS.length];
+
+  useEffect(() => {
+    const id = setTimeout(
+      () => setIndex((i) => (i + 1) % TIPS.length),
+      TIP_INTERVAL_MS,
+    );
+    return () => clearTimeout(id);
+  }, [index]);
+
+  const nextTip = () => setIndex((i) => (i + 1) % TIPS.length);
+
   return (
     <View style={{ gap: 6, marginTop: 10 }} testID="tips-section">
       <Text style={{ ...styles.text, fontWeight: "bold" }}>
         {t("settings.tips")}
       </Text>
-      {TIPS.map((tip) => (
+      <Pressable
+        onPress={nextTip}
+        accessibilityRole="button"
+        accessibilityLabel={t("settings.tip.next")}
+        testID="tip-card"
+        style={{
+          backgroundColor: "#1f1f1f",
+          borderRadius: 6,
+          borderWidth: 1,
+          borderColor: "#444",
+          paddingHorizontal: 10,
+          paddingVertical: 6,
+          gap: 2,
+        }}
+      >
         <View
-          key={tip.title}
           style={{
-            backgroundColor: "#1f1f1f",
-            borderRadius: 6,
-            borderWidth: 1,
-            borderColor: "#444",
-            paddingHorizontal: 10,
-            paddingVertical: 6,
-            gap: 2,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "baseline",
           }}
         >
           <Text style={{ ...styles.text, fontSize: 12, fontWeight: "bold" }}>
             {t(tip.title)}
           </Text>
           <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
-            {t(tip.body)}
+            {index + 1}/{TIPS.length}
           </Text>
         </View>
-      ))}
+        <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+          {t(tip.body)}
+        </Text>
+      </Pressable>
     </View>
   );
 }

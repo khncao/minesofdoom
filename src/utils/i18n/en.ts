@@ -232,6 +232,7 @@ export const en = {
     "answered in time pays ×4 on top of the operator bonus.",
   // --- Mental math tips (todo: "Add a tips section") ----------------------
   "settings.tips": "Mental math tips",
+  "settings.tip.next": "Next tip",
   "settings.tip.add.title": "Add in chunks",
   "settings.tip.add.body":
     "Break the number up to make a round one: 47 + 28 = 47 + 30 − 2 = 75. " +
