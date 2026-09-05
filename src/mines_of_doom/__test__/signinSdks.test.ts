@@ -17,7 +17,7 @@ import {
 } from "../signinSdks";
 
 jest.mock("@react-native-google-signin/google-signin", () => ({
-  GoogleSignin: { signIn: jest.fn() },
+  GoogleSignin: { signIn: jest.fn(), configure: jest.fn() },
 }));
 jest.mock("expo-apple-authentication", () => ({
   signInAsync: jest.fn(),
@@ -65,9 +65,15 @@ describe("mintIdToken: google", () => {
       data: { idToken: "g-id-token", email: "a@b.c" },
     });
     await expect(mintIdToken("google")).resolves.toBe("g-id-token");
-    // No scopes/options: the SDK defaults (profile/email) mint the
-    // idToken the server's sidecar verifies.
     expect(GoogleSignin.signIn).toHaveBeenCalledTimes(1);
+    // v16 Android mints the idToken only for the configured WEB client
+    // id (the token's aud — the sidecar's GOOGLE_CLIENT_ID env must
+    // match, see the module header). CURRENT STATE pin: unconfigured
+    // (empty) — paste the console web client id into signinSdks.ts and
+    // update this pin to the real value.
+    expect(GoogleSignin.configure).toHaveBeenLastCalledWith({
+      webClientId: "",
+    });
   });
 
   it("a cancelled response (v16 resolves, not throws) is a SignInCancelledError", async () => {

@@ -70,11 +70,32 @@ export async function mintIdToken(kind: ProviderKind): Promise<string> {
   return kind === "google" ? mintGoogleIdToken() : mintAppleIdToken();
 }
 
+/** The Google WEB OAuth client ID (same Google Cloud project as the
+ *  Android client `94426274846-c6vottone69be2m84n6s0d6ru1f08o8n...`
+ *  registered for package `com.minus4kelvin.minesofdoom` + the
+ *  upload-key SHA-1). v16 mints the idToken with
+ *  `requestIdToken(webClientId)` — the token's `aud` IS this id, and the
+ *  server sidecar verifies `aud` against its `GOOGLE_CLIENT_ID` env
+ *  (pb_hooks/sidecar/verify.js `checkIdentityClaims`), so that env must
+ *  equal this constant. Not a secret: a leaked client id alone can't
+ *  mint tokens — same plain-constant treatment as the Pocketbase URL in
+ *  storeConfig.ts. EMPTY (current state) = unconfigured: v16 Android
+ *  never requests an idToken without it, so the sheet can open but no
+ *  token comes back and the UI shows its single inline error — an
+ *  honest refusal, never a faked sign-in. */
+const GOOGLE_WEB_CLIENT_ID = "";
+
 /** Google (android + ios). Lazy require — see the module header. */
 async function mintGoogleIdToken(): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-var-requires -- the lazy require IS the point (see the module header)
   const { GoogleSignin } = require("@react-native-google-signin/google-signin") as
     typeof import("@react-native-google-signin/google-signin");
+  // Re-setting the same native config is a no-op; doing it here (not at
+  // import time) keeps the require-site lazy. No scopes passed: the SDK
+  // defaults (profile + email) apply. webClientId is what mints the
+  // idToken at all — v16 Android never requests one without it, so an
+  // empty id = no token = the honest "no idToken" inline error.
+  GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
   const res = await GoogleSignin.signIn();
   // v16+ resolves (it does not throw) when the user cancels.
   if (res.type !== "success") throw new SignInCancelledError("google");
