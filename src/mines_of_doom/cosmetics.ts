@@ -312,6 +312,13 @@ export function getCostGems(id: string): number | undefined {
 }
 
 /**
+ * Fixed seed for cosmetic PREVIEW thumbnails (shop listings + the
+ * settings gem picker): one representative look per outfit, deterministic
+ * so the same item reads the same on every screen.
+ */
+export const COSMETIC_PREVIEW_SEED = 42;
+
+/**
  * Deterministic player look: f(seed, outfit). Rerolling the seed reshuffles
  * the look; switching the outfit reshuffles it again (different palette).
  * Animal outfits draw their fur from `fur` instead of SKIN_TONES.

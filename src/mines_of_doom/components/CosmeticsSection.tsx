@@ -4,6 +4,7 @@ import Button from "src/components/Button";
 import {
   CAVE_THEMES,
   CaveTheme,
+  COSMETIC_PREVIEW_SEED,
   getPickaxe,
   OUTFITS,
   PICKAXES,
@@ -24,9 +25,6 @@ import { styles } from "../styles";
  * sprite, generated at runtime. Below the pickaxes: the tier-4 cave theme
  * line (background recolor palettes, locked until Crystal Kingdom).
  */
-
-/** Fixed seed for per-outfit thumbnails (a representative look, not random). */
-const SAMPLE_SEED = 42;
 
 /** Name (+ optional one-line blurb) cell shared by every row. */
 function NameCell({ name, blurb }: { name: string; blurb?: string }) {
@@ -245,7 +243,9 @@ function CosmeticsSection({
           o.costGems,
           o.id === selectedOutfit,
           <Image
-            source={{ uri: minerSpriteUri(rollMinerLook(SAMPLE_SEED, o.id)) }}
+            source={{
+              uri: minerSpriteUri(rollMinerLook(COSMETIC_PREVIEW_SEED, o.id)),
+            }}
             style={{ width: 18, height: 18 }}
           />,
           text.detail,

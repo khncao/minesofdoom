@@ -7,6 +7,7 @@ import {
   devSimIapProvider,
   emptyIapEntitlements,
   getIapPackCosmetic,
+  getIapProductPreview,
   grantIapEntitlement,
   hasIapEntitlement,
   iapGrantCosmeticIds,
@@ -19,9 +20,13 @@ import { storeIapProvider } from "../iapProvider";
 import { isPocketbaseConfigured } from "../storeConfig";
 import {
   CAVE_THEMES,
+  COSMETIC_PREVIEW_SEED,
   OUTFITS,
   PICKAXES,
+  getCaveTheme,
+  rollMinerLook,
 } from "../cosmetics";
+import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/pixelArt";
 
 const ALL_PRODUCT_IDS = Object.keys(IAP_PRODUCTS) as IapProductId[];
 
@@ -154,6 +159,57 @@ describe("cosmetic packs (plan §5.2)", () => {
         tier,
       );
     }
+  });
+
+  it("shop previews show the actual item (todo: cosmetic previews in shop listings)", () => {
+    // Remove Ads has no cosmetic to preview.
+    expect(getIapProductPreview("removeAds")).toEqual({ kind: "none" });
+    const packs = IAP_PRODUCT_LIST.filter((p) => p.line != null);
+    expect(packs).toHaveLength(Object.keys(IAP_PACK_GRANTS).length);
+    const spriteUris: Record<"pickaxe" | "outfit", string[]> = {
+      pickaxe: [],
+      outfit: [],
+    };
+    for (const p of packs) {
+      const grant = IAP_PACK_GRANTS[p.id]!;
+      const preview = getIapProductPreview(p.id);
+      if (grant.kind === "caveTheme") {
+        // Swatch strip == the theme's depth palette, exactly.
+        expect(preview).toEqual({
+          kind: "swatches",
+          tints: getCaveTheme(grant.id).tints,
+        });
+      } else {
+        if (preview.kind !== "sprite") {
+          throw new Error(`expected a sprite preview, got ${preview.kind}`);
+        }
+        expect(preview.uri).toMatch(/^data:image\/png;base64,/);
+        // This branch is non-theme, so p.line is the pack's sprite line.
+        spriteUris[p.line as "pickaxe" | "outfit"].push(preview.uri);
+      }
+    }
+    // Each pickaxe previews as its own themed sprite; each outfit as its
+    // own (preview-seed) look — in catalog order, which is cosmetics.ts
+    // order minus the free defaults (the packs sell only paid items).
+    expect(spriteUris.pickaxe).toEqual(
+      PICKAXES.filter((p) => p.costGems > 0).map((p) =>
+        pickaxeSpriteUri(p.theme),
+      ),
+    );
+    expect(spriteUris.outfit).toEqual(
+      OUTFITS.filter((o) => o.costGems > 0).map((o) =>
+        minerSpriteUri(rollMinerLook(COSMETIC_PREVIEW_SEED, o.id)),
+      ),
+    );
+    // Duplicates would mean two rows showing the same image.
+    for (const uris of Object.values(spriteUris)) {
+      expect(new Set(uris).size).toBe(uris.length);
+    }
+    // Stable across calls (the sprite pipeline caches URIs, so a row can't
+    // re-encode a fresh image per render).
+    expect(getIapProductPreview("packGold")).toEqual(
+      getIapProductPreview("packGold"),
+    );
   });
 
   it("iapGrantCosmeticIds splits owned packs by save list", () => {

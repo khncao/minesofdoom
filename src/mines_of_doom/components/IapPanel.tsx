@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Image, Pressable, Text, View } from "react-native";
 import BottomModal from "src/components/BottomModal";
 import Button from "src/components/Button";
 import { useContent, useI18n } from "src/hooks/useI18n";
@@ -11,6 +11,7 @@ import {
   IAP_PRODUCT_LIST,
   IAP_PRODUCTS,
   getIapPackCosmetic,
+  getIapProductPreview,
 } from "../iaps";
 import { styles } from "../styles";
 
@@ -39,6 +40,51 @@ import { styles } from "../styles";
  * fully free and completable without it (guardrails 1 & 4): no urgency
  * language, no default-checked options, no misleading icons.
  */
+/**
+ * Shop-row thumbnail (todo: "Show cosmetic previews in shop listings"): the
+ * actual sprite / palette the pack grants (getIapProductPreview), so a
+ * player can see the item before buying. Non-pack rows (Remove Ads) fall
+ * back to a plain marker — there is no cosmetic to preview.
+ */
+function ProductThumb({ productId }: { productId: IapProductId }) {
+  const preview = getIapProductPreview(productId);
+  if (preview.kind === "sprite") {
+    return (
+      <View style={{ width: 26, alignItems: "center" }}>
+        <Image
+          source={{ uri: preview.uri }}
+          style={{ width: 22, height: 22 }}
+          accessibilityRole="image"
+        />
+      </View>
+    );
+  }
+  if (preview.kind === "swatches") {
+    return (
+      <View style={{ width: 26, alignItems: "center" }}>
+        <View style={{ flexDirection: "row", gap: 2 }}>
+          {preview.tints.map((tint, i) => (
+            <View
+              key={i}
+              style={{
+                width: 5,
+                height: 22,
+                borderRadius: 2,
+                backgroundColor: tint,
+              }}
+            />
+          ))}
+        </View>
+      </View>
+    );
+  }
+  return (
+    <View style={{ width: 26, alignItems: "center" }}>
+      <Text style={styles.text}>🚫</Text>
+    </View>
+  );
+}
+
 function IapPanel({
   isDevSim,
   isDevBuild,
@@ -85,11 +131,14 @@ function IapPanel({
         : ownedPackIds.includes(product.id) ||
           (grant != null && saveOwnedCosmeticIds.includes(grant.id));
     return (
-      <View key={product.id} style={styles.flexCenteredRow}>
+      <View
+        key={product.id}
+        style={{ ...styles.flexCenteredRow, gap: 6, alignItems: "flex-start" }}
+      >
+        <ProductThumb productId={product.id} />
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={styles.text}>
-            {product.id === "removeAds" ? "🚫" : "🎁"} {text.title} —{" "}
-            {product.priceLabel}
+            {text.title} — {product.priceLabel}
           </Text>
           <Text style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}>
             {text.detail ?? product.blurb}
