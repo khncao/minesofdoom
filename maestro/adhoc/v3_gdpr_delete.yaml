@@ -1,0 +1,32 @@
+# Ad-hoc: GDPR "Delete my data" (device scope — not signed in).
+# Server-side verification happens after (curl pull/rank).
+appId: com.minus4kelvin.minesofdoom
+---
+- launchApp: com.minus4kelvin.minesofdoom
+
+- assertVisible:
+    id: equation-display
+
+- tapOn:
+    id: menu-button
+- assertVisible:
+    id: menu-sheet
+- assertVisible:
+    id: settings-view
+
+- takeScreenshot:
+    path: v3_settings.png
+
+- tapOn:
+    text: "Delete my data"
+- assertVisible:
+    text: "Are you sure?"
+- takeScreenshot:
+    path: v3_confirm.png
+- tapOn:
+    text: "Confirm"
+# The outcome toast (useCloudSave.deleteMyData):
+- assertVisible:
+    text: "Your data has been deleted from the server"
+- takeScreenshot:
+    path: v3_after.png

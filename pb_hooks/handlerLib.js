@@ -401,21 +401,27 @@ function createAccountRow(app, partial) {
     appleId: typeof partial.appleId === "string" ? partial.appleId : "",
     createdAt: Date.now(),
   };
-  return app.save(new Record(app.findCollectionByNameOrId("accounts"), row));
+  const record = new Record(app.findCollectionByNameOrId("accounts"), row);
+  app.save(record);
+  // Return the JS-side record, NOT app.save's return value — in the
+  // v0.40 runtime app.save resolves to undefined, and callers read
+  // .get("id")/.get("email") off this (the row IS persisted by the save;
+  // the values come back from the constructor data).
+  return record;
 }
 
 
 function createSession(app, account, deviceId) {
   const now = Date.now();
-  return app.save(
-    new Record(app.findCollectionByNameOrId("authSessions"), {
-      token: logic.randomHex(logic.SESSION_TOKEN_BYTES),
-      accountId: account.get("id"),
-      deviceId: logic.validDeviceId(deviceId) ? deviceId : "",
-      createdAt: now,
-      expiresAt: logic.sessionExpiresAt(now),
-    }),
-  );
+  const record = new Record(app.findCollectionByNameOrId("authSessions"), {
+    token: logic.randomHex(logic.SESSION_TOKEN_BYTES),
+    accountId: account.get("id"),
+    deviceId: logic.validDeviceId(deviceId) ? deviceId : "",
+    createdAt: now,
+    expiresAt: logic.sessionExpiresAt(now),
+  });
+  app.save(record); // same caveat as createAccountRow: never rely on the
+  return record; // return value of app.save (undefined in v0.40)
 }
 
 /**

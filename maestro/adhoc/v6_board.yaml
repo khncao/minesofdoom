@@ -1,0 +1,11 @@
+appId: com.minus4kelvin.minesofdoom
+---
+- launchApp: com.minus4kelvin.minesofdoom
+- assertVisible:
+    id: equation-display
+- tapOn:
+    text: "🏆"
+- assertVisible:
+    text: "Digger"
+- takeScreenshot:
+    path: v6_board.png

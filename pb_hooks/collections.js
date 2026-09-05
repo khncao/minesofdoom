@@ -44,9 +44,12 @@ const COLLECTION_DEFS = [
       { name: "deviceId", type: "text", required: true, max: 64 },
       { name: "accountId", type: "text", max: 32 },
       { name: "displayName", type: "text", max: 16 },
-      { name: "bestDepth", type: "number", required: true },
-      { name: "maxCombo", type: "number", required: true },
-      { name: "lifetimeMinerals", type: "number", required: true },
+      // NOT required: a brand-new device's first submit is all zeros, and
+      // Pocketbase v0.4x rejects 0 on a required number field ("cannot be
+      // blank") — the fresh row is the common case, so zeros must be legal.
+      { name: "bestDepth", type: "number" },
+      { name: "maxCombo", type: "number" },
+      { name: "lifetimeMinerals", type: "number" },
       { name: "achievementIds", type: "text", max: 8000 },
       { name: "updatedAt", type: "number", required: true },
     ],
@@ -108,10 +111,39 @@ function hasCollection(app, name) {
 function ensureCollections() {
   const app = globalThis.$app;
   for (const def of COLLECTION_DEFS) {
-    if (hasCollection(app, def.name)) continue;
-    const collection = new Collection(def);
-    app.save(collection); // automigrates the table (flag defaults on)
-    console.log(`[pb_hooks] created collection: ${def.name}`);
+    const live = hasCollection(app, def.name) ? safeCollection(app, def.name) : null;
+    if (!live) {
+      const collection = new Collection(def);
+      app.save(collection); // automigrates the table (flag defaults on)
+      console.log(`[pb_hooks] created collection: ${def.name}`);
+      continue;
+    }
+    // Schema drift on EXISTING collections: reconcile the `required` flag
+    // field-by-field (the only def property that ever changes after deploy
+    // — e.g. leaderboard stats went from required:true to required:false
+    // because v0.4x treats a stored 0 as "blank" on required numbers).
+    let changed = false;
+    for (const fieldDef of def.fields) {
+      const liveField = live.fields.find(
+        (f) => f.name === fieldDef.name,
+      );
+      if (liveField && Boolean(liveField.required) !== Boolean(fieldDef.required)) {
+        liveField.required = Boolean(fieldDef.required);
+        changed = true;
+      }
+    }
+    if (changed) {
+      app.save(live);
+      console.log(`[pb_hooks] reconciled field flags: ${def.name}`);
+    }
+  }
+}
+
+function safeCollection(app, name) {
+  try {
+    return app.findCollectionByNameOrId(name);
+  } catch (err) {
+    return null;
   }
 }
 

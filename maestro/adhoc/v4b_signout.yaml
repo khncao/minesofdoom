@@ -1,0 +1,17 @@
+appId: com.minus4kelvin.minesofdoom
+---
+- launchApp: com.minus4kelvin.minesofdoom
+- assertVisible:
+    id: equation-display
+- tapOn:
+    id: menu-button
+- assertVisible:
+    id: menu-sheet
+- scrollUntilVisible:
+    element:
+      id: account-section
+    direction: UP
+- tapOn:
+    id: account-signout
+- assertVisible:
+    id: account-register

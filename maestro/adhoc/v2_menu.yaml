@@ -1,0 +1,30 @@
+appId: com.minus4kelvin.minesofdoom
+---
+- launchApp: com.minus4kelvin.minesofdoom
+
+- assertVisible:
+    id: onboarding-skip
+    optional: true
+- tapOn:
+    id: onboarding-skip
+    optional: true
+
+- assertVisible:
+    id: equation-display
+- assertVisible:
+    id: mineral-count
+- assertVisible:
+    id: depth-banner
+- assertVisible:
+    id: menu-button
+
+- takeScreenshot:
+    path: v2_main.png
+- tapOn:
+    id: menu-button
+- assertVisible:
+    id: menu-sheet
+- takeScreenshot:
+    path: v2_settings.png
+- assertVisible:
+    id: settings-view

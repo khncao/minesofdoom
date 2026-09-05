@@ -384,7 +384,12 @@ function validSessionToken(v) {
 /** A session row is live while now < expiresAt (the row itself must
  *  exist — the handler checks that). */
 function sessionValid(session, nowMs) {
-  return session != null && Number(session.expiresAt) > Number(nowMs);
+  if (!session) return false;
+  // Live goja Records only expose fields through .get() — a raw
+  // .expiresAt reads undefined on the server (the unit-test mocks are
+  // plain objects, so support both shapes).
+  const exp = typeof session.get === "function" ? session.get("expiresAt") : session.expiresAt;
+  return Number(exp) > Number(nowMs);
 }
 
 function sessionExpiresAt(createdAtMs, ttlMs) {

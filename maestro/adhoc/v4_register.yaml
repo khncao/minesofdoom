@@ -1,0 +1,46 @@
+# Ad-hoc: optional account — register with email/password (release build =
+# real Pocketbase auth). Server-side /auth/me check follows via curl with
+# the token read from AsyncStorage.
+appId: com.minus4kelvin.minesofdoom
+---
+- launchApp: com.minus4kelvin.minesofdoom
+
+- assertVisible:
+    id: equation-display
+
+- tapOn:
+    id: menu-button
+- assertVisible:
+    id: menu-sheet
+- assertVisible:
+    id: settings-view
+
+- scrollUntilVisible:
+    element:
+      id: account-section
+    direction: UP
+
+# NOTE: if a previous run left a session in the OS keychain, run
+# v4b_signout.yaml first (this Maestro build has no conditional tap).
+- tapOn:
+    id: account-email
+- inputText: devvm-fix20260904b@example.com
+- tapOn:
+    id: account-password
+- inputText: Fixvm12026!
+# Close the soft keyboard — with it open the register button's tap lands
+# on the IME window and nothing happens (no error, no request).
+- pressKey: back
+- assertVisible:
+    id: account-register
+- tapOn:
+    id: account-register
+
+# Signed-in branch of AccountSection. (Match on the testID, not the label
+# — Maestro's text: is exact and the label continues with "— save, …".)
+- assertVisible:
+    id: account-signout
+- assertVisible:
+    id: account-signout
+- takeScreenshot:
+    path: v4_signedin.png

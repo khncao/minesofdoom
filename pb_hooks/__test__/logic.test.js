@@ -354,6 +354,15 @@ describe("session validity", () => {
     expect(L.sessionValid(null, 0)).toBe(false);
     expect(L.sessionValid({ expiresAt: "nope" }, 0)).toBe(false);
   });
+
+  // Live Pocketbase records (goja) expose fields ONLY via .get() — a raw
+  // .expiresAt property read returns undefined on the server and every
+  // session looked "expired" (found in v0.40.2 field probing, 2026-09-04).
+  test("sessionValid reads .get() when the record exposes it", () => {
+    const record = { get: (k) => ({ expiresAt: 1000 })[k] };
+    expect(L.sessionValid(record, 999)).toBe(true);
+    expect(L.sessionValid(record, 1000)).toBe(false);
+  });
 });
 
 describe("normalizeProviderClaims", () => {

@@ -115,6 +115,25 @@ inside a handler**, and not shared between pooled VMs. Rules this code follows:
    written after each write, pruned after the window. (`ts` is an explicit
    ms-stamp column because v0.40 records expose no filterable
    `created`/`updated` fields.)
+6. **`app.save(record)` returns `undefined`** in v0.4x (and throws GoError
+   on validation failure). Never return it as a "created record" —
+   construct the `Record` yourself, `app.save(it)`, and return the instance
+   (`createAccountRow`/`createSession` do this; `upsertDeviceRow` was the
+   original pattern).
+7. **Record fields are only readable through `.get()`** — a raw
+   `record.field` property read returns `undefined` on a live goja record.
+   Plain-object mocks in unit tests hide this class of bug (the 2026-09-04
+   "invalid session" incident: `sessionValid` read `session.expiresAt` raw,
+   so every session looked expired on the server while the tests passed).
+   Read records via `.get()` and keep `.get()`-shaped fixtures in tests.
+8. **`required: true` number fields reject the value `0`** (GoError "cannot
+   be blank") — a fresh player's all-zero leaderboard stats were a 500.
+   Stat fields that can legitimately be 0 must be non-required
+   (`collections.js` declares them `{ type: "number" }`); validation of
+   *presence* happens in `logic.js`, not the schema. Changing field flags
+   on an **existing** collection also doesn't happen implicitly —
+   `ensureCollections` reconciles live field definitions against the
+   declared ones (it flipped the live `leaderboard` stats on deploy).
 
 ## Security posture (both plans)
 

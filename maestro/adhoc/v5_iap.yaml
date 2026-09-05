@@ -1,0 +1,15 @@
+appId: com.minus4kelvin.minesofdoom
+---
+- launchApp: com.minus4kelvin.minesofdoom
+- assertVisible:
+    id: equation-display
+- tapOn:
+    text: "🛍️"
+- scrollUntilVisible:
+    element:
+      text: "Buy"
+    direction: UP
+- assertVisible:
+    text: "Buy"
+- takeScreenshot:
+    path: v5_iap.png

@@ -1,0 +1,41 @@
+# Ad-hoc (release-gate verification): boot the release APK, dismiss
+# onboarding, reach the main UI, open the settings view.
+appId: com.minus4kelvin.minesofdoom
+---
+- launchApp: com.minus4kelvin.minesofdoom
+
+- assertVisible:
+    id: onboarding-skip
+    optional: true
+- tapOn:
+    id: onboarding-skip
+    optional: true
+
+- assertVisible:
+    id: equation-display
+- assertVisible:
+    id: mineral-count
+- assertVisible:
+    id: depth-banner
+- assertNotVisible:
+    id: loading-screen
+
+- takeScreenshot:
+    path: v1_boot.png
+
+# Open the footer menu → settings view.
+- tapOn:
+    id: menu-button
+- assertVisible:
+    id: menu-sheet
+- assertVisible:
+    id: settings-view
+- takeScreenshot:
+    path: v1_settings.png
+
+# The cloud-save + account + delete sections should be present in the
+# settings view (release build → real store provider, so no "(simulated)").
+- assertVisible:
+    text: "Cloud backup"
+- assertVisible:
+    text: "Not synced yet"
