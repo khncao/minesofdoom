@@ -185,9 +185,8 @@ export default function MinesOfDoom() {
     saveLoadFailed,
     restoreFromBlob,
   } = useGameEngine(displayMessage, () => autosaveSecondsRef.current);
-  // Language: useI18n persists the player's choice ("auto" | locale) and
-  // drives the live locale store, so every useT() consumer re-renders on a
-  // change. The picker itself lives in Settings.
+  // Localization is disabled for now (English only) — useI18n just hands
+  // out the translator; the picker came back with the localization todo.
   const { t } = useI18n();
   const content = useContent();
   const depthTier = getDepthTier(depth);

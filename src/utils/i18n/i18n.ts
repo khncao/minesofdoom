@@ -88,7 +88,11 @@ export function resolveLanguagePreference(pref: LanguagePref): Locale {
 // Live locale store
 // ---------------------------------------------------------------------------
 
-let currentLocale: Locale = detectLocale();
+// Localization is disabled for now (todo: "Disable localization for
+// now. English only") — the app always renders English. The live store,
+// the es table, and the detection/pref helpers stay wired up so re-adding
+// a language picker is a settings-UI change, not a rebuild of this module.
+let currentLocale: Locale = DEFAULT_LOCALE;
 const listeners = new Set<() => void>();
 
 export function getLocale(): Locale {

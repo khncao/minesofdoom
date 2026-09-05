@@ -5,11 +5,7 @@ import ConfirmableButton from "src/components/ConfirmableButton";
 import IntegerInput from "src/components/IntegerInput";
 import Tooltip from "src/components/Tooltip";
 import { useI18n } from "src/hooks/useI18n";
-import {
-  SUPPORTED_LOCALES,
-  type LanguagePref,
-  type TranslationKey,
-} from "src/utils/i18n/i18n";
+import { type TranslationKey } from "src/utils/i18n/i18n";
 import {
   formatAgo,
   type CloudSaveSettingsProps,
@@ -147,40 +143,9 @@ const SettingsContent = memo(function SettingsContent({
 }) {
   const [exportedCode, setExportedCode] = useState<string | null>(null);
   const [importCode, setImportCode] = useState("");
-  // Language picker (todo: "Add localizations"): the persisted preference
-  // lives in useI18n (NOT in SettingsData — changing it must not wait for a
-  // Save tap); the chips show each language in its own name.
-  const { language, setLanguage, t } = useI18n();
-  const languagePrefs: readonly LanguagePref[] = ["auto", "en", "es"];
+  const { t } = useI18n();
   return (
     <View style={{ gap: 2, marginTop: 5 }} testID="settings-view">
-      <View style={styles.flexCenteredRow}>
-        <Text style={{ ...styles.text, fontSize: 11 }}>
-          {t("settings.language")}
-        </Text>
-        <View style={{ flexDirection: "row", gap: 4 }}>
-          {languagePrefs.map((pref) => (
-            <Pressable
-              key={pref}
-              accessibilityRole="button"
-              onPress={() => setLanguage(pref)}
-              style={{
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-                borderRadius: 6,
-                backgroundColor:
-                  language === pref ? "#555" : "#2a2a2a",
-              }}
-            >
-              <Text style={{ ...styles.text, fontSize: 11 }}>
-                {pref === "auto"
-                  ? t("lang.auto")
-                  : SUPPORTED_LOCALES[pref].nativeLabel}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
       <IntegerInput
         label={t("settings.autosave")}
         defaultValue={settingsData.autosave}
