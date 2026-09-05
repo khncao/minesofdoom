@@ -5,7 +5,6 @@ Completed items are removed from this file (see git history); only remaining wor
 
 - [ ] Move menu buttons (like settings and bonus) to top of screen and implement upgrades menu as a side hidden overlay on the canvas so it's not covered by the built-in keyboard at the bottom of the screen
 - [ ] Sync settings, cosmetics, progress, etc. if signed in
-- [ ] Move cosmetics from settings to shop
 - [ ] Avoid any inputs near bottom or top edge of screen as they get cut off
 - [ ] Set app display name to "Mines of Idle Doomath"
   Done in source (2026-09-06): `app.config.ts` `name`, the `+html.tsx` title/description, web description, legal + inquiries copy. Remains: the **device label** still reads "minesofdoom" (checked-in `android/` project, `res/values/strings.xml`) until the next `expo prebuild` — re-apply the two build.gradle patches (debuggableVariants + upload-key signing) after it, per the AGENTS gotchas — and the Play Console listing display name, which is store-side (`scripts/play/play.mjs` / Play Console → Store presence).

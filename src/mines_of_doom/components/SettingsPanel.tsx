@@ -1,4 +1,4 @@
-import { memo, useEffect, useState, type ComponentProps } from "react";
+import { memo, useEffect, useState } from "react";
 import { Pressable, Switch, Text, TextInput, View } from "react-native";
 import Button from "src/components/Button";
 import ConfirmableButton from "src/components/ConfirmableButton";
@@ -33,7 +33,6 @@ import { AnalyticsState, summarizeAnalytics } from "../analytics";
 import { SettingsData } from "../game";
 import { formatCrashContext } from "../crashContext";
 import { useCrashLog } from "../hooks/useCrashLog";
-import CosmeticsSection from "./CosmeticsSection";
 import InquiriesButton from "./InquiriesButton";
 import LegalSection from "./LegalSection";
 import { styles } from "../styles";
@@ -98,7 +97,6 @@ const SettingsContent = memo(function SettingsContent({
   onReset,
   onExportSaveCode,
   onImportSaveCode,
-  cosmetics,
   onScreenKeypad,
   onKeypadChange,
   hardModeUnlocked,
@@ -118,7 +116,6 @@ const SettingsContent = memo(function SettingsContent({
   onExportSaveCode: () => string;
   /** Plan §4.3: imports a save code; returns false (and toasts) on failure. */
   onImportSaveCode: (code: string) => boolean;
-  cosmetics: ComponentProps<typeof CosmeticsSection>;
   /** On-screen keypad (todo: keypad tab view) — an
    *  AsyncStorage-backed display preference owned by MinesOfDoom; the
    *  switch applies immediately (no Save tap), like the mute toggle. */
@@ -359,7 +356,6 @@ const SettingsContent = memo(function SettingsContent({
           />
         </View>
       </Tooltip>
-      <CosmeticsSection {...cosmetics} />
       <View style={{ gap: 6, marginTop: 10 }}>
         <Text style={{ ...styles.text, fontWeight: "bold" }}>
           {t("settings.saveCode")}

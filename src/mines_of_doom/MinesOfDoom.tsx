@@ -17,6 +17,7 @@ import ComboIndicator from "./components/ComboIndicator";
 import PurchaseButtons from "./components/PurchaseButtons";
 import MiningCanvas from "./components/MiningCanvas";
 import MenuPanel from "./components/MenuPanel";
+import CosmeticsSection from "./components/CosmeticsSection";
 import type { AccountSettingsProps } from "./components/SettingsPanel";
 import SavePill from "./components/SavePill";
 import OnboardingOverlay from "./components/OnboardingOverlay";
@@ -112,13 +113,14 @@ export default function MinesOfDoom() {
     true,
   );
 
-  // The upgrades/keypad tab inside the purchase section: start on the
-  // keypad tab when keypad mode is on (the default) so a fresh session
-  // can type answers immediately; the keypad tab exists only while the
-  // setting is on.
-  const [purchaseTab, setPurchaseTab] = useState<"upgrades" | "keypad">(
-    onScreenKeypad ? "keypad" : "upgrades",
-  );
+  // The upgrades/shop/keypad tabs inside the purchase section: start on
+  // the keypad tab when keypad mode is on (the default) so a fresh
+  // session can type answers immediately; the keypad tab exists only
+  // while the setting is on. The shop tab (todo: "Move cosmetics from
+  // settings to shop") is the cosmetics list — always present.
+  const [purchaseTab, setPurchaseTab] = useState<
+    "upgrades" | "keypad" | "shop"
+  >(onScreenKeypad ? "keypad" : "upgrades");
   // Setting flipped off while the keypad tab was selected: fall back to
   // upgrades so the tab state can't dangle on a tab that no longer exists.
   useEffect(() => {
@@ -263,8 +265,9 @@ export default function MinesOfDoom() {
     ],
   );
 
-  // Cosmetics prop bundle: only changes on buy/select/reroll/gem-change,
-  // never on the per-second tick (memo keeps the settings panel quiet).
+  // Cosmetics prop bundle (the shop tab): only changes on
+  // buy/select/reroll/gem-change, never on the per-second tick (memo
+  // keeps the shop tab quiet — the section itself is memoized on it).
   const cosmetics = useMemo(
     () => ({
       gems: gameState.gems,
@@ -1058,6 +1061,32 @@ export default function MinesOfDoom() {
                     {t("main.upgrades")}
                   </Text>
                 </Pressable>
+                <Pressable
+                  testID="shop-tab"
+                  accessibilityRole="button"
+                  accessibilityLabel={t("main.a11yShopTab")}
+                  accessibilityState={{
+                    selected: purchaseTab === "shop",
+                  }}
+                  onPress={() => setPurchaseTab("shop")}
+                  style={[
+                    styles.purchasesToggle,
+                    purchaseTab === "shop"
+                      ? styles.purchasesTabActive
+                      : null,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.purchasesToggleText,
+                      purchaseTab === "shop"
+                        ? styles.purchasesTabActiveText
+                        : null,
+                    ]}
+                  >
+                    {t("main.shop")}
+                  </Text>
+                </Pressable>
                 {onScreenKeypad && (
                   <Pressable
                     testID="keypad-tab"
@@ -1097,6 +1126,13 @@ export default function MinesOfDoom() {
                 onClear={handleKeypadClear}
                 onSubmit={handleSubmit}
               />
+            ) : purchaseTab === "shop" ? (
+              // Shop tab (todo: "Move cosmetics from settings to shop"):
+              // the gem cosmetics list moved here out of the settings
+              // sheet so it lives with the other spend-minerals surface.
+              <ScrollView style={styles.purchasesScroll}>
+                <CosmeticsSection {...cosmetics} />
+              </ScrollView>
             ) : (
             <ScrollView style={styles.purchasesScroll}>
               <PurchaseButtons
@@ -1150,7 +1186,6 @@ export default function MinesOfDoom() {
             onReset={handleReset}
             onExportSaveCode={exportSaveCode}
             onImportSaveCode={handleImportSaveCode}
-            cosmetics={cosmetics}
             mute={mute}
             onMuteChange={handleMuteChange}
             onScreenKeypad={onScreenKeypad}

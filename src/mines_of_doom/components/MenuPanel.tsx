@@ -6,13 +6,11 @@ import MuteToggle from "src/components/MuteToggle";
 import { EquationSettings } from "src/utils/math/equations";
 import { AnalyticsState } from "../analytics";
 import type { CloudSaveSettingsProps } from "../hooks/useCloudSave";
-import type { ComponentProps } from "react";
 import SettingsContent, {
   type AccountSettingsProps,
 } from "./SettingsPanel";
 import GoalsContent from "./GoalsPanel";
 import RecordsContent from "./RecordsPanel";
-import CosmeticsSection from "./CosmeticsSection";
 import { SaveData, SettingsData } from "../game";
 import { styles } from "../styles";
 
@@ -34,7 +32,6 @@ function MenuPanel({
   onReset,
   onExportSaveCode,
   onImportSaveCode,
-  cosmetics,
   mute,
   onMuteChange,
   onScreenKeypad,
@@ -55,7 +52,6 @@ function MenuPanel({
   onReset: () => void;
   onExportSaveCode: () => string;
   onImportSaveCode: (code: string) => boolean;
-  cosmetics: ComponentProps<typeof CosmeticsSection>;
   mute: boolean;
   onMuteChange: (newVal: boolean) => void;
   /** On-screen keypad setting (todo: keypad tab view): an
@@ -96,7 +92,6 @@ function MenuPanel({
         onReset={onReset}
         onExportSaveCode={onExportSaveCode}
         onImportSaveCode={onImportSaveCode}
-        cosmetics={cosmetics}
         onScreenKeypad={onScreenKeypad}
         onKeypadChange={onKeypadChange}
         hardModeUnlocked={hardModeUnlocked}
@@ -116,7 +111,6 @@ function MenuPanel({
       onReset,
       onExportSaveCode,
       onImportSaveCode,
-      cosmetics,
       onScreenKeypad,
       onKeypadChange,
       hardModeUnlocked,
