@@ -4,7 +4,6 @@ Legend: [ ] not started, [o] in progress
 Completed items are removed from this file (see git history); only remaining work is tracked here.
 
 - [ ] Sync settings, cosmetics, progress, etc. if signed in
-- [ ] Avoid any inputs near bottom or top edge of screen as they get cut off
 - [ ] Set app display name to "Mines of Idle Doomath"
   Done in source (2026-09-06): `app.config.ts` `name`, the `+html.tsx` title/description, web description, legal + inquiries copy. Remains: the **device label** still reads "minesofdoom" (checked-in `android/` project, `res/values/strings.xml`) until the next `expo prebuild` — re-apply the two build.gradle patches (debuggableVariants + upload-key signing) after it, per the AGENTS gotchas — and the Play Console listing display name, which is store-side (`scripts/play/play.mjs` / Play Console → Store presence).
 - [ ] Make sure font colors and sizes are readable

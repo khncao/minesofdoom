@@ -1,0 +1,62 @@
+# Ad-hoc: on-screen keypad + edge-inset verification (todo: "avoid any
+# inputs near bottom or top edge of screen"). Precondition: fresh install
+# (`adb shell pm clear com.minus4kelvin.minesofdoom`) — same rule as
+# flows/mining.yaml, so no stray digits from an old save confuse the
+# assertions. The canvas animates continuously, which blocks plain
+# `uiautomator dump` ("could not get idle state"), so this flow relies on
+# testIDs + bare-text asserts only (an id+text combo selector needs the
+# text ON the testID node, but the digit renders in a child Text — and a
+# bare "9" matches the keypad's own 9 key, so the assertions key off the
+# "…" placeholder and the two-digit "99" instead).
+# Geometry of the bottom key row (no clipping under the nav bar) is
+# checked with a screenshot pixel scan, not here.
+appId: com.minus4kelvin.minesofdoom
+---
+- launchApp: com.minus4kelvin.minesofdoom
+
+# Cold start holds a loading screen before the onboarding overlay shows
+# (fresh install only — precondition above), so WAIT for the skip button
+# instead of tapping blind: an optional tap raced the load and silently
+# no-op'd, leaving the overlay to eat the keypad taps below. The
+# assertNotVisible below waits out the fade-out (same sync-point
+# pattern as flows/save_reload.yaml — no blind sleeps).
+- assertVisible:
+    id: onboarding-skip
+- tapOn:
+    id: onboarding-skip
+# Wait for the fade-out to finish (the overlay would still eat taps
+# while it animates out).
+- assertNotVisible:
+    id: onboarding-skip
+
+# The keypad strip renders only while the on-screen keypad setting is on
+# (it is, by default).
+- assertVisible:
+    id: keypad
+
+# The answer display starts on its "…" placeholder.
+- assertVisible:
+    text: "…"
+- tapOn:
+    id: keypad-digit-9
+- tapOn:
+    id: keypad-digit-9
+- assertVisible:
+    text: "99"
+- assertNotVisible:
+    text: "…"
+- tapOn:
+    id: keypad-backspace
+- assertNotVisible:
+    text: "99"
+- tapOn:
+    id: keypad-clear
+- assertVisible:
+    text: "…"
+
+# Submit an empty answer (no-op) and prove the strip still renders
+# afterwards (no crash / no unmount).
+- tapOn:
+    id: keypad-submit
+- assertVisible:
+    id: keypad

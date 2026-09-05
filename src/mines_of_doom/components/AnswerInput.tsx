@@ -80,7 +80,10 @@ const AnswerInput = memo(function AnswerInput({
         <View style={localStyles.inputRow}>
           {useKeypad ? (
             // Read-only display: the value is driven by the keypad below.
-            <View style={[localStyles.displayBox, styles.textInputBox]}>
+            <View
+              testID="answer-display"
+              style={[localStyles.displayBox, styles.textInputBox]}
+            >
               <Text style={localStyles.displayText}>
                 {value.length === 0 ? "…" : value}
               </Text>

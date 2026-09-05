@@ -7,6 +7,7 @@ import {
   View,
   Text,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useT } from "src/hooks/useI18n";
 
 export interface BottomModalProps {
@@ -52,6 +53,12 @@ function BottomModal({
   ...props
 }: BottomModalProps) {
   const [showModal, setShowModal] = useState(false);
+  // Edge-to-edge (RN 0.86 / SDK 57): the Modal window draws under the
+  // status and nav bars, so the sheet's last rows (the Save button, the
+  // save-code fields, the purchase / delete controls) would sit under the
+  // nav bar and its ✕ close button could reach under the status bar.
+  // Reserve the bottom inset on the sheet; zero on web (no OS bars).
+  const insets = useSafeAreaInsets();
   const t = useT();
   const setOpen = (open: boolean) => {
     setShowModal(open);
@@ -96,6 +103,13 @@ function BottomModal({
             style={[
               styles.sheet,
               scrollable && styles.scrollableSheet,
+              // Keep the LAST row (Save button, save-code field, purchase
+              // / delete controls) clear of the nav bar. Web insets are
+              // zero, so the sheet's 20dp padding is the floor. (The top
+              // edge needs no inset: the scrollable clamp (90%) and the
+              // content-sized sheets already stay out of the status bar,
+              // and a bottom-anchored sheet ignores margin-top anyway.)
+              { paddingBottom: Math.max(20, insets.bottom + 12) },
             ]}
           >
             <Pressable
@@ -140,7 +154,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: "rgba(0,0,0,0.5)",
   },
-  // Opaque sheet pinned to the bottom edge, full width.
+  // Opaque sheet pinned to the bottom edge, full width. The paddingBottom
+  // floor (20) is overridden by the caller with the safe-inset-aware
+  // value (see the sheet style array) — kept here as the web/no-bar case.
   sheet: {
     position: "absolute",
     left: 0,
