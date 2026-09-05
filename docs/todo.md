@@ -5,10 +5,6 @@ Completed items are removed from this file (see git history); only remaining wor
 
 - [ ] Move menu buttons (like settings and bonus) to top of screen and implement upgrades menu as a side hidden overlay on the canvas so it's not covered by the built-in keyboard at the bottom of the screen
 - [ ] Show cosmetic previews in shop listings
-- [ ] Add plain names for operators in settings
-- [ ] Add alt display for other operations besides multiplication as well
-- [ ] Remove streak mode and timed mode settings
-- [ ] Save user's randomized look
 - [ ] Sync settings, cosmetics, progress, etc. if signed in
 - [ ] Move cosmetics from settings to shop
 - [ ] Avoid any inputs near bottom or top edge of screen as they get cut off

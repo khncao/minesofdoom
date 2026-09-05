@@ -55,7 +55,6 @@ export const en = {
   "toast.achievement": "🏅 {label}! +{bonus} 🪨",
   "toast.vein": "You struck a vein! +1 💎",
   "toast.comboUp": "Combo x{mult}!",
-  "toast.streakIgnited": "🔥 Streak ignited — ×2 per answer!",
   "toast.comboDropped": "Combo dropped to {combo}!",
   "toast.comboLost": "Combo lost!",
   "toast.saved": "Game saved",
@@ -92,11 +91,6 @@ export const en = {
   "equation.pending": "correct: +{gain} 🪨",
   "equation.detail": " (×{mult}{suffix})",
   "equation.tagHard": "hard",
-  "equation.tagTimed": "timed",
-  "equation.tagStreak": "streak",
-  "equation.streakProgress": "🔥 streak {n}/{threshold}",
-  "equation.streakIgnited": "🔥 streak ×2",
-  "equation.a11yTimed": "Timed mode: {seconds} seconds left",
 
   // --- Purchase buttons ---------------------------------------------------
   "purchase.groupMinerals": "SPEND 🪨 MINERALS",
@@ -179,15 +173,12 @@ export const en = {
   "settings.operatorHelp": "Long-press an operator to see how it pays",
   "settings.operatorEquations": "{name} equations",
   "settings.tooltipHard": "Hard mode equations",
-  "settings.tooltipStreak": "Streak mode equations",
-  "settings.tooltipTimed": "Timed mode equations",
   "settings.tooltipEmojiArt": "Emoji art (low-end mode)",
   "settings.tooltipShowAll": "Always show all upgrade buttons",
   "settings.gainFormula":
     "Minerals mined per correct answer = answer × click power × combo " +
     "multiplier, plus any operator bonus. Hard-mode equations pay ×2 on " +
-    "top; timed-mode equations pay ×2 more when answered inside the " +
-    "window; an ignited streak pays ×2 more on top of all of it.",
+    "top.",
   "settings.op.multiply": "No operator bonus (×1).",
   "settings.op.add": "No operator bonus (×1).",
   "settings.op.subtract":
@@ -207,29 +198,13 @@ export const en = {
   "settings.opName.percent": "percent",
   "settings.opName.square": "square",
   "settings.opName.missing": "missing number",
-  "settings.multiplySymbol": "Multiply display: ",
+  "settings.multiplySymbol": "Symbol display: ",
   "settings.hardMode": "Hard mode (3-term ×2): ",
   "settings.hardModeLocked": "🔒 Hard mode (Motherlode): ",
   "settings.hardModeHelp":
     "3-term equations (a ○ b ○ c, left to right) that pay ×2 the normal " +
     "amount. The extra premium comes from the third term — more " +
     "arithmetic, bigger answers.",
-  "settings.streakMode": "Streak mode (5 in a row for ×2): ",
-  "settings.streakModeHelp":
-    "Answer 5 equations correctly in a row and the streak ignites: every " +
-    "correct answer after that pays ×2 on top of everything else (it " +
-    "stacks with the operator, hard-mode, and timed-mode bonuses). One " +
-    "wrong answer — or a timed-mode timeout — breaks the run and the " +
-    "streak starts over at 0. Unlike your combo, holding the cave does " +
-    "NOT break the streak: the rule is simply no wrong answers.",
-  "settings.timedMode": "Timed mode (answer in 10s for ×2): ",
-  "settings.timedModeHelp":
-    "Every equation gets a 10-second window: answer in time and the " +
-    "payout gets ×2 (it stacks with the operator and hard-mode bonuses). " +
-    "When the window runs out the equation counts as a miss — your combo " +
-    "drops exactly like a wrong answer (combo resistance still applies) " +
-    "— and a new one rolls. Stacks with hard mode: a 3-term equation " +
-    "answered in time pays ×4 on top of the operator bonus.",
   // --- Mental math tips (todo: "Add a tips section") ----------------------
   "settings.tips": "Mental math tips",
   "settings.tip.next": "Next tip",

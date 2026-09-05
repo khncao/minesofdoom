@@ -28,28 +28,13 @@ export type EquationSettings = {
    */
   hardMode: boolean;
   /**
-   * Timed mode (plan §4.2): each equation must be answered within
-   * TIMED_MODE_WINDOW_MS (game.ts) for the correct answer to pay
-   * TIMED_MODE_PAYOUT on top of everything else; when the window runs out
-   * the equation counts as a miss (the hook fires the same onIncorrect
-   * path as a wrong answer, so combo resistance applies) and a new one is
-   * rolled. Off by default; persisted like hardMode (no save bump).
-   * Stacks with hard mode (a 3-term equation answered inside the window
-   * pays ×HARD_MODE_PAYOUT ×TIMED_MODE_PAYOUT × operator bonus).
-   */
-  timedMode: boolean;
-  /**
-   * Streak mode (plan §4.2): STREAK_MODE_THRESHOLD consecutive correct
-   * answers ignite a streak that pays STREAK_MODE_PAYOUT (see game.ts) on
-   * every correct answer until a wrong answer (or a timed-mode timeout)
-   * breaks the run — mine taps do NOT break it (unlike the combo). Off by
-   * default; persisted like hardMode (no save bump).
-   */
-  streakMode: boolean;
-  /**
-   * How multiplication renders in the equation display (todo:
-   * "Configurable equation display"): "asterisk" = "7 * 2", "letter" =
-   * "7 x 2". The internal op is always Ops.mult — this is display only.
+   * How the multiplication and division operators render in the equation
+   * display (todo: "Configurable equation display" + "alt display for
+   * other operations"): "asterisk" = "7 * 2" / "7 / 2", "letter" =
+   * "7 x 2" / "7 ÷ 2". The internal ops are always Ops.mult / Ops.div —
+   * this is display only. (Legacy field name: it used to cover
+   * multiplication alone; the persisted key is unchanged, so old saves
+   * keep their choice.)
    */
   multiplySymbol: MultiplySymbol;
   /** multiply: "a * b" */
@@ -79,8 +64,6 @@ export const defaultEquationSettings: EquationSettings = {
   square: false,
   missing: false,
   hardMode: false,
-  timedMode: false,
-  streakMode: false,
   multiplySymbol: "asterisk",
 };
 
@@ -402,7 +385,10 @@ export function getOpDisplay(
     case Ops.sub:
       return "-";
     case Ops.div:
-      return "/";
+      // The multiply-symbol choice doubles as a symbol STYLE (todo: "alt
+      // display for other operations"): "letter" is the wordly glyph (÷),
+      // "asterisk" the terse one (/).
+      return multiplySymbol === "letter" ? "÷" : "/";
     case Ops.pct:
       return "%";
     case Ops.sq:
@@ -415,7 +401,7 @@ export function getOpDisplay(
 /**
  * The human-facing text of an equation (todo: "Configurable equation
  * display" + the soft-mode-only shapes):
- *   mult/add/sub/div  "7 * 2"  (×2 → "7 x 2" per multiplySymbol)
+ *   mult/add/sub/div  "7 * 2"  (×2 → "7 x 2", ÷2 → "7 ÷ 2" per multiplySymbol)
  *   percent          "25% of 40"
  *   square           "7²"
  *   missing          "7 + ? = 12"

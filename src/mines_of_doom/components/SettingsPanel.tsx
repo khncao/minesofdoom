@@ -170,8 +170,8 @@ const SettingsContent = memo(function SettingsContent({
         style={{
           ...styles.flexCenteredRow,
           gap: 4,
-          // 7 toggles (iteration 11) no longer fit a phone-width row —
-          // let them wrap instead of overflowing.
+          // 7 toggles no longer fit a phone-width row — let them wrap
+          // instead of overflowing.
           flexWrap: "wrap",
         }}
       >
@@ -180,6 +180,9 @@ const SettingsContent = memo(function SettingsContent({
               key={key}
               style={{ flexDirection: "row", alignItems: "center", gap: 2 }}
             >
+              {/* Plain name (todo) next to the glyph, so the row reads
+                  "division /" instead of a lone symbol. */}
+              <Text style={styles.text}>{t(OP_NAME_KEYS[key])}</Text>
               <Tooltip
                 label={t("settings.operatorEquations", {
                   name: t(OP_NAME_KEYS[key]),
@@ -210,9 +213,12 @@ const SettingsContent = memo(function SettingsContent({
           {t("settings.operatorHelp")}
         </Text>
       </View>
-      {/* Multiply-symbol display toggle (todo: "Configurable equation
-          display"): "7 * 2" vs "7 x 2". The previews are literal — they
-          are the two possible renderings, not translatable copy. */}
+      {/* Symbol display toggle (todo: "Configurable equation display" +
+          "alt display for other operations"): the choice now covers
+          BOTH the multiplication and division glyphs — "7 * 2" / "7 / 2"
+          vs "7 x 2" / "7 ÷ 2" (the persisted field keeps its legacy
+          name, multiplySymbol). The previews are literal — they are the
+          two possible renderings, not translatable copy. */}
       <View style={{ ...styles.flexCenteredRow, gap: 4 }}>
         <Text style={{ ...styles.text, fontSize: 11 }}>
           {t("settings.multiplySymbol")}
@@ -239,7 +245,7 @@ const SettingsContent = memo(function SettingsContent({
               }}
             >
               <Text style={{ ...styles.text, fontSize: 11 }}>
-                {sym === "asterisk" ? "7 * 2" : "7 x 2"}
+                {sym === "asterisk" ? "7 * 2 · 7 / 2" : "7 x 2 · 7 ÷ 2"}
               </Text>
             </Pressable>
           ))}
@@ -279,69 +285,10 @@ const SettingsContent = memo(function SettingsContent({
       {/* Always available (no tier gate): streak mode is opt-in risk/
           reward — the only cost of a broken streak is losing the premium,
           so it's strictly self-inflicted when off (the default). */}
-      <Tooltip label={t("settings.tooltipStreak")} content={t("settings.streakModeHelp")}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 4,
-          }}
-        >
-          <Text
-            style={{
-              ...styles.text,
-              fontSize: 11,
-              color: "#fff",
-            }}
-          >
-            {t("settings.streakMode")}
-          </Text>
-          <Switch
-            value={equationSettings.streakMode}
-            onValueChange={(newVal) => {
-              onChangeEquationSettings({
-                ...equationSettings,
-                streakMode: newVal,
-              });
-            }}
-          />
-        </View>
-      </Tooltip>
       {/* Mental math tips (todo): a short teaching section on the
           equation-solving tricks — rendered before the cosmetics/shop
           sections so it sits with the equation settings it explains. */}
       <TipsSection />
-      {/* Always available (no tier gate): timed mode is opt-in risk/
-          reward — the timeout penalty goes through the normal wrong-answer
-          path, so it's strictly self-inflicted when off (the default). */}
-      <Tooltip label={t("settings.tooltipTimed")} content={t("settings.timedModeHelp")}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 4,
-          }}
-        >
-          <Text
-            style={{
-              ...styles.text,
-              fontSize: 11,
-              color: "#fff",
-            }}
-          >
-            {t("settings.timedMode")}
-          </Text>
-          <Switch
-            value={equationSettings.timedMode}
-            onValueChange={(newVal) => {
-              onChangeEquationSettings({
-                ...equationSettings,
-                timedMode: newVal,
-              });
-            }}
-          />
-        </View>
-      </Tooltip>
       <Tooltip label={t("settings.tooltipEmojiArt")} content={t("settings.emojiArtHelp")}>
         <View
           style={{

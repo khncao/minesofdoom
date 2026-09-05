@@ -35,7 +35,6 @@ import {
   getClickBoostMultiplier,
   getVisiblePurchases,
   SettingsData,
-  STREAK_MODE_THRESHOLD,
   mulFloats,
 } from "./game";
 import {
@@ -636,8 +635,6 @@ export default function MinesOfDoom() {
     textInput,
     setTextInput,
     handleSubmit,
-    timeLeftMs,
-    streak,
   } = useEquations({
     equationSettings,
     onCorrect: (value) => {
@@ -664,14 +661,6 @@ export default function MinesOfDoom() {
       const nextMult = getComboMultiplier(combo + 1);
       if (nextMult > comboMultiplier) {
         displayMessage(t("toast.comboUp", { mult: nextMult }), 2000);
-      }
-      // Streak ignition (plan §4.2): this answer just reached the
-      // threshold — from the NEXT answer on, each one pays ×2 more.
-      if (
-        equationSettings.streakMode &&
-        streak === STREAK_MODE_THRESHOLD - 1
-      ) {
-        displayMessage(t("toast.streakIgnited"), 2500);
       }
     },
     onIncorrect: () => {
@@ -754,20 +743,13 @@ export default function MinesOfDoom() {
 
   const prevEquationModesRef = useRef<string | null>(null);
   useEffect(() => {
-    const modes =
-      [
-        equationSettings.hardMode && "hard",
-        equationSettings.timedMode && "timed",
-        equationSettings.streakMode && "streak",
-      ]
-        .filter(Boolean)
-        .join("+") || "normal";
+    const modes = (equationSettings.hardMode ? "hard" : "normal");
     const prev = prevEquationModesRef.current;
     prevEquationModesRef.current = modes;
     if (prev != null && prev !== modes) {
       noteCrashEvent(`equations: ${modes}`);
     }
-  }, [equationSettings, t]);
+  }, [equationSettings]);
 
   // Footer save pill (plan §2.1): saves immediately (autosave continues in
   // the background) and confirms with a toast so the tap has feedback.
@@ -991,8 +973,6 @@ export default function MinesOfDoom() {
           equation={equation}
           clickPower={effectiveClickPower}
           comboMultiplier={comboMultiplier}
-          timeLeftMs={timeLeftMs}
-          streak={equationSettings.streakMode ? streak : null}
           multiplySymbol={equationSettings.multiplySymbol}
         />
         <AnswerInput

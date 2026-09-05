@@ -19,8 +19,6 @@ const ALL_ON: EquationSettings = {
   square: false,
   missing: false,
   hardMode: false,
-  timedMode: false,
-  streakMode: false,
   multiplySymbol: "asterisk",
 };
 
@@ -236,12 +234,15 @@ describe("soft-mode-only equation types (iteration 11, all ages)", () => {
 });
 
 describe("getOpDisplay / formatEquation (iteration 11)", () => {
-  test("multiply symbol is configurable, other ops are fixed", () => {
+  test("multiply & division symbols are configurable, other ops are fixed", () => {
+    // The choice doubles as a symbol STYLE (todo: "alt display for other
+    // operations"): asterisk = terse glyphs (* /), letter = wordly (x ÷).
     expect(getOpDisplay(Ops.mult, "asterisk")).toBe("*");
     expect(getOpDisplay(Ops.mult, "letter")).toBe("x");
     expect(getOpDisplay(Ops.add, "asterisk")).toBe("+");
     expect(getOpDisplay(Ops.sub, "letter")).toBe("-");
     expect(getOpDisplay(Ops.div, "asterisk")).toBe("/");
+    expect(getOpDisplay(Ops.div, "letter")).toBe("÷");
     expect(getOpDisplay(Ops.pct, "asterisk")).toBe("%");
     expect(getOpDisplay(Ops.sq, "asterisk")).toBe("²");
   });
@@ -259,6 +260,10 @@ describe("getOpDisplay / formatEquation (iteration 11)", () => {
         "asterisk",
       ),
     ).toBe("7 * 2 * 3");
+    expect(
+      formatEquation({ op: Ops.div, a: 8, b: 2, answer: 4 }, "asterisk"),
+    ).toBe("8 / 2");
+    expect(formatEquation({ op: Ops.div, a: 8, b: 2, answer: 4 }, "letter")).toBe("8 ÷ 2");
     expect(formatEquation({ op: Ops.pct, a: 25, b: 40, answer: 10 }, "asterisk")).toBe("25% of 40");
     expect(formatEquation({ op: Ops.sq, a: 7, b: 7, answer: 49 }, "letter")).toBe("7²");
     expect(
@@ -273,10 +278,6 @@ describe("getOpDisplay / formatEquation (iteration 11)", () => {
 describe("getRandomEquation hard mode (tier-5, 3-term ×2)", () => {
   test("soft mode is unchanged: no second term is ever emitted", () => {
     expect(defaultEquationSettings.hardMode).toBe(false);
-    // Timed + streak modes are purely scoring rules (window/payout/streak
-    // counters), not generator changes: off by default, never alter shape.
-    expect(defaultEquationSettings.timedMode).toBe(false);
-    expect(defaultEquationSettings.streakMode).toBe(false);
     for (let i = 0; i < 500; i++) {
       const eq = getRandomEquation(ALL_ON);
       expect(eq.op2).toBeUndefined();

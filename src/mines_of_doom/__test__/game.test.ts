@@ -49,14 +49,9 @@ import { DEFAULT_CAVE_THEME, DEFAULT_CAVE_TINTS } from "../cosmetics";
 import { Equation, Ops } from "src/utils/math/equations";
 import {
   HARD_MODE_PAYOUT,
-  STREAK_MODE_PAYOUT,
-  STREAK_MODE_THRESHOLD,
-  TIMED_MODE_PAYOUT,
-  TIMED_MODE_WINDOW_MS,
   getAnswerPayoutMultiplier,
   getEquationOpBonus,
   getOpPayoutMultiplier,
-  getStreakPayoutMultiplier,
 } from "../game";
 
 describe("cost curves", () => {
@@ -850,10 +845,6 @@ describe("operator bonuses (iteration 11: new equation types)", () => {
     expect(getEquationOpBonus(mkMissing(Ops.add))).toBe(3);
     expect(getEquationOpBonus(mkMissing(Ops.mult))).toBe(3);
     expect(getAnswerPayoutMultiplier(mkMissing(Ops.add))).toBe(3);
-    // ...and stack with the other premiums like any other bonus.
-    expect(getAnswerPayoutMultiplier(mkMissing(Ops.add), true, true)).toBe(
-      3 * TIMED_MODE_PAYOUT * STREAK_MODE_PAYOUT,
-    );
   });
 });
 
@@ -878,84 +869,6 @@ describe("getAnswerPayoutMultiplier (hard mode, tier-5)", () => {
     );
     expect(getAnswerPayoutMultiplier(mkEq(Ops.div, Ops.mult))).toBe(
       10 * HARD_MODE_PAYOUT,
-    );
-  });
-});
-
-describe("getAnswerPayoutMultiplier (timed mode)", () => {
-  test("defaults are sane: a 10-second window paying ×2", () => {
-    expect(TIMED_MODE_WINDOW_MS).toBe(10_000);
-    expect(TIMED_MODE_PAYOUT).toBe(2);
-  });
-
-  test("timed bonus is off by default (soft behavior unchanged)", () => {
-    expect(getAnswerPayoutMultiplier(mkEq(Ops.mult), false)).toBe(1);
-    expect(getAnswerPayoutMultiplier(mkEq(Ops.div))).toBe(10);
-  });
-
-  test("timed bonus multiplies the operator bonus", () => {
-    expect(getAnswerPayoutMultiplier(mkEq(Ops.mult), true)).toBe(
-      1 * TIMED_MODE_PAYOUT,
-    );
-    expect(getAnswerPayoutMultiplier(mkEq(Ops.sub), true)).toBe(
-      2 * TIMED_MODE_PAYOUT,
-    );
-    expect(getAnswerPayoutMultiplier(mkEq(Ops.div), true)).toBe(
-      10 * TIMED_MODE_PAYOUT,
-    );
-  });
-
-  test("timed bonus stacks on the hard-mode premium", () => {
-    expect(getAnswerPayoutMultiplier(mkEq(Ops.mult, Ops.mult), true)).toBe(
-      1 * HARD_MODE_PAYOUT * TIMED_MODE_PAYOUT,
-    );
-    expect(getAnswerPayoutMultiplier(mkEq(Ops.div, Ops.mult), true)).toBe(
-      10 * HARD_MODE_PAYOUT * TIMED_MODE_PAYOUT,
-    );
-  });
-});
-
-describe("getAnswerPayoutMultiplier (streak mode)", () => {
-  test("defaults are sane: 5 in a row ignites, paying ×2", () => {
-    expect(STREAK_MODE_THRESHOLD).toBe(5);
-    expect(STREAK_MODE_PAYOUT).toBe(2);
-    expect(getStreakPayoutMultiplier(0)).toBe(1);
-    expect(getStreakPayoutMultiplier(STREAK_MODE_THRESHOLD - 1)).toBe(1);
-    expect(getStreakPayoutMultiplier(STREAK_MODE_THRESHOLD)).toBe(
-      STREAK_MODE_PAYOUT,
-    );
-    expect(getStreakPayoutMultiplier(STREAK_MODE_THRESHOLD + 3)).toBe(
-      STREAK_MODE_PAYOUT,
-    );
-  });
-
-  test("streak bonus is off by default (soft behavior unchanged)", () => {
-    expect(getAnswerPayoutMultiplier(mkEq(Ops.mult), false, false)).toBe(1);
-    expect(getAnswerPayoutMultiplier(mkEq(Ops.div), false, false)).toBe(10);
-  });
-
-  test("streak bonus multiplies the operator bonus", () => {
-    expect(getAnswerPayoutMultiplier(mkEq(Ops.mult), false, true)).toBe(
-      1 * STREAK_MODE_PAYOUT,
-    );
-    expect(getAnswerPayoutMultiplier(mkEq(Ops.sub), false, true)).toBe(
-      2 * STREAK_MODE_PAYOUT,
-    );
-    expect(getAnswerPayoutMultiplier(mkEq(Ops.div), false, true)).toBe(
-      10 * STREAK_MODE_PAYOUT,
-    );
-  });
-
-  test("streak bonus stacks on the timed and hard-mode premiums", () => {
-    expect(
-      getAnswerPayoutMultiplier(mkEq(Ops.mult), true, true),
-    ).toBe(
-      1 * TIMED_MODE_PAYOUT * STREAK_MODE_PAYOUT,
-    );
-    expect(
-      getAnswerPayoutMultiplier(mkEq(Ops.div, Ops.mult), true, true),
-    ).toBe(
-      10 * HARD_MODE_PAYOUT * TIMED_MODE_PAYOUT * STREAK_MODE_PAYOUT,
     );
   });
 });

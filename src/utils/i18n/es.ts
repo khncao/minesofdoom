@@ -40,7 +40,6 @@ export const es: Record<TranslationKey, string> = {
   "toast.achievement": "🏅 {label}! +{bonus} 🪨",
   "toast.vein": "¡Encontraste una veta! +1 💎",
   "toast.comboUp": "¡Combo x{mult}!",
-  "toast.streakIgnited": "🔥 ¡Racha encendida — ×2 por respuesta!",
   "toast.comboDropped": "¡El combo bajó a {combo}!",
   "toast.comboLost": "¡Combo perdido!",
   "toast.saved": "Partida guardada",
@@ -78,11 +77,6 @@ export const es: Record<TranslationKey, string> = {
   "equation.pending": "correcto: +{gain} 🪨",
   "equation.detail": " (×{mult}{suffix})",
   "equation.tagHard": "difícil",
-  "equation.tagTimed": "contrarreloj",
-  "equation.tagStreak": "racha",
-  "equation.streakProgress": "🔥 racha {n}/{threshold}",
-  "equation.streakIgnited": "🔥 racha ×2",
-  "equation.a11yTimed": "Modo contrarreloj: quedan {seconds} segundos",
 
   // --- Purchase buttons ---------------------------------------------------
   "purchase.groupMinerals": "GASTAR 🪨 MINERALES",
@@ -169,16 +163,13 @@ export const es: Record<TranslationKey, string> = {
     "Mantén pulsado un operador para ver cuánto paga",
   "settings.operatorEquations": "Ecuaciones de {name}",
   "settings.tooltipHard": "Ecuaciones de modo difícil",
-  "settings.tooltipStreak": "Ecuaciones de modo racha",
-  "settings.tooltipTimed": "Ecuaciones de modo contrarreloj",
   "settings.tooltipEmojiArt": "Arte de emoji (modo ligero)",
   "settings.tooltipShowAll":
     "Mostrar siempre todos los botones de mejora",
   "settings.gainFormula":
     "Minerales por respuesta correcta = respuesta × poder de clic × " +
     "multiplicador de combo, más cualquier bonus de operador. Las ecuaciones " +
-    "de modo difícil pagan ×2; las de modo contrarreloj pagan ×2 más si se " +
-    "responde a tiempo; una racha encendida paga ×2 más por encima de todo.",
+    "de modo difícil pagan ×2 más.",
   "settings.op.multiply": "Sin bonus de operador (×1).",
   "settings.op.add": "Sin bonus de operador (×1).",
   "settings.op.subtract":
@@ -198,29 +189,13 @@ export const es: Record<TranslationKey, string> = {
   "settings.opName.percent": "porcentaje",
   "settings.opName.square": "cuadrado",
   "settings.opName.missing": "número que falta",
-  "settings.multiplySymbol": "Símbolo de multiplicación: ",
+  "settings.multiplySymbol": "Símbolos: ",
   "settings.hardMode": "Modo difícil (3 términos ×2): ",
   "settings.hardModeLocked": "🔒 Modo difícil (Motherlode): ",
   "settings.hardModeHelp":
     "Ecuaciones de 3 términos (a ○ b ○ c, de izquierda a derecha) que pagan " +
     "×2 lo normal. El bonus extra viene del tercer término: más aritmética, " +
     "respuestas más grandes.",
-  "settings.streakMode": "Modo racha (5 seguidas por ×2): ",
-  "settings.streakModeHelp":
-    "Responde 5 ecuaciones seguidas y la racha se enciende: cada respuesta " +
-    "correcta después paga ×2 por encima de todo lo demás (se acumula con " +
-    "los bonuses de operador, modo difícil y contrarreloj). Una respuesta " +
-    "errada — o un tiempo agotado — rompe la racha y vuelve a empezar en 0. " +
-    "A diferencia del combo, mantener la cueva NO rompe la racha: la regla " +
-    "es simplemente no fallar.",
-  "settings.timedMode": "Modo contrarreloj (responde en 10s por ×2): ",
-  "settings.timedModeHelp":
-    "Cada ecuación tiene una ventana de 10 segundos: responde a tiempo y la " +
-    "recompensa se multiplica ×2 (se acumula con los bonuses de operador y " +
-    "modo difícil). Si se agota el tiempo cuenta como fallo — tu combo baja " +
-    "exactamente como con una respuesta errada (la resistencia de combo aún " +
-    "aplica) — y sale una nueva. Se acumula con modo difícil: una ecuación " +
-    "de 3 términos respondida a tiempo paga ×4 además del bonus de operador.",
   // --- Trucos de cálculo mental (todo: sección de consejos) ---------------
   "settings.tips": "Trucos de cálculo mental",
   "settings.tip.next": "Consejo siguiente",
