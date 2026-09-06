@@ -109,10 +109,18 @@ clear-cache `com.android.vending`) and stale emulator/host network
 state. The signature here (ping + Play Store UI fine, ONLY the
 monetization gRPC refused) matches a selective host-side egress filter
 (VPN / AV network shield / corporate firewall) or a transient Google-
-edge anomaly on the billing endpoint. Next steps in order: (1) wait
-hours and retry, (2) disable host VPN/AV/firewall and retry, (3) clear
-`com.android.vending` cache, (4) physical phone with the license tester
-(no extra setup). Also confirmed while investigating: launching via
+edge anomaly on the billing endpoint. Also checked 2026-09-06:
+status.play.google.com shows **"No incidents"** (as of Sep 6 09:06 UTC),
+so there is no declared Google-wide billing outage — pointing at an
+IP-level edge anomaly or host egress. Tried `pm clear com.android.vending`
+(full Finsky reset) — same failure immediately after, so Finsky cached
+state is ruled out too. Remaining solutions, in order: (1) change host
+egress IP — mobile hotspot or VPN (WSABuilds fix guide: Play-
+connectivity failure on emulators resolved by routing through a VPN;
+inverse applies if a VPN is currently ON — disable it), (2) wait hours
+and retry, (3) Windows stack reset (`ipconfig /flushdns`,
+`netsh winsock reset` + reboot) if hotspot/VPN don't help, (4) physical
+phone with the license tester (no extra setup). Also confirmed while investigating: launching via
 `npx expo run:android` (Metro up) serves the **dev bundle**
 (`__DEV__=true`), which selects the **labeled dev-sim provider** — the
 panel shows "⚠️ Development build: purchases are simulated" and the
