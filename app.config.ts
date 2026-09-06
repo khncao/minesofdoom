@@ -37,9 +37,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   // Display name. The checked-in android/ strings.xml was updated in step
   // (2026-09-07) and the Play Console en-US listing title matches — both
   // track this value. A future `expo prebuild` regenerates the same label
-  // from here, but the two build.gradle patches (debuggableVariants,
-  // upload-key signing) must be re-applied after every prebuild (AGENTS
-  // gotchas).
+  // from here; the two build.gradle patches (debuggableVariants, upload-key
+  // signing) are re-applied automatically by the
+  // ./plugins/androidPrebuildPatches config plugin below.
   name: "Mines of Idle Doomath",
   slug: "minesofdoom",
   scheme: "com.minus4kelvin.minesofdoom",
@@ -54,7 +54,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   orientation: "portrait",
   icon: pickaxePng,
-  userInterfaceStyle: "light",
+  userInterfaceStyle: "dark",
   assetBundlePatterns: ["**/*"],
   ios: {
     supportsTablet: true,
@@ -75,6 +75,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   // the static export emitted an HTML page per source file, incl. tests.)
   plugins: [
     ["expo-router", { root: "src/app" }],
+    // "./plugins/androidPrebuildPatches",
+    // "./plugins/withDebugSigning",
     ["react-native-google-mobile-ads", googleMobileAdsPluginOptions],
     // SDK 57 dropped the top-level `splash` key from the config schema; the
     // splash screen is now configured through the expo-splash-screen plugin.

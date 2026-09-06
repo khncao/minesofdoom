@@ -34,11 +34,6 @@ react {
     //   If you add flavors like lite, prod, etc. you'll have to list your debuggableVariants.
     // debuggableVariants = ["liteDebug", "prodDebug"]
 
-    // Embed the JS bundle in debug APKs so they boot standalone on an
-    // emulator without a Metro dev server (e2e flow). See AGENTS.md.
-    // Re-apply after every `expo prebuild` — it wipes this line.
-    debuggableVariants = []
-
     /* Bundling */
     //   A list containing the node command and its flags. Default is just 'node'.
     // nodeExecutableAndArgs = ["node"]
@@ -131,7 +126,11 @@ android {
     }
     buildTypes {
         debug {
-            signingConfig signingConfigs.debug
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
         }
         release {
             // Play Console upload key when ../keystore.properties is present;
