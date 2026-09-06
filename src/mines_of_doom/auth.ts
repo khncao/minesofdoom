@@ -121,6 +121,23 @@ export interface AuthProvider {
    *  signed-in account (backfill only — nothing is copied or created).
    *  Resolves the (possibly updated) account, or null on failure. */
   link(token: string): Promise<AuthAccountInfo | null>;
+  /** Attach (or change) the email/password mechanism on the account the
+   *  token resolves to — the "email" link of the account merge. Resolves
+   *  the updated account, or null (dead session, invalid input, 4xx).
+   *  The password is pre-validated by the caller (isValidPasswordInput). */
+  setPassword(token: string, password: string): Promise<AuthAccountInfo | null>;
+  /** Link a provider identity to the account the token resolves to — the
+   *  deliberate direction of the email/oauth2 merge (sign-in-time merging
+   *  already happens server-side when the verified emails match). The
+   *  provider idToken is verified by the sidecar exactly like sign-in:
+   *  holding it IS the ownership proof. Resolves the updated account, or
+   *  null (dead session, unverified token, or the identity belongs to
+   *  another account — the server never steals or merges). */
+  linkProvider(
+    token: string,
+    kind: "google" | "apple",
+    idToken: string,
+  ): Promise<AuthAccountInfo | null>;
 }
 
 // -- client-side pre-validation (the server re-checks everything; this
@@ -250,6 +267,8 @@ export const noopAuthProvider: AuthProvider = {
   me: async () => null,
   logout: async () => false,
   link: async () => null,
+  setPassword: async () => null,
+  linkProvider: async () => null,
 };
 
 /**
@@ -261,6 +280,18 @@ export const noopAuthProvider: AuthProvider = {
  */
 const devSimSessions = new Map<string, AuthSession>();
 let devSimCounter = 0;
+
+/** Flip one provider link to true (upserting the entry if the account
+ *  shape doesn't carry it yet — dev-sim accounts start minimal). */
+function withProviderLinked(
+  account: AuthAccountInfo,
+  name: AuthProviderKind,
+): AuthAccountInfo {
+  const providers = account.providers.some((p) => p.name === name)
+    ? account.providers.map((p) => (p.name === name ? { name, linked: true } : p))
+    : [...account.providers, { name, linked: true }];
+  return { ...account, providers };
+}
 export const devSimAuthProvider: AuthProvider = {
   id: "dev-sim",
   isAvailable: () => true,
@@ -311,6 +342,18 @@ export const devSimAuthProvider: AuthProvider = {
   async link(token) {
     const session = devSimSessions.get(token);
     return session ? session.account : null;
+  },
+  async setPassword(token, password) {
+    const session = devSimSessions.get(token);
+    if (!session || !isValidPasswordInput(password)) return null;
+    session.account = withProviderLinked(session.account, "email");
+    return session.account;
+  },
+  async linkProvider(token, kind) {
+    const session = devSimSessions.get(token);
+    if (!session) return null;
+    session.account = withProviderLinked(session.account, kind);
+    return session.account;
   },
 };
 
@@ -382,6 +425,30 @@ export const storeAuthProvider: AuthProvider = {
     const res = await postJsonWithStatus(
       `${storeConfig.pocketbaseUrl}/api/app/auth/link`,
       { token, deviceId },
+    );
+    if (res === null) return null;
+    if (res.status < 200 || res.status >= 300) return null;
+    return parseAccount(res.body?.account);
+  },
+
+  async setPassword(token, password) {
+    if (!isPocketbaseConfigured()) return null;
+    const deviceId = await getIapDeviceId();
+    const res = await postJsonWithStatus(
+      `${storeConfig.pocketbaseUrl}/api/app/auth/set-password`,
+      { token, password, deviceId },
+    );
+    if (res === null) return null;
+    if (res.status < 200 || res.status >= 300) return null;
+    return parseAccount(res.body?.account);
+  },
+
+  async linkProvider(token, kind, idToken) {
+    if (!isPocketbaseConfigured()) return null;
+    const deviceId = await getIapDeviceId();
+    const res = await postJsonWithStatus(
+      `${storeConfig.pocketbaseUrl}/api/app/auth/link/${kind}`,
+      { token, idToken, deviceId },
     );
     if (res === null) return null;
     if (res.status < 200 || res.status >= 300) return null;

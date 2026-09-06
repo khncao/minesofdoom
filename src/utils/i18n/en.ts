@@ -310,6 +310,10 @@ export const en = {
   "settings.accountSignIn": "Sign in",
   "settings.accountRegister": "Create account",
   "settings.accountGoogle": "Continue with Google",
+  "settings.accountLinkGoogle": "Link Google",
+  "settings.accountLinkApple": "Link Apple",
+  "settings.accountNewPassword": "New password",
+  "settings.accountSetPassword": "Set a password for this account",
   "settings.accountApple": "Continue with Apple",
   "settings.accountEmailTaken":
     "That email already has an account — sign in instead.",

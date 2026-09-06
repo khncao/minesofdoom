@@ -43,15 +43,24 @@ Optional login (all `POST` + JSON; replies carry a 30-day `token`):
 | `/api/app/auth/me` | `{ token }` | `{ account }` (`401` dead/expired) |
 | `/api/app/auth/logout` | `{ token }` | `{ ok: true }` (idempotent) |
 | `/api/app/auth/link` | `{ token, deviceId }` | `{ ok, account }` (attach a device's pre-existing rows) |
+| `/api/app/auth/set-password` | `{ token, password, deviceId }` | `{ ok, account }` (attach/change the email password on the signed-in account; `400` when the account has no email — a password without an address is unusable, since login is keyed on email) |
+| `/api/app/auth/link/google` | `{ token, idToken, deviceId }` | `{ ok, account }` (`409 provider-taken`) |
+| `/api/app/auth/link/apple` | `{ token, idToken, deviceId }` | `{ ok, account }` (`409 provider-taken`) |
 
 The account model is provider-agnostic: email (where one exists) is the
 shared identity, `googleId`/`appleId` are secondary lookups, and the merge
 rule on sign-in is (1) this provider's sub → that account, (2) else a
-verified email → that account, (3) else create. Sign-in/backfill only ever
-SETS `accountId` on rows the device already owns — nothing is copied, so
-nothing can be lost or duplicated. Account shape in replies: `{ email,
-providers: [{name, linked}] }` — no hashes, no raw provider ids.
-`account` in the table above is that shape.
+verified email → that account, (3) else create. The SIGNED-IN direction of
+the same merge is `auth/link/<provider>` + `auth/set-password`: a live
+session links a provider identity it can prove it owns (a fresh, sidecar-
+verified idToken — the same proof as sign-in), or attaches the email
+password. The invariant is `resolveProviderLink`: one provider identity =
+one account — a sub owned by ANOTHER account is refused (409, never
+steal, never merge), a re-link of the account's own sub is a noop.
+Sign-in/backfill only ever SETS `accountId` on rows the device already owns
+— nothing is copied, so nothing can be lost or duplicated. Account shape in
+replies: `{ email, providers: [{name, linked}] }` — no hashes, no raw
+provider ids. `account` in the table above is that shape.
 
 Collections (created lazily on first use, see `collections.js`):
 `entitlements`, `cloudSaves`, `leaderboard`, `events` (write-budget counter;
@@ -64,7 +73,7 @@ optional `accountId` (the login backfill target).
 
 - `app.pb.js` — the hooks entry (Pocketbase v0.40 executes only `*.pb.js`
   files; this one requires the rest).
-- `endpoints.js` — the 8 `routerAdd` registrations.
+- `endpoints.js` — the `/api/app/*` `routerAdd` registrations.
 - `handlerLib.js` — stateless record I/O + per-endpoint handlers (runs inside
   the handler runtime).
 - `logic.js` — pure validation/merge/cap/budget logic (no Pocketbase API).

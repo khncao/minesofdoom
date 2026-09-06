@@ -77,6 +77,16 @@ export interface AccountHandle {
     kind: "google" | "apple",
     idToken: string,
   ) => Promise<AuthSigninOutcome>;
+  /** Attach (or change) the email/password mechanism on the signed-in
+   *  account (the "email" link). Resolves the updated account, or null
+   *  (not signed in / failed — the UI shows its inline error). */
+  setPassword: (password: string) => Promise<AuthAccountInfo | null>;
+  /** Link a Google/Apple identity to the signed-in account — the
+   *  deliberate direction of the email/oauth2 account merge. */
+  linkProvider: (
+    kind: "google" | "apple",
+    idToken: string,
+  ) => Promise<AuthAccountInfo | null>;
   /** Sign out: kill the server session (best effort) + clear the token. */
   signOut: () => Promise<void>;
 }
@@ -193,6 +203,35 @@ export function useAccount(opts: AccountOptions): AccountHandle {
     [finishSignIn],
   );
 
+  const updateAccount = useCallback(
+    async (op: (token: string) => Promise<AuthAccountInfo | null>) => {
+      const current = sessionRef.current;
+      if (current === null) return null;
+      const account = await op(current.token).catch(() => null);
+      if (account !== null) {
+        setSession({ token: current.token, account });
+      }
+      return account;
+    },
+    [],
+  );
+
+  const setPassword = useCallback(
+    (password: string) =>
+      updateAccount((token) =>
+        providerRef.current.setPassword(token, password),
+      ),
+    [updateAccount],
+  );
+
+  const linkProvider = useCallback(
+    (kind: "google" | "apple", idToken: string) =>
+      updateAccount((token) =>
+        providerRef.current.linkProvider(token, kind, idToken),
+      ),
+    [updateAccount],
+  );
+
   const signOut = useCallback(async () => {
     const current = sessionRef.current;
     setSession(null);
@@ -213,6 +252,8 @@ export function useAccount(opts: AccountOptions): AccountHandle {
     register,
     login,
     providerSignIn,
+    setPassword,
+    linkProvider,
     signOut,
   };
 }

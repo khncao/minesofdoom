@@ -447,6 +447,8 @@ export default function MinesOfDoom() {
       // Platform constant ("hidden until ready" — [] on web, ["google"]
       // on android, both on ios); stable, no memo deps needed.
       providerKinds: availableProviderKinds,
+      onSetPassword: account.setPassword,
+      onLinkProvider: account.linkProvider,
     }),
     [
       authProvider,
@@ -456,6 +458,8 @@ export default function MinesOfDoom() {
       account.login,
       account.signOut,
       account.providerSignIn,
+      account.setPassword,
+      account.linkProvider,
     ],
   );
 

@@ -465,6 +465,25 @@ function resolveProviderAccount(index, { provider, sub, email }) {
   return { action: "create", account: created };
 }
 
+/**
+ * Link decision for /api/app/auth/link/<provider> — a SIGNED-IN account
+ * deliberately attaches a provider identity (the other direction of the
+ * merge: rule 2 of resolveProviderAccount merges on sign-in when the
+ * emails match, this is the path when they don't, e.g. Apple privacy
+ * proxy or a second email). `ownerId` is the id of the account that
+ * already carries this provider sub (null when unclaimed), `currentId`
+ * the live session's account. Rules — the "one provider identity = one
+ * account" invariant:
+ *   1. unclaimed          → "link"  (attach it to this account)
+ *   2. claimed by this one→ "noop"  (idempotent re-link)
+ *   3. claimed by another → "error" (NEVER steal or merge accounts)
+ */
+function resolveProviderLink(ownerId, currentId) {
+  if (!ownerId) return { action: "link" };
+  if (ownerId === currentId) return { action: "noop" };
+  return { action: "error", error: "provider-taken" };
+}
+
 /** The public shape of an account in API replies — nothing the client
  *  can act on beyond its own email; provider id links only. */
 function accountShape(account) {
@@ -567,6 +586,7 @@ module.exports = {
   providerIdField,
   normalizeProviderClaims,
   resolveProviderAccount,
+  resolveProviderLink,
   accountShape,
   unionEntitlements,
   newestByUpdatedAt,

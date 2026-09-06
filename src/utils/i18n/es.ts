@@ -303,6 +303,10 @@ export const es: Record<TranslationKey, string> = {
   "settings.accountSignIn": "Iniciar sesión",
   "settings.accountRegister": "Crear cuenta",
   "settings.accountGoogle": "Continuar con Google",
+  "settings.accountLinkGoogle": "Vincular Google",
+  "settings.accountLinkApple": "Vincular Apple",
+  "settings.accountNewPassword": "Contraseña nueva",
+  "settings.accountSetPassword": "Fijar una contraseña para esta cuenta",
   "settings.accountApple": "Continuar con Apple",
   "settings.accountEmailTaken":
     "Ese correo ya tiene una cuenta — inicia sesión en su lugar.",

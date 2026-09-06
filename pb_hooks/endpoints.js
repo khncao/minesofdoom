@@ -41,6 +41,14 @@
  *   /api/app/auth/me             { token } → { account }
  *   /api/app/auth/logout         { token } → { ok: true }
  *   /api/app/auth/link           { token, deviceId } → { ok, account }
+ *   /api/app/auth/set-password   { token, password, deviceId }
+ *                                → { ok, account }  (attach/change the email
+ *                                password on a signed-in account)
+ *   /api/app/auth/link/google    { token, idToken, deviceId } → { ok, account }
+ *   /api/app/auth/link/apple     { token, idToken, deviceId } → { ok, account }
+ *                                (attach a provider identity to the signed-in
+ *                                account — the deliberate direction of the
+ *                                email/oauth2 merge; 409 provider-taken)
  * The sign-in routes backfill `accountId` on the device's existing rows
  * (claim, never copy — nothing is lost or duplicated). `/delete` with a
  * session token erases the account + every linked device (GDPR account
@@ -85,5 +93,8 @@ route("auth/apple");
 route("auth/me");
 route("auth/logout");
 route("auth/link");
+route("auth/set-password");
+route("auth/link/google");
+route("auth/link/apple");
 
 

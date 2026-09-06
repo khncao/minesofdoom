@@ -62,6 +62,8 @@ function makeProvider(
     ),
     logout: jest.fn(async () => true),
     link: jest.fn(async () => ACCOUNT),
+    setPassword: jest.fn(async () => ACCOUNT),
+    linkProvider: jest.fn(async () => ACCOUNT),
     ...overrides,
   };
 }
@@ -192,6 +194,87 @@ describe("useAccount: sign-in", () => {
     await flush();
     expect(result.current.status).toBe("in");
     expect(result.current.getSessionToken()).toBe("tok-login");
+  });
+});
+
+describe("useAccount: account merge (set password / link provider)", () => {
+  it("setPassword threads the live token and adopts the updated account", async () => {
+    const tokenStore = makeTokenStore();
+    const linked: AuthAccountInfo = {
+      email: "dig@er.co",
+      providers: [
+        { name: "email", linked: true },
+        { name: "google", linked: false },
+        { name: "apple", linked: false },
+      ],
+    };
+    const provider = makeProvider({
+      setPassword: jest.fn(async (token: string) =>
+        token === "tok-login" ? linked : null,
+      ),
+    });
+    const { result } = renderHook(() =>
+      useAccount({ provider, tokenStore }),
+    );
+    await flush();
+    await act(async () => {
+      await result.current.login("dig@er.co", "password1");
+    });
+    await flush();
+    let updated: AuthAccountInfo | null = null;
+    await act(async () => {
+      updated = await result.current.setPassword("newpassword1");
+    });
+    expect(provider.setPassword).toHaveBeenCalledWith(
+      "tok-login",
+      "newpassword1",
+    );
+    expect(updated).toEqual(linked);
+    // the account view behind the same token is the updated one
+    await flush();
+    expect(result.current.account).toEqual(linked);
+    expect(result.current.getSessionToken()).toBe("tok-login");
+  });
+
+  it("linkProvider threads token + kind + idToken; a null result keeps the old account", async () => {
+    const tokenStore = makeTokenStore();
+    const provider = makeProvider({
+      linkProvider: jest.fn(async () => null), // 409: identity taken
+    });
+    const { result } = renderHook(() =>
+      useAccount({ provider, tokenStore }),
+    );
+    await flush();
+    await act(async () => {
+      await result.current.login("dig@er.co", "password1");
+    });
+    await flush();
+    let updated: AuthAccountInfo | null = null;
+    await act(async () => {
+      updated = await result.current.linkProvider("google", "id-token");
+    });
+    expect(provider.linkProvider).toHaveBeenCalledWith(
+      "tok-login",
+      "google",
+      "id-token",
+    );
+    expect(updated).toBeNull();
+    expect(result.current.account).toEqual(ACCOUNT); // unchanged
+  });
+
+  it("both are inert when not signed in (no session to act on)", async () => {
+    const tokenStore = makeTokenStore();
+    const provider = makeProvider();
+    const { result } = renderHook(() =>
+      useAccount({ provider, tokenStore }),
+    );
+    await flush();
+    await act(async () => {
+      await result.current.setPassword("newpassword1");
+      await result.current.linkProvider("google", "id-token");
+    });
+    expect(provider.setPassword).not.toHaveBeenCalled();
+    expect(provider.linkProvider).not.toHaveBeenCalled();
   });
 });
 

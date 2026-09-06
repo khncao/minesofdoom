@@ -52,6 +52,19 @@ export interface AccountSettingsProps {
    *  ("hidden until ready" — web is [], android ["google"], ios
    *  both). The section renders one button per kind, nothing else. */
   providerKinds: ProviderKind[];
+  /** Attach (or change) the email/password mechanism on the signed-in
+   *  account — the "email" link of the account merge. Resolves the
+   *  updated account, or null on failure (the inline error). */
+  onSetPassword: (password: string) => Promise<AuthAccountInfo | null>;
+  /** Link a Google/Apple identity to the signed-in account — the
+   *  deliberate direction of the email/oauth2 merge (the SDK mints the
+   *  idToken; the server's sidecar verifies it). Resolves the updated
+   *  account, or null on failure (e.g. the identity is taken by another
+   *  account — the server never steals or merges). */
+  onLinkProvider: (
+    kind: ProviderKind,
+    idToken: string,
+  ) => Promise<AuthAccountInfo | null>;
 }
 
 /**
@@ -91,6 +104,9 @@ function AccountSection({ account }: { account: AccountSettingsProps }) {
   const [confirm, setConfirm] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The signed-in branch: the new password for the "set a password on
+  // this account" flow (todo: merge email + oauth2 accounts).
+  const [newPassword, setNewPassword] = useState("");
 
   if (!account.available) return null;
 
@@ -124,6 +140,46 @@ function AccountSection({ account }: { account: AccountSettingsProps }) {
       }
       // "signedIn": the status prop flips to "in" and this view swaps
       // to the signed-in branch on the next render.
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** The signed-in merge flows (todo: "check the handling of email and
+   *  oauth2 account merging"): attach the email password to an account
+   *  that has none yet, or link a provider identity the sign-in-time
+   *  merge couldn't (a second Google address, an Apple privacy-proxy
+   *  account the player wants joined to their main one). On success the
+   *  link flips and the input/button disappears — that IS the feedback;
+   *  every failure gets the one inline error. */
+  const setAccountPassword = async () => {
+    if (busy || !isValidPasswordInput(newPassword)) return;
+    setBusy(true);
+    setFormError(null);
+    try {
+      const updated = await account.onSetPassword(newPassword);
+      if (updated === null) setFormError(t("settings.accountError"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const linkWithProvider = async (kind: ProviderKind) => {
+    if (busy) return;
+    setBusy(true);
+    setFormError(null);
+    try {
+      let idToken: string;
+      try {
+        idToken = await mintIdToken(kind);
+      } catch (err) {
+        if (err instanceof SignInCancelledError) return;
+        throw err;
+      }
+      const updated = await account.onLinkProvider(kind, idToken);
+      if (updated === null) setFormError(t("settings.accountProviderError"));
+    } catch {
+      setFormError(t("settings.accountProviderError"));
     } finally {
       setBusy(false);
     }
@@ -163,6 +219,12 @@ function AccountSection({ account }: { account: AccountSettingsProps }) {
   };
 
   if (account.status === "in" && account.account !== null) {
+    const links = account.account.providers;
+    const emailLinked =
+      links.find((p) => p.name === "email")?.linked === true;
+    const unlinkedKinds = account.providerKinds.filter(
+      (kind) => links.find((p) => p.name === kind)?.linked !== true,
+    );
     return (
       <View style={{ gap: 6, marginTop: 10 }} testID="account-section">
         <Text style={{ ...styles.text, fontWeight: "bold" }}>
@@ -177,6 +239,51 @@ function AccountSection({ account }: { account: AccountSettingsProps }) {
         <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
           {t("settings.accountLinked")}
         </Text>
+        {!emailLinked && (
+          <View style={{ gap: 4 }} testID="account-set-password">
+            <TextInput
+              testID="account-set-password-input"
+              style={{ ...styles.text, ...styles.textInputBox }}
+              placeholder={t("settings.accountNewPassword")}
+              placeholderTextColor="#999"
+              value={newPassword}
+              onChangeText={setNewPassword}
+              secureTextEntry
+              textContentType="newPassword"
+              maxLength={72}
+            />
+            <Button
+              title={t("settings.accountSetPassword")}
+              disabled={!isValidPasswordInput(newPassword) || busy}
+              onPress={() => void setAccountPassword()}
+              testId="account-set-password"
+            />
+          </View>
+        )}
+        {unlinkedKinds.length > 0 && (
+          <View style={{ gap: 4 }} testID="account-link-provider">
+            {unlinkedKinds.map((kind) => (
+              <Button
+                key={kind}
+                title={
+                  kind === "google"
+                    ? t("settings.accountLinkGoogle")
+                    : t("settings.accountLinkApple")
+                }
+                disabled={busy}
+                onPress={() => void linkWithProvider(kind)}
+                testId={
+                  kind === "google" ? "account-link-google" : "account-link-apple"
+                }
+              />
+            ))}
+          </View>
+        )}
+        {formError !== null && (
+          <Text style={{ ...styles.text, fontSize: 11, color: "#e07070" }}>
+            {formError}
+          </Text>
+        )}
         <Button
           title={t("settings.accountSignOut")}
           onPress={() => {

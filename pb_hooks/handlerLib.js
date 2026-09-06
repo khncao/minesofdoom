@@ -551,6 +551,84 @@ function handleAuthProvider(app, provider, body) {
   return ok(signedInReply(account, session));
 }
 
+/**
+ * Attach (or change) the email/password mechanism on a signed-in account.
+ * The session is the ownership proof — there is deliberately no
+ * old-password input (a lost password is recovered by signing in with the
+ * linked provider, or not; there is no reset flow and none is promised).
+ * An account without an email is refused: login is keyed on email, so a
+ * password without an address would be unusable and misleading.
+ */
+function handleAuthSetPassword(app, body) {
+  const s = sessionOfToken(app, body.token);
+  if (!s) return { status: 401, json: { error: "invalid session" } };
+  const account = s.account;
+  if (!account.get("email")) return badRequest("account has no email");
+  if (!logic.validPassword(body.password)) {
+    return badRequest("invalid password");
+  }
+  if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
+  if (logic.writeBudgetExceeded((recentWriteEvents(app, body.deviceId) || []).length)) {
+    return tooManyRequests();
+  }
+  const salt = logic.randomHex(logic.PASSWORD_SALT_BYTES);
+  account.set("passwordHash", logic.hashPassword(body.password, salt, sha256hex));
+  account.set("passwordSalt", salt);
+  app.save(account);
+  spendWriteBudget(app, body.deviceId);
+  return ok({ ok: true, account: accountJson(account) });
+}
+
+/**
+ * Link a provider identity to the SIGNED-IN account — the deliberate
+ * direction of the email/oauth2 merge (sign-in-time merging happens
+ * automatically in resolveProviderAccount rule 2 when the verified email
+ * matches; this covers the rest: a second Google address, an Apple
+ * privacy-proxy account the user wants joined to their main one, …).
+ * The token is verified by the sidecar exactly like provider sign-in —
+ * holding a fresh, valid idToken IS the proof of ownership of the
+ * identity being linked. 409 when the identity belongs to another
+ * account (resolveProviderLink: never steal, never merge).
+ */
+function handleAuthLinkProvider(app, provider, body) {
+  if (provider !== "google" && provider !== "apple") return badRequest("unknown provider");
+  const s = sessionOfToken(app, body.token);
+  if (!s) return { status: 401, json: { error: "invalid session" } };
+  if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
+  const verdict = verifyIdentity(provider, body.idToken);
+  if (!verdict) return { status: 401, json: { error: "token verification failed" } };
+  const claims = logic.normalizeProviderClaims(provider, verdict);
+  if (!claims) return { status: 401, json: { error: "token verification failed" } };
+  const account = s.account;
+  const field = logic.providerIdField(provider);
+  const existing = account.get(field) || "";
+  if (existing === claims.sub) {
+    return ok({ ok: true, account: accountJson(account) }); // already linked
+  }
+  if (existing) {
+    return { status: 409, json: { error: "provider-taken" } };
+  }
+  const owner = findRecordBy(app, "accounts", field, claims.sub);
+  if (logic.resolveProviderLink(owner ? owner.get("id") : null, account.get("id")).action === "error") {
+    return { status: 409, json: { error: "provider-taken" } };
+  }
+  if (logic.writeBudgetExceeded((recentWriteEvents(app, body.deviceId) || []).length)) {
+    return tooManyRequests();
+  }
+  // Claim upgrades (mirrors handleAuthProvider): pin the provider id, and
+  // an unclaimed verified email when the account has none yet.
+  const patch = {};
+  patch[field] = claims.sub;
+  if (!account.get("email") && claims.email) {
+    const emailOwner = findRecordBy(app, "accounts", "email", claims.email);
+    if (!emailOwner) patch.email = claims.email;
+  }
+  for (const key of Object.keys(patch)) account.set(key, patch[key]);
+  app.save(account);
+  spendWriteBudget(app, body.deviceId);
+  return ok({ ok: true, account: accountJson(account) });
+}
+
 function handleAuthMe(app, body) {
   const s = sessionOfToken(app, body.token);
   if (!s) return { status: 401, json: { error: "invalid session" } };
@@ -602,6 +680,9 @@ const handlers = {
   "auth/me": handleAuthMe,
   "auth/logout": handleAuthLogout,
   "auth/link": handleAuthLink,
+  "auth/set-password": handleAuthSetPassword,
+  "auth/link/google": (app, body) => handleAuthLinkProvider(app, "google", body),
+  "auth/link/apple": (app, body) => handleAuthLinkProvider(app, "apple", body),
 };
 
 /**

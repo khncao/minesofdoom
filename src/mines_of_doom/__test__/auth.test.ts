@@ -106,6 +106,8 @@ describe("storeAuthProvider (gating)", () => {
     await expect(storeAuthProvider.me("token")).resolves.toBeNull();
     await expect(storeAuthProvider.logout("token")).resolves.toBe(false);
     await expect(storeAuthProvider.link("token")).resolves.toBeNull();
+    await expect(storeAuthProvider.setPassword("token", "password1")).resolves.toBeNull();
+    await expect(storeAuthProvider.linkProvider("token", "google", "x")).resolves.toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -248,6 +250,57 @@ describe("storeAuthProvider.link", () => {
   });
 });
 
+describe("storeAuthProvider.setPassword", () => {
+  it("sends token/password/deviceId and returns the updated account", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({ ok: true, account: ACCOUNT }, 200),
+    );
+    await expect(
+      storeAuthProvider.setPassword("t1", "password1"),
+    ).resolves.toEqual(ACCOUNT);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`${BASE}/api/app/auth/set-password`);
+    expect(JSON.parse(init.body)).toEqual({
+      token: "t1",
+      password: "password1",
+      deviceId: DEVICE_ID,
+    });
+  });
+
+  it("maps a dead session (401) and a server refusal (400) to null", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "invalid session" }, 401));
+    await expect(storeAuthProvider.setPassword("dead", "password1")).resolves.toBeNull();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "invalid password" }, 400));
+    await expect(storeAuthProvider.setPassword("t1", "short")).resolves.toBeNull();
+  });
+});
+
+describe("storeAuthProvider.linkProvider", () => {
+  it("posts the session + provider idToken to the link endpoint", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({ ok: true, account: ACCOUNT }, 200),
+    );
+    await expect(
+      storeAuthProvider.linkProvider("t1", "google", "id-token"),
+    ).resolves.toEqual(ACCOUNT);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`${BASE}/api/app/auth/link/google`);
+    expect(JSON.parse(init.body)).toEqual({
+      token: "t1",
+      idToken: "id-token",
+      deviceId: DEVICE_ID,
+    });
+  });
+
+  it("maps a 409 (the identity belongs to another account) to null — never steal", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ error: "provider-taken" }, 409));
+    await expect(
+      storeAuthProvider.linkProvider("t1", "apple", "id-token"),
+    ).resolves.toBeNull();
+    expect(fetchMock.mock.calls[0][0]).toBe(`${BASE}/api/app/auth/link/apple`);
+  });
+});
+
 // -- dev sim --------------------------------------------------------------------
 
 describe("devSimAuthProvider (the labeled simulation)", () => {
@@ -298,6 +351,41 @@ describe("devSimAuthProvider (the labeled simulation)", () => {
     if (outcome.status !== "signedIn") throw new Error("unreachable");
     const apple = outcome.session.account.providers.find((p) => p.name === "apple");
     expect(apple).toEqual({ name: "apple", linked: true });
+  });
+
+  it("setPassword flips the email link; a bad password is refused", async () => {
+    const reg = await devSimAuthProvider.register("pw@dev.co", "password1");
+    if (reg.status !== "signedIn") throw new Error("unreachable");
+    await expect(
+      devSimAuthProvider.setPassword(reg.session.token, "short"),
+    ).resolves.toBeNull();
+    const updated = await devSimAuthProvider.setPassword(
+      reg.session.token,
+      "newpassword1",
+    );
+    expect(updated?.providers.find((p) => p.name === "email")).toEqual({
+      name: "email",
+      linked: true,
+    });
+    // the account behind the token is the updated one
+    await expect(devSimAuthProvider.me(reg.session.token)).resolves.toEqual(updated);
+  });
+
+  it("linkProvider flips the provider link (upserting when absent); a dead token is null", async () => {
+    const reg = await devSimAuthProvider.register("lp@dev.co", "password1");
+    if (reg.status !== "signedIn") throw new Error("unreachable");
+    const updated = await devSimAuthProvider.linkProvider(
+      reg.session.token,
+      "google",
+      "id-token",
+    );
+    expect(updated?.providers.find((p) => p.name === "google")).toEqual({
+      name: "google",
+      linked: true,
+    });
+    await expect(
+      devSimAuthProvider.linkProvider("dead", "google", "id-token"),
+    ).resolves.toBeNull();
   });
 });
 

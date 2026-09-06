@@ -410,6 +410,12 @@ design + status.)
   achievements), letting the player pull their old save. This is the
   only feature login buys; everything works without it. Keep it
   optional + one-tap-skippable (it's a recovery feature, not a gate).
+  The email/oauth2 merge runs in both directions: sign-in merges
+  automatically when the provider's verified email matches an existing
+  account, and a signed-in player can deliberately link a provider
+  (`auth/link/<provider>`, proof = a fresh sidecar-verified idToken) or
+  attach the email password (`auth/set-password`) — one provider
+  identity is always bound to exactly one account (409 `provider-taken`
 - **Conflict rule (stated, not inferred):** cloud and local can diverge
   (player keeps playing offline). On restore, the client compares
   `updatedAt`/`minerals`/`depth` and offers the player a **choice**
@@ -447,7 +453,8 @@ route is the one the LegalSection links.
   `pb_hooks/` is deployed on servarica (deployment + credentials in
   `docs/pocketbase-plan.md`).
 - **Phases 4–5 (client cloud save w/ recovery + settings;
-  leaderboard panel; achievement share; GDPR delete; optional login —
+  leaderboard panel; achievement share; GDPR delete; optional login
+  (incl. the email/oauth2 account merge: link/sign-in/set-password) —
   email/password + Google/Apple native SDKs, session threaded through
   the cloud/leaderboard/IAP routes)**: ✅ — wired and tested (client
   is pointed at the live URL; the design above is what was built).

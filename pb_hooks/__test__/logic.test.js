@@ -438,6 +438,23 @@ describe("resolveProviderAccount (the provider-agnostic merge)", () => {
   });
 });
 
+describe("resolveProviderLink (the signed-in direction of the merge)", () => {
+  test("unclaimed provider sub links to the current account", () => {
+    expect(L.resolveProviderLink(null, "acct-1")).toEqual({ action: "link" });
+  });
+
+  test("re-linking the sub the account already carries is a noop (idempotent)", () => {
+    expect(L.resolveProviderLink("acct-1", "acct-1")).toEqual({ action: "noop" });
+  });
+
+  test("a sub owned by ANOTHER account is refused — never steal, never merge", () => {
+    expect(L.resolveProviderLink("acct-2", "acct-1")).toEqual({
+      action: "error",
+      error: "provider-taken",
+    });
+  });
+});
+
 describe("accountShape", () => {
   test("exposes email + provider links only", () => {
     const shape = L.accountShape({
