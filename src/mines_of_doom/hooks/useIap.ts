@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocalStorage } from "src/hooks/useLocalStorage";
 import { useI18n } from "src/hooks/useI18n";
 import {
@@ -42,10 +42,8 @@ export function useIap({
   getSessionToken?: () => string | null;
 }) {
   const { t } = useI18n();
-  const [entitlements, setEntitlements] = useLocalStorage<IapEntitlements>(
-    iapEntitlementsKey,
-    emptyIapEntitlements(),
-  );
+  const [entitlements, setEntitlements, iapPending] =
+    useLocalStorage<IapEntitlements>(iapEntitlementsKey, emptyIapEntitlements());
   // The purchase re-checks entitlements against the LATEST state via the
   // ref: setState only lands on the next render, and a fast second tap
   // before that render would otherwise double-fire the store sheet.
@@ -63,6 +61,50 @@ export function useIap({
   const [restoring, setRestoring] = useState(false);
 
   const available = provider.isAvailable();
+
+  // Launch reconcile (native store providers only): the store keeps
+  // non-consumable purchases for the life of the store account, so a
+  // completed purchase re-derives on the next launch even if this
+  // device's local record (entitlements AND the device id the server
+  // rows are keyed by) was wiped. Silent — no toast; the manual Restore
+  // button is the announcing path.
+  const reconciledRef = useRef(false);
+  // The pending flag starts false, flips true when the initial storage
+  // load begins (same commit as our first effect run), and flips back
+  // when it lands. We must not reconcile until we have SEEN the load
+  // begin — the initial false is "not started yet", and merging into
+  // the pre-load empty state would clobber entitlements read from disk.
+  const loadStartedRef = useRef(false);
+  useEffect(() => {
+    if (iapPending) loadStartedRef.current = true;
+    if (
+      !loadStartedRef.current ||
+      reconciledRef.current ||
+      !available ||
+      iapPending ||
+      !provider.reconcileStore
+    )
+      return;
+    reconciledRef.current = true;
+    let cancelled = false;
+    provider
+      .reconcileStore(getSessionTokenRef.current?.() ?? null)
+      .then((storeOwned) => {
+        if (cancelled) return;
+        const merged = mergeIapEntitlements(
+          entitlementsRef.current,
+          storeOwned,
+        );
+        // merge returns the original reference when nothing changes, so
+        // a write (and a render) happens only for a real change.
+        if (merged !== entitlementsRef.current) setEntitlements(merged);
+      })
+      .catch((e) => console.warn("IAP launch reconcile failed", e));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [available, provider, setEntitlements, iapPending]);
 
   const purchase = useCallback(
     (id: IapProductId) => {
@@ -114,10 +156,22 @@ export function useIap({
     setRestoring(true);
     provider
       .restore(token())
-      .then((restored) => {
+      .then(async (restored) => {
+        // The server rows are keyed by the device id — after a local wipe
+        // the id is fresh and the rows are unreachable. The store's own
+        // record is the fallback: it re-mints the server rows under the
+        // current id (re-verify inside the provider) while granting here.
+        const storeOwned = provider.reconcileStore
+          ? await provider
+              .reconcileStore(token())
+              .catch((e) => {
+                console.warn("IAP store reconcile failed", e);
+                return {};
+              })
+          : {};
         const merged = mergeIapEntitlements(
-          entitlementsRef.current,
-          restored,
+          mergeIapEntitlements(entitlementsRef.current, restored),
+          storeOwned,
         );
         // merge returns the original reference when nothing changes, so
         // a write (and a render) happens only for a real change.

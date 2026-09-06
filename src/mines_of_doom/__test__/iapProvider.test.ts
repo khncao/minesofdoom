@@ -42,6 +42,7 @@ function resetMocks() {
     errorCb = cb;
     return { remove: removeSpy };
   });
+  (IAP.getAvailablePurchases as jest.Mock).mockResolvedValue([]);
 }
 
 function configure(base: string) {
@@ -211,5 +212,72 @@ describe("storeIapProvider: purchase round-trip", () => {
     await expect(storeIapProvider.restore()).resolves.toEqual({
       packGold: true,
     });
+  });
+});
+
+describe("storeIapProvider: launch reconcile (reconcileStore)", () => {
+  it("resolves {} while unconfigured", async () => {
+    storeConfig.pocketbaseUrl = "";
+    await expect(storeIapProvider.reconcileStore!()).resolves.toEqual({});
+    expect(IAP.initConnection).not.toHaveBeenCalled();
+  });
+
+  it("re-derives entitlements from the store record and re-verifies the tokens", async () => {
+    configure(BASE);
+    const storeIds = IAP_STORE_IDS as Record<string, string>;
+    (IAP.getAvailablePurchases as jest.Mock).mockResolvedValue([
+      { productId: STORE_ID, purchaseState: "purchased", purchaseToken: "tok-r1" },
+      // A purchase for a product we don't sell: dropped.
+      { productId: "someone.elses.product", purchaseState: "purchased", purchaseToken: "tok-x" },
+      // Not a completed purchase: skipped entirely.
+      { productId: storeIds.packFrost, purchaseState: "pending", purchaseToken: "tok-p" },
+    ]);
+    const calls: string[] = [];
+    fetchMock.mockImplementation(async (url: string) => {
+      calls.push(url);
+      return { ok: true, json: async () => ({ entitlements: [STORE_ID] }) };
+    });
+
+    await expect(storeIapProvider.reconcileStore!()).resolves.toEqual({
+      packGold: true,
+    });
+    // The verified row was (re-)minted server-side for this device…
+    expect(calls).toEqual([`${BASE}/api/app/verify`]);
+    const [, init] = fetchMock.mock.calls[0] as [string, object];
+    const body = JSON.parse((init as { body: string }).body);
+    expect(body.productId).toBe("packGold");
+    expect(body.token).toBe("tok-r1");
+    // …and the store record was re-acked.
+    expect(IAP.finishTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ isConsumable: false }),
+    );
+    // The queue drained (the verify succeeded).
+    const raw = await AsyncStorage.getItem(PENDING_VERIFY_KEY);
+    expect(JSON.parse(raw as string)).toEqual([]);
+  });
+
+  it("keeps the tokens queued when the re-verify fails (they replay on a later restore)", async () => {
+    configure(BASE);
+    (IAP.getAvailablePurchases as jest.Mock).mockResolvedValue([
+      { productId: STORE_ID, purchaseState: "purchased", purchaseToken: "tok-r2" },
+    ]);
+    fetchMock.mockResolvedValue({ ok: false, json: async () => ({}) });
+
+    await expect(storeIapProvider.reconcileStore!()).resolves.toEqual({
+      packGold: true,
+    });
+    const raw = await AsyncStorage.getItem(PENDING_VERIFY_KEY);
+    expect(JSON.parse(raw as string)).toEqual([
+      { productId: "packGold", token: "tok-r2" },
+    ]);
+  });
+
+  it("resolves {} (never rejects) when the store query fails", async () => {
+    configure(BASE);
+    (IAP.getAvailablePurchases as jest.Mock).mockRejectedValue(
+      new Error("store not ready"),
+    );
+    await expect(storeIapProvider.reconcileStore!()).resolves.toEqual({});
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

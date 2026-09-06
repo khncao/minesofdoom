@@ -367,6 +367,19 @@ export interface IapProvider {
   restore(sessionToken?: string | null): Promise<
     Partial<Record<IapProductId, boolean>>
   >;
+  /**
+   * Re-derive entitlements from the store's OWN record of completed
+   * purchases. The native stores keep non-consumable purchases for the
+   * life of the store account (Play Billing retains the record after
+   * `finishTransaction`), so the store query re-derives every completed
+   * purchase even after the app's local data — entitlements AND the
+   * device id the server rows are keyed by — has been wiped. Providers
+   * without a store-side record (noop, dev-sim, web Stripe — the web
+   * record lives on the server) omit this.
+   */
+  reconcileStore?(sessionToken?: string | null): Promise<
+    Partial<Record<IapProductId, boolean>>
+  >;
 }
 
 /**

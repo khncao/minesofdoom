@@ -64,6 +64,7 @@ type MockProvider = {
   isAvailable: () => boolean;
   purchase: jest.Mock;
   restore: jest.Mock;
+  reconcileStore?: jest.Mock;
 };
 
 /** Test provider: scripts the purchase/restore outcomes. */
@@ -71,6 +72,7 @@ function makeProvider(
   result: PurchaseResult = "purchased",
   available = true,
   restored: Partial<Record<IapProductId, boolean>> = {},
+  reconcileStore?: jest.Mock,
 ): MockProvider {
   return {
     id: "test",
@@ -78,6 +80,8 @@ function makeProvider(
     isAvailable: () => available,
     purchase: jest.fn().mockResolvedValue(result),
     restore: jest.fn().mockResolvedValue(restored),
+    // Absent by default (mirrors noop / dev-sim / web providers).
+    ...(reconcileStore ? { reconcileStore } : {}),
   };
 }
 
@@ -127,8 +131,11 @@ async function buy(result: { current: UseIap }, id: IapProductId) {
 async function restore(result: { current: UseIap }) {
   await act(async () => {
     result.current.restore();
-    await Promise.resolve();
-    await Promise.resolve();
+    // The restore path is now two awaits deep (server restore, then the
+    // store reconcile merge): drain a few more ticks than before.
+    for (let i = 0; i < 6; i++) {
+      await Promise.resolve();
+    }
   });
 }
 
@@ -315,5 +322,74 @@ describe("useIap — restore", () => {
     });
     expect(result.current.restoring).toBe(false);
     expect(result.current.entitlements.packGold).toBe(true);
+  });
+
+  it("restore also merges the store's own record (reconcileStore)", async () => {
+    const provider = makeProvider(
+      "purchased",
+      true,
+      { packOni: true },
+      jest.fn().mockResolvedValue({ packGold: true }),
+    );
+    const result = await renderIap(
+      makeProps({ provider: provider as unknown as IapProvider }),
+    );
+    await restore(result);
+    expect(provider.restore).toHaveBeenCalledTimes(1);
+    // Mount reconcile + the restore's own reconcile pass.
+    expect(provider.reconcileStore).toHaveBeenCalledTimes(2);
+    expect(result.current.entitlements.packOni).toBe(true);
+    expect(result.current.entitlements.packGold).toBe(true);
+    expect(stored()?.packGold).toBe(true);
+  });
+});
+
+describe("useIap — launch reconcile (store record)", () => {
+  it("re-derives entitlements from the store record on mount and persists them", async () => {
+    const provider = makeProvider(
+      "purchased",
+      true,
+      {},
+      jest.fn().mockResolvedValue({ packGold: true }),
+    );
+    const result = await renderIap(
+      makeProps({ provider: provider as unknown as IapProvider }),
+    );
+    // Silent (no toast on launch) — the entitlement is the contract.
+    expect(provider.reconcileStore).toHaveBeenCalledTimes(1);
+    expect(result.current.entitlements.packGold).toBe(true);
+    expect(stored()?.packGold).toBe(true);
+  });
+
+  it("an empty store record writes nothing (fresh device stays clean)", async () => {
+    const provider = makeProvider(
+      "purchased",
+      true,
+      {},
+      jest.fn().mockResolvedValue({}),
+    );
+    const result = await renderIap(
+      makeProps({ provider: provider as unknown as IapProvider }),
+    );
+    expect(provider.reconcileStore).toHaveBeenCalledTimes(1);
+    expect(result.current.entitlements).toEqual(emptyIapEntitlements());
+    expect(stored()).toBeNull();
+  });
+
+  it("launch reconcile can only ADD", async () => {
+    const provider = makeProvider(
+      "purchased",
+      true,
+      {},
+      jest.fn().mockResolvedValue({ packGold: true }),
+    );
+    const seed = emptyIapEntitlements();
+    seed.packFrost = true;
+    const result = await renderIap(
+      makeProps({ provider: provider as unknown as IapProvider }),
+      seed,
+    );
+    expect(result.current.entitlements.packGold).toBe(true);
+    expect(result.current.entitlements.packFrost).toBe(true);
   });
 });

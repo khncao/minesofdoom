@@ -54,6 +54,23 @@ const LISTENER_SETTLE_MS = 200;
 /** AsyncStorage key for the pending-verify queue. */
 export const PENDING_VERIFY_KEY = "iapPendingVerifies";
 
+/** The reverse store-id → product-id map (both stores share one canonical
+ *  sku per product, see IAP_STORE_IDS). Built lazily — IAP_STORE_IDS lives
+ *  in iaps.ts, which imports this module (provider selection), so a
+ *  module-scope read would hit the circular import before iaps.ts
+ *  initialized the const. */
+let storeIdToProduct: Record<string, IapProductId> | null = null;
+function storeIdToProductMap(): Record<string, IapProductId> {
+  if (!storeIdToProduct) {
+    storeIdToProduct = Object.fromEntries(
+      (Object.entries(IAP_STORE_IDS) as [IapProductId, string][]).map(
+        ([id, sid]) => [sid, id],
+      ),
+    ) as Record<string, IapProductId>;
+  }
+  return storeIdToProduct;
+}
+
 // -- single initConnection per app session -----------------------------------
 let connectionPromise: Promise<unknown> | null = null;
 
@@ -204,12 +221,7 @@ async function restoreFromServer(
   if (!Array.isArray(raw)) return {};
   // Allowlist: only store ids we own map to a product (mirrors the
   // server's rule that unknown storeIds are dropped).
-  const byStoreId: Record<string, IapProductId> = {};
-  (Object.entries(IAP_STORE_IDS) as [IapProductId, string][]).forEach(
-    ([id, sid]) => {
-      byStoreId[sid] = id;
-    },
-  );
+  const byStoreId = storeIdToProductMap();
   const out: Partial<Record<IapProductId, boolean>> = {};
   for (const entry of raw) {
     const id = typeof entry === "string" ? byStoreId[entry] : undefined;
@@ -336,5 +348,47 @@ export const storeIapProvider: IapProvider = {
     const deviceId = await getIapDeviceId();
     await replayPendingVerifies(deviceId, sessionToken);
     return restoreFromServer(deviceId, sessionToken);
+  },
+
+  /**
+   * Re-derive entitlements from Play Billing's own record (see
+   * IapProvider.reconcileStore). Along the way it re-mints the server
+   * rows under this device's CURRENT id (re-verify, token-deduped) and
+   * re-acks any leftover un-acked purchase (the app dying between the
+   * store completion and finishTransaction) — so a wiped device heals
+   * itself on the next launch, no manual Restore tap required.
+   */
+  async reconcileStore(sessionToken) {
+    if (!isPocketbaseConfigured()) return {};
+    await ensureConnected();
+    const deviceId = await getIapDeviceId();
+    let purchases: IAP.Purchase[];
+    try {
+      purchases = await IAP.getAvailablePurchases();
+    } catch (err) {
+      // The query can fail while the store is not ready (or there is no
+      // storefront on this device): entitlements stay as they are.
+      console.warn("expo-iap: getAvailablePurchases failed", err);
+      return {};
+    }
+    const byStoreId = storeIdToProductMap();
+    const out: Partial<Record<IapProductId, boolean>> = {};
+    for (const p of purchases) {
+      if (p.purchaseState !== "purchased") continue;
+      const id = byStoreId[p.productId];
+      if (id === undefined) continue;
+      out[id] = true;
+      if (!p.purchaseToken) continue;
+      // Re-mint the server row (deduped by token inside the queue) and
+      // re-ack a leftover un-acked record (a no-op when already acked;
+      // the error is swallowed either way).
+      await enqueueVerify(id, p.purchaseToken);
+      await IAP.finishTransaction({
+        purchase: p,
+        isConsumable: false,
+      }).catch(() => undefined);
+    }
+    await replayPendingVerifies(deviceId, sessionToken);
+    return out;
   },
 };

@@ -32,4 +32,17 @@ Completed items are removed from this file (see git history); only remaining wor
 - [ ] use keyboard avoiding views to ensure inputs aren't covered by keyboard (such as in settings)
 - [ ] upgrades panel should show on top of keypad
 
-- [ ] IAP — test purchase → entitlement → wipe local key → restore. use mines-play-35 avd
+- [x] IAP — entitlements re-derive from the store's own record after a local
+    data loss ("iap not persisting on android" fix): the store provider now
+    implements `reconcileStore()` (expo-iap `getAvailablePurchases`), called
+    once on launch (silent, after the entitlement storage load lands) and by
+    the manual Restore button alongside the server restore. It re-grants
+    owned products, re-acks leftover un-acked records, and re-verifies each
+    token so the server row re-mints under the device's CURRENT id — the
+    only restore path that works for anonymous players after a wipe (their
+    server rows are keyed by the old device id). Unit-tested in
+    iapProvider.test.ts + useIap.test.ts (863 tests green).
+- [ ] IAP — on-device verification of the above: purchase → entitlement →
+    wipe local key (pm clear) → relaunch → entitlement re-derived from the
+    store record. use mines-play-35 avd; still needs the license-tester
+    setup from docs/blockers.md for a real purchase
