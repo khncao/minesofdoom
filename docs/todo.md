@@ -22,5 +22,6 @@ Completed items are removed from this file (see git history); only remaining wor
   - [ ] audit project security and compliance
   - [ ] check project ship readiness
 
-- [ ] IAP — complete, clean up docs
+- [ ] IAP — on-device purchase leg (license tester)
+  Everything else is done (client, Pocketbase + sidecar deploy, Android Play credentials, 26 products live, §4 web-bundle grep clean — see `docs/store-integration.md` §4 and `docs/blockers.md`). Remaining: add the test Gmail to **Play Console → Testing → License testers → `internal`** (UI-only — the v3 API can't register testers), then on the emulator: test-card purchase → entitlement → wipe local key → restore.
 

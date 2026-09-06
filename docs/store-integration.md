@@ -514,6 +514,20 @@ and the
       appears in Cosmetics, and a **wipe of the local AsyncStorage key
       + restore** re-applies it from the store (this is the whole point
       of Pocketbase verify — the receipt round-trips).
+      *(2026-09-05 diagnosis — the purchase leg is blocked on one
+      Play Console UI step, not a bug: on the new API 35 `google_apis_
+      playstore` emulator (`mines-play-35`, account signed into Play
+      Store) the Buy → Play sheet says “The item you were attempting to
+      purchase could not be found” because **zero license testers are
+      registered on any track** (verified via the Play API —
+      `edits.testers.get` per track). The v3 API can only set
+      `googleGroups`, so the fix is UI-only: **Play Console → Testing →
+      License testers → add the Gmail to `internal`**. Everything else
+      ruled out: SKUs match live — `npm run play -- products-check`
+      clean; `pack_amethyst` ACTIVE with US $0.99 AVAILABLE; the panel
+      prices are static `priceLabel`s, not proof of a live billing
+      query. After the tester is added: test-card purchase →
+      entitlement → wipe local key → restore.)*
 - [ ] **Remove Ads** (on-device, test price): owning it hides the
       rewarded-ads panel AND the IAP panel permanently.
 - [ ] **Cloud save** (§3): play a bit → the save is pushed; change
@@ -524,11 +538,15 @@ and the
       clamped/rejected.
 - [ ] **GDPR delete**: the LegalSection "delete my data" wipes the
       device's cloud rows and the next launch starts clean.
-- [ ] **Web bundle grep**: `npx expo export -p web` → grep `dist/` for
+- [x] **Web bundle grep**: `npx expo export -p web` → grep `dist/` for
       `expo-admob` / `expo-iap` — the native SDKs must not leak into
       the web bundle (the `.web` swaps resolve no-ops; a hit here means
       a swap is missing). The Pocketbase URL *should* be present (it's
       a plain fetch endpoint).
+      *(2026-09-04: done — the release APK pass exported the web bundle
+      and it was clean: no `expo-admob` / `expo-iap`, no `MDOOM_DEV*`,
+      no `:8090` sandbox port, dev-sim code inert behind folded
+      `__DEV__`; the prod Pocketbase URL present as expected.)*
 
 ---
 

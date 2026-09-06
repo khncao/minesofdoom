@@ -16,14 +16,17 @@ condition — "a fresh install is 0") the flow passes clean. The
 precondition is documented in `maestro/flows/mining.yaml`; keep the suite
 on fresh installs.
 
-## IAP (Pocketbase + store products + on-device verification) — `todo.md` "IAP — Pocketbase deploy + store products + on-device verification"
+## IAP (on-device purchase leg) — `todo.md` "IAP — on-device purchase leg (license tester)"
 
-**Blocked on (external):** the iOS store credentials only — the `APPLE_*`
-App Store Connect API key for the sidecar (`docs/backlog.md`, iOS
-section). The 26 Play products are live and ACTIVE (`products-check`
-clean), the Android Play credentials are on the sidecar (`/healthz` →
-`configured.android: true`), and a release AAB (1.0.8) sits on the
-internal track. The Pocketbase deployment itself is DONE (below).
+**Blocked on (external):** two store-side items — (1) one Gmail as a
+Play Console **license tester** on `internal` (Testing → License
+testers; UI-only, the v3 API can't do it) for the §4 purchase leg, and
+(2) the iOS `APPLE_*` App Store Connect API key for the sidecar
+(`docs/backlog.md`, iOS section). The 26 Play products are live and
+ACTIVE (`products-check` clean), the Android Play credentials are on the
+sidecar (`/healthz` → `configured.android: true`), and a release AAB
+(1.0.8) sits on the internal track. The Pocketbase deployment itself is
+DONE (below).
 
 **Done in-repo:** the full client half, mirroring the ads pattern —
 `iapProvider.ts` (expo-iap → `finishTransaction` → POST `/api/app/verify`,
@@ -76,18 +79,28 @@ fail-closed until those credentials exist. `storeConfig.pocketbaseUrl` is
 set and pinned by `storeConfig.test.ts`; the `iaps.test.ts` live pin now
 expects the store provider.
 
-**Unblocks when:** the on-device verification in
-docs/store-integration.md §4 passes (test purchase → entitlement →
-restore after wiping the local key; web bundle grep).
+**Unblocks when:** the last §4 item — the purchase leg (test-card
+purchase → entitlement → wipe local key → restore) — passes. It runs on
+the emulator and is now blocked ONLY on one Play Console UI action:
+add the test Gmail to **Testing → License testers → `internal`**
+(external, store-side — the v3 API can't register license testers,
+`edits.testers.get` shows zero on every track, and the "item could not
+be found" symptom from 2026-09-05 is explained entirely by that, see
+§4 for the full diagnosis).
+
+**Progress (2026-09-05, emulator API 35):** on the
+`google_apis_playstore` AVD (`mines-play-35`) with a Play Store account
+signed in, the Buy → Play sheet fetches the sheet but fails with "The
+item you were attempting to purchase could not be found" — diagnosed
+as zero license testers on any track (SKUs/ACTIVE status ruled out via
+`products-check` + SKU lookup). Same external fix: register the Gmail
+as a license tester on `internal`.
 
 **Progress (2026-09-04, emulator):** the release-APK (upload-key) pass on
 the Pixel 3a emulator confirmed the §4 pass does NOT need a phone — the
 store sheet on the emulator fetches and lists all live Play products with
 real prices (no Google account required for product retrieval), and the
-web-bundle grep half of §4 is done (clean). What remains is exactly the
-purchase leg and it runs on the SAME emulator: add one Gmail as a Play
-Console **license tester**, sign it into the emulator's Play Store, test
-card purchase → entitlement → wipe local key → restore.
+web-bundle grep half of §4 is done (clean).
 
 **Research note (2026-09-04):** the §4 pass does NOT require a
 physical Android phone. Google's billing-test doc
