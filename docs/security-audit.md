@@ -24,9 +24,9 @@ S6 kid-safety) items.
 | # | Severity | Finding | Status |
 |---|----------|---------|--------|
 | S1 | Medium | Session tokens / password salts / account ids minted from `Math.random` (a PRNG, not a CSPRNG) | **Fixed** (this iteration) |
-| S2 | Low | Stripe webhook is unauthenticated and not per-request rate-limited | Open — hardening |
+| S2 | Low | Stripe webhook is unauthenticated and not per-request rate-limited | **Fixed** (this iteration) |
 | S3 | Low | Email/password hashed with single-iteration SHA-256 (no KDF) | **Fixed** (this iteration) |
-| S4 | Compliance | No discoverable privacy policy (GDPR / store listing) | Open — must add before/for ship |
+| S4 | Compliance | No discoverable privacy policy (GDPR / store listing) | **Fixed** (this iteration — listing links are the external step) |
 | S5 | Info | Device-scope GDPR delete intentionally keeps entitlements | Accepted trade-off |
 | S6 | Compliance | Kid-safety / age-rating check for the rewarded-ads model | Open — verify rating + ad settings |
 
@@ -94,31 +94,49 @@ mirrors the real `$security`. Full suite: 801 tests green.
 **Residual.** None in practice — current Pocketbase ships
 `randomStringWithAlphabet`. The fallback is defense-in-depth only.
 
-### S2 — Stripe webhook: unauthenticated, not per-request rate-limited  ·  Low
+### S2 — Stripe webhook: unauthenticated, not per-request rate-limited  ·  **FIXED**
 
-`POST /api/app/stripe/webhook` does **not** verify Stripe's `Stripe-Signature`
+`POST /api/app/stripe/webhook` did **not** verify Stripe's `Stripe-Signature`
 HMAC (goja cannot re-read the raw request body to compute the HMAC — a real
-runtime constraint, documented inline), and it applies **no per-request rate
+runtime constraint, documented inline), and it applied **no per-request rate
 limit** (it dedupes on the *event id*, which only stops exact replays, not a
-flood of unique ids). Consequence: an attacker can POST arbitrary
+flood of unique ids). Consequence: an attacker could POST arbitrary
 `{ id, data.object:{ id, metadata:{...} } }` bodies, and each **unique** id
-triggers one server→Stripe API lookup (an outbound HTTPS call using the secret
+triggered one server→Stripe API lookup (an outbound HTTPS call using the secret
 key).
 
-Why it is Low, not higher: a forged event **cannot mint** — `verifyPurchase`
+Why it was Low, not higher: a forged event **cannot mint** — `verifyPurchase`
 calls the Stripe API with the secret key, and a fake session id is not `paid`,
 so it returns 400. There is no monetary loss, no data write on a bad verdict,
-and Stripe-side rate limits bound abuse. The cost is a DoS-ish burst of
+and Stripe-side rate limits bound abuse. The cost was a DoS-ish burst of
 outbound API calls (and noise) under a targeted attack.
 
-Recommendation (pick one, in order of preference):
-1. **Move receipt to the sidecar.** The sidecar already holds the secret key and
-   can read the raw body, so it can verify `Stripe-Signature` properly and then
-   call Pocketbase to mint. This is the clean fix and matches how the other
-   platforms are verified.
-2. **Coarse rate limit** the webhook route (e.g. a small per-minute counter, or
-   rate-limit at the reverse proxy in front of Pocketbase) so a flood can't
-   translate into unbounded sidecar calls.
+**Fix (this iteration) — recommendation 1 (move receipt to the sidecar).**
+Stripe now delivers `checkout.session.completed` to the sidecar's
+`POST /stripe/webhook` (Caddy fronts the public Pocketbase URL at that path),
+and the sidecar is the one place in the system that still holds the **raw
+body**, so it verifies `Stripe-Signature` there: HMAC-SHA256 over
+`<t>.<raw payload>`, every `v1` entry tried with a constant-time compare, the
+timestamp within ±5 minutes (replay protection) —
+`verifyStripeWebhookSignature` in `sidecar/verify.js`. Only then does it
+forward the untouched bytes to Pocketbase's `/api/app/stripe/webhook`, and
+that route now requires the `MDOOM_SIDECAR_SECRET` shared key in
+`x-mdoom-key` (403 without it, when the secret is configured — so an unsigned
+flood dies at the Caddy/sidecar boundary, and even a direct hit on
+Pocketbase 403s before the dedup row). Both gates fail closed: the sidecar
+route refuses everything while `STRIPE_WEBHOOK_SECRET` or `MDOOM_PB_URL` is
+unconfigured. A bad signature is a 400 and is never forwarded and never
+recorded, so Stripe's own retries re-deliver a legitimately signed event if
+the cause is transient.
+
+Verified: `__test__/stripeWebhookSignature.test.js` (HMAC accept/tamper/wrong-
+secret, missing header/timestamp, tolerance window, multi-`v1` headers) and
+`__test__/sidecarWebhookRoute.test.js` (the live HTTP route against a scripted
+fake Pocketbase: unconfigured refuses, bad signature refuses + never
+forwards, valid signature forwards the exact bytes with the shared key,
+upstream 2xx/4xx/5xx pass-through). The Pocketbase-side
+`handlerStripeWebhook.test.js` covers the `x-mdoom-key` gate (configured
+secret: missing/wrong key → 403 before anything else).
 
 ### S3 — Password hashing was single-iteration SHA-256 (no KDF)  ·  **FIXED**
 
@@ -150,20 +168,28 @@ hash, but is not available in the goja runtime; if a stronger KDF is ever
 required, move email/password to the sidecar (`node:crypto` `scrypt`). The
 stored iteration count allows raising the work factor later without migration.
 
-### S4 — No discoverable privacy policy  ·  Compliance (must do before/for ship)
+### S4 — No discoverable privacy policy  ·  **FIXED** (Compliance)
 
 The app now collects real personal data: an account (email, optional password,
 Google/Apple id), cloud saves, and leaderboard entries, plus a GDPR **delete**
-endpoint. There is **no privacy policy** anywhere (searched `*.md`,
+endpoint. There was **no privacy policy** anywhere (searched `*.md`,
 `app.config.ts`, the web template, and the native manifest). A GDPR delete
 endpoint that has no policy describing what is collected and why is a compliance
 gap, and the Play Console / App Store listings require a privacy policy link.
 
-Action: publish a privacy policy (what is collected: email, optional password,
-provider id, deviceId, save blobs, leaderboard; why: account/progress/leaderboard;
-retention + the delete endpoint; ads: rewarded-only AdMob + web AdSense and the
-kid-safety setting). Link it from the in-app settings/about sheet and from both
-store listings. This is a content task, not a code task, but it gates ship.
+**Fix (this iteration).** `src/mines_of_doom/legal.ts` is the single source of
+truth for both documents — a v2.0 Privacy Policy (local data, accounts + cloud
+sync, what is NOT collected, IAP, the rewarded-only/AdSense ad model, children,
+deletion, changes, contact) and a matching v2.0 Terms of Use — rendered in-app
+(Settings, with the Spanish i18n table in `src/utils/i18n/content-es.ts` kept
+key-pinned to the English by `content.test.ts`). The published store-listing
+copies are generated, not hand-maintained: `legalDocs.test.ts` renders the same
+modules into `public/privacy-policy.html` + `public/terms-of-use.html` on every
+`npm test`, so the URLs
+(`…/minesofdoom/privacy-policy.html` and `…/terms-of-use.html`, served by the
+static web export) can never drift from the in-app text. **Remaining external
+step:** paste those two URLs into the Play Console / App Store privacy fields
+(check `docs/store-integration.md` §2.6 / §3). This is a content task, not a code task, but it gates ship.
 
 ### S5 — Device-scope delete keeps entitlements  ·  Accepted trade-off
 
@@ -192,8 +218,8 @@ code change.
 ## Follow-up checklist
 
 - [x] S1 — CSPRNG for session tokens / salts / account ids (done, tested).
-- [ ] S4 — Write + link a privacy policy (in-app + Play + App Store). **Blocks ship.**
-- [ ] S2 — Verify `Stripe-Signature` in the sidecar (preferred) or add a rate limit.
+- [x] S4 — Privacy policy v2.0 + terms v2.0 in-app (legal.ts, ES i18n synced) + generated published HTML. **Remaining: link the two URLs from the Play/App Store listings (external).**
+- [x] S2 — Stripe delivery moves to the sidecar's `/stripe/webhook` (Stripe-Signature over the raw body) + the Pocketbase route is gated on the shared key.
 - [x] S3 — Password hashing upgraded to a 100k-round iterated-SHA-256 KDF (transparent on-login upgrade of legacy rows). Done + tested.
 - [ ] S6 — Confirm age rating + `TAG_FOR_CHILD_DIRECTED_TREATMENT` for the rewarded-ads model.
 - [ ] S5 — None (accepted).

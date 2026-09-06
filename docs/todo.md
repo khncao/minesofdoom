@@ -14,18 +14,19 @@ Completed items are removed from this file (see git history); only remaining wor
   external: AdSense approval + the `ca-pub-` client + a banner slot, then
   fill `storeConfig.adsense`.
 
-- [ ] once everything else is complete: 
-  - [ ] check project for additional UX improvements
-  - [o] audit project security and compliance — **reviewed + `docs/security-audit.md`**
-      (fail-closed verify, device-scoped private collections, no secrets in
-      bundle, no XSS sinks — all sound). S1 (session tokens/salts/account ids
-      were `Math.random`, not a CSPRNG) and S3 (password hashing was
-      single-iteration SHA-256) both **fixed this iteration** (CSPRNG helper +
-      100k-round iterated-SHA-256 KDF with transparent on-login upgrade) and
-      tested. Open follow-ups: S2 (webhook `Stripe-Signature`/rate-limit),
-      S4 (privacy policy — **blocks ship**), S6 (kid-safety/age rating).
-  - [ ] check project ship readiness
+- [o] audit project security and compliance — **reviewed + `docs/security-audit.md`**
+    (fail-closed verify, device-scoped private collections, no secrets in
+    bundle, no XSS sinks — all sound). S1 (session tokens/salts/account ids
+    were `Math.random`, not a CSPRNG) and S3 (password hashing was
+    single-iteration SHA-256) both **fixed this iteration** (CSPRNG helper +
+    100k-round iterated-SHA-256 KDF with transparent on-login upgrade) and
+    tested; S2 (webhook `Stripe-Signature` — delivery now lands on the
+    sidecar, which verifies the HMAC over the raw body and forwards with
+    the shared key; the Pocketbase route 403s anything else) and S4
+    (privacy policy v2.0 + terms v2.0 in-app via `legal.ts` — the Spanish
+    i18n table stays key-pinned — + the published `privacy-policy.html` /
+    `terms-of-use.html` **generated from the same modules** by
+    `legalDocs.test.ts`) both **fixed this iteration** and tested.
+    Only open follow-up: S6 (kid-safety/age rating — external store check).
 
 - [ ] IAP — test purchase → entitlement → wipe local key → restore.
-
-
