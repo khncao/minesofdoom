@@ -31,11 +31,12 @@ const googleMobileAdsPluginOptions = {
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  // Display name (todo: "Set app display name"). The device label follows
-  // this on the NEXT prebuild — the checked-in android/ project still
-  // carries the old "minesofdoom" label in res/values/strings.xml until
-  // then, and the two build.gradle patches (debuggableVariants, upload-key
-  // signing) must be re-applied after every prebuild (AGENTS gotchas).
+  // Display name. The checked-in android/ strings.xml was updated in step
+  // (2026-09-07) and the Play Console en-US listing title matches — both
+  // track this value. A future `expo prebuild` regenerates the same label
+  // from here, but the two build.gradle patches (debuggableVariants,
+  // upload-key signing) must be re-applied after every prebuild (AGENTS
+  // gotchas).
   name: "Mines of Idle Doomath",
   slug: "minesofdoom",
   scheme: "com.minus4kelvin.minesofdoom",

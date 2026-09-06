@@ -4,8 +4,10 @@ Legend: [ ] not started, [o] in progress
 Completed items are removed from this file (see git history); only remaining work is tracked here.
 
 - [ ] Set app display name to "Mines of Idle Doomath"
-  Done in source (2026-09-06): `app.config.ts` `name`, the `+html.tsx` title/description, web description, legal + inquiries copy. Remains: the **device label** still reads "minesofdoom" (checked-in `android/` project, `res/values/strings.xml`) until the next `expo prebuild` — re-apply the two build.gradle patches (debuggableVariants + upload-key signing) after it, per the AGENTS gotchas — and the Play Console listing display name, which is store-side (`scripts/play/play.mjs` / Play Console → Store presence).
+  Done in source (2026-09-06): `app.config.ts` `name`, the `+html.tsx` title/description, web description, legal + inquiries copy.
+  Done in device + store (2026-09-07): the checked-in `android/` `res/values/strings.xml` `app_name` was set directly (the value prebuild would generate from `app.config.ts` anyway, so the next prebuild stays consistent — re-apply the two build.gradle patches after any prebuild per the AGENTS gotchas), and the Play Console en-US listing title was renamed "The Click Idle Mines of Doom" → "Mines of Idle Doomath" via the API (`edits.listings.patch`, committed; short/full descriptions untouched).
 - [ ] Make sure font colors and sizes are readable
+  Done (2026-09-07): full readability pass over `src/` — minimum font size is now 11 (bumped every 9/10px text: AboutTab crash/analytics detail, CosmeticsSection blurbs, GoalsPanel progress, the combo progress label); tight 13/14 lineHeights on 11px text bumped to 15; muted secondary text lifted `#aaa`→`#bbb` and tertiary `#888`→`#999` (both pass WCAG AA ≥4.5:1 on the `#303030`/`#3a3a3a`/`#404040` panel backgrounds; `#aaa` on `#404040` was 4.46, `#888` 3.7); the "hold to mine" hint opacity 0.45→0.6; AccountTab placeholder `#888`→`#999`. On-device look is deferred with the rest of the emulator work (no flow asserts rendering).
 - [ ] Optimize build size
 - [ ] Add oauth2 login for web
 - [ ] Remove the "remove ads" iap
