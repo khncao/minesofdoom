@@ -17,6 +17,12 @@ appId: com.minus4kelvin.minesofdoom
 - takeScreenshot:
     path: v3_settings.png
 
+# "Delete my data" lives on the Save tab (cloud backup section).
+- tapOn:
+    id: menu-tab-save
+- assertVisible:
+    id: save-view
+
 - tapOn:
     text: "Delete my data"
 - assertVisible:

@@ -7,10 +7,10 @@ appId: com.minus4kelvin.minesofdoom
     id: menu-button
 - assertVisible:
     id: menu-sheet
-- scrollUntilVisible:
-    element:
-      id: account-section
-    direction: UP
+- tapOn:
+    id: menu-tab-account
+- assertVisible:
+    id: account-section
 - tapOn:
     id: account-signout
 - assertVisible:

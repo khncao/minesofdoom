@@ -157,8 +157,11 @@ export const es: Record<TranslationKey, string> = {
 
   // --- Menu ----------------------------------------------------------------
   "menu.settings": "⚙️ Ajustes",
+  "menu.save": "💾 Guardado",
+  "menu.account": "👤 Cuenta",
   "menu.goals": "🎯 Objetivos",
   "menu.records": "📊 Récords",
+  "menu.about": "ℹ️ Información",
 
   // --- Settings ------------------------------------------------------------
   "settings.language": "🌐 Idioma:",

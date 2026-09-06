@@ -172,8 +172,11 @@ export const en = {
 
   // --- Menu ----------------------------------------------------------------
   "menu.settings": "⚙️ Settings",
+  "menu.save": "💾 Save",
+  "menu.account": "👤 Account",
   "menu.goals": "🎯 Goals",
   "menu.records": "📊 Records",
+  "menu.about": "ℹ️ About",
 
   // --- Settings ------------------------------------------------------------
   "settings.language": "🌐 Language:",

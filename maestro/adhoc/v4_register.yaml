@@ -12,13 +12,12 @@ appId: com.minus4kelvin.minesofdoom
     id: menu-button
 - assertVisible:
     id: menu-sheet
-- assertVisible:
-    id: settings-view
 
-- scrollUntilVisible:
-    element:
-      id: account-section
-    direction: UP
+# The account section moved to the Account tab (menu reorganization).
+- tapOn:
+    id: menu-tab-account
+- assertVisible:
+    id: account-section
 
 # NOTE: if a previous run left a session in the OS keychain, run
 # v4b_signout.yaml first (this Maestro build has no conditional tap).

@@ -6,21 +6,28 @@ import MuteToggle from "src/components/MuteToggle";
 import { EquationSettings } from "src/utils/math/equations";
 import { AnalyticsState } from "../analytics";
 import type { CloudSaveSettingsProps } from "../hooks/useCloudSave";
-import SettingsContent, {
-  type AccountSettingsProps,
-} from "./SettingsPanel";
+import SettingsContent from "./SettingsPanel";
+import SaveTab from "./SaveTab";
+import AccountTab, { type AccountSettingsProps } from "./AccountTab";
+import AboutTab from "./AboutTab";
 import GoalsContent from "./GoalsPanel";
 import RecordsContent from "./RecordsPanel";
 import { SaveData, SettingsData } from "../game";
 import { styles } from "../styles";
 
-type MenuView = "settings" | "goals" | "records";
+type MenuView = "settings" | "save" | "account" | "goals" | "records" | "about";
 
 /**
- * Footer menu (plan "Adjust"): one menu button replaces the old footer row
- * of settings + goals buttons. The sheet holds the mute toggle and a
- * settings/goals/records view switcher; the daily bonus button deliberately
- * stays outside on the footer so it's always one tap away.
+ * Footer menu (plan "Adjust", reorganized for the todo
+ * "reorganize menus with clean reimplementation"): one menu button opens
+ * a sheet with six short views — Settings (gameplay preferences),
+ * Save (autosave, save code, Save/Reset, cloud backup), Account
+ * (optional login), Goals, Records, and About (legal, inquiries,
+ * debug). Each view stays a few screens tall instead of the old single
+ * settings scroll that mixed gameplay, save-data, account and legal
+ * content; the mute toggle stays above the switcher and the daily
+ * bonus button deliberately stays outside on the footer so it's always
+ * one tap away.
  */
 function MenuPanel({
   settingsData,
@@ -60,9 +67,9 @@ function MenuPanel({
   onScreenKeypad: boolean;
   onKeypadChange: (newVal: boolean) => void;
   hardModeUnlocked: boolean;
-  /** Lifetime save data — feeds the goals view's derived progress. */
+  /** Lifetime save data — feeds the goals/records views' derived progress. */
   stats: SaveData;
-  /** Guardrail 6: the local analytics record for the settings debug
+  /** Guardrail 6: the local analytics record for the About-tab debug
    *  section (single owner is MinesOfDoom's useAnalytics; this is a
    *  read-through, not a second storage reader). */
   analytics: AnalyticsState | null;
@@ -87,43 +94,59 @@ function MenuPanel({
         onChangeSettingsData={onChangeSettingsData}
         equationSettings={equationSettings}
         onChangeEquationSettings={onChangeEquationSettings}
-        showMessage={showMessage}
-        onSave={onSave}
-        onReset={onReset}
-        onExportSaveCode={onExportSaveCode}
-        onImportSaveCode={onImportSaveCode}
         onScreenKeypad={onScreenKeypad}
         onKeypadChange={onKeypadChange}
         hardModeUnlocked={hardModeUnlocked}
-        analytics={analytics}
-        onClearAnalytics={onClearAnalytics}
-        cloudSave={cloudSave}
-        account={account}
       />
     ),
     [
       settingsData,
       onChangeSettingsData,
       equationSettings,
-      showMessage,
       onChangeEquationSettings,
+      onScreenKeypad,
+      onKeypadChange,
+      hardModeUnlocked,
+    ],
+  );
+  const saveChildren = useMemo(
+    () => (
+      <SaveTab
+        settingsData={settingsData}
+        onChangeSettingsData={onChangeSettingsData}
+        showMessage={showMessage}
+        onSave={onSave}
+        onReset={onReset}
+        onExportSaveCode={onExportSaveCode}
+        onImportSaveCode={onImportSaveCode}
+        cloudSave={cloudSave}
+      />
+    ),
+    [
+      settingsData,
+      onChangeSettingsData,
+      showMessage,
       onSave,
       onReset,
       onExportSaveCode,
       onImportSaveCode,
-      onScreenKeypad,
-      onKeypadChange,
-      hardModeUnlocked,
-      analytics,
-      onClearAnalytics,
       cloudSave,
-      account,
     ],
+  );
+  const accountChildren = useMemo(
+    () => <AccountTab account={account} />,
+    [account],
   );
   const goalsChildren = useMemo(() => <GoalsContent stats={stats} />, [stats]);
   const recordsChildren = useMemo(
     () => <RecordsContent stats={stats} />,
     [stats],
+  );
+  const aboutChildren = useMemo(
+    () => (
+      <AboutTab analytics={analytics} onClearAnalytics={onClearAnalytics} />
+    ),
+    [analytics, onClearAnalytics],
   );
 
   return (
@@ -148,46 +171,75 @@ function MenuPanel({
             label={t("menu.settings")}
             active={view === "settings"}
             onPress={() => setView("settings")}
+            testID="menu-tab-settings"
+          />
+          <MenuNavButton
+            label={t("menu.save")}
+            active={view === "save"}
+            onPress={() => setView("save")}
+            testID="menu-tab-save"
+          />
+          <MenuNavButton
+            label={t("menu.account")}
+            active={view === "account"}
+            onPress={() => setView("account")}
+            testID="menu-tab-account"
           />
           <MenuNavButton
             label={t("menu.goals")}
             active={view === "goals"}
             onPress={() => setView("goals")}
+            testID="menu-tab-goals"
           />
           <MenuNavButton
             label={t("menu.records")}
             active={view === "records"}
             onPress={() => setView("records")}
+            testID="menu-tab-records"
+          />
+          <MenuNavButton
+            label={t("menu.about")}
+            active={view === "about"}
+            onPress={() => setView("about")}
+            testID="menu-tab-about"
           />
         </View>
-        {view === "settings" ? (
-          settingsChildren
-        ) : view === "goals" ? (
-          goalsChildren
-        ) : (
-          recordsChildren
-        )}
+        {view === "settings"
+          ? settingsChildren
+          : view === "save"
+            ? saveChildren
+            : view === "account"
+              ? accountChildren
+              : view === "goals"
+                ? goalsChildren
+                : view === "records"
+                  ? recordsChildren
+                  : aboutChildren}
       </View>
     </BottomModal>
   );
 }
 
-/** Settings/goals/records view switcher (also the only "back" affordance
- *  needed — every view is reachable at all times, so there's no dead end). */
+/** Settings/save/account/goals/records/about view switcher (also the
+ *  only "back" affordance needed — every view is reachable at all
+ *  times, so there's no dead end). */
 function MenuNavButton({
   label,
   active,
   onPress,
+  testID,
 }: {
   label: string;
   active: boolean;
   onPress: () => void;
+  testID?: string;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
       onPress={onPress}
+      testID={testID}
       // 44px-tall target: 14px text + 12px vertical padding either side.
       style={{
         paddingVertical: 12,

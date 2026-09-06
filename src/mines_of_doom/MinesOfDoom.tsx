@@ -18,7 +18,7 @@ import PurchaseButtons from "./components/PurchaseButtons";
 import MiningCanvas from "./components/MiningCanvas";
 import MenuPanel from "./components/MenuPanel";
 import CosmeticsSection from "./components/CosmeticsSection";
-import type { AccountSettingsProps } from "./components/SettingsPanel";
+import type { AccountSettingsProps } from "./components/AccountTab";
 import SavePill from "./components/SavePill";
 import OnboardingOverlay from "./components/OnboardingOverlay";
 import DailyBonusButton from "./components/DailyBonusButton";

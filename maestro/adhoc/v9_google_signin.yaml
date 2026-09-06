@@ -14,13 +14,12 @@ appId: com.minus4kelvin.minesofdoom
     id: menu-button
 - assertVisible:
     id: menu-sheet
-- assertVisible:
-    id: settings-view
 
-- scrollUntilVisible:
-    element:
-      id: account-section
-    direction: UP
+# The account section moved to the Account tab (menu reorganization).
+- tapOn:
+    id: menu-tab-account
+- assertVisible:
+    id: account-section
 
 # The Google button must be present on Android (account.apple must NOT —
 # Apple is iOS-only; it is not in the provider kinds for android).
@@ -44,7 +43,7 @@ appId: com.minus4kelvin.minesofdoom
 - tapOn:
     text: "minus4kelvin@gmail.com"
 
-# The sheet then completes on its own and the settings view swaps to the
+# The sheet then completes on its own and the account tab swaps to the
 # signed-in branch. Give it plenty of room (Play services handshake on
 # a cold emulator is slow).
 - extendedWaitUntil:

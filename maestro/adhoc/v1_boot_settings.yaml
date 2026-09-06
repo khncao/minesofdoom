@@ -33,8 +33,12 @@ appId: com.minus4kelvin.minesofdoom
 - takeScreenshot:
     path: v1_settings.png
 
-# The cloud-save + account + delete sections should be present in the
-# settings view (release build → real store provider, so no "(simulated)").
+# The cloud-save section lives on the Save tab (release build → real
+# store provider, so no "(simulated)").
+- tapOn:
+    id: menu-tab-save
+- assertVisible:
+    id: save-view
 - assertVisible:
     text: "Cloud backup"
 - assertVisible:

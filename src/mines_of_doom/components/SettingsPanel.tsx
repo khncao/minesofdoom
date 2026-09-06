@@ -1,26 +1,9 @@
 import { memo, useEffect, useState } from "react";
-import { Pressable, Switch, Text, TextInput, View } from "react-native";
-import Button from "src/components/Button";
-import ConfirmableButton from "src/components/ConfirmableButton";
+import { Pressable, Switch, Text, View } from "react-native";
 import IntegerInput from "src/components/IntegerInput";
 import Tooltip from "src/components/Tooltip";
 import { useI18n } from "src/hooks/useI18n";
 import { type TranslationKey } from "src/utils/i18n/i18n";
-import {
-  formatAgo,
-  type CloudSaveSettingsProps,
-} from "../hooks/useCloudSave";
-import type { AuthAccountInfo, AuthSigninOutcome } from "../auth";
-import type { AccountStatus } from "../hooks/useAccount";
-import {
-  isValidEmailInput,
-  isValidPasswordInput,
-} from "../auth";
-import {
-  type ProviderKind,
-  mintIdToken,
-  SignInCancelledError,
-} from "../signinSdks";
 import {
   EquationSettings,
   OPERATOR_KEYS,
@@ -29,12 +12,7 @@ import {
   type OperatorKey,
   type MultiplySymbol,
 } from "src/utils/math/equations";
-import { AnalyticsState, summarizeAnalytics } from "../analytics";
 import { SettingsData } from "../game";
-import { formatCrashContext } from "../crashContext";
-import { useCrashLog } from "../hooks/useCrashLog";
-import InquiriesButton from "./InquiriesButton";
-import LegalSection from "./LegalSection";
 import { styles } from "../styles";
 
 /**
@@ -83,39 +61,28 @@ const OP_NAME_KEYS: Record<OperatorKey, TranslationKey> = {
 };
 
 /**
- * The settings view (plan "Adjust"): rendered inside the footer menu sheet
- * (MenuPanel) rather than behind its own button. Memoized so re-renders
- * from tapping the mine don't re-render the settings UI on every tap.
+ * Menu "Settings" tab (todo: "reorganize menus with clean reimplementation"):
+ * the gameplay preferences only — equation difficulty, operator mix,
+ * display symbols, hard mode, the tips, and the display/keypad switches.
+ * The save-data machinery (autosave interval, save code, the Save/Reset
+ * buttons, cloud backup) lives on the Save tab, the account on the
+ * Account tab, and the legal/debug tail on the About tab. Memoized so
+ * re-renders from tapping the mine don't re-render the settings UI on
+ * every tap.
  */
 const SettingsContent = memo(function SettingsContent({
   settingsData,
   onChangeSettingsData,
   equationSettings,
   onChangeEquationSettings,
-  showMessage,
-  onSave,
-  onReset,
-  onExportSaveCode,
-  onImportSaveCode,
   onScreenKeypad,
   onKeypadChange,
   hardModeUnlocked,
-  analytics,
-  onClearAnalytics,
-  cloudSave,
-  account,
 }: {
   settingsData: SettingsData;
   onChangeSettingsData: (newSettings: SettingsData) => void;
   equationSettings: EquationSettings;
   onChangeEquationSettings: (newSettings: EquationSettings) => void;
-  showMessage: string | null;
-  onSave: () => void;
-  onReset: () => void;
-  /** Plan §4.3: returns the current save as a shareable base64 code. */
-  onExportSaveCode: () => string;
-  /** Plan §4.3: imports a save code; returns false (and toasts) on failure. */
-  onImportSaveCode: (code: string) => boolean;
   /** On-screen keypad (todo: keypad tab view) — an
    *  AsyncStorage-backed display preference owned by MinesOfDoom; the
    *  switch applies immediately (no Save tap), like the mute toggle. */
@@ -124,35 +91,10 @@ const SettingsContent = memo(function SettingsContent({
   /** Tier-5 (Motherlode) complete → the switch is live, otherwise it
    *  renders locked (visible-but-locked, plan §4.6). */
   hardModeUnlocked: boolean;
-  /** Guardrail 6: the local analytics record (null until loaded, or after
-   *  the player clears it) — feeds the "Local stats (debug)" section. */
-  analytics: AnalyticsState | null;
-  /** Data-deletion path for the analytics record (module docs). */
-  onClearAnalytics: () => void;
-  /** Cloud-backup section (plan §Cloud save); the section itself renders
-   *  only while its `available` flag is set (the "hidden until
-   *  configured" rule lives in the hook's provider). */
-  cloudSave: CloudSaveSettingsProps;
-  /** Optional-account section (docs/todo.md "Optional login"); the
-   *  section renders only while its `available` flag is set (the same
-   *  "hidden until configured" rule). */
-  account: AccountSettingsProps;
 }) {
-  const [exportedCode, setExportedCode] = useState<string | null>(null);
-  const [importCode, setImportCode] = useState("");
   const { t } = useI18n();
   return (
     <View style={{ gap: 2, marginTop: 5 }} testID="settings-view">
-      <IntegerInput
-        label={t("settings.autosave")}
-        defaultValue={settingsData.autosave}
-        onChangeValue={(newVal) =>
-          onChangeSettingsData({
-            ...settingsData,
-            autosave: Math.min(600, Math.max(5, newVal)),
-          })
-        }
-      />
       <IntegerInput
         label={t("settings.maxNumber")}
         defaultValue={equationSettings.maxNumber}
@@ -279,12 +221,9 @@ const SettingsContent = memo(function SettingsContent({
           />
         </View>
       </Tooltip>
-      {/* Always available (no tier gate): streak mode is opt-in risk/
-          reward — the only cost of a broken streak is losing the premium,
-          so it's strictly self-inflicted when off (the default). */}
       {/* Mental math tips (todo): a short teaching section on the
-          equation-solving tricks — rendered before the cosmetics/shop
-          sections so it sits with the equation settings it explains. */}
+          equation-solving tricks — rendered before the display switches
+          so it sits with the equation settings it explains. */}
       <TipsSection />
       <Tooltip label={t("settings.tooltipEmojiArt")} content={t("settings.emojiArtHelp")}>
         <View
@@ -356,76 +295,6 @@ const SettingsContent = memo(function SettingsContent({
           />
         </View>
       </Tooltip>
-      <View style={{ gap: 6, marginTop: 10 }}>
-        <Text style={{ ...styles.text, fontWeight: "bold" }}>
-          {t("settings.saveCode")}
-        </Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
-          <Button title={t("settings.export")} onPress={() => setExportedCode(onExportSaveCode())} />
-          <Button
-            title={t("settings.import")}
-            disabled={importCode.trim().length === 0}
-            onPress={() => {
-              // Toasts (valid/invalid) come from the handler; on success
-              // clear the field so it can't be re-imported by accident.
-              if (onImportSaveCode(importCode)) setImportCode("");
-            }}
-          />
-        </View>
-        {exportedCode != null && (
-          // Kept editable (with a no-op onChange) so the user can
-          // long-press to select + copy; the value can't actually change.
-          <TextInput
-            value={exportedCode}
-            onChangeText={() => {}}
-            multiline
-            numberOfLines={3}
-            style={styles.saveCodeInput}
-            accessibilityLabel={t("settings.a11ySaveCode")}
-          />
-        )}
-        <TextInput
-          value={importCode}
-          onChangeText={setImportCode}
-          multiline
-          numberOfLines={3}
-          placeholder={t("settings.importPlaceholder")}
-          placeholderTextColor="#999"
-          style={styles.saveCodeInput}
-        />
-        <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
-          {t("settings.saveCodeHelp")}
-        </Text>
-      </View>
-      <View
-        style={{
-          ...styles.flexCenteredRow,
-          gap: 4,
-          marginTop: 10,
-        }}
-      >
-        <Button title={t("settings.saveButton")} onPress={onSave} />
-        <ConfirmableButton
-          title={t("settings.resetButton")}
-          description={t("settings.resetDescription")}
-          onPress={onReset}
-        />
-      </View>
-      <AccountSection account={account} />
-      <CloudSaveSection cloudSave={cloudSave} />
-      <AnalyticsSection analytics={analytics} onClear={onClearAnalytics} />
-      <CrashLogSection />
-      {/* Essential legal notices (todo): privacy policy + terms/disclaimer,
-          in-app links at the very bottom of settings. */}
-      <LegalSection />
-      {/* Mailing link lives inside settings (todo) instead of the footer: it
-          is a rarely-used action, and the footer is the always-visible row. */}
-      <View style={styles.flexCenteredRow}>
-        <InquiriesButton />
-      </View>
-      <View style={{ alignSelf: "center", margin: 10 }}>
-        {showMessage && <Text style={{ ...styles.text }}>{showMessage}</Text>}
-      </View>
     </View>
   );
 });
@@ -519,415 +388,6 @@ function TipsSection() {
           {t(tip.body)}
         </Text>
       </Pressable>
-    </View>
-  );
-}
-
-/**
- * The bundle MinesOfDoom hands to the account section (memo-friendly:
- * the callbacks come from useAccount and are stable; status/account move
- * at sign-in and sign-out only).
- */
-export interface AccountSettingsProps {
-  /** Provider live on this platform (the section renders only when true
-   *  — the "hidden until configured" rule). */
-  available: boolean;
-  /** Dev build (the labeled in-memory simulation — it never survives a
-   *  restart and the section says so). */
-  isDevSim: boolean;
-  status: AccountStatus;
-  /** The account view (null unless signed in) — renders the email line. */
-  account: AuthAccountInfo | null;
-  /** Register a new account; the section renders the inline outcome.
-   *  Stable (useCallback) — safe in memo deps. */
-  onRegister: (
-    email: string,
-    password: string,
-  ) => Promise<AuthSigninOutcome>;
-  /** Log into an existing account (the single error path — the server
-   *  never confirms which half is wrong, the copy must not either). */
-  onLogin: (
-    email: string,
-    password: string,
-  ) => Promise<AuthSigninOutcome>;
-  /** Sign out (server session killed best-effort + stored token
-   *  cleared). */
-  onSignOut: () => Promise<void>;
-  /** Provider sign-in with a native-SDK idToken (the SDK mints the
-   *  token via the OS sheet; the server's sidecar verifies it). */
-  onProviderSignIn: (
-    kind: ProviderKind,
-    idToken: string,
-  ) => Promise<AuthSigninOutcome>;
-  /** The native sign-in SDKs in THIS build for the running platform
-   *  ("hidden until ready" — web is [], android ["google"], ios
-   *  both). The section renders one button per kind, nothing else. */
-  providerKinds: ProviderKind[];
-}
-
-/**
- * The optional account section (docs/todo.md "Optional login", the
- * "UI" bullet): sign in / sign out from settings, rendered only while
- * the provider is available (the "hidden until configured" rule — the
- * same one as the cloud/IAP/ad entry points, and the dev build's
- * labeled simulation is the first thing it exercises on a dev device).
- *
- * The signed-out view leads with the DEFAULT ("continue without an
- * account" — the anonymous device play is untouched, guardrail: F2P
- * parity), then the email/password form, then one button per available
- * native sign-in SDK (Google/Apple — "hidden until ready": the button
- * renders only when `providerKinds` carries that kind for this build).
- */
-function AccountSection({ account }: { account: AccountSettingsProps }) {
-  const { t } = useI18n();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  if (!account.available) return null;
-
-  const emailOk = isValidEmailInput(email);
-  const passwordOk = isValidPasswordInput(password);
-
-  const submit = async (mode: "login" | "register") => {
-    if (busy || !emailOk || !passwordOk) return;
-    setBusy(true);
-    setFormError(null);
-    try {
-      const outcome =
-        mode === "register"
-          ? await account.onRegister(email, password)
-          : await account.onLogin(email, password);
-      if (outcome.status === "emailTaken") {
-        setFormError(t("settings.accountEmailTaken"));
-      } else if (
-        outcome.status === "badCredentials" ||
-        outcome.status === "unverified"
-      ) {
-        setFormError(t("settings.accountBadCredentials"));
-      } else if (outcome.status === "error") {
-        setFormError(t("settings.accountError"));
-      }
-      // "signedIn": the status prop flips to "in" and this view swaps
-      // to the signed-in branch on the next render.
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  /** One button per native SDK: mint the idToken through the OS sheet,
-   *  then hand it to the provider core. A dismissed sheet (cancel) is
-   *  NOT an error — the UI stays quiet; everything else gets the
-   *  single inline error. */
-  const signInWithProvider = async (kind: ProviderKind) => {
-    if (busy) return;
-    setBusy(true);
-    setFormError(null);
-    try {
-      let idToken: string;
-      try {
-        idToken = await mintIdToken(kind);
-      } catch (err) {
-        if (err instanceof SignInCancelledError) return;
-        throw err;
-      }
-      const outcome = await account.onProviderSignIn(kind, idToken);
-      if (outcome.status !== "signedIn") {
-        // "unverified" (the server's sidecar refused the idToken — e.g.
-        // a dev build without a real Google/Apple account) and
-        // "error" (network) share the one retry copy, like the email
-        // form's single error path.
-        setFormError(t("settings.accountProviderError"));
-      }
-      // "signedIn": the status prop flips to "in" and this view swaps
-      // to the signed-in branch on the next render.
-    } catch {
-      setFormError(t("settings.accountProviderError"));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (account.status === "in" && account.account !== null) {
-    return (
-      <View style={{ gap: 6, marginTop: 10 }} testID="account-section">
-        <Text style={{ ...styles.text, fontWeight: "bold" }}>
-          {t("settings.account")}
-          {account.isDevSim ? t("settings.cloudSim") : ""}
-        </Text>
-        {account.account.email.length > 0 && (
-          <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
-            {account.account.email}
-          </Text>
-        )}
-        <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
-          {t("settings.accountLinked")}
-        </Text>
-        <Button
-          title={t("settings.accountSignOut")}
-          onPress={() => {
-            void account.onSignOut();
-          }}
-          testId="account-signout"
-        />
-      </View>
-    );
-  }
-
-  return (
-    <View style={{ gap: 6, marginTop: 10 }} testID="account-section">
-      <Text style={{ ...styles.text, fontWeight: "bold" }}>
-        {t("settings.account")}
-        {account.isDevSim ? t("settings.cloudSim") : ""}
-      </Text>
-      <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
-        {t("settings.accountDefault")}
-      </Text>
-      <TextInput
-        testID="account-email"
-        style={{ ...styles.text, ...styles.textInputBox }}
-        placeholder={t("settings.accountEmail")}
-        placeholderTextColor="#888"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="email-address"
-        textContentType="emailAddress"
-        maxLength={254}
-      />
-      <TextInput
-        testID="account-password"
-        style={{ ...styles.text, ...styles.textInputBox }}
-        placeholder={t("settings.accountPassword")}
-        placeholderTextColor="#888"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        textContentType="password"
-        maxLength={72}
-      />
-      {formError !== null && (
-        <Text style={{ ...styles.text, fontSize: 11, color: "#e07070" }}>
-          {formError}
-        </Text>
-      )}
-      <View
-        style={{ flexDirection: "row", gap: 6 }}
-        testID="account-signin-buttons"
-      >
-        <Button
-          title={t("settings.accountSignIn")}
-          disabled={!emailOk || !passwordOk || busy}
-          onPress={() => void submit("login")}
-          style={{ flex: 1 }}
-          testId="account-login"
-        />
-        <Button
-          title={t("settings.accountRegister")}
-          disabled={!emailOk || !passwordOk || busy}
-          onPress={() => void submit("register")}
-          style={{ flex: 1 }}
-          testId="account-register"
-        />
-      </View>
-      {account.providerKinds.length > 0 && (
-        <View style={{ gap: 4 }} testID="account-provider-buttons">
-          {account.providerKinds.map((kind) => (
-            <Button
-              key={kind}
-              title={
-                kind === "google"
-                  ? t("settings.accountGoogle")
-                  : t("settings.accountApple")
-              }
-              disabled={busy}
-              onPress={() => void signInWithProvider(kind)}
-              testId={kind === "google" ? "account-google" : "account-apple"}
-            />
-          ))}
-        </View>
-      )}
-    </View>
-  );
-}
-
-/**
- * Cloud backup section (docs/store-integration.md §3):
- * the toggle, the "last sync" status line, and the manual restore.
- * Rendered only while the provider is available (dev-sim in dev builds,
- * the Pocketbase provider once the URL lands — until then the section is
- * absent, same "hidden until configured" rule as the ad/IAP entry
- * points). A dev build labels itself "(simulated)" (transparency
- * guardrail: the in-memory simulation is not a durable backup).
- */
-function CloudSaveSection({ cloudSave }: { cloudSave: CloudSaveSettingsProps }) {
-  const { t } = useI18n();
-  if (!cloudSave.available) return null;
-  const { lastSync } = cloudSave;
-  const statusText =
-    lastSync.state === "failed"
-      ? t("settings.cloudLastSyncFailed")
-      : lastSync.state === "ok" && lastSync.at != null
-        ? t("settings.cloudLastSyncOk", { when: formatAgo(lastSync.at, Date.now()) })
-        : t("settings.cloudNeverSynced");
-  return (
-    <View style={{ gap: 6, marginTop: 10 }} testID="cloud-save-section">
-      <View
-        style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
-      >
-        <Text style={{ ...styles.text, fontWeight: "bold" }}>
-          {t("settings.cloudSave")}
-          {cloudSave.isDevSim ? t("settings.cloudSim") : ""}
-        </Text>
-        <Switch value={cloudSave.enabled} onValueChange={cloudSave.setEnabled} />
-      </View>
-      <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
-        {t("settings.cloudSaveHelp")}
-      </Text>
-      <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
-        {statusText}
-      </Text>
-      <ConfirmableButton
-        title={t("settings.cloudRestore")}
-        description={t("settings.cloudRestoreDescription")}
-        onPress={cloudSave.onRestore}
-      />
-      {/* GDPR "delete my data" (plan §Backend): a real, reachable button
-          with plain wording about what it does and doesn't remove (the
-          section renders only while the provider is available, so the
-          button is never a no-op — transparency guardrail). With a live
-          account session the DELETE is ACCOUNT scope (the legal
-          erasure), so the copy says exactly that. */}
-      <ConfirmableButton
-        title={t("settings.deleteData")}
-        description={
-          cloudSave.signedIn
-            ? t("settings.deleteDataAccountDescription")
-            : t("settings.deleteDataDescription")
-        }
-        onPress={cloudSave.onDeleteData}
-      />
-    </View>
-  );
-}
-
-/**
- * Debug section (guardrail 5 "measure before scaling"): the local
- * analytics record as a selectable, copyable summary — the measurement
- * the UA-spend decision is based on, readable without pulling the app off
- * the device. Rendered only while a record is loaded (the hook is the
- * single writer, so there's no second storage reader to race it); after
- * a Clear the section hides and a fresh record is established next open.
- */
-function AnalyticsSection({
-  analytics,
-  onClear,
-}: {
-  analytics: AnalyticsState | null;
-  onClear: () => void;
-}) {
-  const { t } = useI18n();
-  if (analytics == null) return null;
-  return (
-    <View style={{ gap: 6, marginTop: 10 }}>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Text style={{ ...styles.text, fontWeight: "bold" }}>
-          {t("settings.analytics")}
-        </Text>
-        <Button title={t("settings.clear")} onPress={onClear} />
-      </View>
-      <Text
-        selectable
-        style={{ color: "#d6c48f", fontSize: 10, lineHeight: 14 }}
-      >
-        {summarizeAnalytics(analytics)}
-      </Text>
-      <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
-        {t("settings.analyticsNote")}
-      </Text>
-    </View>
-  );
-}
-
-/**
- * Debug section (plan "Adjust"): the persisted crash log from
- * crashLogging.ts. Rendered only when at least one crash has been
- * recorded, so players who never crash never see it. The stack text is
- * selectable so a full trace can be copied off-device — the whole point
- * while chasing the unreproducible Android `describe` crash (release
- * builds have no red box).
- */
-function CrashLogSection() {
-  const { entries, clear } = useCrashLog();
-  const { t } = useI18n();
-  if (entries == null || entries.length === 0) return null;
-  return (
-    <View style={{ gap: 6, marginTop: 10 }}>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Text style={{ ...styles.text, fontWeight: "bold" }}>
-          {t("settings.crash")}
-        </Text>
-        <Button title={t("settings.clear")} onPress={clear} />
-      </View>
-      {entries.slice(0, 3).map((entry, i) => {
-        const contextText = formatCrashContext(entry.context);
-        return (
-          <View
-            key={i}
-            style={{
-              backgroundColor: "#1f1f1f",
-              borderRadius: 6,
-              borderWidth: 1,
-              borderColor: "#444",
-              paddingHorizontal: 10,
-              paddingVertical: 6,
-              gap: 2,
-            }}
-          >
-            <Text
-              style={{ ...styles.text, fontSize: 12 }}
-              selectable
-            >
-              {entry.name}: {entry.message}
-              {entry.source === "global" ? " (global)" : ""}
-              {entry.count > 1 ? ` (×${entry.count})` : ""}
-            </Text>
-            <Text style={{ ...styles.text, fontSize: 10, color: "#aaa" }}>
-              {new Date(entry.ts).toLocaleString()}
-            </Text>
-            {entry.stack.length > 0 && (
-              <Text
-                selectable
-                style={{ color: "#9fd69f", fontSize: 9, lineHeight: 13 }}
-              >
-                {entry.stack}
-              </Text>
-            )}
-            {contextText.length > 0 && (
-              <Text
-                selectable
-                style={{ color: "#d6c48f", fontSize: 9, lineHeight: 13 }}
-              >
-                {contextText}
-              </Text>
-            )}
-          </View>
-        );
-      })}
     </View>
   );
 }
