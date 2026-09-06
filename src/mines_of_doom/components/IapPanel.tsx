@@ -9,7 +9,6 @@ import {
   IapProductId,
   IAP_PACK_GRANTS,
   IAP_PRODUCT_LIST,
-  IAP_PRODUCTS,
   getIapPackCosmetic,
   getIapProductPreview,
 } from "../iaps";
@@ -23,18 +22,13 @@ import { styles } from "../styles";
  * and dev builds show the simulation with a clear "development build"
  * banner (transparency guardrail).
  *
- * Rows come straight from the catalog (IAP_PRODUCT_LIST): Remove Ads on
- * top, then the cosmetic packs grouped by line (pickaxes / outfits / cave
- * themes) — one pack per paid cosmetic. Packs additionally show their
- * "also earnable in-game for N 💎" line (guardrails 1 & 4: buying is
- * convenience, not access) and read as Owned either from a
- * purchase/restore OR from having bought the same cosmetic with gems
- * already (the save is the source of truth for what the player can see
- * in Cosmetics).
- *
- * Once Remove Ads is owned, MinesOfDoom hides BOTH this panel and the
- * rewarded-ads panel (plan §5.1: it "permanently disables even the
- * opt-in buttons").
+ * Rows come straight from the catalog (IAP_PRODUCT_LIST): the cosmetic
+ * packs grouped by line (pickaxes / outfits / cave themes) — one pack per
+ * paid cosmetic. Packs additionally show their "also earnable in-game for
+ * N 💎" line (guardrails 1 & 4: buying is convenience, not access) and
+ * read as Owned either from a purchase/restore OR from having bought the
+ * same cosmetic with gems already (the save is the source of truth for
+ * what the player can see in Cosmetics).
  *
  * Copy states plainly what the purchase does and that the game stays
  * fully free and completable without it (guardrails 1 & 4): no urgency
@@ -43,8 +37,7 @@ import { styles } from "../styles";
 /**
  * Shop-row thumbnail (todo: "Show cosmetic previews in shop listings"): the
  * actual sprite / palette the pack grants (getIapProductPreview), so a
- * player can see the item before buying. Non-pack rows (Remove Ads) fall
- * back to a plain marker — there is no cosmetic to preview.
+ * player can see the item before buying.
  */
 function ProductThumb({ productId }: { productId: IapProductId }) {
   const preview = getIapProductPreview(productId);
@@ -78,11 +71,7 @@ function ProductThumb({ productId }: { productId: IapProductId }) {
       </View>
     );
   }
-  return (
-    <View style={{ width: 26, alignItems: "center" }}>
-      <Text style={styles.text}>🚫</Text>
-    </View>
-  );
+  return null;
 }
 
 function IapPanel({
@@ -126,10 +115,8 @@ function IapPanel({
     const pack = getIapPackCosmetic(product.id);
     const grant = IAP_PACK_GRANTS[product.id];
     const owned =
-      product.id === "removeAds"
-        ? false // owning Remove Ads hides the whole panel
-        : ownedPackIds.includes(product.id) ||
-          (grant != null && saveOwnedCosmeticIds.includes(grant.id));
+      ownedPackIds.includes(product.id) ||
+      (grant != null && saveOwnedCosmeticIds.includes(grant.id));
     return (
       <View
         key={product.id}
@@ -143,11 +130,9 @@ function IapPanel({
           <Text style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}>
             {text.detail ?? product.blurb}
           </Text>
-          {pack != null && (
-            <Text style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}>
-              {t("iap.alsoEarnable", { count: pack.costGems })}
-            </Text>
-          )}
+          <Text style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}>
+            {t("iap.alsoEarnable", { count: pack.costGems })}
+          </Text>
         </View>
         <Button
           tone="gem"
@@ -200,8 +185,6 @@ function IapPanel({
             </Text>
           </Pressable>
         )}
-
-        {renderProduct(IAP_PRODUCTS.removeAds)}
 
         {GROUP_ORDER.map((line) => (
           <View key={line} style={{ gap: 4 }}>

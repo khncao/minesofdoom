@@ -55,9 +55,9 @@ describe("storeVerify sandbox mode (MDOOM_DEV_FAKE_TOKEN)", () => {
   const S = loadStoreVerify({ MDOOM_DEV_FAKE_TOKEN: "1" });
 
   test("mints for any non-empty token, no $http involved", () => {
-    expect(S.verifyPurchase("android", "removeAds", "any-token")).toBe(true);
-    expect(S.verifyPurchase("ios", "removeAds", "12345")).toBe(true);
-    expect(S.verifyPurchase("android", "removeAds", "")).toBe(false);
+    expect(S.verifyPurchase("android", "packGold", "any-token")).toBe(true);
+    expect(S.verifyPurchase("ios", "packGold", "12345")).toBe(true);
+    expect(S.verifyPurchase("android", "packGold", "")).toBe(false);
   });
 });
 
@@ -66,7 +66,7 @@ describe("storeVerify fail-closed (no sidecar configured)", () => {
   const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
 
   test("refuses every token and logs", () => {
-    expect(S.verifyPurchase("android", "removeAds", "token")).toBe(false);
+    expect(S.verifyPurchase("android", "packGold", "token")).toBe(false);
     expect(warn).toHaveBeenCalled();
   });
 
@@ -82,52 +82,52 @@ describe("storeVerify sidecar mode (MDOOM_SIDECAR_URL)", () => {
 
   test("2xx { valid: true } mints, with the pinned request shape", () => {
     const http = mockHttp({ statusCode: 200, json: { valid: true }, raw: '{"valid":true}' });
-    expect(S.verifyPurchase("android", "removeAds", "tok")).toBe(true);
+    expect(S.verifyPurchase("android", "packGold", "tok")).toBe(true);
     expect(http.calls[0].url).toBe("http://127.0.0.1:8180/verify");
     expect(http.calls[0].method).toBe("POST");
     // The $http contract requires a JSON STRING body (an object arrives as {}).
-    expect(JSON.parse(http.calls[0].body)).toEqual({ platform: "android", productId: "removeAds", token: "tok" });
+    expect(JSON.parse(http.calls[0].body)).toEqual({ platform: "android", productId: "packGold", token: "tok" });
     expect(http.calls[0].headers["Content-Type"]).toBe("application/json");
     http.restore();
   });
 
   test("a string json field is parsed", () => {
     const http = mockHttp({ statusCode: 200, json: JSON.stringify({ valid: true }) });
-    expect(S.verifyPurchase("ios", "removeAds", "42")).toBe(true);
+    expect(S.verifyPurchase("ios", "packGold", "42")).toBe(true);
     http.restore();
   });
 
   test("a raw fallback is honoured when json is absent", () => {
     const http = mockHttp({ statusCode: 200, raw: '{"valid":true}' });
-    expect(S.verifyPurchase("ios", "removeAds", "42")).toBe(true);
+    expect(S.verifyPurchase("ios", "packGold", "42")).toBe(true);
     http.restore();
   });
 
   test("valid:false refuses", () => {
     const http = mockHttp({ statusCode: 200, json: { valid: false, reason: "play lookup 404" } });
     const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
-    expect(S.verifyPurchase("android", "removeAds", "tok")).toBe(false);
+    expect(S.verifyPurchase("android", "packGold", "tok")).toBe(false);
     warn.mockRestore();
   });
 
   test("non-2xx refuses", () => {
     const http = mockHttp({ statusCode: 500, json: { error: "boom" } });
     const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
-    expect(S.verifyPurchase("android", "removeAds", "tok")).toBe(false);
+    expect(S.verifyPurchase("android", "packGold", "tok")).toBe(false);
     warn.mockRestore();
   });
 
   test("an unparseable reply refuses", () => {
     const http = mockHttp({ statusCode: 200, json: undefined, raw: "{not json" });
     const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
-    expect(S.verifyPurchase("android", "removeAds", "tok")).toBe(false);
+    expect(S.verifyPurchase("android", "packGold", "tok")).toBe(false);
     warn.mockRestore();
   });
 
   test("a transport error refuses (never throws)", () => {
     const http = mockHttp(null, { throws: new Error("connection refused") });
     const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
-    expect(S.verifyPurchase("android", "removeAds", "tok")).toBe(false);
+    expect(S.verifyPurchase("android", "packGold", "tok")).toBe(false);
     warn.mockRestore();
   });
 
@@ -136,7 +136,7 @@ describe("storeVerify sidecar mode (MDOOM_SIDECAR_URL)", () => {
     delete globalThis.$http;
     const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
     try {
-      expect(S.verifyPurchase("android", "removeAds", "tok")).toBe(false);
+      expect(S.verifyPurchase("android", "packGold", "tok")).toBe(false);
     } finally {
       if (saved !== undefined) globalThis.$http = saved;
       warn.mockRestore();
@@ -149,7 +149,7 @@ describe("storeVerify sidecar mode (MDOOM_SIDECAR_URL)", () => {
       MDOOM_SIDECAR_SECRET: "s3cret",
     });
     const http = mockHttp({ statusCode: 200, json: { valid: true } });
-    expect(Sv.verifyPurchase("android", "removeAds", "tok")).toBe(true);
+    expect(Sv.verifyPurchase("android", "packGold", "tok")).toBe(true);
     expect(http.calls[0].headers["x-mdoom-key"]).toBe("s3cret");
     http.restore();
   });
@@ -159,7 +159,7 @@ describe("storeVerify sidecar mode (MDOOM_SIDECAR_URL)", () => {
     const saved = globalThis.$http;
     delete globalThis.$http;
     try {
-      expect(Sboth.verifyPurchase("android", "removeAds", "tok")).toBe(true);
+      expect(Sboth.verifyPurchase("android", "packGold", "tok")).toBe(true);
     } finally {
       if (saved !== undefined) globalThis.$http = saved;
     }

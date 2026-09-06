@@ -73,9 +73,7 @@ export const en = {
   "toast.dailyBonus": "Daily bonus: +{bonus} minerals",
   "toast.dailyBonusStreak":
     "Daily bonus: +{bonus} minerals (day {streak} streak!)",
-  "toast.iapRemoveAds": "Ads removed — thanks for supporting the game!",
   "toast.iapPackUnlocked": "Unlocked {name} — find it in Cosmetics!",
-  "toast.iapComplete": "Purchase complete!",
   "toast.adFinishedGems": "Ad finished: +{count} 💎",
   "toast.adFinishedDouble":
     "Ad finished: offline haul doubled (+{count} 🪨)",

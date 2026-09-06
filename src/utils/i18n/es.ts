@@ -59,9 +59,7 @@ export const es: Record<TranslationKey, string> = {
   "toast.dailyBonus": "Bonus diario: +{bonus} minerales",
   "toast.dailyBonusStreak":
     "Bonus diario: +{bonus} minerales (¡racha de {streak} días!)",
-  "toast.iapRemoveAds": "¡Anuncios eliminados! Gracias por apoyar el juego.",
   "toast.iapPackUnlocked": "Desbloqueaste {name} — ¡búscalo en Cosméticos!",
-  "toast.iapComplete": "¡Compra completada!",
   "toast.adFinishedGems": "Anuncio terminado: +{count} 💎",
   "toast.adFinishedDouble":
     "Anuncio terminado: botín offline doblado (+{count} 🪨)",

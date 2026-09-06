@@ -13,7 +13,7 @@ import { storeIapProvider, PENDING_VERIFY_KEY } from "../iapProvider";
 import { IAP_DEVICE_ID_KEY } from "../iapDeviceId";
 
 const BASE = "https://pb.example.test";
-const STORE_ID = IAP_STORE_IDS.removeAds;
+const STORE_ID = IAP_STORE_IDS.packGold;
 
 type PurchaseEvent = {
   productId: string;
@@ -79,7 +79,7 @@ describe("storeIapProvider: gating", () => {
 
   it("purchase resolves 'error' (never rejects) while unconfigured", async () => {
     storeConfig.pocketbaseUrl = "";
-    await expect(storeIapProvider.purchase("removeAds")).resolves.toBe(
+    await expect(storeIapProvider.purchase("packGold")).resolves.toBe(
       "error",
     );
     expect(IAP.initConnection).not.toHaveBeenCalled();
@@ -104,7 +104,7 @@ describe("storeIapProvider: purchase round-trip", () => {
       json: async () => ({ entitlements: [STORE_ID] }),
     });
 
-    const pending = storeIapProvider.purchase("removeAds");
+    const pending = storeIapProvider.purchase("packGold");
     await settle();
     expect(IAP.initConnection).toHaveBeenCalledTimes(1);
     expect(IAP.requestPurchase).toHaveBeenCalledWith({
@@ -132,7 +132,7 @@ describe("storeIapProvider: purchase round-trip", () => {
     expect(JSON.parse((init as { body: string }).body)).toEqual({
       deviceId,
       platform: expect.any(String),
-      productId: "removeAds",
+      productId: "packGold",
       token: "tok-123",
     });
     // The store transaction was finalized.
@@ -145,7 +145,7 @@ describe("storeIapProvider: purchase round-trip", () => {
     configure(BASE);
     fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) });
 
-    const pending = storeIapProvider.purchase("removeAds");
+    const pending = storeIapProvider.purchase("packGold");
     await settle();
     expect(errorCb).not.toBeNull();
     errorCb!({ code: "user-cancelled", productId: STORE_ID });
@@ -158,7 +158,7 @@ describe("storeIapProvider: purchase round-trip", () => {
     configure(BASE);
     fetchMock.mockResolvedValue({ ok: false, json: async () => ({}) });
 
-    const pending = storeIapProvider.purchase("removeAds");
+    const pending = storeIapProvider.purchase("packGold");
     await settle();
     updateCb!({
       productId: STORE_ID,
@@ -170,7 +170,7 @@ describe("storeIapProvider: purchase round-trip", () => {
 
     const raw = await AsyncStorage.getItem(PENDING_VERIFY_KEY);
     expect(JSON.parse(raw as string)).toEqual([
-      { productId: "removeAds", token: "tok-456" },
+      { productId: "packGold", token: "tok-456" },
     ]);
   });
 
@@ -179,7 +179,7 @@ describe("storeIapProvider: purchase round-trip", () => {
     // Seed a queued verify from a "failed" previous purchase.
     await AsyncStorage.setItem(
       PENDING_VERIFY_KEY,
-      JSON.stringify([{ productId: "removeAds", token: "tok-456" }]),
+      JSON.stringify([{ productId: "packGold", token: "tok-456" }]),
     );
     const calls: string[] = [];
     fetchMock.mockImplementation(async (url: string) => {
@@ -191,7 +191,7 @@ describe("storeIapProvider: purchase round-trip", () => {
     });
 
     await expect(storeIapProvider.restore()).resolves.toEqual({
-      removeAds: true,
+      packGold: true,
     });
     // First the queued verify, then the restore itself.
     expect(calls).toEqual([`${BASE}/api/app/verify`, `${BASE}/api/app/restore`]);
@@ -209,7 +209,7 @@ describe("storeIapProvider: purchase round-trip", () => {
       }),
     });
     await expect(storeIapProvider.restore()).resolves.toEqual({
-      removeAds: true,
+      packGold: true,
     });
   });
 });

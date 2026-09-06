@@ -54,16 +54,6 @@ describe("store product ids (docs/store-integration.md table)", () => {
 });
 
 describe("IAP catalog (plan §5.2)", () => {
-  it("lists Remove Ads with a plain label, a display price, and a blurb", () => {
-    const p = IAP_PRODUCTS.removeAds;
-    expect(p.id).toBe("removeAds");
-    expect(p.label.length).toBeGreaterThan(0);
-    // Display price only (transparency line); the store sheet shows the
-    // localized one.
-    expect(p.priceLabel).toMatch(/^\$\d+\.\d{2}$/);
-    expect(p.blurb.length).toBeGreaterThan(0);
-  });
-
   it("every product has a plain label, a display price, and a blurb", () => {
     for (const p of IAP_PRODUCT_LIST) {
       expect(p.id).toBeDefined();
@@ -74,8 +64,8 @@ describe("IAP catalog (plan §5.2)", () => {
       expect(price).toBeLessThanOrEqual(3.99);
       expect(p.blurb.length).toBeGreaterThan(0);
     }
-    // Remove Ads stays first (anchor IAP), ids unique.
-    expect(IAP_PRODUCT_LIST[0].id).toBe("removeAds");
+    // First row is the first pickaxe pack (cosmetics.ts order), ids unique.
+    expect(IAP_PRODUCT_LIST[0].id).toBe("packGold");
     expect(new Set(IAP_PRODUCT_LIST.map((p) => p.id)).size).toBe(
       IAP_PRODUCT_LIST.length,
     );
@@ -117,15 +107,11 @@ describe("cosmetic packs (plan §5.2)", () => {
     }
   });
 
-  it("Remove Ads is not a pack", () => {
-    expect(getIapPackCosmetic("removeAds")).toBeUndefined();
-  });
-
   it("exactly one pack per PAID cosmetic, in cosmetics.ts order per line", () => {
     const paidPickaxes = PICKAXES.filter((p) => p.costGems > 0);
     const paidOutfits = OUTFITS.filter((o) => o.costGems > 0);
     const paidThemes = CAVE_THEMES.filter((t) => t.costGems > 0);
-    const packs = IAP_PRODUCT_LIST.filter((p) => p.line != null);
+    const packs = IAP_PRODUCT_LIST; // the catalog is packs only
     // Free defaults (steel / classic / natural) stay out of the catalog.
     expect(packs).toHaveLength(
       paidPickaxes.length + paidOutfits.length + paidThemes.length,
@@ -143,7 +129,6 @@ describe("cosmetic packs (plan §5.2)", () => {
 
   it("pack blurbs and prices resolve from the gem shop (no drift)", () => {
     for (const p of IAP_PRODUCT_LIST) {
-      if (p.id === "removeAds") continue;
       const pack = getIapPackCosmetic(p.id);
       expect(pack).toBeDefined();
       // The label is the cosmetic name + the line word.
@@ -162,9 +147,7 @@ describe("cosmetic packs (plan §5.2)", () => {
   });
 
   it("shop previews show the actual item (todo: cosmetic previews in shop listings)", () => {
-    // Remove Ads has no cosmetic to preview.
-    expect(getIapProductPreview("removeAds")).toEqual({ kind: "none" });
-    const packs = IAP_PRODUCT_LIST.filter((p) => p.line != null);
+    const packs = IAP_PRODUCT_LIST; // the catalog is packs only
     expect(packs).toHaveLength(Object.keys(IAP_PACK_GRANTS).length);
     const spriteUris: Record<"pickaxe" | "outfit", string[]> = {
       pickaxe: [],
@@ -233,33 +216,33 @@ describe("entitlements", () => {
     const expected: Record<string, boolean> = {};
     for (const id of ALL_PRODUCT_IDS) expected[id] = false;
     expect(emptyIapEntitlements()).toEqual(expected);
-    expect(hasIapEntitlement(emptyIapEntitlements(), "removeAds")).toBe(false);
+    expect(hasIapEntitlement(emptyIapEntitlements(), "packGold")).toBe(false);
   });
 
   it("grant sets the flag and does not mutate the previous state", () => {
     const e = { ...emptyIapEntitlements() };
-    const g = grantIapEntitlement(e, "removeAds");
-    expect(g.removeAds).toBe(true);
-    expect(hasIapEntitlement(g, "removeAds")).toBe(true);
-    expect(e.removeAds).toBe(false);
+    const g = grantIapEntitlement(e, "packGold");
+    expect(g.packGold).toBe(true);
+    expect(hasIapEntitlement(g, "packGold")).toBe(true);
+    expect(e.packGold).toBe(false);
   });
 
   it("granting an already-owned product is idempotent", () => {
-    const owned = grantIapEntitlement(emptyIapEntitlements(), "removeAds");
-    expect(grantIapEntitlement(owned, "removeAds")).toBe(owned);
+    const owned = grantIapEntitlement(emptyIapEntitlements(), "packGold");
+    expect(grantIapEntitlement(owned, "packGold")).toBe(owned);
   });
 
   it("merge is additive and never revokes", () => {
-    const owned = grantIapEntitlement(emptyIapEntitlements(), "removeAds");
+    const owned = grantIapEntitlement(emptyIapEntitlements(), "packGold");
     // A store round-trip saying "not owned" must not revoke the record.
-    expect(mergeIapEntitlements(owned, { removeAds: false })).toEqual(owned);
+    expect(mergeIapEntitlements(owned, { packGold: false })).toEqual(owned);
   });
 
   it("merge returns the original reference when nothing changes", () => {
-    const stored = grantIapEntitlement(emptyIapEntitlements(), "removeAds");
+    const stored = grantIapEntitlement(emptyIapEntitlements(), "packGold");
     expect(mergeIapEntitlements(stored, {})).toBe(stored);
     expect(
-      mergeIapEntitlements(stored, { removeAds: false }),
+      mergeIapEntitlements(stored, { packGold: false }),
     ).toBe(stored);
   });
 
@@ -276,14 +259,14 @@ describe("providers", () => {
   it("noop: hidden in production, purchases error out, restore is empty", async () => {
     expect(noopIapProvider.id).toBe("noop");
     expect(noopIapProvider.isAvailable()).toBe(false);
-    await expect(noopIapProvider.purchase("removeAds")).resolves.toBe("error");
+    await expect(noopIapProvider.purchase("packGold")).resolves.toBe("error");
     await expect(noopIapProvider.restore()).resolves.toEqual({});
   });
 
   it("dev-sim: available, resolves to a completed purchase, restore empty", async () => {
     expect(devSimIapProvider.id).toBe("dev-sim");
     expect(devSimIapProvider.isAvailable()).toBe(true);
-    await expect(devSimIapProvider.purchase("removeAds")).resolves.toBe(
+    await expect(devSimIapProvider.purchase("packGold")).resolves.toBe(
       "purchased",
     );
     await expect(devSimIapProvider.restore()).resolves.toEqual({});
@@ -297,7 +280,7 @@ describe("providers", () => {
     ]) {
       expect(typeof provider.id).toBe("string");
       expect(typeof provider.isAvailable()).toBe("boolean");
-      expect(provider.purchase("removeAds")).resolves.toBeDefined();
+      expect(provider.purchase("packGold")).resolves.toBeDefined();
       expect(provider.restore()).resolves.toBeDefined();
     }
   });

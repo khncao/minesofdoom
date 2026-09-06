@@ -255,7 +255,7 @@ v0.40.2 — every reply shape below was observed live):
 ```sh
 B=http://127.0.0.1:8090
 # IAP (fake-token mode)
-curl -s $B/api/app/verify   -d '{"deviceId":"dev-1","platform":"android","productId":"removeAds","token":"fake-token-1"}'
+curl -s $B/api/app/verify   -d '{"deviceId":"dev-1","platform":"android","productId":"packGold","token":"fake-token-1"}'
 curl -s $B/api/app/restore  -d '{"deviceId":"dev-1"}'          # → both storeIds once more products verified
 # cloud saves (last-write-wins)
 curl -s $B/api/app/cloud/push -d '{"deviceId":"dev-1","blob":"{\"saveVersion\":10}","saveVersion":10,"updatedAt":1700000000000}'

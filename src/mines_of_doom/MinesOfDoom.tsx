@@ -1012,7 +1012,7 @@ export default function MinesOfDoom() {
               isDevSim={leaderboardProvider.id === "dev-sim"}
             />
           )}
-          {adRewards.available && !iap.removeAds && (
+          {adRewards.available && (
             <AdRewardsPanel
               isDevSim={adProvider.id === "dev-sim"}
               gemRollsLeft={adRewards.gemRollsLeft}
@@ -1025,9 +1025,7 @@ export default function MinesOfDoom() {
               onClaim={handleAdClaim}
             />
           )}
-          {/* Remove Ads owned hides this panel too (plan §5.1: it
-              permanently disables even the opt-in entry points). */}
-          {iap.available && !iap.removeAds && (
+          {iap.available && (
             <IapPanel
               isDevSim={iapProvider.id === "dev-sim"}
               isDevBuild={__DEV__}

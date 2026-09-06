@@ -27,7 +27,7 @@ verification checklist, and the iOS/TestFlight half.
   is scriptable; the
   same service-account key works for the CLI and the sidecar
   (`./play-service-account.json` (gitignored) or `PLAY_SERVICE_ACCOUNT_JSON`).
-- ✅ **Play store side is live** — the 26 products in the §2 table are
+- ✅ **Play store side is live** — the 25 products in the §2 table are
   created and ACTIVE (via the CLI, §2.2), the release AAB (1.0.8) is on
   the internal track, and the sidecar carries the Play service-account
   credentials (`/healthz` → `configured.android: true`).
@@ -87,9 +87,9 @@ config is reviewed).
 
 ## 2. IAP products
 
-The catalog lives in `src/mines_of_doom/iaps.ts`: **Remove Ads** plus
-**exactly one pack per paid cosmetic** in `cosmetics.ts` (every pickaxe
-/ outfit / cave theme with `costGems > 0`). Tests pin the catalog
+The catalog lives in `src/mines_of_doom/iaps.ts`: **exactly one pack per
+paid cosmetic** in `cosmetics.ts` (every pickaxe / outfit / cave theme
+with `costGems > 0`). Tests pin the catalog
 against `cosmetics.ts`, so a new paid cosmetic without a pack fails CI.
 The `storeId` column of the table below is the exact product id to
 create in each store console — one canonical slug for Play Billing,
@@ -105,7 +105,6 @@ the console follows the code, not the other way around.
 
 | Store id | Product | Price | Grants (also earnable in-game) |
 | --- | --- | --- | --- |
-| `remove_ads` | Remove Ads | $2.99 | Hides the rewarded-ads panel permanently |
 | `pack_gold` | Golden Pickaxe | $0.99 | `gold` pickaxe (25 💎) |
 | `pack_frost` | Frost Pickaxe | $1.99 | `frost` pickaxe (45 💎) |
 | `pack_shadow` | Shadow Pickaxe | $2.99 | `shadow` pickaxe (90 💎) |
@@ -160,7 +159,7 @@ Play Console **billing permissions** ("Manage orders and subscriptions" +
    npm run play -- create-product --sku=pack_gold --title="Golden Pickaxe" \
      --desc="Unlocks the Golden Pickaxe (also earnable in-game for 25 💎)." \
      --price=0.99 --auto-convert-prices
-   # …repeat for every §2.1 row (remove_ads, the rest of the packs)…
+   # …repeat for every §2.1 row…
    npm run play -- products-check
    ```
    `--auto-convert-prices` localizes the tier to every targeted region the
@@ -232,10 +231,6 @@ entitlement.
 (`IapProvider.restore()` → `/api/app/restore`) and merges
 additively into the local entitlement record (a restore can only ADD,
 never revoke).
-
-Remove Ads is special: owning it hides **both** the IAP panel and the
-rewarded-ads panel permanently (plan §5.1: "permanently disables even
-the opt-in buttons").
 
 ### 2.4 Testing real billing on a debug APK
 
@@ -528,8 +523,13 @@ and the
       prices are static `priceLabel`s, not proof of a live billing
       query. After the tester is added: test-card purchase →
       entitlement → wipe local key → restore.)*
-- [ ] **Remove Ads** (on-device, test price): owning it hides the
+- [x] **Remove Ads** (on-device, test price): owning it hides the
       rewarded-ads panel AND the IAP panel permanently.
+      *(2026-09-07: dropped — the Remove Ads product was removed from the
+      catalog (`iaps.ts`) and the server allow-list (`pb_hooks/logic.js`);
+      there is no ad-removal entitlement anymore. The `remove_ads` Play
+      product may still exist in Play Console — it is simply never
+      queried; delete it there if you want the console clean.)*
 - [ ] **Cloud save** (§3): play a bit → the save is pushed; change
       something, force-quit, launch → the save is pulled and
       reconciled; the settings (name etc.) round-trip.

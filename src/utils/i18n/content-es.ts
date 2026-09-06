@@ -179,13 +179,6 @@ export const contentEs: ContentTable = {
   },
 
   // --- IAP products (IAP_PRODUCTS in iaps.ts) ----------------------------
-  "iap:removeAds": {
-    title: "Eliminar anuncios",
-    detail:
-      "Compra única. Oculta permanentemente el panel de anuncios con " +
-      "recompensa — nada más cambia, y el juego sigue siendo completamente " +
-      "gratuito y jugable hasta el final sin ella.",
-  },
   // One pack per paid cosmetic (PACK_SPECS in iaps.ts) — titles reuse the
   // Spanish cosmetic names above (pickaxe/outfit/caveTheme namespaces).
   "iap:packGold": {

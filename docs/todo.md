@@ -9,6 +9,7 @@ Completed items are removed from this file (see git history); only remaining wor
 - [ ] Optimize build size
 - [ ] Add oauth2 login for web
 - [ ] Remove the "remove ads" iap
+  Done (2026-09-07): `removeAds` left the catalog (`iaps.ts` — the catalog is packs only), the entitlement/panel/toast glue (`useIap`, `IapPanel`, `MinesOfDoom`), the server allow-list (`pb_hooks/logic.js` — legacy `remove_ads` rows are dropped like any unknown store id, and the app's restore allowlist ignores them too), i18n (`toast.iapRemoveAds`/`toast.iapComplete`/`iap:removeAds`), legal copy, and the §2.1 table; tests repointed to `packGold`. CI gates green (714 tests). The `remove_ads` Play Console product is now orphaned — never queried; delete it store-side (`npm run play -- delete-product --sku=remove_ads` or Play Console) whenever convenient. The rewarded-ads panel is now shown whenever the ad provider is available (no way to hide it).
 
 - [ ] Add stripe payment provider for web one time products
 - [ ] Add adsense for web ads
@@ -23,5 +24,5 @@ Completed items are removed from this file (see git history); only remaining wor
   - [ ] check project ship readiness
 
 - [ ] IAP — on-device purchase leg (license tester)
-  Everything else is done (client, Pocketbase + sidecar deploy, Android Play credentials, 26 products live, §4 web-bundle grep clean — see `docs/store-integration.md` §4 and `docs/blockers.md`). Remaining: add the test Gmail to **Play Console → Testing → License testers → `internal`** (UI-only — the v3 API can't register testers), then on the emulator: test-card purchase → entitlement → wipe local key → restore.
+  Everything else is done (client, Pocketbase + sidecar deploy, Android Play credentials, 25 products live, §4 web-bundle grep clean — see `docs/store-integration.md` §4 and `docs/blockers.md`). Remaining: add the test Gmail to **Play Console → Testing → License testers → `internal`** (UI-only — the v3 API can't register testers), then on the emulator: test-card purchase → entitlement → wipe local key → restore.
 

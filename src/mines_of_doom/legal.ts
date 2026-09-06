@@ -58,7 +58,7 @@ const PRIVACY_POLICY: LegalDoc = {
     {
       heading: "In-app purchases",
       body:
-        "Optional in-app purchases (cosmetic packs and Remove Ads) are processed by the app store you installed the game from (Google Play or the Apple App Store). Payment details are handled by the store, not by us — we only ever learn that a purchase succeeded, so the game can grant the item. The web version of the game is 100% free and does not offer any purchases.",
+        "Optional in-app purchases (cosmetic packs) are processed by the app store you installed the game from (Google Play or the Apple App Store). Payment details are handled by the store, not by us — we only ever learn that a purchase succeeded, so the game can grant the item. The web version of the game is 100% free and does not offer any purchases.",
     },
     {
       heading: "Advertising",
@@ -100,7 +100,7 @@ const TERMS_OF_USE: LegalDoc = {
     {
       heading: "In-app purchases",
       body:
-        "Purchases are charged to your app-store account and are subject to the store's own terms and refund policy. Purchased items are delivered to the account on the device you bought them on, and a purchase of “Remove Ads” or a cosmetic pack is final once the item has been delivered or used. By purchasing you confirm you agree to the app store's terms of service.",
+        "Purchases are charged to your app-store account and are subject to the store's own terms and refund policy. Purchased items are delivered to the account on the device you bought them on, and a purchase of a cosmetic pack is final once the item has been delivered or used. By purchasing you confirm you agree to the app store's terms of service.",
     },
     {
       heading: "Your save data",

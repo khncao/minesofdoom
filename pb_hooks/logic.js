@@ -16,9 +16,10 @@
 // returned by STORE id (the client's restore allowlist keys on store
 // ids). A valid receipt for a product not in this table must never
 // mint an entitlement (the plan's allowlist rule).
-// One pack per paid cosmetic (PACK_SPECS in iaps.ts) + Remove Ads.
+// One pack per paid cosmetic (PACK_SPECS in iaps.ts). Legacy rows from a
+// removed product (remove_ads) are dropped by the allowlist, exactly like
+// an unknown store id.
 const PRODUCTS = {
-  removeAds: "remove_ads",
   packGold: "pack_gold",
   packFrost: "pack_frost",
   packShadow: "pack_shadow",

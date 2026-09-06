@@ -144,28 +144,27 @@ describe("useIap — availability", () => {
   it("starts with empty entitlements on a fresh device", async () => {
     const result = await renderIap(makeProps());
     expect(result.current.entitlements).toEqual(emptyIapEntitlements());
-    expect(result.current.removeAds).toBe(false);
+    expect(result.current.entitlements.packGold).toBe(false);
     // Nothing has been written yet (no purchase, no restore).
     expect(stored()).toBeNull();
   });
 });
 
 describe("useIap — purchase", () => {
-  it("removeAds: a validated purchase grants the entitlement, persists it, fires onPurchased and the toast", async () => {
+  it("packGold: a validated purchase grants the entitlement, persists it, fires onPurchased and the toast", async () => {
     const provider = makeProvider("purchased");
     const displayMessage = jest.fn();
     const onPurchased = jest.fn();
     const result = await renderIap(
       makeProps({ provider, displayMessage, onPurchased }),
     );
-    await buy(result, "removeAds");
+    await buy(result, "packGold");
     // The second arg is the session slot: null while anonymous.
-    expect(provider.purchase).toHaveBeenCalledWith("removeAds", null);
-    expect(result.current.removeAds).toBe(true);
-    expect(result.current.entitlements.removeAds).toBe(true);
-    expect(onPurchased).toHaveBeenCalledWith("removeAds");
-    expect(displayMessage).toHaveBeenCalledWith("toast.iapRemoveAds", 4000);
-    expect(stored()?.removeAds).toBe(true);
+    expect(provider.purchase).toHaveBeenCalledWith("packGold", null);
+    expect(result.current.entitlements.packGold).toBe(true);
+    expect(onPurchased).toHaveBeenCalledWith("packGold");
+    expect(displayMessage).toHaveBeenCalledWith("toast.iapPackUnlocked", 4000);
+    expect(stored()?.packGold).toBe(true);
     expect(result.current.purchasing).toBeNull();
   });
 
@@ -189,8 +188,8 @@ describe("useIap — purchase", () => {
     const result = await renderIap(
       makeProps({ provider, displayMessage, onPurchased }),
     );
-    await buy(result, "removeAds");
-    expect(result.current.removeAds).toBe(false);
+    await buy(result, "packGold");
+    expect(result.current.entitlements.packGold).toBe(false);
     expect(onPurchased).not.toHaveBeenCalled();
     expect(displayMessage).not.toHaveBeenCalled();
     expect(stored()).toBeNull();
@@ -200,8 +199,8 @@ describe("useIap — purchase", () => {
     const provider = makeProvider("error");
     const displayMessage = jest.fn();
     const result = await renderIap(makeProps({ provider, displayMessage }));
-    await buy(result, "removeAds");
-    expect(result.current.removeAds).toBe(false);
+    await buy(result, "packGold");
+    expect(result.current.entitlements.packGold).toBe(false);
     expect(displayMessage).not.toHaveBeenCalled();
     expect(stored()).toBeNull();
   });
@@ -209,10 +208,10 @@ describe("useIap — purchase", () => {
   it("an already-owned product is gated before the provider is called", async () => {
     const provider = makeProvider("purchased");
     const seed = emptyIapEntitlements();
-    seed.removeAds = true;
+    seed.packGold = true;
     const result = await renderIap(makeProps({ provider }), seed);
-    expect(result.current.removeAds).toBe(true);
-    await buy(result, "removeAds");
+    expect(result.current.entitlements.packGold).toBe(true);
+    await buy(result, "packGold");
     expect(provider.purchase).not.toHaveBeenCalled();
   });
 
@@ -231,10 +230,10 @@ describe("useIap — purchase", () => {
     };
     const result = await renderIap(makeProps({ provider }));
     act(() => {
-      result.current.purchase("removeAds");
-      result.current.purchase("removeAds");
+      result.current.purchase("packGold");
+      result.current.purchase("packGold");
     });
-    expect(result.current.purchasing).toBe("removeAds");
+    expect(result.current.purchasing).toBe("packGold");
     expect(provider.purchase).toHaveBeenCalledTimes(1);
     await act(async () => {
       resolvePurchase("purchased");
@@ -242,31 +241,31 @@ describe("useIap — purchase", () => {
       await Promise.resolve();
     });
     expect(result.current.purchasing).toBeNull();
-    expect(result.current.removeAds).toBe(true);
+    expect(result.current.entitlements.packGold).toBe(true);
   });
 });
 
 describe("useIap — restore", () => {
   it("folds the store's record in additively and persists the merge", async () => {
     const provider = makeProvider("purchased", true, {
-      removeAds: true,
+      packGold: true,
       packCherry: true,
     });
     const result = await renderIap(makeProps({ provider }));
-    expect(result.current.removeAds).toBe(false);
+    expect(result.current.entitlements.packGold).toBe(false);
     await restore(result);
     expect(provider.restore).toHaveBeenCalledTimes(1);
-    expect(result.current.removeAds).toBe(true);
+    expect(result.current.entitlements.packGold).toBe(true);
     expect(result.current.entitlements.packCherry).toBe(true);
-    expect(stored()?.removeAds).toBe(true);
+    expect(stored()?.packGold).toBe(true);
     expect(stored()?.packCherry).toBe(true);
     expect(result.current.restoring).toBe(false);
   });
 
   it("a no-op restore (player owns everything) writes nothing", async () => {
-    const provider = makeProvider("purchased", true, { removeAds: true });
+    const provider = makeProvider("purchased", true, { packGold: true });
     const seed = emptyIapEntitlements();
-    seed.removeAds = true;
+    seed.packGold = true;
     const result = await renderIap(makeProps({ provider }), seed);
     // The seeded read is not a write: the key exists but restore adds nothing.
     const before = mockStore.get(iapEntitlementsKey);
@@ -275,12 +274,12 @@ describe("useIap — restore", () => {
   });
 
   it("restore can only ADD: a product the local record shows owned stays owned even if the store says otherwise", async () => {
-    const provider = makeProvider("purchased", true, { removeAds: false });
+    const provider = makeProvider("purchased", true, { packGold: false });
     const seed = emptyIapEntitlements();
-    seed.removeAds = true;
+    seed.packGold = true;
     const result = await renderIap(makeProps({ provider }), seed);
     await restore(result);
-    expect(result.current.removeAds).toBe(true);
+    expect(result.current.entitlements.packGold).toBe(true);
   });
 
   it("only one restore in flight (double-tap guard)", async () => {
@@ -306,11 +305,11 @@ describe("useIap — restore", () => {
     expect(result.current.restoring).toBe(true);
     expect(provider.restore).toHaveBeenCalledTimes(1);
     await act(async () => {
-      resolveRestore({ removeAds: true });
+      resolveRestore({ packGold: true });
       await Promise.resolve();
       await Promise.resolve();
     });
     expect(result.current.restoring).toBe(false);
-    expect(result.current.removeAds).toBe(true);
+    expect(result.current.entitlements.packGold).toBe(true);
   });
 });

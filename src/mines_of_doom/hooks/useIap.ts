@@ -80,11 +80,7 @@ export function useIap({
             onPurchased?.(id);
             const packCosmetic = getIapPackCosmetic(id);
             displayMessage(
-              id === "removeAds"
-                ? t("toast.iapRemoveAds")
-                : packCosmetic
-                  ? t("toast.iapPackUnlocked", { name: packCosmetic.name })
-                  : t("toast.iapComplete"),
+              t("toast.iapPackUnlocked", { name: packCosmetic.name }),
               4000,
             );
           }
@@ -130,8 +126,6 @@ export function useIap({
     available,
     /** The full entitlement record. */
     entitlements,
-    /** Remove Ads owned ⇒ all ad entry points hide permanently. */
-    removeAds: hasIapEntitlement(entitlements, "removeAds"),
     /** True while a store sheet / simulation is in flight. */
     purchasing,
     /** True while a restore round-trip is in flight. */

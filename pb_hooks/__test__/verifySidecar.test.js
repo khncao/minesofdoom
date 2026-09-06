@@ -92,7 +92,7 @@ function makeAppleJws(payload, { sigKeyPem = CHAIN.leafKeyPem, x5c = [CHAIN.leaf
 
 const applePayload = (over = {}) => ({
   transactionId: "987654321",
-  productId: "remove_ads",
+  productId: "pack_gold",
   environment: "Sandbox",
   transactionReason: 1,
   purchaseDate: NOW_SEC - 600,
@@ -217,13 +217,13 @@ describe("Play (android) verification", () => {
       { match: /oauth2\.googleapis\.com\/token/, reply: { access_token: "AT-1" } },
       {
         match: /androidpublisher/,
-        reply: { purchaseState: 0, productIds: ["remove_ads"], orderId: "GPA.1" },
+        reply: { purchaseState: 0, productIds: ["pack_gold"], orderId: "GPA.1" },
       },
     ]);
-    const verdict = await S.verifyPlayPurchase(SA, "com.minus4kelvin.minesofdoom", "remove_ads", "TOK-1", { fetch: fetchImpl, ...ctx });
+    const verdict = await S.verifyPlayPurchase(SA, "com.minus4kelvin.minesofdoom", "pack_gold", "TOK-1", { fetch: fetchImpl, ...ctx });
     expect(verdict).toEqual({ valid: true });
     const lookup = calls.find((c) => /androidpublisher/.test(c.url));
-    expect(lookup.url).toContain("/applications/com.minus4kelvin.minesofdoom/purchases/products/remove_ads/tokens/TOK-1");
+    expect(lookup.url).toContain("/applications/com.minus4kelvin.minesofdoom/purchases/products/pack_gold/tokens/TOK-1");
     expect(lookup.url).toContain("access_token=AT-1");
   });
 
@@ -232,7 +232,7 @@ describe("Play (android) verification", () => {
       { match: /oauth2\.googleapis\.com\/token/, reply: { access_token: "AT-1" } },
       { match: /androidpublisher/, reply: { purchaseState: 1 } },
     ]);
-    const verdict = await S.verifyPlayPurchase(SA, "p", "remove_ads", "T", { fetch: fetchImpl, ...ctx });
+    const verdict = await S.verifyPlayPurchase(SA, "p", "pack_gold", "T", { fetch: fetchImpl, ...ctx });
     expect(verdict.valid).toBe(false);
   });
 
@@ -241,7 +241,7 @@ describe("Play (android) verification", () => {
       { match: /oauth2\.googleapis\.com\/token/, reply: { access_token: "AT-1" } },
       { match: /androidpublisher/, reply: { purchaseState: 0, productIds: ["something_else"] } },
     ]);
-    const verdict = await S.verifyPlayPurchase(SA, "p", "remove_ads", "T", { fetch: fetchImpl, ...ctx });
+    const verdict = await S.verifyPlayPurchase(SA, "p", "pack_gold", "T", { fetch: fetchImpl, ...ctx });
     expect(verdict.valid).toBe(false);
   });
 
@@ -249,7 +249,7 @@ describe("Play (android) verification", () => {
     const { fetchImpl } = scriptedFetch([
       { match: /oauth2\.googleapis\.com\/token/, reply: { error: "invalid_grant" }, status: 400 },
     ]);
-    const verdict = await S.verifyPlayPurchase(SA, "p", "remove_ads", "T", { fetch: fetchImpl, ...ctx });
+    const verdict = await S.verifyPlayPurchase(SA, "p", "pack_gold", "T", { fetch: fetchImpl, ...ctx });
     expect(verdict.valid).toBe(false);
   });
 
@@ -258,7 +258,7 @@ describe("Play (android) verification", () => {
       { match: /oauth2\.googleapis\.com\/token/, reply: { access_token: "AT-1" } },
       { match: /androidpublisher/, reply: { error: "not found" }, status: 404 },
     ]);
-    const verdict = await S.verifyPlayPurchase(SA, "p", "remove_ads", "T", { fetch: fetchImpl, ...ctx });
+    const verdict = await S.verifyPlayPurchase(SA, "p", "pack_gold", "T", { fetch: fetchImpl, ...ctx });
     expect(verdict.valid).toBe(false);
   });
 });
@@ -284,7 +284,7 @@ describe("Apple (ios) verification", () => {
     const rootCerts = [new crypto.X509Certificate(Buffer.from(CHAIN.rootDerB64, "base64"))];
     const v = S.verifySignedTransactionInfo(jws, rootCerts);
     expect(v.ok).toBe(true);
-    expect(v.payload.productId).toBe("remove_ads");
+    expect(v.payload.productId).toBe("pack_gold");
   });
 
   chainTest("a tampered JWS signature refuses", () => {
@@ -333,7 +333,7 @@ describe("Apple (ios) verification", () => {
 
   chainTest("a matching signed transaction mints", async () => {
     const c = appleCtx(appleRoutes({ transactionInfo: [{ signedTransactionInfo: makeAppleJws(applePayload()) }] }));
-    const verdict = await S.verifyApplePurchase(APPLE, "remove_ads", "987654321", c);
+    const verdict = await S.verifyApplePurchase(APPLE, "pack_gold", "987654321", c);
     expect(verdict).toEqual({ valid: true });
     expect(c.calls.some((x) => /sandbox\.storekit\.itunes\.apple\.com/.test(x.url))).toBe(true);
     expect(c.calls[0].init.headers.Authorization).toMatch(/^Bearer /);
@@ -348,37 +348,37 @@ describe("Apple (ios) verification", () => {
   chainTest("an environment mismatch (Sandbox token in production mode) refuses", async () => {
     const c = appleCtx(appleRoutes({ transactionInfo: [{ signedTransactionInfo: makeAppleJws(applePayload()) }] }));
     const cfg = { ...APPLE, env: "production" };
-    const verdict = await S.verifyApplePurchase(cfg, "remove_ads", "987654321", { ...c, fetch: c.fetch });
+    const verdict = await S.verifyApplePurchase(cfg, "pack_gold", "987654321", { ...c, fetch: c.fetch });
     expect(verdict.valid).toBe(false);
   });
 
   chainTest("a refunded transaction (reason 2) refuses", async () => {
     const c = appleCtx(appleRoutes({ transactionInfo: [{ signedTransactionInfo: makeAppleJws(applePayload({ transactionReason: 2 })) }] }));
-    const verdict = await S.verifyApplePurchase(APPLE, "remove_ads", "987654321", c);
+    const verdict = await S.verifyApplePurchase(APPLE, "pack_gold", "987654321", c);
     expect(verdict.valid).toBe(false);
   });
 
   chainTest("a revoked transaction refuses", async () => {
     const c = appleCtx(appleRoutes({ transactionInfo: [{ signedTransactionInfo: makeAppleJws(applePayload({ revocationDate: NOW_SEC - 10 })) }] }));
-    const verdict = await S.verifyApplePurchase(APPLE, "remove_ads", "987654321", c);
+    const verdict = await S.verifyApplePurchase(APPLE, "pack_gold", "987654321", c);
     expect(verdict.valid).toBe(false);
   });
 
   chainTest("a future purchaseDate refuses", async () => {
     const c = appleCtx(appleRoutes({ transactionInfo: [{ signedTransactionInfo: makeAppleJws(applePayload({ purchaseDate: NOW_SEC + 3600 })) }] }));
-    const verdict = await S.verifyApplePurchase(APPLE, "remove_ads", "987654321", c);
+    const verdict = await S.verifyApplePurchase(APPLE, "pack_gold", "987654321", c);
     expect(verdict.valid).toBe(false);
   });
 
   chainTest("an unknown transaction (404) refuses", async () => {
     const c = appleCtx(appleRoutes({ transactionInfo: [] }, 404));
-    const verdict = await S.verifyApplePurchase(APPLE, "remove_ads", "000", c);
+    const verdict = await S.verifyApplePurchase(APPLE, "pack_gold", "000", c);
     expect(verdict.valid).toBe(false);
   });
 
   chainTest("a signed payload for another transactionId refuses", async () => {
     const c = appleCtx(appleRoutes({ transactionInfo: [{ signedTransactionInfo: makeAppleJws(applePayload()) }] }));
-    const verdict = await S.verifyApplePurchase(APPLE, "remove_ads", "111111111", c);
+    const verdict = await S.verifyApplePurchase(APPLE, "pack_gold", "111111111", c);
     expect(verdict.valid).toBe(false);
   });
 });
@@ -391,15 +391,15 @@ describe("verifyPurchase dispatcher", () => {
   test("android routes to the play flow", async () => {
     const { fetchImpl } = scriptedFetch([
       { match: /oauth2\.googleapis\.com\/token/, reply: { access_token: "AT-1" } },
-      { match: /androidpublisher/, reply: { purchaseState: 0, productIds: ["remove_ads"] } },
+      { match: /androidpublisher/, reply: { purchaseState: 0, productIds: ["pack_gold"] } },
     ]);
-    const verdict = await S.verifyPurchase({ platform: "android", productId: "remove_ads", token: "T", cfg, ctx: { fetch: fetchImpl, nowSec: NOW_SEC } });
+    const verdict = await S.verifyPurchase({ platform: "android", productId: "pack_gold", token: "T", cfg, ctx: { fetch: fetchImpl, nowSec: NOW_SEC } });
     expect(verdict).toEqual({ valid: true });
   });
 
   test("ios rejects non-numeric transaction ids without any network call", async () => {
     const { fetchImpl } = scriptedFetch([]);
-    const verdict = await S.verifyPurchase({ platform: "ios", productId: "remove_ads", token: "not-a-number", cfg, ctx: { fetch: fetchImpl, nowSec: NOW_SEC } });
+    const verdict = await S.verifyPurchase({ platform: "ios", productId: "pack_gold", token: "not-a-number", cfg, ctx: { fetch: fetchImpl, nowSec: NOW_SEC } });
     expect(verdict.valid).toBe(false);
   });
 
