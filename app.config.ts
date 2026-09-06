@@ -1,6 +1,9 @@
 import { ExpoConfig, ConfigContext } from "expo/config";
 
-const pickaxePng = "./public/assets/logo.jpg";
+// Icon source image, kept OUT of public/ so the static web export doesn't
+// copy it into the deploy (it was a 988KB dead weight on every page load;
+// only the icon/splash prebuild plugin + web favicon generation read it).
+const pickaxePng = "./app-icons/logo.jpg";
 
 // AdMob App ids for the react-native-google-mobile-ads config plugin, which
 // bakes them into the native manifests at `expo prebuild` (the v16 SDK reads
