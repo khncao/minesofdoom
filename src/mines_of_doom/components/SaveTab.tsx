@@ -93,7 +93,7 @@ const SaveTab = memo(function SaveTab({
           placeholderTextColor="#999"
           style={styles.saveCodeInput}
         />
-        <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+        <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
           {t("settings.saveCodeHelp")}
         </Text>
       </View>
@@ -149,10 +149,10 @@ function CloudSaveSection({ cloudSave }: { cloudSave: CloudSaveSettingsProps }) 
         </Text>
         <Switch value={cloudSave.enabled} onValueChange={cloudSave.setEnabled} />
       </View>
-      <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+      <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
         {t("settings.cloudSaveHelp")}
       </Text>
-      <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+      <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
         {statusText}
       </Text>
       <ConfirmableButton

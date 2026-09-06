@@ -148,7 +148,7 @@ const SettingsContent = memo(function SettingsContent({
         )}
       </View>
       <View style={styles.flexCenteredRow}>
-        <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+        <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
           {t("settings.operatorHelp")}
         </Text>
       </View>
@@ -202,7 +202,7 @@ const SettingsContent = memo(function SettingsContent({
             style={{
               ...styles.text,
               fontSize: 11,
-              color: hardModeUnlocked ? "#fff" : "#aaa",
+              color: hardModeUnlocked ? "#fff" : "#bbb",
             }}
           >
             {hardModeUnlocked
@@ -380,11 +380,11 @@ function TipsSection() {
           <Text style={{ ...styles.text, fontSize: 12, fontWeight: "bold" }}>
             {t(tip.title)}
           </Text>
-          <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+          <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
             {index + 1}/{TIPS.length}
           </Text>
         </View>
-        <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+        <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
           {t(tip.body)}
         </Text>
       </Pressable>

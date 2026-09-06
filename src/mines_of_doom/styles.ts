@@ -157,8 +157,8 @@ export const styles = StyleSheet.create({
     backgroundColor: "#ffaa44",
   },
   comboProgressLabel: {
-    color: "#aaa",
-    fontSize: 10,
+    color: "#bbb",
+    fontSize: 11,
     userSelect: "none",
   },
   messageOverlay: {

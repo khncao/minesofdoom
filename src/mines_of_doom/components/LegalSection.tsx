@@ -58,7 +58,7 @@ function LegalDocContent({ doc }: { doc: LegalDoc }) {
       <Text style={{ ...styles.text, fontSize: 16, fontWeight: "bold" }}>
         {docText.title}
       </Text>
-      <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+      <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
         {useI18n().t("legal.meta", {
           version: doc.version,
           date: doc.effectiveDate,

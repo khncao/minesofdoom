@@ -57,7 +57,7 @@ const GoalsContent = memo(function GoalsContent({
                 {tierText.title}
               </Text>
             </View>
-            <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+            <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
               {t("goals.unlocks", {
                 unlock: tierText.detail ?? tier.unlock,
                 bonus: formatNumber(tier.bonusMinerals),
@@ -102,7 +102,7 @@ const GoalsContent = memo(function GoalsContent({
       <Text style={{ ...styles.text, fontWeight: "bold", fontSize: 14, marginTop: 4 }}>
         {t("goals.achievements")}
       </Text>
-      <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+      <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
         {t("goals.achievementsNote")}
       </Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
@@ -126,7 +126,7 @@ const GoalsContent = memo(function GoalsContent({
               <Text style={{ fontSize: 12 }}>
                 {done ? "✅" : a.icon} {title}
               </Text>
-              <Text style={{ fontSize: 10, color: "#aaa" }}>
+              <Text style={{ fontSize: 11, color: "#bbb" }}>
                 {formatNumber(
                   current >= a.target ? a.target : current,
                 )}/

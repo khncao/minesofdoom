@@ -32,7 +32,7 @@ function NameCell({ name, blurb }: { name: string; blurb?: string }) {
     <View style={{ flex: 1, flexDirection: "column" }}>
       <Text style={{ ...styles.text, flexShrink: 1 }}>{name}</Text>
       {blurb ? (
-        <Text style={{ ...styles.text, fontSize: 9, color: "#888" }}>
+        <Text style={{ ...styles.text, fontSize: 11, color: "#999" }}>
           {blurb}
         </Text>
       ) : null}
@@ -229,7 +229,7 @@ function CosmeticsSection({
         <Button title={t("cosmetics.reroll")} onPress={onReroll} />
       </View>
 
-      <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+      <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
         {t("cosmetics.outfits")}
       </Text>
       {OUTFITS.map((o) => {
@@ -252,7 +252,7 @@ function CosmeticsSection({
         );
       })}
 
-      <Text style={{ ...styles.text, fontSize: 11, color: "#aaa", marginTop: 4 }}>
+      <Text style={{ ...styles.text, fontSize: 11, color: "#bbb", marginTop: 4 }}>
         {t("cosmetics.pickaxes")}
       </Text>
       {PICKAXES.map((p) => {
@@ -272,7 +272,7 @@ function CosmeticsSection({
       {/* Tier-4 unlock (plan §4.6): cave background recolors. Shown but
           locked (visible-but-locked rule) until Crystal Kingdom. */}
       <Text
-        style={{ ...styles.text, fontSize: 11, color: "#aaa", marginTop: 4 }}
+        style={{ ...styles.text, fontSize: 11, color: "#bbb", marginTop: 4 }}
       >
         {caveThemesUnlocked
           ? t("cosmetics.themes")
@@ -281,7 +281,7 @@ function CosmeticsSection({
       {caveThemesUnlocked ? (
         CAVE_THEMES.map((theme) => renderTheme(theme))
       ) : (
-        <Text style={{ ...styles.text, fontSize: 11, color: "#888" }}>
+        <Text style={{ ...styles.text, fontSize: 11, color: "#999" }}>
           {t("cosmetics.themesUnlockedAt")}
         </Text>
       )}

@@ -222,7 +222,7 @@ const MiningCanvas = memo(function MiningCanvas({
         <Text
           style={{
             ...styles.text,
-            opacity: 0.45,
+            opacity: 0.6,
             fontSize: 11,
             userSelect: "none",
           }}

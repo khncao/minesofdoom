@@ -21,7 +21,7 @@ const RecordsContent = memo(function RecordsContent({
   const records = getRecords(stats);
   return (
     <View style={{ gap: 10, padding: 12 }}>
-      <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+      <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
         {t("records.header")}
       </Text>
       {records.map((r) => (

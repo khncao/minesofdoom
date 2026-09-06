@@ -163,11 +163,11 @@ function AccountSection({ account }: { account: AccountSettingsProps }) {
           {account.isDevSim ? t("settings.cloudSim") : ""}
         </Text>
         {account.account.email.length > 0 && (
-          <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+          <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
             {account.account.email}
           </Text>
         )}
-        <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+        <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
           {t("settings.accountLinked")}
         </Text>
         <Button
@@ -187,14 +187,14 @@ function AccountSection({ account }: { account: AccountSettingsProps }) {
         {t("settings.account")}
         {account.isDevSim ? t("settings.cloudSim") : ""}
       </Text>
-      <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+      <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
         {t("settings.accountDefault")}
       </Text>
       <TextInput
         testID="account-email"
         style={{ ...styles.text, ...styles.textInputBox }}
         placeholder={t("settings.accountEmail")}
-        placeholderTextColor="#888"
+        placeholderTextColor="#999"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -207,7 +207,7 @@ function AccountSection({ account }: { account: AccountSettingsProps }) {
         testID="account-password"
         style={{ ...styles.text, ...styles.textInputBox }}
         placeholder={t("settings.accountPassword")}
-        placeholderTextColor="#888"
+        placeholderTextColor="#999"
         value={password}
         onChangeText={setPassword}
         secureTextEntry

@@ -74,11 +74,11 @@ function AnalyticsSection({
       </View>
       <Text
         selectable
-        style={{ color: "#d6c48f", fontSize: 10, lineHeight: 14 }}
+        style={{ color: "#d6c48f", fontSize: 11, lineHeight: 15 }}
       >
         {summarizeAnalytics(analytics)}
       </Text>
-      <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+      <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
         {t("settings.analyticsNote")}
       </Text>
     </View>
@@ -134,13 +134,13 @@ function CrashLogSection() {
               {entry.source === "global" ? " (global)" : ""}
               {entry.count > 1 ? ` (×${entry.count})` : ""}
             </Text>
-            <Text style={{ ...styles.text, fontSize: 10, color: "#aaa" }}>
+            <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
               {new Date(entry.ts).toLocaleString()}
             </Text>
             {entry.stack.length > 0 && (
               <Text
                 selectable
-                style={{ color: "#9fd69f", fontSize: 9, lineHeight: 13 }}
+                style={{ color: "#9fd69f", fontSize: 11, lineHeight: 15 }}
               >
                 {entry.stack}
               </Text>
@@ -148,7 +148,7 @@ function CrashLogSection() {
             {contextText.length > 0 && (
               <Text
                 selectable
-                style={{ color: "#d6c48f", fontSize: 9, lineHeight: 13 }}
+                style={{ color: "#d6c48f", fontSize: 11, lineHeight: 15 }}
               >
                 {contextText}
               </Text>

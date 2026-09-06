@@ -56,7 +56,7 @@ const LeaderboardPanel = memo(function LeaderboardPanel({
           {isDevSim ? t("settings.cloudSim") : ""}
         </Text>
         <View style={{ gap: 2 }}>
-          <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+          <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
             {t("leaderboard.name")}
           </Text>
           <TextInput
@@ -71,11 +71,11 @@ const LeaderboardPanel = memo(function LeaderboardPanel({
           />
         </View>
         {status === "error" && rows == null ? (
-          <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+          <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
             {t("leaderboard.unavailable")}
           </Text>
         ) : rows == null ? (
-          <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+          <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
             {t("leaderboard.loading")}
           </Text>
         ) : (
@@ -93,7 +93,7 @@ const LeaderboardPanel = memo(function LeaderboardPanel({
                 })}
               </Text>
             ) : (
-              <Text style={{ ...styles.text, fontSize: 11, color: "#aaa" }}>
+              <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
                 {t("leaderboard.notRanked", { limit: LEADERBOARD_TOP_LIMIT })}
               </Text>
             )}
@@ -124,7 +124,7 @@ function LeaderboardRowView({ row }: { row: LeaderboardRow }) {
       <Text style={{ ...styles.text, fontSize: 12 }}>
         #{row.rank} {row.displayName}
       </Text>
-      <Text style={{ ...styles.text, fontSize: 12, color: "#aaa" }}>
+      <Text style={{ ...styles.text, fontSize: 12, color: "#bbb" }}>
         {formatNumber(row.bestDepth)}m · {row.achievementCount} 🏅
       </Text>
     </View>
