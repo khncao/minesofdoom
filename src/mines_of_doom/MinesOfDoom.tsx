@@ -1064,6 +1064,11 @@ export default function MinesOfDoom() {
           onSubmit={handleSubmit}
           shakeAnim={shakeAnim}
           useKeypad={onScreenKeypad}
+          // While the onboarding overlay is up the input must not raise the
+          // OS keyboard (it would swallow the setup Start button — see the
+          // focusable prop doc in AnswerInput). The value is irrelevant
+          // during the initial load (the game view isn't mounted yet).
+          focusable={onboardingLoading || onboardingDone === true}
         />
         <ComboIndicator
           combo={combo}
@@ -1238,7 +1243,23 @@ export default function MinesOfDoom() {
           </View>
         )}
         {!onboardingLoading && onboardingDone !== true && (
-          <OnboardingOverlay onDismiss={() => setOnboardingDone(true)} />
+          <OnboardingOverlay
+            onDismiss={() => {
+              // Persist the setup step's choices: the equation settings
+              // (operator toggles, symbol display) have no other writer
+              // than the menu's Save button, which this overlay has no
+              // access to — and a player who unticks division in setup
+              // expects it to stick. The keypad toggle persists itself
+              // (useLocalStorage). The "Settings saved" toast is the
+              // honest confirmation that the choices were written.
+              handleSaveSettings();
+              setOnboardingDone(true);
+            }}
+            equationSettings={equationSettings}
+            onEquationSettingsChange={setEquationSettings}
+            onScreenKeypad={onScreenKeypad}
+            onKeypadChange={handleKeypadSettingChange}
+          />
         )}
         <StatusBar style="auto" />
       </View>

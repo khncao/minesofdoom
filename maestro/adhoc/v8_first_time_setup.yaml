@@ -1,0 +1,65 @@
+# Ad-hoc: first-time setup step (todo: "allow first time setup of operators
+# and other key settings"). Precondition: fresh install
+# (`adb shell pm clear com.minus4kelvin.minesofdoom`) — onboarding only
+# renders while onboardingDone is unset.
+#
+# Walks the three tip steps to the new SETUP step (the 4th), toggles a
+# division equation on (off by default), picks the letter symbol display,
+# then starts mining and proves the overlay is gone. The toggled state
+# itself is not observable in the hierarchy (a Switch exposes no text),
+# so the assertions pin the WIRING: the step is reachable, its controls
+# are tappable without crashing, and dismissal ends onboarding and
+# persists the settings (the onDismiss path calls handleSaveSettings).
+appId: com.minus4kelvin.minesofdoom
+---
+- launchApp: com.minus4kelvin.minesofdoom
+
+# Cold start holds a loading screen before the overlay shows, so WAIT
+# for the skip button (same pattern as v7_keypad_edges.yaml). A cold boot
+# right after a fresh install is SLOWER than the implicit assert window
+# (~30s here), so use an explicit extendedWaitUntil like
+# flows/save_reload.yaml does for its sync points.
+- extendedWaitUntil:
+    visible:
+      id: onboarding-skip
+    timeout: 120000
+
+# Three tips (steps 1–3), then the setup step (step 4).
+- tapOn:
+    id: onboarding-next
+- tapOn:
+    id: onboarding-next
+- tapOn:
+    id: onboarding-next
+- assertVisible:
+    id: onboarding-setup
+
+# Toggle controls: division ON (off by default), letter symbol display,
+# keypad row tapped once (tappability; leaves it off — a valid choice).
+# Each toggle re-renders the tree, so re-assert a row after each tap to
+# let the a11y tree settle (rows right below a toggled row were
+# intermittently missing from one dump — same sync-point pattern as
+# flows/save_reload.yaml).
+- tapOn:
+    id: setup-op-division
+- assertVisible:
+    id: setup-op-division
+- tapOn:
+    id: setup-symbol-letter
+- assertVisible:
+    id: setup-symbol-letter
+- tapOn:
+    id: setup-keypad
+- assertVisible:
+    id: setup-keypad
+
+# Start mining (the last step's button) — onboarding ends, settings
+# persisted by the onDismiss handler.
+- tapOn:
+    id: onboarding-next
+- assertNotVisible:
+    id: onboarding-overlay
+
+# The game is live behind the (now gone) overlay.
+- assertVisible:
+    id: equation-display

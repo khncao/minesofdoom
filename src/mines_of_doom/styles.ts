@@ -327,4 +327,43 @@ export const styles = StyleSheet.create({
     fontWeight: "bold",
     userSelect: "none",
   },
+  // First-time setup step (the last onboarding step): whole-row toggle
+  // rows inside the centered card. The row is the Pressable (and the e2e
+  // anchor); the Switch rides at the right edge and swallows its own
+  // taps, so label-taps and switch-taps each produce exactly one toggle.
+  setupRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    // 44px-tall touch target for the whole row.
+    minHeight: 44,
+    justifyContent: "space-between",
+  },
+  setupRowLabel: {
+    ...onboardingText,
+    fontSize: 13,
+    flex: 1,
+  },
+  setupRowGlyph: {
+    ...onboardingText,
+    fontSize: 14,
+    fontWeight: "bold",
+    width: 18,
+    textAlign: "center",
+  },
+  // Symbol-display chips (the two literal previews, "7 * 2 · 7 / 2" / 
+  // "7 x 2 · 7 ÷ 2") — same look as the settings panel's toggle.
+  setupChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: "#2a2a2a",
+  },
+  setupChipActive: {
+    backgroundColor: "#555",
+  },
+  setupChipText: {
+    ...onboardingText,
+    fontSize: 11,
+  },
 });

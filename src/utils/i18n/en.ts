@@ -154,6 +154,17 @@ export const en = {
     "Spend minerals on upgrades and miners below. Miners dig for you " +
     "automatically — even while the game is closed. Check the 🎯 goals " +
     "for what's coming next.",
+  // First-time setup step (todo: "allow first time setup of operators and
+  // other key settings"): the last onboarding step, before "Start".
+  // Operator names, the symbol-display label, and the keypad label are
+  // the SAME keys the settings panel uses (settings.opName.* /
+  // settings.multiplySymbol / settings.onScreenKeypad), so a player who
+  // set things up here recognizes them later in the menu.
+  "onboarding.4.title": "Set up your math",
+  "onboarding.4.body":
+    "Pick the equation types you want to mine — and how you'll type the " +
+    "answers. You can change any of this later in Settings.",
+  "onboarding.setup.operators": "Equation types",
   "onboarding.skip": "Skip",
   "onboarding.next": "Next",
   "onboarding.start": "Start mining! ⛏️",

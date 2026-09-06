@@ -143,6 +143,13 @@ export const es: Record<TranslationKey, string> = {
     "Gasta minerales en mejoras y mineros abajo. Los mineros excavan por " +
     "ti automáticamente — incluso con el juego cerrado. Mira los objetivos 🎯 " +
     "para saber qué viene.",
+  // Paso de configuración inicial (mismas claves que el panel de ajustes
+  // para los nombres de operadores y las etiquetas, ver en.ts).
+  "onboarding.4.title": "Configura tus cuentas",
+  "onboarding.4.body":
+    "Elige los tipos de ecuación que quieres minar — y cómo escribirás las " +
+    "respuestas. Puedes cambiar todo esto luego en Ajustes.",
+  "onboarding.setup.operators": "Tipos de ecuación",
   "onboarding.skip": "Saltar",
   "onboarding.next": "Siguiente",
   "onboarding.start": "¡A minar! ⛏️",

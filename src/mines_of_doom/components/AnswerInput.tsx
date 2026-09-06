@@ -51,6 +51,7 @@ const AnswerInput = memo(function AnswerInput({
   onSubmit,
   shakeAnim,
   useKeypad,
+  focusable,
 }: {
   value: string;
   setTextInput: Dispatch<SetStateAction<string>>;
@@ -66,6 +67,15 @@ const AnswerInput = memo(function AnswerInput({
    * Off (default) the native keypad path is unchanged.
    */
   useKeypad: boolean;
+  /**
+   * While the onboarding overlay is up, the input must not grab focus:
+   * `autoFocus` would raise the OS keyboard BEHIND the overlay, and the
+   * keyboard is a separate window that swallows every touch in its area —
+   * the setup step's Start button sits inside the keyboard zone, so its
+   * taps silently died (e2e v8, 2026-09-05). After dismissal the input
+   * remounts focused and the keypad-off flow is unchanged.
+   */
+  focusable: boolean;
 }) {
   const textInputRef = useRef<null | TextInput>(null);
 
@@ -94,7 +104,8 @@ const AnswerInput = memo(function AnswerInput({
               value={value}
               onChangeText={(text) => setTextInput(text)}
               inputMode="numeric"
-              autoFocus={true}
+              focusable={focusable}
+              autoFocus={focusable}
               clearButtonMode="always"
               onSubmitEditing={() => {
                 onSubmit();
