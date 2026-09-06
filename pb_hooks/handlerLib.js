@@ -597,6 +597,17 @@ function handleAuthLogin(app, body) {
   if (!account || !logic.verifyPassword(v.value.password, stored, sha256hex)) {
     return { status: 401, json: { error: "invalid credentials" } };
   }
+  // Transparent upgrade: a legacy single-iteration row is re-hashed to the
+  // KDF on successful login (no user action, no lockout). Reuses the same
+  // salt; only the format/iteration count change. (security-audit S3.)
+  if (logic.passwordNeedsUpgrade(stored)) {
+    const oldSalt = String(stored).split(":")[1];
+    account.set(
+      "passwordHash",
+      logic.hashPassword(v.value.password, oldSalt, sha256hex),
+    );
+    app.save(account);
+  }
   if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
   if (logic.writeBudgetExceeded((recentWriteEvents(app, body.deviceId) || []).length)) {
     return tooManyRequests();

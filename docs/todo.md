@@ -19,9 +19,10 @@ Completed items are removed from this file (see git history); only remaining wor
   - [o] audit project security and compliance — **reviewed + `docs/security-audit.md`**
       (fail-closed verify, device-scoped private collections, no secrets in
       bundle, no XSS sinks — all sound). S1 (session tokens/salts/account ids
-      were `Math.random`, not a CSPRNG) **fixed this iteration** via
-      `$security.randomStringWithAlphabet` (crypto/rand) + tests. Open
-      follow-ups: S2 (webhook `Stripe-Signature`/rate-limit), S3 (password KDF),
+      were `Math.random`, not a CSPRNG) and S3 (password hashing was
+      single-iteration SHA-256) both **fixed this iteration** (CSPRNG helper +
+      100k-round iterated-SHA-256 KDF with transparent on-login upgrade) and
+      tested. Open follow-ups: S2 (webhook `Stripe-Signature`/rate-limit),
       S4 (privacy policy — **blocks ship**), S6 (kid-safety/age rating).
   - [ ] check project ship readiness
 

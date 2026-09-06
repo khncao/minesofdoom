@@ -337,13 +337,50 @@ function validateEmailCredentials(email, password) {
   return { ok: true, value: { email: normalizeEmail(email), password } };
 }
 
+// Iterated-SHA-256 KDF. The goja runtime has no PBKDF2/scrypt/argon2 —
+// $security exposes only raw sha256 — so this is a simple stretch: 100k
+// rounds turns the previous single-iteration sha256 into a 100,000x-slower
+// digest while staying in the runtime. Memory-hard Argon2/scrypt is strictly
+// better but unavailable here; this is the strongest practical in-runtime
+// option and a large step up from 1 round. The iteration count is stored in
+// the hash (below) so it can be raised later without a migration. (docs/
+// security-audit.md S3.)
+const PASSWORD_KDF_ITERATIONS = 100000;
+
 /**
- * Salted sha256 password digest, stored as "sha256:<salt>:<hash>".
- * `sha256` is injected (the Pocketbase runtime exposes $security.sha256;
- * tests inject node crypto) so this module stays environment-free.
+ * Iterated SHA-256 stretch: h = sha256(salt:password); then h =
+ * sha256(h:password) (iterations-1) more times. Pure w.r.t. the injected
+ * `sha256`.
+ */
+function kdfSha256(password, salt, iterations, sha256) {
+  let h = sha256(salt + ":" + password);
+  for (let i = 1; i < iterations; i++) h = sha256(h + ":" + password);
+  return h;
+}
+
+/**
+ * Salted iterated-SHA-256 password digest, stored as
+ * "pbkdf2-sha256:<iterations>:<salt>:<hash>". `sha256` is injected. Supersedes
+ * the old single-iteration "sha256:<salt>:<hash>" form, which verifyPassword
+ * still accepts and the login handler transparently upgrades.
  */
 function hashPassword(password, salt, sha256) {
-  return "sha256:" + salt + ":" + sha256(salt + ":" + password);
+  return (
+    "pbkdf2-sha256:" +
+    PASSWORD_KDF_ITERATIONS +
+    ":" +
+    salt +
+    ":" +
+    kdfSha256(password, salt, PASSWORD_KDF_ITERATIONS, sha256)
+  );
+}
+
+/**
+ * True when `stored` is the legacy single-iteration "sha256:" form (needs a
+ * transparent upgrade to the KDF on the next successful login).
+ */
+function passwordNeedsUpgrade(stored) {
+  return String(stored == null ? "" : stored).split(":")[0] === "sha256";
 }
 
 function constantTimeEqual(a, b) {
@@ -357,10 +394,25 @@ function constantTimeEqual(a, b) {
 
 function verifyPassword(password, stored, sha256) {
   const parts = String(stored == null ? "" : stored).split(":");
-  if (parts.length !== 3 || parts[0] !== "sha256" || parts[1].length === 0) {
-    return false;
+  // Legacy: "sha256:<salt>:<hash>" (1 iteration).
+  if (parts.length === 3 && parts[0] === "sha256" && parts[1].length > 0) {
+    return constantTimeEqual(sha256(parts[1] + ":" + password), parts[2]);
   }
-  return constantTimeEqual(sha256(parts[1] + ":" + password), parts[2]);
+  // KDF: "pbkdf2-sha256:<iterations>:<salt>:<hash>".
+  if (
+    parts.length === 4 &&
+    parts[0] === "pbkdf2-sha256" &&
+    parts[2].length > 0 &&
+    parts[3].length > 0
+  ) {
+    const iterations = Number(parts[1]);
+    if (!Number.isInteger(iterations) || iterations < 1) return false;
+    return constantTimeEqual(
+      kdfSha256(password, parts[2], iterations, sha256),
+      parts[3],
+    );
+  }
+  return false;
 }
 
 /**
@@ -626,8 +678,11 @@ module.exports = {
   validPassword,
   validateEmailCredentials,
   providerIndexKey,
+  PASSWORD_KDF_ITERATIONS,
+  kdfSha256,
   hashPassword,
   verifyPassword,
+  passwordNeedsUpgrade,
   randomHex,
   validSessionToken,
   sessionValid,

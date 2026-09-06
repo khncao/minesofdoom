@@ -291,22 +291,39 @@ describe("email / password validation", () => {
   });
 });
 
-describe("password hashing (injected sha256)", () => {
+describe("password hashing (iterated-SHA-256 KDF, injected sha256)", () => {
   const salt = "0123456789abcdef";
 
-  test("hashPassword is salted and stable; verifyPassword round-trips", () => {
+  test("hashPassword emits the KDF format and round-trips", () => {
     const stored = L.hashPassword("correct horse", salt, sha256);
-    expect(stored.startsWith("sha256:" + salt + ":")).toBe(true);
+    expect(stored.startsWith("pbkdf2-sha256:" + L.PASSWORD_KDF_ITERATIONS + ":" + salt + ":")).toBe(true);
     expect(L.verifyPassword("correct horse", stored, sha256)).toBe(true);
+    expect(L.passwordNeedsUpgrade(stored)).toBe(false);
   });
 
-  test("wrong password fails; the salt travels WITH the stored value", () => {
+  // The heavy KDF (100k rounds) is exercised only a couple of times in this
+  // file to keep the suite fast; the pure KDF properties are covered cheaply
+  // below with small iteration counts.
+  test("wrong password fails", () => {
     const a = L.hashPassword("correct horse", "1111111111111111", sha256);
-    const b = L.hashPassword("correct horse", "2222222222222222", sha256);
-    expect(a).not.toBe(b); // same password, different salt → different digest
     expect(L.verifyPassword("correct horsa", a, sha256)).toBe(false);
     expect(L.verifyPassword("correct horse", a, sha256)).toBe(true);
-    expect(L.verifyPassword("correct horse", b, sha256)).toBe(true);
+  });
+
+  test("kdfSha256 is deterministic, iteration- and salt-sensitive, 1-iter == plain", () => {
+    expect(L.kdfSha256("pw", salt, 3, sha256)).toBe(L.kdfSha256("pw", salt, 3, sha256));
+    expect(L.kdfSha256("pw", salt, 3, sha256)).not.toBe(L.kdfSha256("pw", salt, 4, sha256));
+    expect(L.kdfSha256("pw", salt, 3, sha256)).not.toBe(
+      L.kdfSha256("pw", "ffffffffffffffff", 3, sha256),
+    ); // different salt → different digest
+    expect(L.kdfSha256("pw", salt, 1, sha256)).toBe(sha256(salt + ":pw"));
+  });
+
+  test("legacy single-iteration 'sha256:' rows still verify and flag for upgrade", () => {
+    const legacy = "sha256:" + salt + ":" + sha256(salt + ":correct horse");
+    expect(L.verifyPassword("correct horse", legacy, sha256)).toBe(true);
+    expect(L.verifyPassword("correct horsa", legacy, sha256)).toBe(false);
+    expect(L.passwordNeedsUpgrade(legacy)).toBe(true);
   });
 
   test("malformed stored values never verify", () => {
@@ -315,6 +332,7 @@ describe("password hashing (injected sha256)", () => {
     expect(L.verifyPassword("x", "bcrypt:zzz", sha256)).toBe(false);
     expect(L.verifyPassword("x", "sha256::deadbeef", sha256)).toBe(false);
     expect(L.verifyPassword("x", "sha256:ab:cd:ef", sha256)).toBe(false);
+    expect(L.verifyPassword("x", "pbkdf2-sha256:notanumber:abc:def", sha256)).toBe(false);
   });
 });
 

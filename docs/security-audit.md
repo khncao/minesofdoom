@@ -16,15 +16,16 @@ The system is unusually well-built for a game backend: verification is
 **fail-closed** everywhere (an entitlement mints only when the store API says
 `valid: true`), all data is device-scoped on **private** Pocketbase
 collections, writes are budgeted, and the client bundle carries **no** store
-credentials. One real server-side weakness was found and **fixed this
-iteration** (S1). The remaining findings are low-severity hardening and
-compliance (privacy policy) items.
+credentials. Two findings were **fixed this iteration** (S1 — CSPRNG for
+session tokens/salts/ids; S3 — a KDF for password hashing). The remaining
+findings are low-severity hardening (S2) and compliance (S4 privacy policy,
+S6 kid-safety) items.
 
 | # | Severity | Finding | Status |
 |---|----------|---------|--------|
 | S1 | Medium | Session tokens / password salts / account ids minted from `Math.random` (a PRNG, not a CSPRNG) | **Fixed** (this iteration) |
 | S2 | Low | Stripe webhook is unauthenticated and not per-request rate-limited | Open — hardening |
-| S3 | Low | Email/password hashed with single-iteration SHA-256 (no KDF) | Open — hardening |
+| S3 | Low | Email/password hashed with single-iteration SHA-256 (no KDF) | **Fixed** (this iteration) |
 | S4 | Compliance | No discoverable privacy policy (GDPR / store listing) | Open — must add before/for ship |
 | S5 | Info | Device-scope GDPR delete intentionally keeps entitlements | Accepted trade-off |
 | S6 | Compliance | Kid-safety / age-rating check for the rewarded-ads model | Open — verify rating + ad settings |
@@ -119,26 +120,35 @@ Recommendation (pick one, in order of preference):
    rate-limit at the reverse proxy in front of Pocketbase) so a flood can't
    translate into unbounded sidecar calls.
 
-### S3 — Password hashing is single-iteration SHA-256 (no KDF)  ·  Low
+### S3 — Password hashing was single-iteration SHA-256 (no KDF)  ·  **FIXED**
 
-Email/password is stored as `sha256:<salt>:sha256(salt + ":" + password)` —
-salted, but **one** SHA-256 round, not a memory/CPU-hard KDF
-(PBKDF2/scrypt/Argon2). If the `accounts` collection leaked, hashes would be
-GPU-crackable.
+Email/password was stored as `sha256:<salt>:sha256(salt + ":" + password)` —
+salted, but **one** SHA-256 round, not a KDF. If the `accounts` collection
+leaked, hashes would be GPU-crackable. This is now Low-severity context (the
+protected data is game progress, not high-sensitivity PII, and login is
+optional — Google/Apple OAuth don't touch this hash), but it is fixed.
 
-Context that keeps this Low: the pocketbase goja `$security` object exposes no
-KDF (`hashPassword`/`verifyPassword` are **not** part of it — verified against
-the official `$security` function list), so a proper KDF is not a one-liner
-there. Login is **optional** (Google/Apple OAuth are the primary paths and don't
-touch this hash), and the protected data is game progress, not high-sensitivity
-PII. The salt + 72-char cap + constant-time compare are all correct.
+**Fix (this iteration).** `logic.js` now uses an **iterated-SHA-256 KDF**:
+`kdfSha256` runs 100,000 rounds (`h = sha256(salt:pw)`, then
+`h = sha256(h:pw)` ×99,999), stored as
+`pbkdf2-sha256:<iterations>:<salt>:<hash>`. A single-iteration SHA-256 is now a
+100,000×-slower digest to brute-force while staying entirely in the goja
+runtime — which is why a simple stretch (not memory-hard Argon2/scrypt, which
+goja's `$security` does not expose) is the right in-runtime choice. `hashPassword`
+produces the new format for all new passwords (register / set-password). For
+existing rows, `verifyPassword` still accepts the legacy `sha256:` form, and
+`handleAuthLogin` **transparently re-hashes to the KDF on the next successful
+login** (same salt, no user action, no lockout) — so no migration is required.
 
-Recommendation (either):
-1. **Iterated KDF in the hook** — loop `$security.sha256` ~100k times over
-   `salt:password` and store `pbkdf2:sha256:<iter>:<salt>:<hash>` (upgrade
-   transparently on next successful login). Cheap, stays in the runtime.
-2. **Move email/password to the sidecar**, where `node:crypto` gives real
-   `scrypt`/`argon2`. More work, stronger result.
+Verified: `logic.test.js` (KDF round-trip, wrong-password, determinism / 
+iteration- and salt-sensitivity, 1-iteration == plain sha256, legacy still
+verifies + `passwordNeedsUpgrade` flag, malformed never verifies). Full suite:
+803 tests green.
+
+**Residual.** Argon2/scrypt (memory-hard) is strictly better than an iterated
+hash, but is not available in the goja runtime; if a stronger KDF is ever
+required, move email/password to the sidecar (`node:crypto` `scrypt`). The
+stored iteration count allows raising the work factor later without migration.
 
 ### S4 — No discoverable privacy policy  ·  Compliance (must do before/for ship)
 
@@ -184,6 +194,6 @@ code change.
 - [x] S1 — CSPRNG for session tokens / salts / account ids (done, tested).
 - [ ] S4 — Write + link a privacy policy (in-app + Play + App Store). **Blocks ship.**
 - [ ] S2 — Verify `Stripe-Signature` in the sidecar (preferred) or add a rate limit.
-- [ ] S3 — Upgrade password hashing to a KDF (iterated SHA-256 in-hook, or scrypt/argon2 in the sidecar).
+- [x] S3 — Password hashing upgraded to a 100k-round iterated-SHA-256 KDF (transparent on-login upgrade of legacy rows). Done + tested.
 - [ ] S6 — Confirm age rating + `TAG_FOR_CHILD_DIRECTED_TREATMENT` for the rewarded-ads model.
 - [ ] S5 — None (accepted).
