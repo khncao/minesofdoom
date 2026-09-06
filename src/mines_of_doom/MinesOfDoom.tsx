@@ -1006,21 +1006,9 @@ export default function MinesOfDoom() {
             reduceMotion={reduceMotion}
             onSave={handleSaveNow}
           />
-          <Pressable
-            testID="upgrades-toggle"
-            accessibilityRole="button"
-            accessibilityLabel={
-              upgradesOpen
-                ? t("main.a11yHideUpgrades")
-                : t("main.a11yShowUpgrades")
-            }
-            onPress={() => setUpgradesOpen(!upgradesOpen)}
-            style={styles.upgradesToggle}
-          >
-            <Text style={styles.upgradesToggleText}>
-              ⛏ {t("main.upgrades")}
-            </Text>
-          </Pressable>
+          {/* The upgrades button floats over the cave instead (todo:
+              "move upgrades button floating over the canvas") — see the
+              canvasWrap below; the header row keeps every OTHER entry. */}
           <DailyBonusButton
             claimable={dailyBonus.claimable}
             bonus={dailyBonus.bonus}
@@ -1123,6 +1111,26 @@ export default function MinesOfDoom() {
           reduceMotion={reduceMotion}
           emojiArt={settingsData.emojiArt}
         />
+        {/* The upgrades button (todo: floating over the canvas, out of the
+            way): bottom-right of the cave. zIndex 3 keeps it BELOW the
+            drawer backdrop (z 4) — while the drawer is open it's dimmed
+            out and the drawer's own ✕/backdrop close it, so the button
+            never floats over the purchase rows. */}
+        <Pressable
+          testID="upgrades-toggle"
+          accessibilityRole="button"
+          accessibilityLabel={
+            upgradesOpen
+              ? t("main.a11yHideUpgrades")
+              : t("main.a11yShowUpgrades")
+          }
+          onPress={() => setUpgradesOpen(!upgradesOpen)}
+          style={styles.upgradesToggleFloat}
+        >
+          <Text style={styles.upgradesToggleText}>
+            ⛏ {t("main.upgrades")}
+          </Text>
+        </Pressable>
         {/* The upgrades drawer (todo: upgrades menu as a side hidden
             overlay on the canvas): hidden by default, anchored to the
             canvas wrapper's right edge so the OS keyboard — which covers

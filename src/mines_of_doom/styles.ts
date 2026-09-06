@@ -194,9 +194,16 @@ export const styles = StyleSheet.create({
   },
   // The ⚒ UPGRADES button in the top menu row: opens the side drawer
   // over the canvas (hidden by default — the canvas has the room).
-  upgradesToggle: {
-    margin: 4,
+  // Floating upgrades button (todo: floating over the canvas): the
+  // bottom-right corner of the cave, BELOW the drawer backdrop (z 4) so
+  // an open drawer dims it out rather than the button covering rows.
+  upgradesToggleFloat: {
+    position: "absolute",
+    right: 10,
+    bottom: 10,
+    zIndex: 3,
     backgroundColor: "#3a3a3a",
+    opacity: 0.9,
     borderRadius: 8,
     paddingVertical: 9,
     paddingHorizontal: 12,
