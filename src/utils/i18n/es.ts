@@ -27,6 +27,7 @@ export const es: Record<TranslationKey, string> = {
   "main.a11yShowUpgrades": "Mostrar mejoras",
   "main.a11yHideUpgrades": "Ocultar mejoras",
   "main.a11yCloseUpgrades": "Cerrar mejoras",
+  "main.a11yAffordablePurchase": "Hay una mejora disponible a tu alcance",
   "main.a11yMenu": "Menú",
   "main.a11yLeaderboard": "Clasificación — los mejores mineros",
 

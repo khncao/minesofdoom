@@ -781,6 +781,99 @@ export function getVisiblePurchases(
   return visible;
 }
 
+/**
+ * Snapshot of everything that decides whether a purchase button is enabled
+ * (mirrors the disabled flags in PurchaseButtons.tsx). Kept as a plain
+ * object so the pure check is testable without the React tree.
+ */
+export type PurchaseAffordability = {
+  minerals: bigint;
+  gems: number;
+  clickPower: number;
+  minerPower: number;
+  miners: number;
+  fastMiners: number;
+  legendaryMiners: number;
+  gemChanceLevels: number;
+  clickBoostLevels: number;
+  comboResistLevels: number;
+  prestigeLevel: number;
+  lifetimeMinerals: bigint;
+  minerPowerUnlocked: boolean;
+  fastMinerUnlocked: boolean;
+  legendaryMinerUnlocked: boolean;
+  prestigeUnlocked: boolean;
+};
+
+/**
+ * "Something you can buy right now" check for the indicator dot on the
+ * floating upgrades button (todo: "add indicator on upgrades button when
+ * something is purchaseable"). A purchase counts only if it is currently
+ * visible AND passes the same check as its button's disabled flag — a dot
+ * pointing at a row that isn't rendered (or still locked) would be noise.
+ */
+export function hasAffordablePurchase(
+  visible: ReadonlySet<PurchaseId>,
+  s: PurchaseAffordability,
+): boolean {
+  if (s.minerals >= BigInt(getClickUpgradeCost(s.clickPower))) return true;
+  if (
+    visible.has("minerPower") &&
+    s.minerPowerUnlocked &&
+    s.minerals >= BigInt(getMinerPowerUpgradeCost(s.minerPower))
+  ) {
+    return true;
+  }
+  if (s.minerals >= BigInt(gemMineralCost)) return true;
+  if (s.gems >= getMinerUpgradeCost(s.miners)) return true;
+  if (
+    visible.has("fastMiner") &&
+    s.fastMinerUnlocked &&
+    s.gems >= getFastMinerCost(s.fastMiners)
+  ) {
+    return true;
+  }
+  if (
+    visible.has("legendaryMiner") &&
+    s.legendaryMinerUnlocked &&
+    s.gems >= getLegendaryMinerCost(s.legendaryMiners)
+  ) {
+    return true;
+  }
+  if (
+    visible.has("gemChance") &&
+    s.fastMinerUnlocked &&
+    s.gemChanceLevels < GEM_CHANCE_MAX_LEVELS &&
+    s.gems >= getGemChanceCost(s.gemChanceLevels)
+  ) {
+    return true;
+  }
+  if (
+    visible.has("clickBoost") &&
+    s.prestigeUnlocked &&
+    s.clickBoostLevels < CLICK_BOOST_MAX_LEVELS &&
+    s.gems >= getClickBoostCost(s.clickBoostLevels)
+  ) {
+    return true;
+  }
+  if (
+    visible.has("comboResist") &&
+    s.prestigeUnlocked &&
+    s.comboResistLevels < COMBO_RESIST_MAX_LEVELS &&
+    s.gems >= getComboResistCost(s.comboResistLevels)
+  ) {
+    return true;
+  }
+  if (
+    visible.has("prestige") &&
+    s.prestigeUnlocked &&
+    getPrestigeLevel(s.lifetimeMinerals) > s.prestigeLevel
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export function getClickUpgradeCost(level: number): number {
   return level * level * level * level;
 }

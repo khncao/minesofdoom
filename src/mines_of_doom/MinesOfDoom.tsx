@@ -34,6 +34,7 @@ import {
   getResistantComboReset,
   getClickBoostMultiplier,
   getVisiblePurchases,
+  hasAffordablePurchase,
   SettingsData,
   mulFloats,
 } from "./game";
@@ -249,6 +250,52 @@ export default function MinesOfDoom() {
       settingsData.showAllPurchases,
       lifetimeMinerals,
       totalGemsMinted,
+      minerPowerUnlocked,
+      fastMinerUnlocked,
+      legendaryMinerUnlocked,
+      prestigeUnlocked,
+    ],
+  );
+
+  // Indicator dot on the floating upgrades button: true while any
+  // currently-visible purchase passes its button's own enabled check
+  // (todo: "add indicator on upgrades button when something is
+  // purchaseable"). Recomputed on every state change that can move either
+  // side of any affordability check.
+  const anyPurchaseAffordable = useMemo(
+    () =>
+      hasAffordablePurchase(visiblePurchases, {
+        minerals: gameState.minerals,
+        gems: gameState.gems,
+        clickPower: gameState.clickPower,
+        minerPower: gameState.minerPower,
+        miners: gameState.miners,
+        fastMiners: gameState.fastMiners,
+        legendaryMiners: gameState.legendaryMiners,
+        gemChanceLevels: gameState.gemChanceLevels,
+        clickBoostLevels: gameState.clickBoostLevels,
+        comboResistLevels: gameState.comboResistLevels,
+        prestigeLevel: gameState.prestigeLevel,
+        lifetimeMinerals: gameState.lifetimeMinerals,
+        minerPowerUnlocked,
+        fastMinerUnlocked,
+        legendaryMinerUnlocked,
+        prestigeUnlocked,
+      }),
+    [
+      visiblePurchases,
+      gameState.minerals,
+      gameState.gems,
+      gameState.clickPower,
+      gameState.minerPower,
+      gameState.miners,
+      gameState.fastMiners,
+      gameState.legendaryMiners,
+      gameState.gemChanceLevels,
+      gameState.clickBoostLevels,
+      gameState.comboResistLevels,
+      gameState.prestigeLevel,
+      gameState.lifetimeMinerals,
       minerPowerUnlocked,
       fastMinerUnlocked,
       legendaryMinerUnlocked,
@@ -1185,11 +1232,23 @@ export default function MinesOfDoom() {
               : t("main.a11yShowUpgrades")
           }
           onPress={() => setUpgradesOpen(!upgradesOpen)}
+          accessibilityHint={
+            anyPurchaseAffordable ? t("main.a11yAffordablePurchase") : undefined
+          }
           style={styles.upgradesToggleFloat}
         >
           <Text style={styles.upgradesToggleText}>
             ⛏ {t("main.upgrades")}
           </Text>
+          {/* Affordable-purchase indicator: a small dot in the button's
+              top-right corner, mirroring the onboarding-dot palette. */}
+          {anyPurchaseAffordable && (
+            <View
+              testID="upgrades-affordable-dot"
+              accessibilityElementsHidden
+              style={styles.upgradesAffordableDot}
+            />
+          )}
         </Pressable>
         {/* The upgrades drawer (todo: upgrades menu as a side hidden
             overlay on the canvas): hidden by default, anchored to the

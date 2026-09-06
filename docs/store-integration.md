@@ -31,6 +31,13 @@ verification checklist, and the iOS/TestFlight half.
   created and ACTIVE (via the CLI, §2.2), the release AAB (1.0.8) is on
   the internal track, and the sidecar carries the Play service-account
   credentials (`/healthz` → `configured.android: true`).
+- ✅ **Android IAP and Google sign-in work on device** — both verified
+  on `mines-play-35` against a build **signed with the Play upload
+  (release) key**; a debug-signed build is *not* a valid test route
+  (IAP then needs the §2.4 license-key setup). AdMob test ads also load
+  on `mines-play-35`: the emulator is **registered as a test device in
+  the AdMob console**, so rewarded test ads serve there without
+  billing (see §1 / §4).
 - ✅ **Web is built on the code side (2026-09)** — Stripe Checkout web
   IAP (`iapProvider.web.ts` + the sidecar's Stripe-API confirm + the
   `/api/app/stripe/webhook` backup-mint route) and the AdSense shop
@@ -591,6 +598,8 @@ route is the one the LegalSection links.
   email/password + Google/Apple native SDKs, session threaded through
   the cloud/leaderboard/IAP routes)**: ✅ — wired and tested (client
   is pointed at the live URL; the design above is what was built).
+  **Google sign-in verified working on-device** (`mines-play-35`,
+  release/upload-key-signed build — 2026-09).
 - **Phase 6 (iOS: App Store products + the sidecar's `APPLE_*`
   credentials; TestFlight)**: ⬜ — `docs/backlog.md` (iOS section).
 - **Phase 7 (metrics: first-time-ad-view, IAP purchase, D1/D7
@@ -643,26 +652,24 @@ and the
       *(2026-09-04: done — phone registered as an AdMob test device and
       the rewarded watch → reward flow verified on device. The
       "Remove Ads" half rides along with the IAP purchase test below,)
-      since owning it is what hides the panel.)*
-- [ ] **IAP purchase** (§2.3): buy one cheap pack with a **test card**
+      since owning it is what hides the panel. The `mines-play-35`
+      emulator is also **registered as an AdMob test device** in the
+      console, so rewarded test ads load on it without billing — it
+      doubles as the AdMob half of this pass alongside the phone.)*
+- [x] **IAP purchase** (§2.3): buy one cheap pack with a **test card**
       (license tester) → the entitlement is granted, the cosmetic
       appears in Cosmetics, and a **wipe of the local AsyncStorage key
       + restore** re-applies it from the store (this is the whole point
       of Pocketbase verify — the receipt round-trips).
-      *(2026-09-05 diagnosis — the purchase leg is blocked on one
-      Play Console UI step, not a bug: on the new API 35 `google_apis_
-      playstore` emulator (`mines-play-35`, account signed into Play
-      Store) the Buy → Play sheet says “The item you were attempting to
-      purchase could not be found” because **zero license testers are
-      registered on any track** (verified via the Play API —
-      `edits.testers.get` per track). The v3 API can only set
-      `googleGroups`, so the fix is UI-only: **Play Console → Testing →
-      License testers → add the Gmail to `internal`**. Everything else
-      ruled out: SKUs match live — `npm run play -- products-check`
-      clean; `pack_amethyst` ACTIVE with US $0.99 AVAILABLE; the panel
-      prices are static `priceLabel`s, not proof of a live billing
-      query. After the tester is added: test-card purchase →
-      entitlement → wipe local key → restore.)*
+      *(2026-09: **done — the IAP purchase flow works on a build signed
+      with the Play upload (release) key** on `mines-play-35` (the
+      license-tester route from the 2026-09-05 diagnosis: license
+      tester Gmail added to `internal` in Play Console → Testing →
+      License testers, the earlier “item could not be found” was the
+      missing tester, not a code bug). Note the release-signing
+      caveat: a debug-signed APK is only a valid billing-test route
+      with the §2.4 license key installed — “works out of the box” is
+      the release build.)*
 - [x] **Remove Ads** (on-device, test price): owning it hides the
       rewarded-ads panel AND the IAP panel permanently.
       *(2026-09-07: dropped — the Remove Ads product was removed from the

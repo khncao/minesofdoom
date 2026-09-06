@@ -42,6 +42,7 @@ export const en = {
   "main.a11yShowUpgrades": "Show upgrades",
   "main.a11yHideUpgrades": "Hide upgrades",
   "main.a11yCloseUpgrades": "Close upgrades",
+  "main.a11yAffordablePurchase": "An upgrade you can afford is available",
   "main.a11yMenu": "Menu",
   "main.a11yLeaderboard": "Leaderboard — the top diggers",
 

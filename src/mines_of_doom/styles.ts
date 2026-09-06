@@ -208,6 +208,17 @@ export const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 12,
   },
+  upgradesAffordableDot: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    width: 13,
+    height: 13,
+    borderRadius: 7,
+    backgroundColor: "#ffaa44",
+    borderWidth: 2,
+    borderColor: "#1f1f1f",
+  },
   upgradesToggleText: {
     color: "#fff",
     fontSize: 12,

@@ -43,8 +43,9 @@ import {
   ALWAYS_VISIBLE_PURCHASES,
   defaultSettingsData,
   getVisiblePurchases,
+  hasAffordablePurchase,
 } from "../game";
-import type { PurchaseId } from "../game";
+import type { PurchaseAffordability, PurchaseId } from "../game";
 import { DEFAULT_CAVE_THEME, DEFAULT_CAVE_TINTS } from "../cosmetics";
 import { Equation, Ops } from "src/utils/math/equations";
 import {
@@ -1024,6 +1025,134 @@ describe("getVisiblePurchases", () => {
       NO_PURCHASE_UNLOCKS,
     );
     expect(visible.size).toBe(ALL_PURCHASE_IDS.length);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Affordable-purchase indicator (floating upgrades button dot)
+// ---------------------------------------------------------------------------
+
+describe("hasAffordablePurchase", () => {
+  const coreVisible = () => new Set<PurchaseId>(ALWAYS_VISIBLE_PURCHASES);
+
+  const broke = (): PurchaseAffordability => ({
+    minerals: 0n,
+    gems: 0,
+    clickPower: 1,
+    minerPower: 1,
+    miners: 0,
+    fastMiners: 0,
+    legendaryMiners: 0,
+    gemChanceLevels: 0,
+    clickBoostLevels: 0,
+    comboResistLevels: 0,
+    prestigeLevel: 0,
+    lifetimeMinerals: 0n,
+    minerPowerUnlocked: false,
+    fastMinerUnlocked: false,
+    legendaryMinerUnlocked: false,
+    prestigeUnlocked: false,
+  });
+
+  test("a broke player sees no indicator", () => {
+    expect(hasAffordablePurchase(coreVisible(), broke())).toBe(false);
+  });
+
+  test("mineral purchases count once the balance reaches the cost", () => {
+    const s = broke();
+    expect(hasAffordablePurchase(coreVisible(), s)).toBe(false);
+    expect(
+      hasAffordablePurchase(
+        coreVisible(),
+        { ...s, minerals: BigInt(getClickUpgradeCost(1)) },
+      ),
+    ).toBe(true);
+  });
+
+  test("gem purchases count once the balance reaches the cost", () => {
+    const s = broke();
+    expect(hasAffordablePurchase(coreVisible(), { ...s, gems: 1 })).toBe(true);
+  });
+
+  test("a locked purchase is not counted even when the balance covers it", () => {
+    const visible = coreVisible();
+    visible.add("fastMiner");
+    const s = { ...broke(), miners: 1, gems: 1 }; // fast miner cost(0)=1, miner cost(1)=2
+    expect(hasAffordablePurchase(visible, s)).toBe(false);
+    expect(
+      hasAffordablePurchase(visible, { ...s, fastMinerUnlocked: true }),
+    ).toBe(true);
+  });
+
+  test("a hidden row is not counted even when unlocked and affordable", () => {
+    const s = {
+      ...broke(),
+      miners: 3, // miner cost(3)=82 keeps the always-visible row unaffordable
+      gems: 10, // gemChance cost(0)=10
+      fastMinerUnlocked: true,
+    };
+    expect(hasAffordablePurchase(coreVisible(), s)).toBe(false);
+    const visible = coreVisible();
+    visible.add("gemChance");
+    expect(hasAffordablePurchase(visible, s)).toBe(true);
+  });
+
+  test("a maxed gem upgrade line is not counted", () => {
+    const visible = coreVisible();
+    visible.add("gemChance");
+    const s = { ...broke(), miners: 3, gems: 10, fastMinerUnlocked: true };
+    expect(
+      hasAffordablePurchase(
+        visible,
+        { ...s, gemChanceLevels: GEM_CHANCE_MAX_LEVELS },
+      ),
+    ).toBe(false);
+    expect(hasAffordablePurchase(visible, s)).toBe(true);
+  });
+
+  test("click boost needs the prestige unlock and a level below the cap", () => {
+    const visible = coreVisible();
+    visible.add("clickBoost");
+    const s = {
+      ...broke(),
+      miners: 4, // miner cost(4)=257 > 25 keeps the always-visible row quiet
+      gems: getClickBoostCost(0),
+    };
+    expect(hasAffordablePurchase(visible, s)).toBe(false);
+    expect(
+      hasAffordablePurchase(visible, { ...s, prestigeUnlocked: true }),
+    ).toBe(true);
+    expect(
+      hasAffordablePurchase(visible, {
+        ...s,
+        prestigeUnlocked: true,
+        clickBoostLevels: CLICK_BOOST_MAX_LEVELS,
+      }),
+    ).toBe(false);
+  });
+
+  test("prestige counts once a higher level can be banked", () => {
+    const visible = coreVisible();
+    visible.add("prestige");
+    const rung = PRESTIGE_LEVELS[1].at;
+    expect(
+      hasAffordablePurchase(
+        visible,
+        { ...broke(), lifetimeMinerals: BigInt(rung - 1) },
+      ),
+    ).toBe(false);
+    expect(
+      hasAffordablePurchase(
+        visible,
+        { ...broke(), lifetimeMinerals: BigInt(rung) },
+      ),
+    ).toBe(false); // still locked without the tier-3 goal
+    expect(
+      hasAffordablePurchase(
+        visible,
+        { ...broke(), prestigeUnlocked: true, lifetimeMinerals: BigInt(rung) },
+      ),
+    ).toBe(true);
   });
 });
 
