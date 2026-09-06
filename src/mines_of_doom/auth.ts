@@ -36,11 +36,16 @@
  * providers: [{ name, linked }] }` — no hashes, no raw provider ids.
  *
  * Gating: same rule as the ad/IAP/cloud providers — until the Pocketbase
- * URL is configured (and always on web, where the other store integrations
- * are no-ops by construction) the no-op provider keeps every sign-in entry
- * point hidden.
+ * URL is configured, the no-op provider keeps every sign-in entry point
+ * hidden. Web is NOT exempt anymore (todo "Add oauth2 login for web"): the
+ * store provider is pure fetch + a localStorage-backed device id, both of
+ * which work in a browser, and the deployed Pocketbase answers CORS with
+ * `access-control-allow-origin: *` (preflight included — probed live
+ * 2026-09-06). The OTHER store integrations (cloud save, leaderboard, IAP)
+ * remain web no-ops by construction; a web session simply tags nothing
+ * there until they land, and the sign-in itself (email + Google) is fully
+ * real: same server, same 30-day token, same GDPR delete.
  */
-import { Platform } from "react-native";
 import { isPocketbaseConfigured, storeConfig } from "./storeConfig";
 import { getIapDeviceId } from "./iapDeviceId";
 
@@ -389,25 +394,23 @@ export const storeAuthProvider: AuthProvider = {
 export type AuthProviderSelection = {
   /** `__DEV__` — the dev build always runs the labeled simulation. */
   dev: boolean;
-  /** Web target: always the no-op (the store integrations are no-ops on
-   *  web by construction; sign-in follows suit). */
-  web: boolean;
   /** `isPocketbaseConfigured()` (storeConfig.ts). */
   pocketbaseConfigured: boolean;
 };
 
 /**
- * Pure provider selection. The rules, in order (mirror of
- * pickCloudSaveProvider):
+ * Pure provider selection. The rules, in order:
  *  1. dev always wins — the in-memory simulation makes the sign-in UI
  *     testable without the live backend.
- *  2. web is a no-op by construction.
- *  3. native production: the real provider only once the Pocketbase URL
- *     is configured; until then the no-op keeps entry points hidden.
+ *  2. production (native AND web — see the module header): the real
+ *     provider only once the Pocketbase URL is configured; until then the
+ *     no-op keeps entry points hidden. There is no platform in the rule
+ *     anymore: the provider is fetch-only, and web's token store
+ *     (secureToken.ts localTokenStore) and device id (AsyncStorage →
+ *     localStorage) make the exact same round-trips work in a browser.
  */
 export function pickAuthProvider(sel: AuthProviderSelection): AuthProvider {
   if (sel.dev) return devSimAuthProvider;
-  if (sel.web) return noopAuthProvider;
   if (!sel.pocketbaseConfigured) return noopAuthProvider;
   return storeAuthProvider;
 }
@@ -416,7 +419,6 @@ export function pickAuthProvider(sel: AuthProviderSelection): AuthProvider {
 export function selectAuthProvider(dev: boolean): AuthProvider {
   return pickAuthProvider({
     dev,
-    web: Platform.OS === "web",
     pocketbaseConfigured: isPocketbaseConfigured(),
   });
 }

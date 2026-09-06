@@ -3,7 +3,6 @@
 Legend: [ ] not started, [o] in progress
 Completed items are removed from this file (see git history); only remaining work is tracked here.
 
-- [ ] Add oauth2 login for web
 - [ ] Add stripe payment provider for web one time products
 - [ ] Add adsense for web ads
 

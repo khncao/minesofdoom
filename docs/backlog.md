@@ -58,3 +58,21 @@ without blocking it.
   platform-agnostic (same `useCloudSave` / `useLeaderboard` / provider
   picks as Android) — this is a device pass over the same checklist, not
   new code.
+
+## Web — Sign in with Apple
+
+Web sign-in is Google-only (GSI, `signinSdks.ts`). Sign in with Apple on
+the web needs a domain-verified **service id** in the Apple Developer
+console (verification keyfile + the `minesofdoom.minus4kelvin.com` domain
+associated to the team) that does not exist yet, plus an Apple
+OAuth web client id — the GSI-style JS flow (`appleid/auth.js`) is then
+the same shape as the web Google one (the sidecar already verifies Apple
+ES256 idTokens). Not urgent: the account is shared across mechanisms, so
+a web user has email + Google today.
+
+- [ ] Create the service id + domain verification (Apple Developer
+  console — external).
+- [ ] Wire `appleid/auth.js` into `signinSdks.ts` (a `web` apple branch
+  in `providerKindsForPlatform` + a `mintAppleIdTokenWeb` alongside
+  `mintGoogleIdTokenWeb`); the settings UI already renders one button
+  per kind, so no UI change beyond the kinds list.

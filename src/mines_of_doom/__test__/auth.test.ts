@@ -65,9 +65,8 @@ afterEach(() => {
 // -- selection ----------------------------------------------------------------
 
 describe("pickAuthProvider (selection matrix)", () => {
-  const sel = (over: Partial<{ dev: boolean; web: boolean; pocketbaseConfigured: boolean }> = {}) => ({
+  const sel = (over: Partial<{ dev: boolean; pocketbaseConfigured: boolean }> = {}) => ({
     dev: false,
-    web: false,
     pocketbaseConfigured: false,
     ...over,
   });
@@ -78,17 +77,11 @@ describe("pickAuthProvider (selection matrix)", () => {
     ).toBe(devSimAuthProvider);
   });
 
-  it("web is a no-op, even with the backend configured", () => {
-    expect(
-      pickAuthProvider(sel({ web: true, pocketbaseConfigured: true })),
-    ).toBe(noopAuthProvider);
-  });
-
-  it("native without the Pocketbase URL is a no-op (entry points hidden)", () => {
+  it("without the Pocketbase URL is a no-op (entry points hidden)", () => {
     expect(pickAuthProvider(sel())).toBe(noopAuthProvider);
   });
 
-  it("native production with the URL gets the store provider", () => {
+  it("production with the URL gets the store provider — on EVERY platform: the provider is fetch-only, and web's localStorage token store + localStorage device id make the same round-trips work in a browser (todo 'Add oauth2 login for web')", () => {
     expect(pickAuthProvider(sel({ pocketbaseConfigured: true }))).toBe(
       storeAuthProvider,
     );

@@ -16,11 +16,18 @@
  *    Keychain (iOS) / Keystore-backed encrypted store (Android). Autolinked
  *    at build time (no config plugin, so the committed android/ project
  *    picks it up at gradle time — no prebuild needed for this module).
- *  - web (and any future platform without the native module): the
- *    in-memory store — a session dies with the app run. That is the
- *    honest degradation: web has no durable secure store and the other
- *    store integrations are no-ops there by construction, so a
- *    non-persistent session costs nothing.
+ *  - web: `window.localStorage` under the same service key. A browser has
+ *    no per-app secure store — localStorage is the standard web session
+ *    model and is scoped per browser profile, exactly like the Keystore is
+ *    scoped per install (the token is a 30-day opaque session, not a
+ *    credential: it only becomes an account handle when combined with the
+ *    server-side account row, and the GDPR endpoint deletes on sight). It
+ *    is still NOT AsyncStorage — the module reads localStorage directly,
+ *    so the "the token never goes through the save-code/AsyncStorage
+ *    plumbing" rule holds as written. A store that throws (privacy mode,
+ *    SSR/prerender pass) degrades to the memory store for the run.
+ *  - any platform without window.localStorage: the in-memory store — a
+ *    session dies with the app run (the honest last resort).
  *
  * The store is a plain async interface (not a hook): the hook
  * (useAccount.ts) owns the React state, this file owns the persistence.
@@ -29,9 +36,14 @@ import { Platform } from "react-native";
 import * as Keychain from "react-native-keychain";
 
 /** The Keychain/Keystore service+account pair the token is stored under
- *  (one service, one row — the app's single session). */
+ *  (one service, one row — the app's single session). The web store reuses
+ *  both values as its localStorage key, so "which row holds the session" is
+ *  one answer on every platform. */
 export const TOKEN_SERVICE = "com.minus4kelvin.minesofdoom";
 export const TOKEN_ACCOUNT = "sessionToken";
+
+/** The web localStorage key (service + account, one row). */
+export const WEB_TOKEN_KEY = `${TOKEN_SERVICE}.${TOKEN_ACCOUNT}`;
 
 export interface TokenStore {
   /** Stable id for logs ("keychain", "memory"). */
@@ -66,6 +78,62 @@ export const memoryTokenStore: TokenStore = {
   },
 };
 let memoryToken: string | null = null;
+
+/**
+ * The web store: `window.localStorage` under WEB_TOKEN_KEY. Every call is
+ * wrapped exactly like the keychain store: when `window` does not exist
+ * at all (the SSR/prerender pass — a NORMAL condition, not logged) every
+ * call delegates to the memory store for the run, and a THROWING store
+ * (private browsing, a storage-quota race) does the same but IS logged
+ * because it is something a human should see.
+ */
+export const localTokenStore: TokenStore = {
+  id: "localstorage",
+  async getToken() {
+    const w = globalThis.window;
+    if (typeof w === "undefined") return memoryTokenStore.getToken();
+    try {
+      const stored = w.localStorage.getItem(WEB_TOKEN_KEY);
+      return typeof stored === "string" && stored.length > 0 ? stored : null;
+    } catch (err) {
+      console.warn("localTokenStore: getToken failed", err);
+      return memoryTokenStore.getToken();
+    }
+  },
+  async setToken(token) {
+    const w = globalThis.window;
+    if (typeof w === "undefined") return memoryTokenStore.setToken(token);
+    try {
+      w.localStorage.setItem(WEB_TOKEN_KEY, token);
+      return true;
+    } catch (err) {
+      console.warn("localTokenStore: setToken failed", err);
+      return memoryTokenStore.setToken(token);
+    }
+  },
+  async clearToken() {
+    const w = globalThis.window;
+    if (typeof w === "undefined") return memoryTokenStore.clearToken();
+    try {
+      w.localStorage.removeItem(WEB_TOKEN_KEY);
+      await memoryTokenStore.clearToken();
+      return true;
+    } catch (err) {
+      console.warn("localTokenStore: clearToken failed", err);
+      return memoryTokenStore.clearToken();
+    }
+  },
+};
+
+/** True when a usable window.localStorage exists (a browser, post-hydration). */
+export function hasLocalStorage(): boolean {
+  try {
+    const w = globalThis.window;
+    return typeof w !== "undefined" && typeof w.localStorage !== "undefined";
+  } catch {
+    return false;
+  }
+}
 
 /**
  * The OS secure store. Every call is wrapped so a Keychain failure
@@ -119,9 +187,10 @@ export const keychainTokenStore: TokenStore = {
 
 /**
  * The one call the engine uses. Native → the OS secure store; web → the
- * in-memory store (a session dies with the app run — honest, and the
- * store integrations are no-ops there anyway).
+ * localStorage store (a web sign-in must survive a page reload — the
+ * session is what makes the browser account real, and the SSR/prerender
+ * pass degrades to memory per-call, never a crash).
  */
 export function selectTokenStore(): TokenStore {
-  return Platform.OS === "web" ? memoryTokenStore : keychainTokenStore;
+  return Platform.OS === "web" ? localTokenStore : keychainTokenStore;
 }

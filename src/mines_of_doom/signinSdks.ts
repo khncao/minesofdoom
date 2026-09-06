@@ -6,14 +6,21 @@
  * mints the idToken through the OS sign-in sheet and hands it to
  * `useAccount.providerSignIn`.
  *
- *   - Google:  `@react-native-google-signin/google-signin` (android +
- *     ios) — `GoogleSignin.signIn()` resolves a discriminated union
- *     (`type: "success"` | `type: "cancelled"`), so a cancel is a
- *     RESULT, not an error.
- *   - Apple:   `expo-apple-authentication` (ios) —
+ *   - Google:  native (android + ios) via
+ *     `@react-native-google-signin/google-signin` — `GoogleSignin.signIn()`
+ *     resolves a discriminated union (`type: "success"` | `type:
+ *     "cancelled"`), so a cancel is a RESULT, not an error. Web via
+ *     Google Identity Services (the gsi/client script + the openid-scoped
+ *     token client — `requestAccessToken()` opens the same consent popup,
+ *     and the JWT in `resp.access_token` IS the idToken; the sidecar
+ *     verifies it exactly like the native one: RS256 + JWKS + iss + aud).
+ *   - Apple:   `expo-apple-authentication` (ios only) —
  *     `signInAsync()` resolves the credential or REJECTS with
  *     `ERR_REQUEST_CANCELED`; a cancel is an error we have to
- *     recognize.
+ *     recognize. Web has no Apple button: Sign in with Apple on the web
+ *     needs a domain-verified service id that does not exist yet, so web
+ *     is Google-only (the account still works — the mechanisms are
+ *     side by side, the account is shared).
  *
  * Both normalise to the one contract below: `mintIdToken` resolves the
  * idToken string, rejects with `SignInCancelledError` when the user
@@ -50,6 +57,7 @@ export class SignInCancelledError extends Error {
 export function providerKindsForPlatform(os: string): ProviderKind[] {
   if (os === "ios") return ["google", "apple"];
   if (os === "android") return ["google"];
+  if (os === "web") return ["google"];
   return [];
 }
 
@@ -67,7 +75,12 @@ export const availableProviderKinds: ProviderKind[] =
  * plain Error (SDK failure — the UI's single inline error applies).
  */
 export async function mintIdToken(kind: ProviderKind): Promise<string> {
-  return kind === "google" ? mintGoogleIdToken() : mintAppleIdToken();
+  if (kind === "google") {
+    return Platform.OS === "web"
+      ? mintGoogleIdTokenWeb()
+      : mintGoogleIdToken();
+  }
+  return mintAppleIdToken();
 }
 
 /** The Google WEB OAuth client ID (same Google Cloud project as the
@@ -92,6 +105,106 @@ export async function mintIdToken(kind: ProviderKind): Promise<string> {
  *  signed-in branch.) */
 const GOOGLE_WEB_CLIENT_ID =
   "94426274846-7vsqc2habc84b0upion6clsdnl5cqj1f.apps.googleusercontent.com";
+
+// -- the web Google path (Google Identity Services) ------------------------
+
+const GSI_SCRIPT_SRC = "https://accounts.google.com/gsi/client";
+const GSI_LOAD_TIMEOUT_MS = 15 * 1000;
+
+/** The slice of the GSI API this module uses (the token-client flow).
+ *  With an `openid` scope, `requestAccessToken()` resolves the ID token
+ *  in `resp.access_token` (a signed JWT whose `aud` is the web client id
+ *  above — the same audience the sidecar's GOOGLE_CLIENT_ID pins). */
+interface GsiTokenClient {
+  requestAccessToken(): void;
+}
+interface GsiOauth2Api {
+  initTokenClient(opts: {
+    client_id: string;
+    scope: string;
+    include_granted_scopes: boolean;
+    callback: (resp: { access_token?: unknown } | null) => void;
+    error_callback: (err: unknown) => void;
+  }): GsiTokenClient;
+}
+interface GsiWindow extends Window {
+  google?: { accounts?: { oauth2?: GsiOauth2Api } };
+}
+
+/**
+ * Mint the Google idToken on web: lazily load the gsi/client script (once
+ * per page), then run the token-client flow in a popup. Resolves the JWT
+ * idToken; rejects `SignInCancelledError` when the user closes the popup
+ * (GSI's documented `popup_closed_by_user` error) and a plain Error when
+ * the flow returns nothing usable (the UI's single inline error).
+ */
+export async function mintGoogleIdTokenWeb(): Promise<string> {
+  const w = globalThis.window as GsiWindow | undefined;
+  if (typeof w === "undefined") {
+    throw new Error("google web sign-in is unavailable in this context");
+  }
+  let oauth2 = w.google?.accounts?.oauth2;
+  if (!oauth2) {
+    await loadGsiScript(w);
+    oauth2 = w.google?.accounts?.oauth2;
+    if (!oauth2) {
+      throw new Error("google sign-in script loaded but exposed no API");
+    }
+  }
+  return new Promise<string>((resolve, reject) => {
+    const client = oauth2.initTokenClient({
+      client_id: GOOGLE_WEB_CLIENT_ID,
+      scope: "openid email profile",
+      include_granted_scopes: true,
+      callback: (resp) => {
+        // With the openid scope the "access_token" is the ID token JWT.
+        const token = resp?.access_token;
+        if (typeof token === "string" && token.length > 0) {
+          resolve(token);
+        } else {
+          reject(new Error("google web sign-in returned no id token"));
+        }
+      },
+      error_callback: (err) => {
+        if (err === "popup_closed_by_user") {
+          reject(new SignInCancelledError("google"));
+        } else {
+          reject(new Error(`google web sign-in failed: ${String(err)}`));
+        }
+      },
+    });
+    client.requestAccessToken();
+  });
+}
+
+/**
+ * Inject the gsi/client script once and wait for onload (or fail).
+ *  Skipped entirely when `window.google` already exists (a page that
+ *  loaded GSI for something else — and the test hook). Kept simple:
+ *  this app never ships the script by other means, so the only path is
+ *  "not injected yet → inject it ourselves".
+ */
+function loadGsiScript(w: GsiWindow): Promise<void> {
+  if (w.google?.accounts) return Promise.resolve();
+  const script = w.document.createElement("script");
+  script.src = GSI_SCRIPT_SRC;
+  script.async = true;
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error("google sign-in script timed out")),
+      GSI_LOAD_TIMEOUT_MS,
+    );
+    script.onload = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    script.onerror = () => {
+      clearTimeout(timer);
+      reject(new Error("google sign-in script failed to load"));
+    };
+    w.document.head.appendChild(script);
+  });
+}
 
 /** Google (android + ios). Lazy require — see the module header. */
 async function mintGoogleIdToken(): Promise<string> {

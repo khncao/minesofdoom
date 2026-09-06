@@ -191,3 +191,21 @@ a phone/AVD without one gets the honest single inline error, never a
 faked sign-in. What remains is Apple only (the Sign in with Apple
 capability, picked up by the iOS prebuild on macOS) — `docs/backlog.md`.
 Nothing blocks release: anonymous play is the shipped default.
+
+**Web sign-in is real now (todo "Add oauth2 login for web"):** web is no
+longer exempt from the store provider — `pickAuthProvider` has no platform
+in the rule anymore (fetch-only provider + the deployed Pocketbase answers
+CORS with `access-control-allow-origin: *`, probed live 2026-09-06). The
+session token lives in `window.localStorage` (`localTokenStore`, key
+`com.minus4kelvin.minesofdoom.sessionToken`) with a per-call memory-store
+degradation for the SSR/prerender pass and private-browsing throws; it
+deliberately does NOT go through AsyncStorage. Web Google goes through
+Google Identity Services (`mintGoogleIdTokenWeb`: lazy gsi/client script
++ the openid-scope token client — the JWT in `resp.access_token` IS the
+idToken; `popup_closed_by_user` → `SignInCancelledError`), web Apple does
+not exist yet (needs a domain-verified service id — `docs/backlog.md`).
+The OTHER store integrations (cloud save, leaderboard, IAP) remain web
+no-ops by construction: a web session is real (sign in / sign out /
+account delete all work against the same server) but tags nothing
+cloud-side until those land. Not yet verified in a real browser (emulator
+pass above is native-only).
