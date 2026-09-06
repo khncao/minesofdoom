@@ -18,17 +18,17 @@ on fresh installs.
 
 ## IAP (on-device purchase leg) — `todo.md` "IAP — on-device purchase leg (license tester)"
 
-**Blocked on (external):** three store-side items — (1) one Gmail as a
-Play Console **license tester** on `internal` (Testing → License
-testers; UI-only, the v3 API can't do it) for the §4 purchase leg, (2) the
+**Blocked on (external):** two store-side items — (1) the
 iOS `APPLE_*` App Store Connect API key for the sidecar
-(`docs/backlog.md`, iOS section), and (3) the **web Stripe + AdSense
+(`docs/backlog.md`, iOS section), and (2) the **web Stripe + AdSense
 console side** (Stripe account → the `price_…` catalog + a
 `checkout.session.completed` webhook at the sidecar's `/stripe/webhook`
 (needs the Caddy route on the public Pocketbase URL → the sidecar port,
 plus the `whsec_…` in the `STRIPE_WEBHOOK_SECRET` sidecar env, alongside
 `STRIPE_SECRET_KEY` and `MDOOM_PB_URL`); AdSense approval → the `ca-pub-` client + a banner slot) —
-all code is built and config-gated, none of it runs until those land. The 26 Play products are live and
+all code is built and config-gated, none of it runs until those land.
+The §4 purchase leg is **no longer blocked** (license tester registered
+2026-09-06, purchase confirmed on the dev build). The 26 Play products are live and
 ACTIVE (`products-check` clean), the Android Play credentials are on the
 sidecar (`/healthz` → `configured.android: true`), and a release AAB
 (1.0.8) sits on the internal track. The Pocketbase deployment itself is
@@ -88,22 +88,26 @@ fail-closed until those credentials exist. `storeConfig.pocketbaseUrl` is
 set and pinned by `storeConfig.test.ts`; the `iaps.test.ts` live pin now
 expects the store provider.
 
-**Unblocks when:** the last §4 item — the purchase leg (test-card
-purchase → entitlement → wipe local key → restore) — passes. It runs on
-the emulator and is now blocked ONLY on one Play Console UI action:
-add the test Gmail to **Testing → License testers → `internal`**
-(external, store-side — the v3 API can't register license testers,
-`edits.testers.get` shows zero on every track, and the "item could not
-be found" symptom from 2026-09-05 is explained entirely by that, see
-§4 for the full diagnosis).
+**Unblocks when:** the remaining legs pass — the iOS key lands (sidecar
+`/healthz` → `configured.ios: true`) and the web Stripe/AdSense console
+items above. The Android purchase leg itself is DONE (below).
 
-**Progress (2026-09-05, emulator API 35):** on the
+**Progress (2026-09-06, license tester):** the §4 external blocker is
+gone — a Gmail is registered as a Play Console license tester on
+`internal` (the UI-only action the v3 API can't do), and the purchase
+leg works on the **dev build** on `mines-play-35`: sheet opens for the
+real SKU, purchase completes, `/api/app/verify` mints the server
+entitlement, the panel flips to Owned. The wipe → re-derive-from-store
+verification of the 2026-09-06 persistence fix is an in-repo todo
+(`docs/todo.md`), not blocked externally.
+
+**Progress (2026-09-05, emulator API 35, historical):** on the
 `google_apis_playstore` AVD (`mines-play-35`) with a Play Store account
-signed in, the Buy → Play sheet fetches the sheet but fails with "The
+signed in, the Buy → Play sheet fetches the sheet but failed with "The
 item you were attempting to purchase could not be found" — diagnosed
 as zero license testers on any track (SKUs/ACTIVE status ruled out via
-`products-check` + SKU lookup). Same external fix: register the Gmail
-as a license tester on `internal`.
+`products-check` + SKU lookup). Resolved by the 2026-09-06 tester
+registration above.
 
 **Progress (2026-09-04, emulator):** the release-APK (upload-key) pass on
 the Pixel 3a emulator confirmed the §4 pass does NOT need a phone — the
@@ -221,37 +225,3 @@ IAP section and docs/store-integration.md §2.6; it reuses this same web
 session token when present.) Not yet verified in a real browser (emulator
 pass above is native-only).
 
-## IAP — real purchase → entitlement → wipe → restore (todo, partially verified 2026-09-06)
-
-Verified on-device (mines-play-35 AVD, debug APK with the embedded
-bundle restored — the `debuggableVariants = []` patch was missing from
-the working tree after the SDK 57 prebuild and has been re-applied):
-
-- [x] App boots standalone (no Metro) — the red box is gone once the
-  embedded bundle is back.
-- [x] IAP panel renders the full catalog with real SKUs/prices.
-- [x] **Entitlement is device-local + wipe works**: a previously
-  granted pack showed "Owned"; after `adb shell pm clear` + fresh
-  launch the same catalog shows zero "Owned"
-  (`maestro/adhoc/iap-wipe-verify.yaml`). Entitlements live in
-  AsyncStorage, never in the save.
-
-**Blocked on (all require the Play Console UI — not doable from here;
-this host also blocks `oauth2.googleapis.com`, so the Play Developer
-API can't be used to check product/track state):**
-
-1. Play Console → app → Monetize → License testing → **API key** →
-   `adb shell am start -a com.android.vending.BILLING -e key <KEY>`
-   (docs/store-integration.md §2.4 — lets a debug-signed APK talk to
-   Play Billing; the Play Store on the AVD is signed in as
-   minus4kelvin@gmail.com).
-2. Confirm the AVD is a registered **test device** (Monetize → Test
-   devices) and a **test card** is set (Monetize → Test payments).
-3. The embedded bundle is production-mode (`__DEV__` false), so the
-   dev-sim / "Real store billing" toggle is not in it — a plain buy
-   hits Play Billing directly (production behavior). Expected: sheet
-   opens for the real SKU, purchase completes, `/api/app/verify` mints
-   the server entitlement, button flips to "Owned".
-4. Re-run `maestro/adhoc/iap-wipe-verify.yaml` steps, then hit
-   **Restore** in the IAP panel — the server record (step 3) must
-   re-mint the entitlement on the wiped device.

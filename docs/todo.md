@@ -42,7 +42,9 @@ Completed items are removed from this file (see git history); only remaining wor
     only restore path that works for anonymous players after a wipe (their
     server rows are keyed by the old device id). Unit-tested in
     iapProvider.test.ts + useIap.test.ts (863 tests green).
-- [ ] IAP — on-device verification of the above: purchase → entitlement →
-    wipe local key (pm clear) → relaunch → entitlement re-derived from the
-    store record. use mines-play-35 avd; still needs the license-tester
-    setup from docs/blockers.md for a real purchase
+- [ ] IAP — on-device verification of the above: purchase (DONE 2026-09-06 —
+    purchase leg confirmed working on the dev build, mines-play-35, license
+    tester) → wipe local key (pm clear) → relaunch → entitlement re-derived
+    from the store record. The wipe leg needs a build that includes
+    reconcileStore (a50aea0) — the 1.0.8 AAB and the earlier dev build
+    predate it
