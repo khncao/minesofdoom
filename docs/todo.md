@@ -16,7 +16,13 @@ Completed items are removed from this file (see git history); only remaining wor
 
 - [ ] once everything else is complete: 
   - [ ] check project for additional UX improvements
-  - [ ] audit project security and compliance
+  - [o] audit project security and compliance — **reviewed + `docs/security-audit.md`**
+      (fail-closed verify, device-scoped private collections, no secrets in
+      bundle, no XSS sinks — all sound). S1 (session tokens/salts/account ids
+      were `Math.random`, not a CSPRNG) **fixed this iteration** via
+      `$security.randomStringWithAlphabet` (crypto/rand) + tests. Open
+      follow-ups: S2 (webhook `Stripe-Signature`/rate-limit), S3 (password KDF),
+      S4 (privacy policy — **blocks ship**), S6 (kid-safety/age rating).
   - [ ] check project ship readiness
 
 - [ ] IAP — test purchase → entitlement → wipe local key → restore.

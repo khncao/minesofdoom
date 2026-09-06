@@ -459,9 +459,29 @@ function accountIndex(app, provider, claims) {
   return idx;
 }
 
+/**
+ * CSPRNG-backed random hex for security-critical material (session tokens,
+ * password salts, account ids). The Pocketbase goja runtime exposes
+ * $security.randomStringWithAlphabet, which is crypto/rand-backed — unlike
+ * logic.randomHex's Math.random default (a PRNG, not a CSPRNG, and whose
+ * seed is not guaranteed unique per pooled goja runtime). `byteCount` bytes
+ * -> 2*byteCount lowercase hex chars (same shape logic.randomHex returns).
+ * Falls back to logic.randomHex (the previous Math.random behavior) only if
+ * the runtime predates randomStringWithAlphabet, so this is strictly a
+ * security improvement, never a regression. (docs/security-audit.md S1.)
+ */
+const HEX_ALPHABET = "0123456789abcdef";
+function secureRandomHex(byteCount) {
+  const sec = globalThis.$security;
+  if (sec && typeof sec.randomStringWithAlphabet === "function") {
+    return sec.randomStringWithAlphabet(byteCount * 2, HEX_ALPHABET).toLowerCase();
+  }
+  return logic.randomHex(byteCount);
+}
+
 function createAccountRow(app, partial) {
   const row = {
-    id: logic.randomHex(logic.ACCOUNT_ID_BYTES),
+    id: secureRandomHex(logic.ACCOUNT_ID_BYTES),
     email: typeof partial.email === "string" ? partial.email : "",
     passwordHash: typeof partial.passwordHash === "string" ? partial.passwordHash : "",
     passwordSalt: typeof partial.passwordSalt === "string" ? partial.passwordSalt : "",
@@ -482,7 +502,7 @@ function createAccountRow(app, partial) {
 function createSession(app, account, deviceId) {
   const now = Date.now();
   const record = new Record(app.findCollectionByNameOrId("authSessions"), {
-    token: logic.randomHex(logic.SESSION_TOKEN_BYTES),
+    token: secureRandomHex(logic.SESSION_TOKEN_BYTES),
     accountId: account.get("id"),
     deviceId: logic.validDeviceId(deviceId) ? deviceId : "",
     createdAt: now,
@@ -555,7 +575,7 @@ function handleAuthRegister(app, body) {
   if (logic.writeBudgetExceeded((recentWriteEvents(app, body.deviceId) || []).length)) {
     return tooManyRequests();
   }
-  const salt = logic.randomHex(logic.PASSWORD_SALT_BYTES);
+  const salt = secureRandomHex(logic.PASSWORD_SALT_BYTES);
   const account = createAccountRow(app, {
     email: v.value.email,
     passwordHash: logic.hashPassword(v.value.password, salt, sha256hex),
@@ -639,7 +659,7 @@ function handleAuthSetPassword(app, body) {
   if (logic.writeBudgetExceeded((recentWriteEvents(app, body.deviceId) || []).length)) {
     return tooManyRequests();
   }
-  const salt = logic.randomHex(logic.PASSWORD_SALT_BYTES);
+  const salt = secureRandomHex(logic.PASSWORD_SALT_BYTES);
   account.set("passwordHash", logic.hashPassword(body.password, salt, sha256hex));
   account.set("passwordSalt", salt);
   app.save(account);
@@ -783,4 +803,4 @@ function run(e, path, handlerName) {
   }
 }
 
-module.exports = { handlers: handlers, run: run };
+module.exports = { handlers: handlers, run: run, secureRandomHex: secureRandomHex };

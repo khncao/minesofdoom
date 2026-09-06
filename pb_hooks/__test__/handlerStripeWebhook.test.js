@@ -90,6 +90,15 @@ function loadHandlers(env) {
   globalThis.Record = FakeRecord;
   globalThis.$security = {
     sha256: (s) => crypto.createHash("sha256").update(s).digest("hex"),
+    // Mirror the real goja runtime's CSPRNG helper so any session/account the
+    // handler mints uses the same path as production (docs/security-audit.md
+    // S1). node:crypto-backed, alphabet-respecting.
+    randomStringWithAlphabet: (length, alphabet) => {
+      const buf = crypto.randomBytes(length);
+      let out = "";
+      for (let i = 0; i < length; i++) out += alphabet[buf[i] % alphabet.length];
+      return out;
+    },
   };
   const lib = require("../handlerLib");
   const restore = () => {

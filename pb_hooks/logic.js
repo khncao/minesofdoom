@@ -365,9 +365,11 @@ function verifyPassword(password, stored, sha256) {
 
 /**
  * Random hex of `byteCount` bytes. `rand` is injectable (0..1) so tests
- * are deterministic; the default is Math.random (adequate for opaque
- * tokens — not a CSPRNG, but the tokens are single-purpose and the
- * collections are private).
+ * are deterministic; the default is Math.random — a PRNG, NOT a CSPRNG.
+ * Do NOT use this for security-critical material: handlerLib.js mints
+ * session tokens / password salts / account ids through secureRandomHex
+ * ($security.randomStringWithAlphabet, crypto/rand-backed) instead
+ * (docs/security-audit.md S1). This is the pure, test-friendly fallback.
  */
 function randomHex(byteCount, rand) {
   const r = typeof rand === "function" ? rand : Math.random;
