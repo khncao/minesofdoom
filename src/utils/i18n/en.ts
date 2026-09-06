@@ -183,7 +183,6 @@ export const en = {
   "menu.settings": "⚙️ Settings",
   "menu.save": "💾 Save",
   "menu.account": "👤 Account",
-  "menu.shop": "🛍️ Shop",
   "menu.goals": "🎯 Goals",
   "menu.records": "📊 Records",
   "menu.about": "ℹ️ About",
@@ -363,19 +362,10 @@ export const en = {
     "it; a fresh record starts on the next open.",
   "settings.crash": "Recent errors (debug)",
 
-  // --- Cosmetics ------------------------------------------------------------
-  "cosmetics.header": "Cosmetics",
+  // --- Cosmetics (the unified shop — see the iap.* block) --------------
   "cosmetics.reroll": "🎲 Reroll look",
-  "cosmetics.outfits": "Outfits (randomized colors per reroll)",
-  "cosmetics.pickaxes": "Pickaxes",
-  "cosmetics.themes": "Cave themes",
   "cosmetics.themesLocked": "🔒 Cave themes (Crystal Kingdom)",
   "cosmetics.themesUnlockedAt": "Unlocks at Crystal Kingdom",
-  "cosmetics.owned": "Owned",
-  "cosmetics.a11ySelected": "selected",
-  "cosmetics.a11yOwned": "owned",
-  "cosmetics.a11yGems": "{count} gems",
-  "cosmetics.a11yTheme": "Cave theme {name}, {state}",
 
   // --- Goals ----------------------------------------------------------------
   "goals.unlocks": "Unlocks: {unlock} · Bonus: {bonus} 🪨",
@@ -418,11 +408,12 @@ export const en = {
   "ads.watching": "Playing…",
   "ads.watch": "Watch",
 
-  // --- IAP panel -------------------------------------------------------------------
-  "iap.a11y": "Purchases",
+  // --- IAP panel (the unified shop: gem buys + one-time purchases) --------------
+  "iap.a11y": "Shop",
   "iap.title":
-    "🛍️ One-time purchases — all optional. The game is fully free and " +
-    "completable without any of them.",
+    "🛍️ Shop — buy cosmetics with gems, or unlock them for good with a " +
+    "one-time purchase. All optional: the game stays fully free and " +
+    "completable without any of it.",
   "iap.devSim":
     "⚠️ Development build: purchases are simulated and no money is " +
     "involved.",
@@ -438,8 +429,8 @@ export const en = {
   "iap.groupPickaxes": "Pickaxes",
   "iap.groupOutfits": "Outfits",
   "iap.groupThemes": "Cave themes",
-  "iap.owned": "Owned",
-  "iap.buy": "Buy",
+  "iap.equip": "Equip",
+  "iap.equipped": "✓ Equipped",
   "iap.restore": "📦 Restore purchases",
   "iap.restoreDetail":
     "Re-apply the past store purchases on this device.",

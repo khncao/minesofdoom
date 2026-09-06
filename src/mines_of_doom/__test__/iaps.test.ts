@@ -11,6 +11,8 @@ import {
   grantIapEntitlement,
   hasIapEntitlement,
   iapGrantCosmeticIds,
+  isIapProductEquipped,
+  isIapProductOwned,
   mergeIapEntitlements,
   noopIapProvider,
   pickIapProvider,
@@ -358,5 +360,40 @@ describe("provider selection (the swap point, pure)", () => {
     // not built yet).
     expect(isPocketbaseConfigured()).toBe(true);
     expect(selectIapProvider(false)).toBe(storeIapProvider);
+  });
+});
+
+describe("unified shop rows (isIapProductOwned / isIapProductEquipped)", () => {
+  it("a product is owned via the device entitlement (a cash pack)", () => {
+    const e = grantIapEntitlement(emptyIapEntitlements(), "packGold");
+    expect(isIapProductOwned("packGold", e, [])).toBe(true);
+    // A NOT-entitled product stays unowned even with an empty save.
+    expect(isIapProductOwned("packShadow", e, [])).toBe(false);
+  });
+
+  it("a product is owned via the save (a gem buy or an imported save)", () => {
+    const e = emptyIapEntitlements();
+    expect(isIapProductOwned("packShadow", e, ["shadow"])).toBe(true);
+    expect(isIapProductOwned("packAmethyst", e, ["amethyst"])).toBe(true);
+    expect(isIapProductOwned("packGold", e, ["shadow"])).toBe(false);
+  });
+
+  it("equipped tracks the save's selected outfit/pickaxe/theme", () => {
+    // Default selections: classic outfit, steel pickaxe, natural theme.
+    expect(
+      isIapProductEquipped("packGold", "classic", "gold", "natural"),
+    ).toBe(true);
+    expect(
+      isIapProductEquipped("packShadow", "classic", "gold", "natural"),
+    ).toBe(false);
+    expect(
+      isIapProductEquipped("packCrystal", "crystal", "steel", "natural"),
+    ).toBe(true);
+    expect(
+      isIapProductEquipped("packAmethyst", "classic", "steel", "amethyst"),
+    ).toBe(true);
+    expect(
+      isIapProductEquipped("packAmethyst", "classic", "steel", "natural"),
+    ).toBe(false);
   });
 });

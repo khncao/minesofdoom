@@ -514,6 +514,40 @@ export function hasIapEntitlement(
   return entitlements[id] === true;
 }
 
+/**
+ * Shop-row ownership (the unified shop, todo: "move gem shop cosmetics to
+ * one time purchase shop"): a product reads as owned when this device is
+ * entitled to the pack (a validated store purchase) OR the current save
+ * already owns the granted cosmetic from any source (a gem buy, a pack,
+ * an imported save). The save is the source of truth for what the player
+ * can equip, so both paths count.
+ */
+export function isIapProductOwned(
+  productId: IapProductId,
+  entitlements: IapEntitlements,
+  saveOwnedCosmeticIds: readonly string[],
+): boolean {
+  if (hasIapEntitlement(entitlements, productId)) return true;
+  const grant = IAP_PACK_GRANTS[productId];
+  return grant != null && saveOwnedCosmeticIds.includes(grant.id);
+}
+
+/**
+ * Shop-row equipped state: the granted cosmetic is the one the save
+ * currently has selected (outfit / pickaxe / cave theme).
+ */
+export function isIapProductEquipped(
+  productId: IapProductId,
+  selectedOutfit: string,
+  selectedPickaxe: string,
+  selectedCaveTheme: string,
+): boolean {
+  const grant = IAP_PACK_GRANTS[productId];
+  if (grant.kind === "caveTheme") return selectedCaveTheme === grant.id;
+  if (isOutfitId(grant.id)) return selectedOutfit === grant.id;
+  return selectedPickaxe === grant.id;
+}
+
 /** The persisted state after a validated purchase of `id` (pure). */
 export function grantIapEntitlement(
   entitlements: IapEntitlements,

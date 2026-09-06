@@ -29,7 +29,8 @@ appId: com.minus4kelvin.minesofdoom
 
 # The upgrades drawer (side overlay on the canvas) is hidden by default;
 # the floating ⛏ button over the cave opens it (single view since the
-# shop tab moved to the menu sheet); both core currency groups then
+# cosmetics shop moved to the standalone 🛍️ shop panel on the footer);
+# both core currency groups then
 # render (the mineral-spend button and the gem-spend button are always
 # visible).
 - tapOn:

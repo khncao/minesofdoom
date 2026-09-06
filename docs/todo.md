@@ -29,7 +29,7 @@ Completed items are removed from this file (see git history); only remaining wor
     `legalDocs.test.ts`) both **fixed this iteration** and tested.
     Only open follow-up: S6 (kid-safety/age rating — external store check).
 - [ ] harden pocketbase and the server it's running on following industry standards
-- [ ] move gem shop cosmetics to one time purchase shop with gem and cash buy options
 - [ ] use keyboard avoiding views to ensure inputs aren't covered by keyboard (such as in settings)
+- [ ] upgrades panel should show on top of keypad
 
 - [ ] IAP — test purchase → entitlement → wipe local key → restore. use mines-play-35 avd

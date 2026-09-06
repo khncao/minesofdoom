@@ -86,8 +86,8 @@ import { selectAdProvider, COMBO_SAVE_WINDOW_MS, type AdKind } from "./ads";
 import { useIap } from "./hooks/useIap";
 import {
   IapProductId,
+  IAP_PACK_GRANTS,
   IAP_PRODUCTS,
-  hasIapEntitlement,
   iapGrantCosmeticIds,
   selectIapProvider,
 } from "./iaps";
@@ -119,9 +119,11 @@ export default function MinesOfDoom() {
   );
 
   // The upgrades side drawer (todo: "upgrades menu as a side hidden
-  // overlay on the canvas") holds the purchase list ONLY — the gem
+  // overlay on the canvas") holds the purchase list ONLY — the
   // cosmetics shop is NOT a tab here (todo: "No shop next to upgrades
-  // menu"); it lives in the menu sheet's Shop view (MenuPanel). The
+  // menu"); it lives in the standalone 🛍️ shop panel (IapPanel — gem
+  // AND one-time cash buys, todo: "move gem shop cosmetics to one time
+  // purchase shop with gem and cash buy options"). The
   // keypad is likewise not in the drawer: when keypad mode is on it
   // lives in its own bottom strip (the core-loop input, always
   // reachable), when off the OS keyboard handles answers and there is
@@ -304,44 +306,6 @@ export default function MinesOfDoom() {
       fastMinerUnlocked,
       legendaryMinerUnlocked,
       prestigeUnlocked,
-    ],
-  );
-
-  // Cosmetics prop bundle (the shop tab): only changes on
-  // buy/select/reroll/gem-change, never on the per-second tick (memo
-  // keeps the shop tab quiet — the section itself is memoized on it).
-  const cosmetics = useMemo(
-    () => ({
-      gems: gameState.gems,
-      playerSeed: gameState.playerSeed,
-      ownedCosmetics: gameState.ownedCosmetics,
-      selectedOutfit: gameState.selectedOutfit,
-      selectedPickaxe: gameState.selectedPickaxe,
-      onBuy: buyCosmetic,
-      onSelect: selectCosmetic,
-      onReroll: rerollPlayerSeed,
-      caveThemesUnlocked: gameState.completedTiers.includes(
-        CAVE_THEME_UNLOCK_TIER,
-      ),
-      ownedCaveThemes: gameState.ownedCaveThemes,
-      selectedCaveTheme: gameState.selectedCaveTheme,
-      onBuyCaveTheme: buyCaveTheme,
-      onSelectCaveTheme: selectCaveTheme,
-    }),
-    [
-      gameState.gems,
-      gameState.playerSeed,
-      gameState.ownedCosmetics,
-      gameState.selectedOutfit,
-      gameState.selectedPickaxe,
-      gameState.completedTiers,
-      gameState.ownedCaveThemes,
-      gameState.selectedCaveTheme,
-      buyCosmetic,
-      selectCosmetic,
-      rerollPlayerSeed,
-      buyCaveTheme,
-      selectCaveTheme,
     ],
   );
 
@@ -999,17 +963,10 @@ export default function MinesOfDoom() {
     gameState.ownedCaveThemes,
   ]);
 
-  // IapPanel "Owned" states: entitled pack ids (device-local) and the
-  // cosmetic ids the current save already owns from any source (gems or a
-  // pack). Both are ref-stable across ticks, so the memoized panel's
-  // props only churn on real ownership changes.
-  const iapOwnedPackIds = useMemo(
-    () =>
-      (Object.keys(IAP_PRODUCTS) as IapProductId[]).filter((id) =>
-        hasIapEntitlement(iap.entitlements, id),
-      ),
-    [iap.entitlements],
-  );
+  // The save's owned cosmetic ids (any source: gems, a pack, an import):
+  // the panel's owned/equip rows join this with the device entitlements
+  // (isIapProductOwned). Ref-stable across ticks, so the memoized
+  // panel's props only churn on real ownership changes.
   const saveOwnedCosmeticIds = useMemo(
     () => [...gameState.ownedCosmetics, ...gameState.ownedCaveThemes],
     [gameState.ownedCosmetics, gameState.ownedCaveThemes],
@@ -1051,6 +1008,26 @@ export default function MinesOfDoom() {
     noteCrashEvent("iap restore");
     iapRestore();
   }, [iapRestore]);
+  // Unified-shop gem buy (todo: "move gem shop cosmetics to one time
+  // purchase shop"): the pack's grant decides the engine action; both are
+  // idempotent no-ops when unaffordable / already owned. Stable callbacks
+  // so the memoized panel's props don't churn.
+  const handleShopBuyGems = useCallback(
+    (id: IapProductId) => {
+      const grant = IAP_PACK_GRANTS[id];
+      if (grant.kind === "caveTheme") buyCaveTheme(grant.id);
+      else buyCosmetic(grant.id);
+    },
+    [buyCosmetic, buyCaveTheme],
+  );
+  const handleShopSelect = useCallback(
+    (id: IapProductId) => {
+      const grant = IAP_PACK_GRANTS[id];
+      if (grant.kind === "caveTheme") selectCaveTheme(grant.id);
+      else selectCosmetic(grant.id);
+    },
+    [selectCosmetic, selectCaveTheme],
+  );
   const handleReset = useCallback(() => {
     noteCrashEvent("reset");
     resetGame();
@@ -1110,7 +1087,6 @@ export default function MinesOfDoom() {
             onClearAnalytics={onClearAnalytics}
             cloudSave={cloudSaveSettings}
             account={accountSettings}
-            cosmetics={cosmetics}
           />
           <SavePill
             dirty={saveDirty}
@@ -1149,22 +1125,37 @@ export default function MinesOfDoom() {
               onClaim={handleAdClaim}
             />
           )}
-          {iap.available && (
-            <IapPanel
-              isDevSim={iapProvider.id === "dev-sim"}
-              isDevBuild={__DEV__}
-              realStoreIap={realStoreIap}
-              onRealStoreChange={
-                Platform.OS !== "web" ? setRealStoreIap : undefined
-              }
-              purchasing={iap.purchasing}
-              restoring={iap.restoring}
-              ownedPackIds={iapOwnedPackIds}
-              saveOwnedCosmeticIds={saveOwnedCosmeticIds}
-              onPurchase={handleIapPurchase}
-              onRestore={handleIapRestore}
-            />
-          )}
+          {/* The unified shop (todo: "move gem shop cosmetics to one
+              time purchase shop with gem and cash buy options") renders
+              ALWAYS — the gem buy is the universal path (guardrail 1);
+              only the cash extras inside it are gated on
+              iap.available (the provider's availability). */}
+          <IapPanel
+            isDevSim={iapProvider.id === "dev-sim"}
+            isDevBuild={__DEV__}
+            realStoreIap={realStoreIap}
+            onRealStoreChange={
+              Platform.OS !== "web" ? setRealStoreIap : undefined
+            }
+            cashAvailable={iap.available}
+            gems={gameState.gems}
+            playerSeed={gameState.playerSeed}
+            selectedOutfit={gameState.selectedOutfit}
+            selectedPickaxe={gameState.selectedPickaxe}
+            selectedCaveTheme={gameState.selectedCaveTheme}
+            purchasing={iap.purchasing}
+            restoring={iap.restoring}
+            entitlements={iap.entitlements}
+            saveOwnedCosmeticIds={saveOwnedCosmeticIds}
+            themesLocked={
+              !gameState.completedTiers.includes(CAVE_THEME_UNLOCK_TIER)
+            }
+            onBuyGems={handleShopBuyGems}
+            onPurchase={handleIapPurchase}
+            onSelect={handleShopSelect}
+            onReroll={rerollPlayerSeed}
+            onRestore={handleIapRestore}
+          />
         </View>
         <DepthBanner
           depth={depth}

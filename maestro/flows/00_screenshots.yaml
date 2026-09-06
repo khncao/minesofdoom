@@ -49,7 +49,8 @@ appId: com.minus4kelvin.minesofdoom
 
 # State 3/4 — the upgrades drawer. The side overlay on the canvas is
 # hidden by default; the floating ⛏ button over the cave opens it
-# (single view since the shop tab moved to the menu sheet's Shop view);
+# (single view since the cosmetics shop moved to the standalone 🛍️
+# shop panel on the footer);
 # asserting a buy button proves the drawer is actually rendered.
 - tapOn:
     id: upgrades-toggle

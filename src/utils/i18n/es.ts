@@ -169,7 +169,6 @@ export const es: Record<TranslationKey, string> = {
   "menu.settings": "⚙️ Ajustes",
   "menu.save": "💾 Guardado",
   "menu.account": "👤 Cuenta",
-  "menu.shop": "🛍️ Tienda",
   "menu.goals": "🎯 Objetivos",
   "menu.records": "📊 Récords",
   "menu.about": "ℹ️ Información",
@@ -357,19 +356,10 @@ export const es: Record<TranslationKey, string> = {
     "Borrar lo elimina; un registro nuevo empieza en la próxima apertura.",
   "settings.crash": "Errores recientes (dep.)",
 
-  // --- Cosmetics ------------------------------------------------------------
-  "cosmetics.header": "Cosméticos",
+  // --- Cosmetics (la tienda unificada — ver el bloque iap.*) -------------
   "cosmetics.reroll": "🎲 Nuevo aspecto",
-  "cosmetics.outfits": "Ropas (colores aleatorios por cada cambio)",
-  "cosmetics.pickaxes": "Picos",
-  "cosmetics.themes": "Temas de cueva",
   "cosmetics.themesLocked": "🔒 Temas de cueva (Crystal Kingdom)",
   "cosmetics.themesUnlockedAt": "Se desbloquea en Crystal Kingdom",
-  "cosmetics.owned": "Obtenido",
-  "cosmetics.a11ySelected": "seleccionado",
-  "cosmetics.a11yOwned": "obtenido",
-  "cosmetics.a11yGems": "{count} gemas",
-  "cosmetics.a11yTheme": "Tema de cueva {name}, {state}",
 
   // --- Goals ----------------------------------------------------------------
   "goals.unlocks":
@@ -416,11 +406,12 @@ export const es: Record<TranslationKey, string> = {
   "ads.watching": "Reproduciendo…",
   "ads.watch": "Ver",
 
-  // --- IAP panel -------------------------------------------------------------------
-  "iap.a11y": "Compras",
+  // --- IAP panel (la tienda unificada: gemas + compras únicas) ------------------
+  "iap.a11y": "Tienda",
   "iap.title":
-    "🛍️ Compras únicas — todas opcionales. El juego es totalmente gratis y " +
-    "completable sin ninguna de ellas.",
+    "🛍️ Tienda — compra cosméticos con gemas, o desbloquelos de forma " +
+    "permanente con una compra única. Todo opcional: el juego sigue " +
+    "siendo totalmente gratis y jugable sin nada de esto.",
   "iap.devSim":
     "⚠️ Compilación de desarrollo: las compras son simuladas y no hay " +
     "dinero de por medio.",
@@ -437,8 +428,8 @@ export const es: Record<TranslationKey, string> = {
   "iap.groupPickaxes": "Picos",
   "iap.groupOutfits": "Trajes",
   "iap.groupThemes": "Temas de cueva",
-  "iap.owned": "Obtenido",
-  "iap.buy": "Comprar",
+  "iap.equip": "Equipar",
+  "iap.equipped": "✓ Equipado",
   "iap.restore": "📦 Restaurar compras",
   "iap.restoreDetail":
     "Vuelve a aplicar las compras anteriores de la tienda en este dispositivo.",
