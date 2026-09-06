@@ -7,7 +7,7 @@
 //   node scripts/run-android-avd.mjs --stop  kill every running emulator
 //
 // The AVD names match the ones on this machine (`emulator -list-avds`):
-//   Pixel_3a_API_34_extension_level_7_x86_64  (phone)
+//   mines-play-35                             (phone, API 35 + Google APIs)
 //   MinesTablet7                               (7" tablet)
 //   MinesTablet10                              (10" tablet)
 // Stopping the task only stops Metro/gradle — the emulator keeps running

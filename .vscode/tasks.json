@@ -26,11 +26,11 @@
         {
             // Boots the phone AVD headless (if not already running), waits for
             // boot, then `npm run android -- -d <serial>`.
-            "label": "Android: run on phone (Pixel 3a API 34)",
+            "label": "Android: run on phone (mines-play-35)",
             "detail": "scripts/run-android-avd.mjs — boot AVD + expo run:android on it",
             "type": "process",
             "command": "node",
-            "args": ["scripts/run-android-avd.mjs", "Pixel_3a_API_34_extension_level_7_x86_64"],
+            "args": ["scripts/run-android-avd.mjs", "mines-play-35"],
             "problemMatcher": [],
             "presentation": { "reveal": "always", "panel": "dedicated" }
         },
