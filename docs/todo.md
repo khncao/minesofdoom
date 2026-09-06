@@ -13,7 +13,6 @@ Completed items are removed from this file (see git history); only remaining wor
 
 - [ ] IAP — test purchase → entitlement → wipe local key → restore.
 
-- [ ] Make sure all screens with inputs have keyboard avoiding views
 
 - [ ] Main screen move upgrades button floating somewhere over the canvas out of the way
 - [ ] No shop next to upgrades menu--shop items should be options to buy with gems in cosmetics shop

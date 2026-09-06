@@ -154,6 +154,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: "rgba(0,0,0,0.5)",
   },
+  // KEYBOARD NOTE (todo "keyboard avoiding views" audit): the sheets are
+  // intentionally NOT wrapped in a KeyboardAvoidingView. On Android the
+  // manifest's adjustResize and on iOS RN's default root resize shrink
+  // the window when the keyboard shows, and this bottom-pinned sheet
+  // re-lays-out on top of the keyboard (focused fields in the scrollable
+  // sheet scroll into view — RN does that for TextInputs in ScrollViews).
+  // A KAV here would DOUBLE-avoid (shift by the keyboard height AGAIN).
+  // The one surface that needs its own KAV is AnswerInput (game screen,
+  // not a modal) — it carries it. Web has no OS keyboard.
+  //
   // Opaque sheet pinned to the bottom edge, full width. The paddingBottom
   // floor (20) is overridden by the caller with the safe-inset-aware
   // value (see the sheet style array) — kept here as the web/no-bar case.
