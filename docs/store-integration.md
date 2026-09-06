@@ -402,10 +402,15 @@ asking Stripe, so a client can never self-grant):
    AND `metadata.mdoomDeviceId` matches the caller (device binding —
    a session id can't be replayed from another device).
 2. **Webhook (backup).** Stripe delivers
-   `checkout.session.completed` to `/api/app/stripe/webhook` on
-   Pocketbase. That route is **unauthenticated by design**: the event
-   body is an untrusted hint, and the ONLY mint gate is the same
-   sidecar Stripe-API lookup. It's idempotent on the Stripe event id
+   `checkout.session.completed` to the sidecar's `/stripe/webhook`
+   (Caddy fronts the public Pocketbase URL at that path). The sidecar is
+   the one place that still has the **raw** body, so it verifies
+   `Stripe-Signature` there (HMAC-SHA256, ±5-minute tolerance) and only
+   then forwards the untouched event to Pocketbase's
+   `/api/app/stripe/webhook` with the `x-mdoom-key` shared key — that
+   route 403s anything else while `MDOOM_SIDECAR_SECRET` is configured.
+   The event body remains an untrusted hint: the ONLY mint gate is the
+   same sidecar Stripe-API lookup. It's idempotent on the Stripe event id
    (dedup row in the `events` collection, `kind="stripe-event"`). This
    path covers the player who pays on Stripe but never completes the
    browser redirect back.
@@ -421,14 +426,20 @@ started") from ever being mistaken for a confirmed payment.
    of the §2.1 table (same display names, same tiers). Note each
    `price_…` id. (No subscriptions — the catalog is one-time packs.)
 2. **Webhook:** add an endpoint at
-   `https://minesofdoom.minus4kelvin.com/api/app/stripe/webhook` and
-   subscribe it to `checkout.session.completed` only. (No `pk_`/`sk_`
-   goes here — Stripe signs deliveries but we do not need the signing
-   secret, because the mint gate is the sidecar's own Stripe-API
-   lookup, not the webhook payload.)
+   `https://minesofdoom.minus4kelvin.com/stripe/webhook` (the sidecar
+   port, fronted by Caddy at the public Pocketbase URL — see
+   `docs/pocketbase-plan.md`) and subscribe it to
+   `checkout.session.completed` only. Copy its `whsec_…` signing secret.
+   (`pk_`/`sk_` never go in the URL; the `whsec_…` is a server credential
+   the sidecar keeps — it is the S2 fix, `docs/security-audit.md`.)
 3. **Sidecar env** (VPS, never in the repo): `STRIPE_SECRET_KEY=
-   sk_…`. Optional `STRIPE_API_VERSION` to pin an API version (empty =
-   account default). `/healthz` then reports `configured.web: true`.
+   sk_…` (the Checkout session lookup), `STRIPE_WEBHOOK_SECRET=
+   whsec_…` (the `/stripe/webhook` signature check), `MDOOM_PB_URL=`
+   the internal Pocketbase base URL (where the verified event is
+   forwarded with the shared key). Optional `STRIPE_API_VERSION` to pin
+   an API version (empty = account default). `/healthz` then reports
+   `configured.web: true` + `stripeWebhook: { signature: true,
+   pocketbase: true }`.
 4. **`storeConfig.ts`:** set `stripe.publishableKey = "pk_…"` and fill
    `stripe.prices` with every catalog id → `price_…` (all-or-nothing —
    `isStripeConfigured` keeps the whole web shop hidden until every

@@ -81,7 +81,7 @@ function makeApp() {
 function loadHandlers(env) {
   jest.resetModules();
   const saved = {};
-  for (const key of ["MDOOM_DEV_FAKE_TOKEN", "MDOOM_SIDECAR_URL"]) {
+  for (const key of ["MDOOM_DEV_FAKE_TOKEN", "MDOOM_SIDECAR_URL", "MDOOM_SIDECAR_SECRET"]) {
     saved[key] = process.env[key];
     if (env[key] === undefined) delete process.env[key];
     else process.env[key] = env[key];
@@ -200,6 +200,68 @@ describe("handleStripeWebhook (fail-closed verify mode)", () => {
       // sidecar is healthy) can still mint — a refused verify must not
       // poison the dedup marker.
       expect(app.rows.events).toHaveLength(0);
+    } finally {
+      restore();
+    }
+  });
+});
+
+/**
+ * The trusted-source gate (docs/security-audit.md S2): when
+ * MDOOM_SIDECAR_SECRET is configured (the public deployment sets it for
+ * the /verify round-trips), the webhook route only answers to the sidecar's
+ * x-mdoom-key header. The sidecar is the component that verified
+ * Stripe-Signature over the raw body before forwarding.
+ */
+describe("handleStripeWebhook trusted-source gate (S2)", () => {
+  let lib;
+  let app;
+  const handler = (headers) => lib.handlers["stripe/webhook"](app, EVENT, headers);
+
+  beforeEach(() => {
+    ({ lib } = loadHandlers({ MDOOM_DEV_FAKE_TOKEN: "1", MDOOM_SIDECAR_SECRET: "shared-key" }));
+    app = makeApp();
+  });
+
+  test("the sidecar's key mints (production path)", () => {
+    const res = handler({ "x-mdoom-key": "shared-key" });
+    expect(res.status).toBe(200);
+    expect(res.json.processed).toBe(true);
+    expect(app.rows.entitlements).toHaveLength(1);
+  });
+
+  test("the key header arrives canonical-cased (X-Mdoom-Key) and still passes", () => {
+    const res = handler({ "X-Mdoom-Key": "shared-key" });
+    expect(res.status).toBe(200);
+    expect(app.rows.entitlements).toHaveLength(1);
+  });
+
+  test("a missing header is a 403 and mints nothing", () => {
+    const res = handler(undefined);
+    expect(res.status).toBe(403);
+    expect(res.json.error).toBe("untrusted webhook source");
+    expect(app.rows.entitlements).toHaveLength(0);
+    expect(app.rows.events).toHaveLength(0);
+  });
+
+  test("a wrong key is a 403 and mints nothing", () => {
+    const res = handler({ "x-mdoom-key": "not-the-key" });
+    expect(res.status).toBe(403);
+    expect(app.rows.entitlements).toHaveLength(0);
+  });
+
+  test("an empty-string key is a 403 (empty is not the key)", () => {
+    const res = handler({ "x-mdoom-key": "" });
+    expect(res.status).toBe(403);
+  });
+
+  test("with the secret UNSET the legacy path works with no header (sandbox)", () => {
+    const { lib: legacy, restore } = loadHandlers({ MDOOM_DEV_FAKE_TOKEN: "1" });
+    try {
+      const app2 = makeApp();
+      const res = legacy.handlers["stripe/webhook"](app2, EVENT, undefined);
+      expect(res.status).toBe(200);
+      expect(res.json.processed).toBe(true);
     } finally {
       restore();
     }

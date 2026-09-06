@@ -22,11 +22,16 @@
  *   /api/app/restore             → { entitlements: [storeId…] }
  *   /api/app/stripe/webhook      → { processed: bool }   // Stripe
  *                                // checkout.session.completed delivery.
- *                                // UNAUTHENTICATED by design: the event
- *                                // body is an untrusted hint, the only
- *                                // mint gate is the sidecar's Stripe-API
- *                                // lookup (see handleStripeWebhook).
- *                                // Idempotent on the Stripe event id.
+ *                                // Fronted by the sidecar, which verifies
+ *                                // the Stripe-Signature HMAC over the raw
+ *                                // body and forwards with x-mdoom-key
+ *                                // (= MDOOM_SIDECAR_SECRET); the route
+ *                                // 403s anything else while the secret is
+ *                                // configured. The body is still only an
+ *                                // untrusted HINT — the mint gate is the
+ *                                // sidecar's Stripe-API lookup (see
+ *                                // handleStripeWebhook). Idempotent on the
+ *                                // Stripe event id.
  *   /api/app/cloud/push          → { updatedAt }   // the STORED value
  *   /api/app/cloud/pull          → { snapshot: {…} | null }
  *   /api/app/leaderboard/submit  → { ok: true }

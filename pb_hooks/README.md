@@ -25,7 +25,7 @@ so the server caps can't drift).
 |---|---|---|
 | `/api/app/verify` | `{ deviceId, platform, productId, token }` (`productId` = internal id; for `platform:"web"` the token is the Stripe Checkout session id and `deviceId` is REQUIRED — device binding, see Store verification) | `{ entitlements: [storeId…] }` |
 | `/api/app/restore` | `{ deviceId }` | `{ entitlements: [storeId…] }` |
-| `/api/app/stripe/webhook` | Stripe's `checkout.session.completed` delivery (parsed JSON) | `{ processed: true }` — or a 4xx when the event shape is wrong. **Unauthenticated by design**: the body is an untrusted hint, the only mint gate is the sidecar's Stripe-API lookup (see Store verification). Idempotent on the event id (dedup row in `events`, `kind="stripe-event"`). |
+| `/api/app/stripe/webhook` | Stripe's `checkout.session.completed` delivery (parsed JSON), forwarded by the sidecar after it verified `Stripe-Signature` over the raw body (see Store verification) | `{ processed: true }` — or a 4xx when the event shape is wrong. **Gated on the shared key**: with `MDOOM_SIDECAR_SECRET` configured, the request must carry it in `x-mdoom-key` (the sidecar's signature-verified forward does; anything else is a 403 before anything else). The body is still only an untrusted hint — the only mint gate is the sidecar's Stripe-API lookup. Idempotent on the event id (dedup row in `events`, `kind="stripe-event"`). |
 | `/api/app/cloud/push` | `{ deviceId, blob, saveVersion, updatedAt }` | `{ updatedAt }` (the STORED value — last-write-wins) |
 | `/api/app/cloud/pull` | `{ deviceId }` | `{ snapshot: { blob, saveVersion, updatedAt } \| null }` |
 | `/api/app/leaderboard/submit` | `{ deviceId, displayName, bestDepth, maxCombo, lifetimeMinerals, achievementIds }` | `{ ok: true }` (monotonic per-field max) |
@@ -84,9 +84,12 @@ optional `accountId` (the login backfill target).
   (fake-token sandbox / sidecar / fail closed).
 - `sidecar/` — the verification sidecar (plain Node, zero deps, `node
   sidecar/server.js`): `verify.js` (pure, fetch-injectables — signs the RS256/ES256
-  JWTs the goja runtime can't, calls Play/Apple, and does the Stripe Checkout
-  session lookup for web) and `server.js` (the tiny
-  HTTP front: `GET /healthz`, `POST /verify`, `POST /identity`).
+  JWTs the goja runtime can't, calls Play/Apple, does the Stripe Checkout
+  session lookup for web, and verifies Stripe's `Stripe-Signature` webhook
+  HMAC over the raw body) and `server.js` (the tiny HTTP front:
+  `GET /healthz`, `POST /verify`, `POST /identity`, and
+  `POST /stripe/webhook` — Stripe's `checkout.session.completed` delivery,
+  signature-verified, then forwarded to Pocketbase with the shared key).
 - `__test__/identityVerify.test.js` — Pocketbase-side identity (sandbox /
   fail-closed / sidecar) against the pinned `$http` contract.
 - `__test__/logic.test.js` — pure-logic jest unit tests (app suite).
@@ -98,6 +101,13 @@ optional `accountId` (the login backfill target).
 - `__test__/verifySidecar.stripe.test.js` — sidecar web/Stripe flows with
   scripted fetches (paid/unpaid, product + device binding, fail-closed when
   the key is absent).
+- `__test__/stripeWebhookSignature.test.js` — the pure
+  `verifyStripeWebhookSignature` (HMAC accept / tamper / wrong secret / missing
+  header+timestamp / ±5-minute tolerance / multi-`v1` headers).
+- `__test__/sidecarWebhookRoute.test.js` — the live `/stripe/webhook` HTTP
+  route against a scripted fake Pocketbase (unconfigured refuses, bad
+  signature refuses and never forwards, a valid one forwards the exact bytes
+  with the shared key; upstream 2xx/4xx/5xx pass-through semantics).
 - `__test__/handlerStripeWebhook.test.js` — the `stripe/webhook` handler
   end-to-end (sandbox mint + event-id idempotency; fail-closed mode refuses
   AND leaves the event unrecorded so a retry can still mint).
@@ -162,13 +172,18 @@ inside a handler**, and not shared between pooled VMs. Rules this code follows:
 - Server-side-only secrets: the Play service-account JSON, the Apple env
   selection, and the Stripe `sk_` secret key live in container env vars,
   **never in the app bundle** (web carries only the public `pk_` key).
-- Web (Stripe) is mint-gated the same way: the `/api/app/stripe/webhook`
-  route is unauthenticated on purpose (Stripe delivers to it without a
-  shared secret we're willing to embed), so the ONLY thing that mints is
-  the sidecar's Stripe-API `payment_status == "paid"` lookup with the
-  `sk_` key, plus a product + device metadata match. The webhook payload
-  is treated as an untrusted hint, and the device binding makes a
-  session id a single-device receipt (no cross-browser replay).
+- Web (Stripe) is mint-gated the same way: Stripe delivers
+  `checkout.session.completed` to the sidecar's `/stripe/webhook` (Caddy
+  fronts the public Pocketbase URL), the sidecar verifies the
+  `Stripe-Signature` HMAC over the raw body (the one place that still has
+  the raw bytes — goja can't re-read them) and only then forwards the
+  untouched event to `/api/app/stripe/webhook` with the `x-mdoom-key`
+  shared key, which that route now requires when `MDOOM_SIDECAR_SECRET` is
+  configured. The ONLY thing that mints is still the sidecar's Stripe-API
+  `payment_status == "paid"` lookup with the `sk_` key, plus a product +
+  device metadata match. The webhook payload is an untrusted hint either
+  way, and the device binding makes a session id a single-device receipt
+  (no cross-browser replay).
 - Raw receipt tokens are never stored (sha256 hash only).
 - Caps: cloud blob ≤16KB, `saveVersion` ≤ the app's current version
   (newer = rejected), leaderboard stats below sanity caps (above = dropped,
@@ -199,10 +214,15 @@ inside a handler**, and not shared between pooled VMs. Rules this code follows:
   `STRIPE_SECRET_KEY` the sidecar reports web "not configured" → fail
   closed, exactly like the other platforms. Web verification is fed by two
   idempotent paths: the client's return-visit verify (`/api/app/verify`,
-  primary) and the `/api/app/stripe/webhook` backup (Stripe's
-  `checkout.session.completed` delivery, unauthenticated on purpose —
-  the mint gate is the same sidecar Stripe-API lookup, never the webhook
-  payload; dedup on the event id).
+  primary) and the webhook backup — Stripe's `checkout.session.completed`
+  delivery lands on the **sidecar's** `/stripe/webhook` (Caddy fronts the
+  public Pocketbase URL there), the sidecar verifies `Stripe-Signature`
+  over the raw body (HMAC-SHA256, ±5-minute tolerance), and only then
+  forwards the untouched event to `/api/app/stripe/webhook`, which requires
+  the `x-mdoom-key` shared key — the mint gate is still the sidecar
+  Stripe-API lookup, never the webhook payload (dedup on the event id).
+  While `STRIPE_WEBHOOK_SECRET` or `MDOOM_PB_URL` is unconfigured the
+  sidecar route refuses everything (fail closed).
 - **Default (fail closed)**: no sidecar URL → refuse and log. Minting on an
   unverified token in production is a money leak; refusing every purchase
   beats that. A sidecar that's down, slow, or non-2xx also refuses — the
@@ -258,6 +278,8 @@ Pocketbase):
 | `GOOGLE_CLIENT_ID` | The Web/OAuth client id for Google sign-in (the `aud` for Google ID tokens). Absent → Google sign-in refuses (fail closed). |
 | `STRIPE_SECRET_KEY` | The Stripe `sk_…` secret key (web IAP). Used for the Checkout session lookup (`/v1/checkout/sessions/{id}`). Absent → web verifies nothing (fail closed), other platforms unaffected. Never in the repo — the app bundle carries only the public `pk_…` key. |
 | `STRIPE_API_VERSION` | Optional; pins the Stripe API version header. Empty/unset → the account's default version (nothing is pinned in the repo). |
+| `STRIPE_WEBHOOK_SECRET` | The `whsec_…` of the Stripe webhook endpoint that delivers `checkout.session.completed` to THIS sidecar's `/stripe/webhook` (Caddy fronts the public Pocketbase URL at that path). Empty → `/stripe/webhook` refuses everything (fail closed — a webhook that can't verify can't mint). |
+| `MDOOM_PB_URL` | The internal Pocketbase base URL. After a valid signature the sidecar forwards the untouched event to `<MDOOM_PB_URL>/api/app/stripe/webhook` with the `x-mdoom-key` shared key. Empty → `/stripe/webhook` refuses everything (fail closed). |
 
 ```
 $http.send({ url, method, headers, body: <JSON string> })

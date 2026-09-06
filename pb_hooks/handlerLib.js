@@ -28,10 +28,28 @@ function tooManyRequests() {
   return { status: 429, json: { error: "write rate limit exceeded; retry later" } };
 }
 
-function bodyOf(e) {
-  const info = e.requestInfo();
-  const body = info && info.body;
-  return body && typeof body === "object" ? body : {};
+/**
+ * Case-insensitive header lookup over the v0.4x `requestInfo().headers`
+ * map (the doc promises only the FIRST value per entry; Go may canonicalize
+ * the key case — `x-mdoom-key` may arrive as `X-Mdoom-Key`). Returns "" when
+ * absent or not a string. Tolerates an undefined/absent map (a runtime that
+ * does not surface headers → the caller sees "", and a configured gate
+ * refuses — fail closed).
+ */
+function headerValue(headers, name) {
+  if (!headers || typeof headers !== "object") return "";
+  const lower = String(name).toLowerCase();
+  for (const key of Object.keys(headers)) {
+    if (String(key).toLowerCase() !== lower) continue;
+    const value = headers[key];
+    if (typeof value === "string") return value;
+    if (Array.isArray(value)) return String(value[value.length - 1] || "");
+  }
+  return "";
+}
+
+function forbidden(error) {
+  return { status: 403, json: { error: error } };
 }
 
 /** findFirstRecordByData throws a GoError on no-row; normalize to null. */
@@ -177,22 +195,33 @@ function handleRestore(app, body) {
  * Stripe webhook receiver — the BACKUP mint path (the primary is the
  * client return-visit verify, which hits handleVerify with platform=web).
  *
- * Security model: this route is UNAUTHENTICATED on purpose — Stripe's
- * signing secret is a server credential the goja runtime would have to
- * re-implement HMAC-SHA256 for, and the raw request body is consumed by
- * the time a handler sees it (e.request.getBody() panics — probed on
- * v0.40.2). So the signature is NOT verified here. Instead the event
- * body is treated as an untrusted HINT: the only thing that mints is the
- * sidecar's Stripe-API lookup (verifyStripeCheckout with the secret key,
- * same "verify against the store API" pattern as Play/Apple). A spoofed
- * POST costs the attacker one API lookup that cannot match their
- * product/device — it can never mint.
+ * Security model (docs/security-audit.md S2): in production the public
+ * URL is fronted by the store-verification SIDEcar (pb_hooks/sidecar),
+ * which verifies Stripe's `Stripe-Signature` HMAC over the RAW body —
+ * something the goja runtime can't do, because the raw body is consumed
+ * by the time a handler sees it (e.request.getBody() panics — probed on
+ * v0.40.2) — and only then forwards the untouched bytes here. When
+ * MDOOM_SIDECAR_SECRET is configured (it is, on the public deployment,
+ * for the /verify round-trips), the header value must arrive in
+ * x-mdoom-key or the request is a 403 before anything else. With the
+ * secret UNSET the gate is off — sandbox/legacy behavior, where the
+ * defense is the fail-closed verify below. Either way the event body is
+ * only a HINT: the only thing that mints is the sidecar's Stripe-API
+ * lookup (verifyStripeCheckout with the secret key, the same "verify
+ * against the store API" pattern as Play/Apple).
  *
  * Idempotency: Stripe retries deliveries; the event id is recorded in the
  * `events` collection (kind="stripe-event", payload=eventId) and a repeat
  * delivery is a no-op.
  */
-function handleStripeWebhook(app, body) {
+function handleStripeWebhook(app, body, headers) {
+  const sidecarSecret = String(process.env.MDOOM_SIDECAR_SECRET || "").trim();
+  if (sidecarSecret.length > 0) {
+    const key = headerValue(headers, "x-mdoom-key");
+    if (key.length === 0 || key !== sidecarSecret) {
+      return forbidden("untrusted webhook source");
+    }
+  }
   const v = logic.validateStripeWebhookEvent(body);
   if (!v.ok) return badRequest(v.error);
   // Dedup on the Stripe event id (retries, and the two paths minting the
@@ -802,7 +831,13 @@ function run(e, path, handlerName) {
       e.json(404, { error: "unknown route " + path });
       return;
     }
-    const result = handler(globalThis.$app, bodyOf(e));
+    // headers are optional in the v0.4x requestInfo — the webhook gate
+    // fails closed on an absent map (see headerValue); the other handlers
+    // ignore the third argument.
+    const info = e.requestInfo();
+    const body = (info && info.body && typeof info.body === "object") ? info.body : {};
+    const headers = info && info.headers;
+    const result = handler(globalThis.$app, body, headers);
     e.json(result.status, result.json);
   } catch (err) {
     console.error("[pb_hooks] " + path + " failed: " + err);

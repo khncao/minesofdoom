@@ -541,6 +541,53 @@ async function verifyStripeCheckout(stripeCfg, productId, sessionId, deviceId, c
   return { valid: true };
 }
 
+// Stripe webhook signature tolerance (Stripe's documented example uses 5
+// minutes; symmetric so a small server/Stripe clock skew can't wedge it).
+const STRIPE_SIGNATURE_TOLERANCE_SEC = 300;
+
+/**
+ * Verify a Stripe `Stripe-Signature` header against the raw request body.
+ * Header shape: `t=<unix sec>,v1=<hex hmac>` — Stripe may attach several
+ * signature variants, so every `v1` entry is tried and the timestamp must
+ * be within ±5 minutes of now (replay protection). The HMAC is
+ * HMAC-SHA256(webhook secret, "<t>.<raw payload>") over the EXACT bytes
+ * received — the sidecar is the one place in the system that still has
+ * the raw body (the goja handler runtime doesn't), which is why the
+ * webhook lands here (docs/security-audit.md S2).
+ * Pure + total: returns { ok } or { ok: false, reason }; never throws.
+ */
+function verifyStripeWebhookSignature(secret, rawPayload, signatureHeader, nowSec) {
+  if (typeof secret !== "string" || secret.length === 0) {
+    return { ok: false, reason: "webhook secret not configured" };
+  }
+  if (typeof signatureHeader !== "string" || signatureHeader.length === 0) {
+    return { ok: false, reason: "missing Stripe-Signature header" };
+  }
+  const timestamp = Number((signatureHeader.match(/(?:^|,)\s*t=([^,]+)/) || [])[1]);
+  const v1s = (signatureHeader.match(/(?:^|,)\s*v1=([^,]+)/g) || []).map(
+    (entry) => entry.split("=").slice(1).join("=").trim(),
+  );
+  if (!Number.isFinite(timestamp)) {
+    return { ok: false, reason: "missing signature timestamp" };
+  }
+  if (v1s.length === 0) {
+    return { ok: false, reason: "no v1 signature in header" };
+  }
+  if (Math.abs((Number.isFinite(nowSec) ? nowSec : Date.now() / 1000) - timestamp) > STRIPE_SIGNATURE_TOLERANCE_SEC) {
+    return { ok: false, reason: "signature timestamp out of tolerance" };
+  }
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(timestamp + "." + rawPayload)
+    .digest("hex");
+  for (const candidate of v1s) {
+    const a = Buffer.from(expected);
+    const b = Buffer.from(candidate);
+    if (a.length === b.length && crypto.timingSafeEqual(a, b)) return { ok: true };
+  }
+  return { ok: false, reason: "signature mismatch" };
+}
+
 async function verifyPurchase({ platform, productId, token, deviceId, cfg, ctx }) {
   const context = {
     fetch: ctx && ctx.fetch,
@@ -585,7 +632,9 @@ module.exports = {
   buildAppleJwt,
   verifySignedTransactionInfo,
   STRIPE_API_BASE,
+  STRIPE_SIGNATURE_TOLERANCE_SEC,
   verifyStripeCheckout,
+  verifyStripeWebhookSignature,
   verifyApplePurchase,
   verifyPurchase,
   GOOGLE_JWKS_URL,

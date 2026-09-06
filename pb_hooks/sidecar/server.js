@@ -22,6 +22,16 @@
  *                  → 200 { valid, sub?, email?, emailVerified?, reason? }
  *                    (optional-login sign-in tokens; same 200-with-
  *                     valid:false convention)
+ *   POST /stripe/webhook   (Stripe's checkout.session.completed delivery,
+ *                          fronted by Caddy at the public Pocketbase URL)
+ *                  → 200 { processed, … }  (Pocketbase's reply, passed
+ *                    through verbatim)
+ *                    Verifies Stripe-Signature (HMAC-SHA256, ±5 min
+ *                    tolerance) against STRIPE_WEBHOOK_SECRET over the RAW
+ *                    body, then forwards the untouched bytes to
+ *                    $MDOOM_PB_URL/api/app/stripe/webhook with the
+ *                    x-mdoom-key shared key. Unconfigured → 400, bad
+ *                    signature → 400 (never forwarded, never minted).
  *
  * Env (container only — never in the repo; see pb_hooks/README.md)
  *   MDOOM_SIDECAR_PORT      default 8180
@@ -39,6 +49,15 @@
  *                              API with it (empty → web verifies nothing)
  *   STRIPE_API_VERSION         optional pin (e.g. 2025-06-30.basil);
  *                              empty = Stripe's account default
+ *   STRIPE_WEBHOOK_SECRET      the whsec_… from the Stripe webhook endpoint
+ *                              (checkout.session.completed → /stripe/webhook
+ *                              on THIS port; Caddy fronts the public URL).
+ *                              Empty → /stripe/webhook refuses everything.
+ *   MDOOM_PB_URL               internal Pocketbase base URL — after a valid
+ *                              signature the event is forwarded verbatim to
+ *                              Pocketbase's /api/app/stripe/webhook (which
+ *                              mints, gated by the x-mdoom-key below).
+ *                              Empty → /stripe/webhook refuses everything.
  *   GOOGLE_CLIENT_ID           the "Sign in with Google" OAuth client id
  *                              (audience for /identity google tokens)
  *   APPLE_BUNDLE_ID            also the audience for /identity apple tokens
@@ -46,7 +65,12 @@
 
 const http = require("http");
 const crypto = require("crypto");
-const { parseSidecarConfig, verifyPurchase, verifyIdentity } = require("./verify.js");
+const {
+  parseSidecarConfig,
+  verifyPurchase,
+  verifyIdentity,
+  verifyStripeWebhookSignature,
+} = require("./verify.js");
 
 const TIMEOUT_MS = 15000;
 const MAX_BODY_BYTES = 1024 * 1024;
@@ -85,15 +109,26 @@ function constantTimeEqual(a, b) {
   return crypto.timingSafeEqual(ba, bb);
 }
 
-function startServer({ env = process.env, listen = true } = {}) {
+// `fetch` (test injection point) overrides globalThis.fetch for the
+// outbound calls — the route tests run inside the jest-expo preset,
+// whose winter-fetch is not a real HTTP client.
+function startServer({ env = process.env, listen = true, fetch: injectedFetch = null } = {}) {
   const cfg = parseSidecarConfig(env);
   const port = Number(env.MDOOM_SIDECAR_PORT || 8180);
   const host = env.MDOOM_SIDECAR_HOST || "127.0.0.1";
   const secret = String(env.MDOOM_SIDECAR_SECRET || "").trim();
+  // Stripe webhook intake (docs/security-audit.md S2): the sidecar is the
+  // only component that still holds the RAW body, so the Stripe-Signature
+  // HMAC is verified here, and only then is the event forwarded to
+  // Pocketbase. Both knobs must be set or the route refuses everything
+  // (fail closed — a webhook that can't verify can't mint).
+  const webhookSecret = String(env.STRIPE_WEBHOOK_SECRET || "").trim();
+  const pbUrl = String(env.MDOOM_PB_URL || "").trim().replace(/\/+$/, "");
 
   // fetch with a hard timeout; every external call dies at TIMEOUT_MS.
+  const baseFetch = injectedFetch || globalThis.fetch;
   const fetchImpl = (url, init) =>
-    globalThis.fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    baseFetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
 
   async function handleVerify(req, res) {
     if (secret.length > 0) {
@@ -197,6 +232,54 @@ function startServer({ env = process.env, listen = true } = {}) {
     return json(res, 200, verdict);
   }
 
+  async function handleStripeWebhook(req, res) {
+    if (webhookSecret.length === 0 || pbUrl.length === 0) {
+      return json(res, 400, { error: "webhook not configured" });
+    }
+    let raw;
+    try {
+      raw = await readBody(req);
+    } catch {
+      return json(res, 400, { error: "body too large" });
+    }
+    const verdict = verifyStripeWebhookSignature(
+      webhookSecret,
+      raw,
+      req.headers["stripe-signature"],
+      Date.now() / 1000,
+    );
+    if (!verdict.ok) {
+      console.warn(`[sidecar] stripe webhook REFUSED: ${verdict.reason}`);
+      return json(res, 400, { error: verdict.reason });
+    }
+    // The signature proves the body is exactly what Stripe sent, so the
+    // raw bytes are forwarded untouched (re-serializing would only risk
+    // a serialization drift) and trusted with the shared key —
+    // Pocketbase's webhook handler mints only after its own sidecar
+    // Stripe-API lookup.
+    const headers = { "Content-Type": "application/json" };
+    if (secret.length > 0) headers["x-mdoom-key"] = secret;
+    let up;
+    try {
+      up = await fetchImpl(pbUrl + "/api/app/stripe/webhook", {
+        method: "POST",
+        headers: headers,
+        body: raw,
+      });
+    } catch (err) {
+      console.error("[sidecar] stripe webhook: Pocketbase unreachable:", err);
+      return json(res, 502, { error: "pocketbase unreachable" });
+    }
+    const out = await up.json().catch(() => ({}));
+    if (up.status >= 200 && up.status < 300) return json(res, 200, out);
+    // 4xx from Pocketbase (e.g. a verify refusal) is terminal for THIS
+    // event — pass it through so Stripe marks the delivery failed instead
+    // of retrying a verdict that will not change. 5xx → retryable.
+    if (up.status >= 400 && up.status < 500) return json(res, 400, out);
+    console.warn(`[sidecar] stripe webhook: Pocketbase replied ${up.status}`);
+    return json(res, 502, { error: "pocketbase error", upstream: up.status });
+  }
+
   const server = http.createServer(async (req, res) => {
     try {
       const url = (req.url || "/").split("?")[0];
@@ -207,6 +290,7 @@ function startServer({ env = process.env, listen = true } = {}) {
             android: !!cfg.play,
             ios: !!cfg.apple,
             web: !!cfg.stripe,
+            stripeWebhook: { signature: webhookSecret.length > 0, pocketbase: pbUrl.length > 0 },
             identity: { google: !!cfg.googleClientId, apple: !!cfg.appleBundleId },
           },
           playPackage: cfg.playPackage,
@@ -219,6 +303,9 @@ function startServer({ env = process.env, listen = true } = {}) {
       if (req.method === "POST" && url === "/identity") {
         return await handleIdentity(req, res);
       }
+      if (req.method === "POST" && url === "/stripe/webhook") {
+        return await handleStripeWebhook(req, res);
+      }
       return json(res, 405, { error: "not found" });
     } catch (err) {
       console.error("[sidecar] request failed:", err);
@@ -230,6 +317,7 @@ function startServer({ env = process.env, listen = true } = {}) {
     server.listen(port, host);
     console.log(
       `[sidecar] listening on ${host}:${port} (android=${!!cfg.play} ios=${!!cfg.apple} ` +
+        `stripe-webhook=${webhookSecret.length > 0 && pbUrl.length > 0 ? "on" : "off"} ` +
         `identity: google=${!!cfg.googleClientId} apple=${!!cfg.appleBundleId})`,
     );
   }

@@ -24,10 +24,11 @@ testers; UI-only, the v3 API can't do it) for the §4 purchase leg, (2) the
 iOS `APPLE_*` App Store Connect API key for the sidecar
 (`docs/backlog.md`, iOS section), and (3) the **web Stripe + AdSense
 console side** (Stripe account → the `price_…` catalog + a
-`checkout.session.completed` webhook at `/api/app/stripe/webhook` + the
-`STRIPE_SECRET_KEY` sidecar env; AdSense approval → the `ca-pub-` client
-+ a banner slot) — all code is built and config-gated, none of it runs
-until those land. The 26 Play products are live and
+`checkout.session.completed` webhook at the sidecar's `/stripe/webhook`
+(needs the Caddy route on the public Pocketbase URL → the sidecar port,
+plus the `whsec_…` in the `STRIPE_WEBHOOK_SECRET` sidecar env, alongside
+`STRIPE_SECRET_KEY` and `MDOOM_PB_URL`); AdSense approval → the `ca-pub-` client + a banner slot) —
+all code is built and config-gated, none of it runs until those land. The 26 Play products are live and
 ACTIVE (`products-check` clean), the Android Play credentials are on the
 sidecar (`/healthz` → `configured.android: true`), and a release AAB
 (1.0.8) sits on the internal track. The Pocketbase deployment itself is
