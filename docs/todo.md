@@ -14,5 +14,3 @@ Completed items are removed from this file (see git history); only remaining wor
 - [ ] IAP — test purchase → entitlement → wipe local key → restore.
 
 
-- [ ] Main screen move upgrades button floating somewhere over the canvas out of the way
-- [ ] Update UI for dark theme default

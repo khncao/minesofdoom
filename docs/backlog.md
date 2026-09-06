@@ -76,3 +76,32 @@ a web user has email + Google today.
   in `providerKindsForPlatform` + a `mintAppleIdTokenWeb` alongside
   `mintGoogleIdTokenWeb`); the settings UI already renders one button
   per kind, so no UI change beyond the kinds list.
+
+## Web — Stripe one-time products (todo: "Add stripe payment provider")
+
+External prerequisites (none exist yet): a Stripe account in the
+production org, a publishable key for the web client, a webhook
+signing secret, and the one-time Product/Price rows (the cosmetic packs
+mirror the native IAP catalogue, `iapCatalog`).
+
+Client shape (mirrors the existing provider pattern, hidden until
+ready): a `stripe` branch in the `IapProvider` interface used on web
+when `stripePublishableKey` is configured — the checkout is Stripe's
+hosted flow (Checkout Session created server-side so the secret never
+ships to the client). Server shape: a `/api/app/iap/stripe-webhook`
+(Stripe → Pocketbase, signature-checked with the webhook secret) that
+calls the existing entitlement-grant path, plus a session-create
+endpoint taking `deviceId` + product id. The dev-sim parity tests land
+alongside `__test__/iaps.test.ts` the same way the Play/App Store
+providers' do. Blocked on the account above — no code until the key
+exists so nothing half-wired ships.
+
+## Web — AdSense (todo: "Add adsense for web ads")
+
+External prerequisite: an approved AdSense account for the
+`minesofdoom.minus4kelvin.com` domain + the ad client id. Web-only
+surface (the native rewarded-only rule is untouched — display ads on
+the static web export, e.g. a single banner slot in the settings/menu
+sheet, never over the canvas). Implementation is a small `+html.tsx`
+snippet + one React component gated on the client id being set;
+blocked on the approved account.
