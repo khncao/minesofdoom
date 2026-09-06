@@ -60,6 +60,7 @@ const mockStore: Map<string, string> = (AsyncStorageMock as unknown as {
 
 type MockProvider = {
   id: string;
+  grantsLocally: boolean;
   isAvailable: () => boolean;
   purchase: jest.Mock;
   restore: jest.Mock;
@@ -73,6 +74,7 @@ function makeProvider(
 ): MockProvider {
   return {
     id: "test",
+    grantsLocally: true,
     isAvailable: () => available,
     purchase: jest.fn().mockResolvedValue(result),
     restore: jest.fn().mockResolvedValue(restored),
@@ -219,6 +221,7 @@ describe("useIap — purchase", () => {
     let resolvePurchase!: (r: PurchaseResult) => void;
     const provider: MockProvider = {
       id: "slow",
+      grantsLocally: true,
       isAvailable: () => true,
       purchase: jest.fn(
         () =>
@@ -286,6 +289,7 @@ describe("useIap — restore", () => {
     let resolveRestore!: (r: Partial<Record<IapProductId, boolean>>) => void;
     const provider: MockProvider = {
       id: "slow",
+      grantsLocally: true,
       isAvailable: () => true,
       purchase: jest.fn(),
       restore: jest.fn(

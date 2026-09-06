@@ -429,6 +429,7 @@ export const es: Record<TranslationKey, string> = {
   "iap.restoreDetail":
     "Vuelve a aplicar las compras anteriores de la tienda en este dispositivo.",
   "iap.restoreButton": "Restaurar",
+  "iap.adLabel": "Publicidad",
 
   // --- UI compartida ------------------------------------------------------------
   "ui.close": "Cerrar",

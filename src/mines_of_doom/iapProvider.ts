@@ -27,7 +27,7 @@
  * Entry-point gating: `isAvailable()` is false until the Pocketbase URL is
  * configured, so the purchase UI stays hidden by default. Web never
  * resolves this file (Metro `.web` swap, see iapProvider.web.ts): web
- * purchases go through Stripe Checkout, which is not built yet.
+ * purchases go through Stripe Checkout (the separate web provider).
  */
 import { Platform } from "react-native";
 import * as IAP from "expo-iap";
@@ -293,6 +293,9 @@ function awaitStoreOutcome(storeId: string): Promise<StoreOutcome> {
  */
 export const storeIapProvider: IapProvider = {
   id: "store",
+  // Native stores confirm the payment inside the page, so a local grant
+  // on "purchased" is safe (the server verify runs right behind it).
+  grantsLocally: true,
   isAvailable: () => isPocketbaseConfigured(),
 
   async purchase(productId, sessionToken) {

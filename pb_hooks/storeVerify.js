@@ -43,7 +43,7 @@ function sidecarBaseUrl() {
  * other outcome (no $http, transport error, bad reply, 5xx) is false.
  * Never throws.
  */
-function sidecarVerify(platform, productId, token) {
+function sidecarVerify(platform, productId, token, deviceId) {
   const base = sidecarBaseUrl();
   if (base.length === 0) return false;
   const http = globalThis.$http;
@@ -60,7 +60,16 @@ function sidecarVerify(platform, productId, token) {
       url: base + "/verify",
       method: "POST",
       headers: headers,
-      body: JSON.stringify({ platform: platform, productId: productId, token: token }),
+      body: JSON.stringify({
+        platform: platform,
+        productId: productId,
+        token: token,
+        // Device binding (web/Stripe only): the sidecar checks the
+        // session's metadata mdoomDeviceId against this value, so a
+        // session id cannot be replayed from another device. Sent only
+        // for the web platform — native tokens carry no device binding.
+        ...(platform === "web" && deviceId ? { deviceId: deviceId } : {}),
+      }),
     });
   } catch (err) {
     console.warn("[pb_hooks] sidecar call failed: " + err + " — REFUSED.");
@@ -103,11 +112,14 @@ function sidecarVerify(platform, productId, token) {
  * Verifies a store receipt token for (platform, productId). Returns a
  * bool. Never throws.
  *
- * @param {string} platform   "android" | "ios"
+ * @param {string} platform   "android" | "ios" | "web"
  * @param {string} productId  internal product id (allow-listed upstream)
  * @param {string} token      store purchase token from the client
+ *                             (a Stripe Checkout session id for web)
+ * @param {string} [deviceId] device id for the metadata binding check
+ *                             (web/Stripe only; ignored elsewhere)
  */
-function verifyPurchase(platform, productId, token) {
+function verifyPurchase(platform, productId, token, deviceId) {
   if (FAKE_TOKEN_MODE) return fakeTokenOk(token);
   if (sidecarBaseUrl().length === 0) {
     console.warn(
@@ -117,7 +129,7 @@ function verifyPurchase(platform, productId, token) {
     );
     return false;
   }
-  return sidecarVerify(platform, productId, token);
+  return sidecarVerify(platform, productId, token, deviceId);
 }
 
 module.exports = {

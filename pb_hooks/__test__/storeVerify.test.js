@@ -104,28 +104,28 @@ describe("storeVerify sidecar mode (MDOOM_SIDECAR_URL)", () => {
   });
 
   test("valid:false refuses", () => {
-    const http = mockHttp({ statusCode: 200, json: { valid: false, reason: "play lookup 404" } });
+    mockHttp({ statusCode: 200, json: { valid: false, reason: "play lookup 404" } });
     const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
     expect(S.verifyPurchase("android", "packGold", "tok")).toBe(false);
     warn.mockRestore();
   });
 
   test("non-2xx refuses", () => {
-    const http = mockHttp({ statusCode: 500, json: { error: "boom" } });
+    mockHttp({ statusCode: 500, json: { error: "boom" } });
     const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
     expect(S.verifyPurchase("android", "packGold", "tok")).toBe(false);
     warn.mockRestore();
   });
 
   test("an unparseable reply refuses", () => {
-    const http = mockHttp({ statusCode: 200, json: undefined, raw: "{not json" });
+    mockHttp({ statusCode: 200, json: undefined, raw: "{not json" });
     const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
     expect(S.verifyPurchase("android", "packGold", "tok")).toBe(false);
     warn.mockRestore();
   });
 
   test("a transport error refuses (never throws)", () => {
-    const http = mockHttp(null, { throws: new Error("connection refused") });
+    mockHttp(null, { throws: new Error("connection refused") });
     const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
     expect(S.verifyPurchase("android", "packGold", "tok")).toBe(false);
     warn.mockRestore();
@@ -141,6 +141,26 @@ describe("storeVerify sidecar mode (MDOOM_SIDECAR_URL)", () => {
       if (saved !== undefined) globalThis.$http = saved;
       warn.mockRestore();
     }
+  });
+
+  test("web verify sends the deviceId so the sidecar can bind the session", () => {
+    const http = mockHttp({ statusCode: 200, json: { valid: true } });
+    expect(S.verifyPurchase("web", "packGold", "cs_test_abc", "device-1")).toBe(true);
+    expect(JSON.parse(http.calls[0].body)).toEqual({
+      platform: "web",
+      productId: "packGold",
+      token: "cs_test_abc",
+      deviceId: "device-1",
+    });
+    http.restore();
+  });
+
+  test("non-web verify omits the deviceId field", () => {
+    const http = mockHttp({ statusCode: 200, json: { valid: true } });
+    expect(S.verifyPurchase("android", "packGold", "tok", "device-1")).toBe(true);
+    const body = JSON.parse(http.calls[0].body);
+    expect(body.deviceId).toBeUndefined();
+    http.restore();
   });
 
   test("MDOOM_SIDECAR_SECRET rides along as x-mdoom-key", () => {

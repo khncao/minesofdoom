@@ -1,5 +1,9 @@
 import React from "react";
 import { ScrollViewStyleReset } from "expo-router/html";
+import {
+  storeConfig,
+  isAdSenseConfigured,
+} from "src/mines_of_doom/storeConfig";
 
 /**
  * Custom document template for the web export.
@@ -28,6 +32,18 @@ export default function Html({ children }: { children: React.ReactNode }) {
           content="Mines of Idle Doomath — an idle math-mining game. Solve equations, earn minerals, buy miners, sink new shafts."
         />
         <meta name="theme-color" content="#2f2f2f" />
+        {/* AdSense loader (docs/todo.md #2): emitted ONLY when the
+            publisher ids are configured (empty config = hidden no-op —
+            zero ad-network traffic until the ids land). The banner unit
+            itself renders in the shop sheet (AdSenseBanner.web.tsx),
+            never over the game canvas (kid-safe guardrail). */}
+        {isAdSenseConfigured() && (
+          <script
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${storeConfig.adsense.client}`}
+            crossOrigin="anonymous"
+          />
+        )}
         <ScrollViewStyleReset />
       </head>
       <body>{children}</body>

@@ -14,9 +14,10 @@
  *  - **Server-side-only secrets live nowhere in this file** (the Play
  *    service-account JSON and Apple shared secret belong on the Pocketbase
  *    server — docs/pocketbase-plan.md).
- *  - The web build resolves the `.web` provider files (no-ops) and never
- *    bundles a native ad/purchase SDK; web payments (Stripe) are not built
- *    yet.
+ *  - The web build resolves the `.web` provider files and never bundles a
+ *    native ad/purchase SDK. Web payments (Stripe Checkout) and the web
+ *    AdSense banner follow the same empty-config = hidden rule (the
+ *    `stripe` and `adsense` blocks below).
  */
 
 /** The platforms a store/SDK value is keyed for (web is never keyed — it
@@ -78,6 +79,34 @@ export const storeConfig = {
   // public domain; hooks in pb_hooks/; sidecar on the internal network).
   // https://minesofdoom.minus4kelvin.com
   pocketbaseUrl: "https://minesofdoom.minus4kelvin.com",
+  /**
+   * Stripe (web IAP, docs/todo.md #1) — `publishableKey` is the account's
+   * PUBLIC key (pk_…; safe in the bundle; the sk_ secret lives only in the
+   * VPS sidecar env) and `prices` maps every catalog product id to its
+   * Stripe Price id (price_…, Stripe dashboard → Products). The web IAP
+   * provider is available only when isStripeConfigured() passes
+   * (all-or-nothing, like AdMob) — a half-filled price map keeps the whole
+   * shop hidden on web so no button can lead to a purchase that cannot
+   * complete. Keyed by the catalog's internal product ids ("packGold",
+   * "pickaxeGoldPack", … — iaps.ts IAP_PRODUCT_LIST).
+   */
+  stripe: {
+    publishableKey: "",
+    prices: {} as Record<string, string>,
+  },
+  /**
+   * AdSense (web banner ads, docs/todo.md #2) — `client` is the publisher
+   * id (ca-pub-…) from the AdSense dashboard, `slot` the display unit's
+   * slot id. BOTH must be non-empty to enable the banner; anything less
+   * leaves the feature off end to end (the loader script in +html.tsx and
+   * the banner in the shop sheet simply don't render). The banner renders
+   * in the shop/settings sheet only — never over the game canvas (kid-safe
+   * guardrail: ads must not overlap the play area).
+   */
+  adsense: {
+    client: "",
+    slot: "",
+  },
 };
 
 /** The AdMob ids for one platform, straight out of the config. */
@@ -110,4 +139,49 @@ export function isAdMobIdsConfigured(ids: AdMobIds): boolean {
  *  and the store integrations stay hidden. */
 export function isPocketbaseConfigured(): boolean {
   return storeConfig.pocketbaseUrl.length > 0;
+}
+
+/**
+ * AdSense is usable only when BOTH the publisher client and the banner
+ * slot are filled (docs/todo.md #2). The client id is validated against
+ * the ca-pub- prefix so a typo can't silently load someone else's account
+ * script. Empty → the web banner feature is off end to end (no script
+ * tag, no banner, no network).
+ */
+export function isAdSenseConfigured(
+  client: string = storeConfig.adsense.client,
+  slot: string = storeConfig.adsense.slot,
+): boolean {
+  return /^ca-pub-\d+$/.test(client) && slot.length > 0;
+}
+
+/**
+ * Stripe web IAP (docs/todo.md #1): enabled ALL-OR-NOTHING, like AdMob —
+ * the publishable key must be set AND every id in `requiredIds` must have
+ * a non-empty price. A half-configured account (some prices missing)
+ * keeps the whole shop hidden on web, so no button can ever lead to a
+ * purchase that cannot complete. Passing no arguments checks the live
+ * storeConfig values (the default `requiredIds` is the key set of the
+ * price map itself, so a caller with a full map gets the simple check).
+ */
+export function isStripeConfigured(
+  publishableKey: string = storeConfig.stripe.publishableKey,
+  prices: Record<string, string> = storeConfig.stripe.prices,
+  requiredIds: readonly string[] = Object.keys(prices),
+): boolean {
+  return (
+    /^pk_(test|live)_[A-Za-z0-9]+$/.test(publishableKey) &&
+    requiredIds.every((id) => (prices[id] ?? "").length > 0)
+  );
+}
+
+/**
+ * The Stripe Price id for a product, or "" when unconfigured (callers
+ * must treat "" as "not buyable" and keep the button disabled/hidden).
+ */
+export function getStripePrice(
+  productId: string,
+  prices: Record<string, string> = storeConfig.stripe.prices,
+): string {
+  return prices[productId] ?? "";
 }

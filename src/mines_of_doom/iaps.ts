@@ -40,7 +40,11 @@ import {
 // the import is only read at call time inside selectIapProvider, which
 // keeps the module cycle lazy-safe.
 import { storeIapProvider } from "./iapProvider";
-import { isPocketbaseConfigured } from "./storeConfig";
+import {
+  isPocketbaseConfigured,
+  isStripeConfigured,
+  storeConfig,
+} from "./storeConfig";
 
 /** The cosmetic lines packs sell (panel grouping + blurb shape). */
 export type IapPackLine = "pickaxe" | "outfit" | "caveTheme";
@@ -193,6 +197,10 @@ for (const spec of PACK_SPECS) {
  */
 export const IAP_PRODUCTS: Record<IapProductId, IapProduct> = packProducts;
 
+/** The catalog's internal product ids — the ids the Stripe price map must
+ *  cover (the all-or-nothing gate in isStripeConfigured). */
+export const IAP_PRODUCT_IDS = Object.keys(IAP_PRODUCTS) as IapProductId[];
+
 /** Products in display order (packs by line in cosmetics.ts order). */
 export const IAP_PRODUCT_LIST: IapProduct[] = PACK_SPECS.map(
   (spec) => packProducts[spec.id],
@@ -313,6 +321,28 @@ export function iapGrantCosmeticIds(
 export interface IapProvider {
   /** Stable id for logs/panels ("noop", "dev-sim", "google-play", ...). */
   readonly id: string;
+  /**
+   * Whether a "purchased" result may be granted on the LOCAL device
+   * immediately. Native stores confirm the payment inside the page, so a
+   * local grant (pending server verify) is safe. Redirect flows (web /
+   * Stripe Checkout) CANNOT confirm in-page — the player is on Stripe's
+   * hosted page when the promise resolves, so granting there would hand
+   * out free entitlements to anyone who cancels on the hosted page. Web
+   * providers set this to false and deliver the entitlement through
+   * restore() after server-side verification mints the row instead.
+   */
+  readonly grantsLocally: boolean;
+  /**
+   * Optional web-only hook: record that the player came back from a
+   * Stripe Checkout redirect for `productId` with session id `sid`
+   * (the `?iap=success` URL). The provider enqueues the (productId, sid)
+   * pair for verification on the next restore. Absent on native/noop /
+   * dev-sim providers.
+   */
+  noteCheckoutSuccess?(
+    productId: IapProductId,
+    sessionId: string,
+  ): Promise<void> | void;
   /** Whether store purchases can be completed on this platform right now. */
   isAvailable(): boolean;
   /**
@@ -347,6 +377,7 @@ export interface IapProvider {
  */
 export const noopIapProvider: IapProvider = {
   id: "noop",
+  grantsLocally: true,
   isAvailable: () => false,
   purchase: async () => "error",
   restore: async () => ({}),
@@ -364,6 +395,7 @@ export const noopIapProvider: IapProvider = {
  */
 export const devSimIapProvider: IapProvider = {
   id: "dev-sim",
+  grantsLocally: true,
   isAvailable: () => true,
   purchase: () =>
     new Promise<PurchaseResult>((resolve) => {
@@ -378,9 +410,14 @@ export type IapProviderSelection = {
   /** `__DEV__` — the dev build runs the labeled simulation unless the
  *   real-store override below is set. */
   dev: boolean;
-  /** Web target: the store provider is a no-op (`.web` swap); web
- *  purchases go through Stripe, which is not built yet. */
+  /** Web target: the `.web` provider swap — the store provider on web IS
+ *  the Stripe Checkout provider (iapProvider.web.ts), enabled only once
+ *  the Stripe block is configured (sel.stripeConfigured). */
   web: boolean;
+  /** `isStripeConfigured()` (storeConfig.ts) AND the backend is
+ *  configured — the web shop needs BOTH the Stripe keys/prices and the
+ *  Pocketbase verify/restore round-trip. */
+  stripeConfigured?: boolean;
   /** `isPocketbaseConfigured()` (storeConfig.ts). */
   iapBackendConfigured: boolean;
   /** Dev-build-only opt-in (the "real store billing" toggle in the IAP
@@ -397,8 +434,9 @@ export type IapProviderSelection = {
  *     buy → unlock flow testable before the backend exists. A dev build
  *     opts into the REAL store provider via `realStore` (native, backend
  *     configured) for on-device billing tests.
- *  2. web is a no-op: `iapProvider.web.ts` resolves a stub and the Stripe
- *     web path is not built yet.
+ *  2. web production: the Stripe Checkout provider (`.web` swap) only when
+ *     the Stripe block is configured AND the backend is configured; until
+ *     then the no-op keeps the shop hidden.
  *  3. native production: the real expo-iap → Pocketbase provider only once
  *     the backend URL is configured (docs/store-integration.md §1); until
  *     then the no-op keeps the entry points hidden.
@@ -410,7 +448,11 @@ export function pickIapProvider(sel: IapProviderSelection): IapProvider {
     }
     return devSimIapProvider;
   }
-  if (sel.web) return noopIapProvider;
+  if (sel.web) {
+    return sel.stripeConfigured === true
+      ? storeIapProvider
+      : noopIapProvider;
+  }
   if (!sel.iapBackendConfigured) return noopIapProvider;
   return storeIapProvider;
 }
@@ -427,10 +469,20 @@ export function pickIapProvider(sel: IapProviderSelection): IapProvider {
  * decision itself is pure — see pickIapProvider and iaps.test.ts.
  */
 export function selectIapProvider(dev: boolean, realStore = false): IapProvider {
+  const backendConfigured = isPocketbaseConfigured();
   return pickIapProvider({
     dev,
     web: Platform.OS === "web",
-    iapBackendConfigured: isPocketbaseConfigured(),
+    iapBackendConfigured: backendConfigured,
+    // The web shop needs BOTH the Stripe config (publishable key + every
+    // price) and the Pocketbase backend (verify/restore round-trip).
+    stripeConfigured:
+      backendConfigured &&
+      isStripeConfigured(
+        storeConfig.stripe.publishableKey,
+        storeConfig.stripe.prices,
+        IAP_PRODUCT_IDS,
+      ),
     realStore,
   });
 }

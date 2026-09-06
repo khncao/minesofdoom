@@ -1,6 +1,14 @@
 import fs from "fs";
 import path from "path";
-import { getAdMobIds, isAdMobIdsConfigured, storeConfig } from "../storeConfig";
+import {
+  getAdMobIds,
+  getStripePrice,
+  isAdMobIdsConfigured,
+  isAdSenseConfigured,
+  isStripeConfigured,
+  storeConfig,
+} from "../storeConfig";
+import { IAP_PRODUCT_IDS, IAP_PRODUCTS } from "../iaps";
 
 // Production rewarded unit ids (AdMob console → Ad units → Rewarded).
 // All four placements are production, and one set serves both platforms
@@ -101,5 +109,60 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
       appId: storeConfig.adMob.iosAppId,
       rewardedUnitIds: storeConfig.adMob.rewardedUnitIos,
     });
+  });
+
+  it("the Stripe and AdSense blocks are empty until configured (hidden)", () => {
+    // Both web monetization features follow the empty-config = hidden
+    // rule: the shop / banner stay off end to end until the ids land.
+    expect(storeConfig.stripe.publishableKey).toBe("");
+    expect(Object.keys(storeConfig.stripe.prices)).toEqual([]);
+    expect(storeConfig.adsense.client).toBe("");
+    expect(storeConfig.adsense.slot).toBe("");
+  });
+
+  it("isStripeConfigured is all-or-nothing over the full catalog", () => {
+    const ids = IAP_PRODUCT_IDS;
+    // No publishable key → never.
+    expect(isStripeConfigured("", {})).toBe(false);
+    // A malformed key (not pk_test_/pk_live_) → never.
+    expect(isStripeConfigured("pk_foo_abc", { a: "p" }, ["a"])).toBe(false);
+    expect(isStripeConfigured("pk_test_abc123", { a: "" }, ["a"])).toBe(false);
+    // A half-filled price map → the WHOLE catalog stays hidden.
+    const partial = Object.fromEntries(ids.slice(0, -1).map((id) => [id, "price_x"]));
+    expect(isStripeConfigured("pk_test_abc", partial, ids)).toBe(false);
+    // A full map (every catalog id priced) → configured.
+    const full = Object.fromEntries(ids.map((id) => [id, "price_x"]));
+    expect(isStripeConfigured("pk_test_abc", full, ids)).toBe(true);
+    expect(isStripeConfigured("pk_live_abc", full, ids)).toBe(true);
+    // The live default (no args) is false while the repo is unconfigured.
+    expect(isStripeConfigured()).toBe(false);
+  });
+
+  it("the price map is keyed by every catalog product id once configured", () => {
+    // Guardrail: when prices land, they must cover the FULL catalog
+    // (IAP_PRODUCTS keys) — a missing product would silently hide it from
+    // the web shop while native still sells it.
+    const ids = IAP_PRODUCT_IDS;
+    const keys = Object.keys(storeConfig.stripe.prices);
+    if (keys.length > 0) {
+      expect(new Set(keys)).toEqual(new Set(ids));
+    }
+    expect(Object.keys(IAP_PRODUCTS)).toHaveLength(ids.length);
+  });
+
+  it("getStripePrice returns '' for a missing product", () => {
+    expect(getStripePrice("packGold", {})).toBe("");
+    expect(getStripePrice("packGold", { packGold: "price_1" })).toBe("price_1");
+  });
+
+  it("isAdSenseConfigured requires a ca-pub- client AND a slot", () => {
+    expect(isAdSenseConfigured("", "")).toBe(false);
+    expect(isAdSenseConfigured("ca-pub-1234567890", "")).toBe(false);
+    expect(isAdSenseConfigured("", "123456789")).toBe(false);
+    // A non-pub client id (typo) can't silently load another account.
+    expect(isAdSenseConfigured("not-a-pub-id", "123")).toBe(false);
+    expect(isAdSenseConfigured("ca-pub-1234567890", "123456789")).toBe(true);
+    // The live default is false while the repo is unconfigured.
+    expect(isAdSenseConfigured()).toBe(false);
   });
 });

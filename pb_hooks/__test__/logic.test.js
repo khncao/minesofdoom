@@ -501,3 +501,65 @@ describe("cross-device helpers", () => {
     expect(L.bestLeaderboardRow([])).toBe(null);
   });
 });
+
+describe("validateStripeWebhookEvent (web IAP webhook)", () => {
+  const ev = (over = {}) => ({
+    id: "evt_1",
+    type: "checkout.session.completed",
+    data: {
+      object: {
+        id: "cs_test_abc",
+        metadata: { mdoomProductId: "packGold", mdoomDeviceId: "device-1" },
+      },
+    },
+    ...over,
+  });
+
+  test("a well-formed event extracts the mint fields", () => {
+    expect(L.validateStripeWebhookEvent(ev())).toEqual({
+      ok: true,
+      sessionId: "cs_test_abc",
+      productId: "packGold",
+      deviceId: "device-1",
+    });
+  });
+
+  test("a non-object refuses", () => {
+    expect(L.validateStripeWebhookEvent(null).ok).toBe(false);
+    expect(L.validateStripeWebhookEvent("x").ok).toBe(false);
+  });
+
+  test("a missing/oversized event id refuses", () => {
+    expect(L.validateStripeWebhookEvent(ev({ id: "" })).ok).toBe(false);
+    expect(L.validateStripeWebhookEvent(ev({ id: "a".repeat(129) })).ok).toBe(false);
+  });
+
+  test("the wrong event type refuses", () => {
+    expect(
+      L.validateStripeWebhookEvent(ev({ type: "charge.refunded" })).ok,
+    ).toBe(false);
+  });
+
+  test("a missing session object refuses", () => {
+    expect(L.validateStripeWebhookEvent(ev({ data: {} })).ok).toBe(false);
+    expect(
+      L.validateStripeWebhookEvent(ev({ data: { object: { metadata: {} } } })).ok,
+    ).toBe(false);
+  });
+
+  test("an unknown productId refuses (not in PRODUCTS)", () => {
+    expect(
+      L.validateStripeWebhookEvent(
+        ev({ data: { object: { id: "cs", metadata: { mdoomProductId: "nope", mdoomDeviceId: "d" } } } }),
+      ).ok,
+    ).toBe(false);
+  });
+
+  test("an invalid deviceId refuses", () => {
+    expect(
+      L.validateStripeWebhookEvent(
+        ev({ data: { object: { id: "cs", metadata: { mdoomProductId: "packGold", mdoomDeviceId: "" } } } }),
+      ).ok,
+    ).toBe(false);
+  });
+});

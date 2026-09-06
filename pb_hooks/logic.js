@@ -541,8 +541,55 @@ function bestLeaderboardRow(rows) {
   return best;
 }
 
+/** The only Stripe webhook event type that mints an entitlement. */
+const STRIPE_WEBHOOK_EVENT_TYPE = "checkout.session.completed";
+const STRIPE_EVENT_ID_MAX = 128;
+
+/**
+ * Shape-check a parsed Stripe webhook event and extract the fields the
+ * mint needs. PURE — the actual gate is the sidecar's Stripe-API lookup
+ * (verifyStripeCheckout); this only decides which (session, product,
+ * device) to ask it about. Returns { ok, error?, sessionId?, productId?,
+ * deviceId? }.
+ *
+ * A spoofed POST to /api/app/stripe-webhook costs the attacker one
+ * sidecar API lookup that will not match their product/device — it can
+ * never mint, so accepting an unauthenticated event body is safe.
+ */
+function validateStripeWebhookEvent(event) {
+  if (!event || typeof event !== "object") {
+    return { ok: false, error: "event is not an object" };
+  }
+  if (typeof event.id !== "string" || event.id.length < 1 || event.id.length > STRIPE_EVENT_ID_MAX) {
+    return { ok: false, error: "invalid event id" };
+  }
+  if (event.type !== STRIPE_WEBHOOK_EVENT_TYPE) {
+    return { ok: false, error: "unhandled event type" };
+  }
+  const session =
+    event.data && typeof event.data === "object" && typeof event.data.object === "object"
+      ? event.data.object
+      : null;
+  if (!session || typeof session.id !== "string" || session.id.length < 1 || session.id.length > 128) {
+    return { ok: false, error: "missing checkout session" };
+  }
+  const meta = session.metadata && typeof session.metadata === "object" ? session.metadata : {};
+  const productId = typeof meta.mdoomProductId === "string" ? meta.mdoomProductId : "";
+  if (productId.length < 1 || !PRODUCTS[productId]) {
+    return { ok: false, error: "unknown productId in metadata" };
+  }
+  const deviceId = typeof meta.mdoomDeviceId === "string" ? meta.mdoomDeviceId : "";
+  if (!validDeviceId(deviceId)) {
+    return { ok: false, error: "invalid deviceId in metadata" };
+  }
+  return { ok: true, sessionId: session.id, productId: productId, deviceId: deviceId };
+}
+
 module.exports = {
   PRODUCTS,
+  STRIPE_WEBHOOK_EVENT_TYPE,
+  STRIPE_EVENT_ID_MAX,
+  validateStripeWebhookEvent,
   MAX_SAVE_VERSION,
   CLOUD_BLOB_MAX_BYTES,
   NAME_MAX,

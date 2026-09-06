@@ -49,6 +49,11 @@ const APPLE_BASE = {
   sandbox: "https://sandbox.storekit.itunes.apple.com",
   production: "https://api.storekit.itunes.apple.com",
 };
+// Stripe (web IAP): the Checkout session is CONFIRMED by calling the Stripe
+// API with the secret key — the same "verify against the store API" pattern
+// as Play/Apple. The webhook (and the client return-visit) never mints on
+// its own word; the API lookup is the gate.
+const STRIPE_API_BASE = "https://api.stripe.com/v1";
 const APPLE_AUD = "https://api.storekit.itunes.apple.com";
 const APPLE_SCOPE = "storekit-app-store-server-api";
 const APPLE_ENV_NAME = { sandbox: "Sandbox", production: "Production" };
@@ -165,6 +170,18 @@ function parseSidecarConfig(env) {
   // (Apple). Both are independent of the store credentials above; the
   // bundle id reuses APPLE_BUNDLE_ID when the full Apple block is set and
   // falls back to the raw env value so identity can run storeless.
+  // Stripe (web): empty key → web verifies nothing (fail closed, like the
+  // other platforms). STRIPE_API_VERSION pins the API version; empty means
+  // "let Stripe use the account default" (no version pinned in the repo).
+  if (typeof e.STRIPE_SECRET_KEY === "string" && e.STRIPE_SECRET_KEY.trim().length > 0) {
+    cfg.stripe = {
+      secretKey: e.STRIPE_SECRET_KEY.trim(),
+      apiVersion:
+        typeof e.STRIPE_API_VERSION === "string" && e.STRIPE_API_VERSION.trim().length > 0
+          ? e.STRIPE_API_VERSION.trim()
+          : null,
+    };
+  }
   if (typeof e.GOOGLE_CLIENT_ID === "string" && e.GOOGLE_CLIENT_ID.trim().length > 0) {
     cfg.googleClientId = e.GOOGLE_CLIENT_ID.trim();
   }
@@ -483,7 +500,48 @@ async function verifyIdentity({ provider, idToken, cfg, ctx }) {
  * Platform dispatch. `cfg` from parseSidecarConfig; `ctx` = { fetch,
  * nowSec }. Never throws — every failure path is a `valid: false` verdict.
  */
-async function verifyPurchase({ platform, productId, token, cfg, ctx }) {
+/**
+ * Web (Stripe Checkout): look the session up with the secret key and mint
+ * only if Stripe says it is paid for exactly this (product, device). A
+ * test secret key only ever sees test sessions and a live key only live
+ * ones, so the key itself pins the environment — no livemode field check
+ * needed.
+ */
+async function verifyStripeCheckout(stripeCfg, productId, sessionId, deviceId, ctx) {
+  const fetch = ctx && ctx.fetch;
+  if (!fetch) return { valid: false, reason: "no fetch in context" };
+  if (!/^[A-Za-z0-9_-]{10,128}$/.test(String(sessionId))) {
+    return { valid: false, reason: "web token is not a checkout session id" };
+  }
+  const headers = {
+    Authorization: "Bearer " + stripeCfg.secretKey,
+    Accept: "application/json",
+  };
+  if (stripeCfg.apiVersion) headers["Stripe-Version"] = stripeCfg.apiVersion;
+  const res = await fetch(
+    STRIPE_API_BASE + "/checkout/sessions/" + encodeURIComponent(sessionId),
+    { method: "GET", headers },
+  );
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data || data.object !== "checkout.session") {
+    return { valid: false, reason: "stripe session not found (http " + res.status + ")" };
+  }
+  if (data.payment_status !== "paid") {
+    return { valid: false, reason: "stripe session not paid (" + data.payment_status + ")" };
+  }
+  const meta = data.metadata && typeof data.metadata === "object" ? data.metadata : {};
+  if (meta.mdoomProductId !== productId) {
+    return { valid: false, reason: "stripe session product mismatch" };
+  }
+  // Device binding: the session was created for THIS device's purchase; a
+  // session id copied to another device must not mint there.
+  if (typeof deviceId === "string" && deviceId.length > 0 && meta.mdoomDeviceId !== deviceId) {
+    return { valid: false, reason: "stripe session device mismatch" };
+  }
+  return { valid: true };
+}
+
+async function verifyPurchase({ platform, productId, token, deviceId, cfg, ctx }) {
   const context = {
     fetch: ctx && ctx.fetch,
     nowSec: ctx && Number.isFinite(ctx.nowSec) ? ctx.nowSec : Date.now() / 1000,
@@ -499,6 +557,10 @@ async function verifyPurchase({ platform, productId, token, cfg, ctx }) {
         return { valid: false, reason: "ios token is not a transaction id" };
       }
       return await verifyApplePurchase(cfg.apple, productId, token, context);
+    }
+    if (platform === "web") {
+      if (!cfg || !cfg.stripe) return { valid: false, reason: "web not configured" };
+      return await verifyStripeCheckout(cfg.stripe, productId, token, deviceId, context);
     }
     return { valid: false, reason: "unknown platform" };
   } catch (err) {
@@ -522,6 +584,8 @@ module.exports = {
   verifyPlayPurchase,
   buildAppleJwt,
   verifySignedTransactionInfo,
+  STRIPE_API_BASE,
+  verifyStripeCheckout,
   verifyApplePurchase,
   verifyPurchase,
   GOOGLE_JWKS_URL,

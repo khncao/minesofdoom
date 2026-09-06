@@ -18,11 +18,16 @@ on fresh installs.
 
 ## IAP (on-device purchase leg) — `todo.md` "IAP — on-device purchase leg (license tester)"
 
-**Blocked on (external):** two store-side items — (1) one Gmail as a
+**Blocked on (external):** three store-side items — (1) one Gmail as a
 Play Console **license tester** on `internal` (Testing → License
-testers; UI-only, the v3 API can't do it) for the §4 purchase leg, and
-(2) the iOS `APPLE_*` App Store Connect API key for the sidecar
-(`docs/backlog.md`, iOS section). The 26 Play products are live and
+testers; UI-only, the v3 API can't do it) for the §4 purchase leg, (2) the
+iOS `APPLE_*` App Store Connect API key for the sidecar
+(`docs/backlog.md`, iOS section), and (3) the **web Stripe + AdSense
+console side** (Stripe account → the `price_…` catalog + a
+`checkout.session.completed` webhook at `/api/app/stripe/webhook` + the
+`STRIPE_SECRET_KEY` sidecar env; AdSense approval → the `ca-pub-` client
++ a banner slot) — all code is built and config-gated, none of it runs
+until those land. The 26 Play products are live and
 ACTIVE (`products-check` clean), the Android Play credentials are on the
 sidecar (`/healthz` → `configured.android: true`), and a release AAB
 (1.0.8) sits on the internal track. The Pocketbase deployment itself is
@@ -31,13 +36,16 @@ DONE (below).
 **Done in-repo:** the full client half, mirroring the ads pattern —
 `iapProvider.ts` (expo-iap → `finishTransaction` → POST `/api/app/verify`,
 restore via `/api/app/restore`, local re-verify queue so a flaky network
-never loses a completed purchase), `iapProvider.web.ts` (web no-op — the
-Stripe web path is not built yet), `iapDeviceId.ts` (device-scoped key,
-never in the save), the pure `pickIapProvider` swap in `iaps.ts`, jest
+never loses a completed purchase), `iapProvider.web.ts` (**real** Stripe
+Checkout provider for web — hosted redirect, `grantsLocally: false`, the
+pending-verify queue, the `?iap=success` reconcile; the web no-op is what
+it falls back to until the Stripe block is configured), `iapDeviceId.ts`
+(device-scoped key, never in the save), the pure `pickIapProvider` swap in
+`iaps.ts`, jest
 mocks for `expo-iap` + AsyncStorage, and tests (provider matrix, device-id
-factory, selection matrix). Until the Pocketbase URL lands,
-`selectIapProvider` returns the no-op on production native (panel hidden)
-— pinned by `iaps.test.ts` / `iapProvider.test.ts`.
+factory, selection matrix, the web Stripe provider matrix). Until the
+Pocketbase URL lands, `selectIapProvider` returns the no-op on production
+native (panel hidden) — pinned by `iaps.test.ts` / `iapProvider.test.ts`.
 
 **Server half (this iteration):** `pb_hooks/` is complete and
 **verified end-to-end against a real Pocketbase v0.40.2 binary** in a
@@ -204,10 +212,12 @@ Google Identity Services (`mintGoogleIdTokenWeb`: lazy gsi/client script
 + the openid-scope token client — the JWT in `resp.access_token` IS the
 idToken; `popup_closed_by_user` → `SignInCancelledError`), web Apple does
 not exist yet (needs a domain-verified service id — `docs/backlog.md`).
-The OTHER store integrations (cloud save, leaderboard, IAP) remain web
-no-ops by construction: a web session is real (sign in / sign out /
-account delete all work against the same server) but tags nothing
-cloud-side until those land. Not yet verified in a real browser (emulator
+The OTHER store integrations (cloud save, leaderboard) remain web no-ops
+by construction: a web session is real (sign in / sign out / account
+delete all work against the same server) but tags nothing cloud-side until
+those land. (Web IAP is now the REAL Stripe path, not a no-op — see the
+IAP section and docs/store-integration.md §2.6; it reuses this same web
+session token when present.) Not yet verified in a real browser (emulator
 pass above is native-only).
 
 ## IAP — real purchase → entitlement → wipe → restore (todo, partially verified 2026-09-06)

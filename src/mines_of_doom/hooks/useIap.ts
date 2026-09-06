@@ -74,15 +74,26 @@ export function useIap({
         .purchase(id, token())
         .then((result) => {
           if (result === "purchased") {
-            setEntitlements(
-              grantIapEntitlement(entitlementsRef.current, id),
-            );
-            onPurchased?.(id);
-            const packCosmetic = getIapPackCosmetic(id);
-            displayMessage(
-              t("toast.iapPackUnlocked", { name: packCosmetic.name }),
-              4000,
-            );
+            if (provider.grantsLocally) {
+              // Native stores confirm the payment inside the page, so
+              // the local grant (pending the server verify) is safe.
+              setEntitlements(
+                grantIapEntitlement(entitlementsRef.current, id),
+              );
+              onPurchased?.(id);
+              const packCosmetic = getIapPackCosmetic(id);
+              displayMessage(
+                t("toast.iapPackUnlocked", { name: packCosmetic.name }),
+                4000,
+              );
+            }
+            // grantsLocally:false (web / Stripe Checkout) — the "purchased"
+            // result means "the redirect to Stripe's hosted page has
+            // started", NOT "payment confirmed": the player is still on
+            // Stripe's page and may cancel. Granting here would hand out
+            // free entitlements. The entitlement arrives through
+            // restore() after the server mints the row (webhook and/or
+            // the return-visit verify, iapProvider.web.ts).
           }
           // "cancelled" (player backed out of the store sheet) and "error"
           // (no store on this platform) stay silent: the button just
@@ -112,6 +123,23 @@ export function useIap({
         // a write (and a render) happens only for a real change.
         if (merged !== entitlementsRef.current) {
           setEntitlements(merged);
+          // A restore that ADDS packs is the web/Stripe confirmation point
+          // (grantsLocally:false — the server mint is what the player got
+          // paid for): toast the first new pack and fire the analytics
+          // event. Merge is additive, so each product fires at most once.
+          const fresh = (Object.keys(merged) as IapProductId[]).filter(
+            (pid) =>
+              merged[pid] === true &&
+              entitlementsRef.current[pid] !== true,
+          );
+          if (fresh.length > 0) {
+            onPurchased?.(fresh[0]);
+            const packCosmetic = getIapPackCosmetic(fresh[0]);
+            displayMessage(
+              t("toast.iapPackUnlocked", { name: packCosmetic.name }),
+              4000,
+            );
+          }
         }
       })
       .catch((e) => console.warn("IAP restore failed", e))
@@ -119,7 +147,7 @@ export function useIap({
         restoringRef.current = false;
         setRestoring(false);
       });
-  }, [provider, setEntitlements]);
+  }, [provider, setEntitlements, onPurchased, displayMessage, t]);
 
   return {
     /** Whether purchase entry points should be shown at all. */

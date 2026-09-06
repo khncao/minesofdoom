@@ -31,6 +31,14 @@ verification checklist, and the iOS/TestFlight half.
   created and ACTIVE (via the CLI, §2.2), the release AAB (1.0.8) is on
   the internal track, and the sidecar carries the Play service-account
   credentials (`/healthz` → `configured.android: true`).
+- ✅ **Web is built on the code side (2026-09)** — Stripe Checkout web
+  IAP (`iapProvider.web.ts` + the sidecar's Stripe-API confirm + the
+  `/api/app/stripe/webhook` backup-mint route) and the AdSense shop
+  banner (`AdSenseBanner.web.tsx`). Both follow the repo's empty-config
+  = hidden rule: nothing renders or charges until `storeConfig.stripe`
+  / `storeConfig.adsense` are filled (§2.6 / §1.1). The web build is
+  the static export the player actually visits, so this is the only
+  monetization path that ever runs in a browser.
 - ⬜ **Apple store side remains** (backlog) — the App Store Connect
   products + the sidecar's `APPLE_*` credentials.
   Nothing in this doc can be skipped; the §4 checklist is the release
@@ -82,6 +90,34 @@ the official test ids to paste in for a dev build. **Never ship a test
 id in a production config** — the config test fails on a known test id
 in a non-dev export... (it doesn't have to; the human gate is: release
 config is reviewed).
+
+### 1.1 Web banner (AdSense)
+
+The web app has exactly ONE banner placement — inside the shop/settings
+sheet, never over the game canvas (kid-safe guardrail: ads must not
+overlap the play area, and there are still no interstitials anywhere —
+guardrail 2 holds for web just like native). The banner is the repo's
+`.web` swap pattern: `AdSenseBanner.tsx` is a no-op that native bundles
+resolve, `AdSenseBanner.web.tsx` renders the real DOM slot through the
+`unstable_createElement` escape hatch, so react-native-web never
+enters a native bundle.
+
+1. **AdSense account** (adsense.com): the site is the static web export
+   at the `pocketbaseUrl` origin. AdSense approval takes days; the
+   publisher id only lands after it.
+2. **Create a display unit** in the approved account and note the **slot**
+   id.
+3. **Fill `storeConfig.adsense`** (`client` = the `ca-pub-…` publisher
+   id, `slot` = the unit's slot id). The web document template
+   (`src/app/+html.tsx`) injects the loader script only when
+   `isAdSenseConfigured()` passes (it validates the `ca-pub-\d+` shape
+   so a typo can't load someone else's account), and the banner slot
+   renders only then too. Empty config = no script tag, no slot, no
+   network — the repo stays shippable while it's blank.
+4. **Verify in the web build** (`npx expo export -p web`): the loader
+   script is in the HTML only when configured; the slot fills in the
+   shop sheet; nothing overlaps the canvas. Until approval, the shop
+   sheet simply has no ad — the purchase UI is unaffected.
 
 ---
 
@@ -193,8 +229,14 @@ Play Console **billing permissions** ("Manage orders and subscriptions" +
      restore layer. Not needed for purchases to work.
 4. **Activate a test track** (Play → Internal testing): the §4 device
    pass uses it. Real store purchases only work on a device with the
-   internal-test build + the service account configured; on web the
-   purchase flow is a no-op by design (Stripe path not built yet).
+   internal-test build + the service account configured. Web purchases
+   go through Stripe Checkout (a separate account + Price catalog —
+   §2.6); until that config lands the web purchase UI is a hidden
+   no-op by design (the shop stays fully free, nothing is gated).
+5. **Stripe** (web only — §2.6): create the matching products/prices in
+   the Stripe dashboard and point the webhook at the Pocketbase route;
+   the sidecar carries the `sk_` secret, the app bundle only the
+   public `pk_` key.
 
 ### 2.3 How a purchase flows (what the above unlocks)
 
@@ -218,8 +260,16 @@ Play Console **billing permissions** ("Manage orders and subscriptions" +
   `iap` key — never in the game save, so shared/imported saves can't
   import someone else's receipts), and the Cosmetics section re-resolves
   ownership from it.
-- **web**: no-op (the purchase UI is hidden; web purchases would go
-  through Stripe, not built yet).
+- **web**: `iapProvider.web.ts` — **Stripe Checkout (hosted)**: the
+  player is redirected to Stripe's hosted page (payment happens THERE,
+  never in this app's page); the provider sets `grantsLocally: false`,
+  so a "purchased" result never self-grants — the entitlement arrives
+  via `restore()` after the SERVER mints the row. Two independent mint
+  paths, both idempotent on (device, product): the client's return
+  visit (`?iap=success&iap_sid=…` → verify with the session id) and
+  Stripe's `checkout.session.completed` webhook (→ `/api/app/stripe/
+  webhook` → sidecar). Hidden (no-op) until the full Stripe block is
+  configured — §2.6.
 
 Entitlements are keyed by the **internal** product id; the Pocketbase
 allow-list (`pb_hooks/logic.js` `PRODUCTS`) maps internal → store id
@@ -327,6 +377,78 @@ never be uploaded by mistake — Play rejects debug-signed AABs.
    `android/app/build.gradle` (the committed prebuild file — keep them
    in sync; Play requires a strictly increasing `versionCode`), then
    re-run step 3.
+
+### 2.6 Web: Stripe Checkout (the browser purchase path)
+
+Web is the static export the player visits, and it is the ONE place a
+purchase happens in a real browser. It uses **Stripe Checkout
+(hosted)** — the no-card-UI-in-the-app option: the payment is collected
+on Stripe's hosted page, and the app only redirects there and back. The
+app bundle carries **only the public `pk_…` key**; the `sk_…` secret
+lives solely in the VPS sidecar env (it is the verify credential, same
+role the Play/Apple service credentials play for native).
+
+**Two independent, idempotent mint paths** (both gate on the sidecar
+asking Stripe, so a client can never self-grant):
+1. **Return-visit verify (primary).** `purchase()` redirects to hosted
+   Checkout with `successUrl` = `/?iap=success&iap_product=…&iap_sid=
+   {CHECKOUT_SESSION_ID}`. On the web-only on-mount effect
+   (`MinesOfDoom.tsx`) the app reads those flags, calls
+   `noteCheckoutSuccess(productId, sid)`, and `restore()` replays the
+   pending queue → `POST /api/app/verify { platform:"web", token:sid,
+   deviceId }`. The sidecar `verifyStripeCheckout` does
+   `GET /v1/checkout/sessions/{sid}` with the `sk_` key and mints ONLY
+   if `payment_status === "paid"` AND `metadata.mdoomProductId` matches
+   AND `metadata.mdoomDeviceId` matches the caller (device binding —
+   a session id can't be replayed from another device).
+2. **Webhook (backup).** Stripe delivers
+   `checkout.session.completed` to `/api/app/stripe/webhook` on
+   Pocketbase. That route is **unauthenticated by design**: the event
+   body is an untrusted hint, and the ONLY mint gate is the same
+   sidecar Stripe-API lookup. It's idempotent on the Stripe event id
+   (dedup row in the `events` collection, `kind="stripe-event"`). This
+   path covers the player who pays on Stripe but never completes the
+   browser redirect back.
+
+The client provider sets `grantsLocally: false` (iaps.ts), so
+`useIap` never grants on a web `purchase()` result — the entitlement
+always arrives through `restore()` after the server mints the row. This
+is what keeps the hosted-redirect "purchased" (really: "redirect
+started") from ever being mistaken for a confirmed payment.
+
+**Setup (console + config + server):**
+1. **Stripe dashboard → Products:** create a one-time **Price** per row
+   of the §2.1 table (same display names, same tiers). Note each
+   `price_…` id. (No subscriptions — the catalog is one-time packs.)
+2. **Webhook:** add an endpoint at
+   `https://minesofdoom.minus4kelvin.com/api/app/stripe/webhook` and
+   subscribe it to `checkout.session.completed` only. (No `pk_`/`sk_`
+   goes here — Stripe signs deliveries but we do not need the signing
+   secret, because the mint gate is the sidecar's own Stripe-API
+   lookup, not the webhook payload.)
+3. **Sidecar env** (VPS, never in the repo): `STRIPE_SECRET_KEY=
+   sk_…`. Optional `STRIPE_API_VERSION` to pin an API version (empty =
+   account default). `/healthz` then reports `configured.web: true`.
+4. **`storeConfig.ts`:** set `stripe.publishableKey = "pk_…"` and fill
+   `stripe.prices` with every catalog id → `price_…` (all-or-nothing —
+   `isStripeConfigured` keeps the whole web shop hidden until every
+   `IAP_PRODUCT_IDS` entry has a price, so no button can lead to a
+   purchase that can't complete).
+5. **Deploy:** rebuild the web export (`npm run deploy`) and reload the
+   sidecar (new env). The IAP panel appears in the web shop sheet only
+   once both the URL and the full Stripe block are set.
+6. **Test with a Stripe test key + test card** (`pk_test_…`/
+   `sk_test_…`): buy a pack, confirm the redirect back grants it via
+   `restore()`, and confirm the webhook also minted the same (device,
+   product) row idempotently. Then flip to live keys for launch.
+
+**Why hosted Checkout and not Payment Element:** it keeps all
+PCI-scoped card fields on Stripe's page (lowest cardholder-data
+surface for a hobby project), needs no backend tokenization step, and
+the publishable-key-only client is enough. The trade-off is the two-
+path mint (return-visit + webhook) instead of a single synchronous
+confirm — handled by making both paths idempotent and both gated on
+the sidecar.
 
 ---
 

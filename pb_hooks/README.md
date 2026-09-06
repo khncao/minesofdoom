@@ -23,8 +23,9 @@ so the server caps can't drift).
 
 | Endpoint | Body | Reply |
 |---|---|---|
-| `/api/app/verify` | `{ deviceId, platform, productId, token }` (`productId` = internal id) | `{ entitlements: [storeId…] }` |
+| `/api/app/verify` | `{ deviceId, platform, productId, token }` (`productId` = internal id; for `platform:"web"` the token is the Stripe Checkout session id and `deviceId` is REQUIRED — device binding, see Store verification) | `{ entitlements: [storeId…] }` |
 | `/api/app/restore` | `{ deviceId }` | `{ entitlements: [storeId…] }` |
+| `/api/app/stripe/webhook` | Stripe's `checkout.session.completed` delivery (parsed JSON) | `{ processed: true }` — or a 4xx when the event shape is wrong. **Unauthenticated by design**: the body is an untrusted hint, the only mint gate is the sidecar's Stripe-API lookup (see Store verification). Idempotent on the event id (dedup row in `events`, `kind="stripe-event"`). |
 | `/api/app/cloud/push` | `{ deviceId, blob, saveVersion, updatedAt }` | `{ updatedAt }` (the STORED value — last-write-wins) |
 | `/api/app/cloud/pull` | `{ deviceId }` | `{ snapshot: { blob, saveVersion, updatedAt } \| null }` |
 | `/api/app/leaderboard/submit` | `{ deviceId, displayName, bestDepth, maxCombo, lifetimeMinerals, achievementIds }` | `{ ok: true }` (monotonic per-field max) |
@@ -83,7 +84,8 @@ optional `accountId` (the login backfill target).
   (fake-token sandbox / sidecar / fail closed).
 - `sidecar/` — the verification sidecar (plain Node, zero deps, `node
   sidecar/server.js`): `verify.js` (pure, fetch-injectables — signs the RS256/ES256
-  JWTs the goja runtime can't and calls Play/Apple) and `server.js` (the tiny
+  JWTs the goja runtime can't, calls Play/Apple, and does the Stripe Checkout
+  session lookup for web) and `server.js` (the tiny
   HTTP front: `GET /healthz`, `POST /verify`, `POST /identity`).
 - `__test__/identityVerify.test.js` — Pocketbase-side identity (sandbox /
   fail-closed / sidecar) against the pinned `$http` contract.
@@ -93,6 +95,12 @@ optional `accountId` (the login backfill target).
 - `__test__/verifySidecar.test.js` — sidecar Play/Apple flows with scripted
   fetches; the Apple cert chain is generated with openssl at test time (chain
   cases skip when openssl is unavailable).
+- `__test__/verifySidecar.stripe.test.js` — sidecar web/Stripe flows with
+  scripted fetches (paid/unpaid, product + device binding, fail-closed when
+  the key is absent).
+- `__test__/handlerStripeWebhook.test.js` — the `stripe/webhook` handler
+  end-to-end (sandbox mint + event-id idempotency; fail-closed mode refuses
+  AND leaves the event unrecorded so a retry can still mint).
 
 ## v0.40 hook model (read before touching these files)
 
@@ -151,8 +159,16 @@ inside a handler**, and not shared between pooled VMs. Rules this code follows:
   `__test__/logic.test.js`) — a valid receipt for any other SKU mints nothing.
 - Per-device write budget: 30 writes/hour across the write endpoints
   (durable — `events` collection; reads are unlimited).
-- Server-side-only secrets: the Play service-account JSON and the Apple env
-  selection live in container env vars, **never in the app bundle**.
+- Server-side-only secrets: the Play service-account JSON, the Apple env
+  selection, and the Stripe `sk_` secret key live in container env vars,
+  **never in the app bundle** (web carries only the public `pk_` key).
+- Web (Stripe) is mint-gated the same way: the `/api/app/stripe/webhook`
+  route is unauthenticated on purpose (Stripe delivers to it without a
+  shared secret we're willing to embed), so the ONLY thing that mints is
+  the sidecar's Stripe-API `payment_status == "paid"` lookup with the
+  `sk_` key, plus a product + device metadata match. The webhook payload
+  is treated as an untrusted hint, and the device binding makes a
+  session id a single-device receipt (no cross-browser replay).
 - Raw receipt tokens are never stored (sha256 hash only).
 - Caps: cloud blob ≤16KB, `saveVersion` ≤ the app's current version
   (newer = rejected), leaderboard stats below sanity caps (above = dropped,
@@ -173,6 +189,20 @@ inside a handler**, and not shared between pooled VMs. Rules this code follows:
   Store Server JWT (ES256) — both signed with `node:crypto`, both stores
   answered over the internal network hop. This is the RSA/ECDSA-signing
   decision from `docs/blockers.md` (option 1, in-repo).
+- **Web (Stripe)** — `platform:"web"`, token = the Stripe Checkout session
+  id: the sidecar does `GET https://api.stripe.com/v1/checkout/sessions/
+  {id}` with `STRIPE_SECRET_KEY` and returns `valid` ONLY when
+  `payment_status === "paid"` AND `metadata.mdoomProductId` equals the
+  requested product AND `metadata.mdoomDeviceId` equals the caller's device
+  id. The device binding is what makes the session id a single-use, single-
+  device receipt (it can't be replayed from another browser). Without
+  `STRIPE_SECRET_KEY` the sidecar reports web "not configured" → fail
+  closed, exactly like the other platforms. Web verification is fed by two
+  idempotent paths: the client's return-visit verify (`/api/app/verify`,
+  primary) and the `/api/app/stripe/webhook` backup (Stripe's
+  `checkout.session.completed` delivery, unauthenticated on purpose —
+  the mint gate is the same sidecar Stripe-API lookup, never the webhook
+  payload; dedup on the event id).
 - **Default (fail closed)**: no sidecar URL → refuse and log. Minting on an
   unverified token in production is a money leak; refusing every purchase
   beats that. A sidecar that's down, slow, or non-2xx also refuses — the
@@ -226,6 +256,8 @@ Pocketbase):
 | `APPLE_PRIVATE_KEY` | The P-256 `.p8` key, inline or a path / `@path`. |
 | `APPLE_IAP_ENV` | `sandbox` (default) or `production` for the App Store Server API. Anything else disables iOS verification (never an implicit sandbox). |
 | `GOOGLE_CLIENT_ID` | The Web/OAuth client id for Google sign-in (the `aud` for Google ID tokens). Absent → Google sign-in refuses (fail closed). |
+| `STRIPE_SECRET_KEY` | The Stripe `sk_…` secret key (web IAP). Used for the Checkout session lookup (`/v1/checkout/sessions/{id}`). Absent → web verifies nothing (fail closed), other platforms unaffected. Never in the repo — the app bundle carries only the public `pk_…` key. |
+| `STRIPE_API_VERSION` | Optional; pins the Stripe API version header. Empty/unset → the account's default version (nothing is pinned in the repo). |
 
 ```
 $http.send({ url, method, headers, body: <JSON string> })

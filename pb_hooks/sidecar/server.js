@@ -7,9 +7,13 @@
  *   node pb_hooks/sidecar/server.js
  *
  * Routes
- *   GET  /healthz  → { ok, configured: { android, ios, identity: { google, apple } },
+ *   GET  /healthz  → { ok, configured: { android, ios, web, identity: { google, apple } },
  *                       playPackage }
- *   POST /verify   body { platform, productId, token }
+ *   POST /verify   body { platform: "android"|"ios"|"web", productId, token,
+ *                           deviceId? }   (deviceId: web/Stripe device
+ *                                          binding check — the session
+ *                                          metadata's mdoomDeviceId must
+ *                                          match it)
  *                  → 200 { valid: bool, reason?: string }
  *                    (a "not valid" verdict is a 200 with valid:false —
  *                     the Pocketbase side treats anything but valid:true
@@ -30,6 +34,11 @@
  *   APPLE_BUNDLE_ID / APPLE_APP_ID / APPLE_KEY_ID
  *   APPLE_PRIVATE_KEY          P-256 PEM inline, or a path to the file
  *   APPLE_IAP_ENV              sandbox (default) | production
+ *   STRIPE_SECRET_KEY          the sk_test_ / sk_live_ key — web Checkout
+ *                              sessions are confirmed against the Stripe
+ *                              API with it (empty → web verifies nothing)
+ *   STRIPE_API_VERSION         optional pin (e.g. 2025-06-30.basil);
+ *                              empty = Stripe's account default
  *   GOOGLE_CLIENT_ID           the "Sign in with Google" OAuth client id
  *                              (audience for /identity google tokens)
  *   APPLE_BUNDLE_ID            also the audience for /identity apple tokens
@@ -105,8 +114,11 @@ function startServer({ env = process.env, listen = true } = {}) {
     } catch {
       return json(res, 400, { error: "body must be JSON" });
     }
-    const { platform, productId, token } = body || {};
-    if (typeof platform !== "string" || (platform !== "android" && platform !== "ios")) {
+    const { platform, productId, token, deviceId } = body || {};
+    if (
+      typeof platform !== "string" ||
+      (platform !== "android" && platform !== "ios" && platform !== "web")
+    ) {
       return json(res, 400, { error: "invalid platform" });
     }
     if (typeof productId !== "string" || productId.length < 1 || productId.length > 128) {
@@ -115,10 +127,22 @@ function startServer({ env = process.env, listen = true } = {}) {
     if (typeof token !== "string" || token.length < 1 || token.length > 16384) {
       return json(res, 400, { error: "invalid token" });
     }
+    // Device binding (web/Stripe): the sidecar compares the session
+    // metadata's mdoomDeviceId against this value. Absent/empty → no
+    // binding check (the webhook path passes the metadata's own value).
+    const deviceIdOk =
+      typeof deviceId === "string" && deviceId.length > 0 && deviceId.length <= 64;
     const nowSec = Date.now() / 1000;
     let verdict;
     try {
-      verdict = await verifyPurchase({ platform, productId, token, cfg, ctx: { fetch: fetchImpl, nowSec } });
+      verdict = await verifyPurchase({
+        platform,
+        productId,
+        token,
+        deviceId: deviceIdOk ? deviceId : undefined,
+        cfg,
+        ctx: { fetch: fetchImpl, nowSec },
+      });
     } catch (err) {
       // verifyPurchase never throws by contract; a 500 is the honest
       // fallback if it ever does (fail closed, never a mint).
@@ -182,6 +206,7 @@ function startServer({ env = process.env, listen = true } = {}) {
           configured: {
             android: !!cfg.play,
             ios: !!cfg.apple,
+            web: !!cfg.stripe,
             identity: { google: !!cfg.googleClientId, apple: !!cfg.appleBundleId },
           },
           playPackage: cfg.playPackage,

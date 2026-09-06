@@ -431,6 +431,7 @@ export const en = {
   "iap.restoreDetail":
     "Re-apply the past store purchases on this device.",
   "iap.restoreButton": "Restore",
+  "iap.adLabel": "Advertisement",
 
   // --- Shared UI ---------------------------------------------------------------
   "ui.close": "Close",

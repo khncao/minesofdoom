@@ -847,11 +847,13 @@ export default function MinesOfDoom() {
   // In-app purchases (plan §5.2): dev builds run a clearly labeled
   // simulation; native production runs the real expo-iap → Pocketbase
   // provider once storeConfig.pocketbaseUrl is filled in (docs/
-  // store-integration.md §1) and the no-op (entry points hidden) until
-  // then; web is the no-op until the Stripe web path is built. Entitlements
-  // are device-local and never travel in the save; the first validated
-  // purchase feeds the analytics record. The provider selection itself is
-  // the documented one-line swap point (selectIapProvider — see its docs).
+  // store-integration.md §1); web production runs the Stripe Checkout
+  // provider (docs/todo.md #1) once the Stripe block is configured —
+  // both fall back to the no-op (entry points hidden) until configured.
+  // Entitlements are device-local and never travel in the save; the
+  // first validated purchase feeds the analytics record. The provider
+  // selection itself is the documented one-line swap point
+  // (selectIapProvider — see its docs).
 
   // Debug-APK billing tests (docs/store-integration.md §2.4): a persisted,
   // user-toggled opt-in for the REAL store provider in dev builds (the
@@ -868,6 +870,64 @@ export default function MinesOfDoom() {
     displayMessage,
     getSessionToken: accountSessionToken,
   });
+
+  // Stripe Checkout return-visit (web only, docs/todo.md #1): the player
+  // paid on Stripe's hosted page and the browser is back on the app root.
+  // The URL carries ?iap=success&iap_product=<id>&iap_sid=<session-id>
+  // (or ?iap=cancel). Hand the pair to the provider (it persists it in
+  // the pending-verify queue), run the restore — which replays the queue
+  // (the server confirms the session with the Stripe API and mints the
+  // entitlement row) and merges the server's entitlements — then strip
+  // the flags so a refresh doesn't re-verify. Runs once on mount, web
+  // only; the ref indirection keeps the effect deps empty (the restore
+  // callback is stable enough, but the flag cleanup must happen exactly
+  // once per return-visit, not on every re-render).
+  const iapRestoreRef = useRef(iap.restore);
+  iapRestoreRef.current = iap.restore;
+  const iapProviderRef = useRef(iapProvider);
+  iapProviderRef.current = iapProvider;
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const win = (globalThis as { window?: Window }).window;
+    const loc = win?.location;
+    const hist = win?.history;
+    if (!loc || !hist) return;
+    const params = new URLSearchParams(loc.search);
+    const flag = params.get("iap");
+    if (flag !== "success" && flag !== "cancel") return;
+    // Clean the URL first: the flags are one-shot. (replaceState keeps
+    // the history entry — the player's back button shouldn't re-enter a
+    // paid checkout state.)
+    const clean = () => {
+      params.delete("iap");
+      params.delete("iap_product");
+      params.delete("iap_sid");
+      const qs = params.toString();
+      hist.replaceState(null, "", loc.pathname + (qs ? `?${qs}` : ""));
+    };
+    clean();
+    if (flag === "cancel") {
+      // The player backed out on the hosted page: nothing to verify.
+      return;
+    }
+    // Validate the URL product id against the catalog — the query string
+    // is attacker-controllable, the catalog is the allowlist.
+    const pidRaw = params.get("iap_product") ?? "";
+    const productId =
+      pidRaw in IAP_PRODUCTS ? (pidRaw as IapProductId) : null;
+    const sid = params.get("iap_sid") ?? "";
+    if (productId === null || !sid) return;
+    // The provider (web .web swap) exposes noteCheckoutSuccess to queue
+    // the (productId, session-id) verify; native/noop providers don't.
+    // The queue is persisted, so even a crash before the verify POST is
+    // fine — the next restore replays it.
+    const note = iapProviderRef.current.noteCheckoutSuccess;
+    if (!note) return;
+    void Promise.resolve(note(productId, sid)).then(() => {
+      void iapRestoreRef.current();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Cosmetic IAP packs (plan §5.2): a validated purchase (or a restore /
   // a re-load on this device) permanently joins each owned pack's

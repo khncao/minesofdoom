@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { Image, Pressable, Text, View } from "react-native";
+import AdSenseBanner from "./AdSenseBanner";
 import BottomModal from "src/components/BottomModal";
 import Button from "src/components/Button";
 import { useContent, useI18n } from "src/hooks/useI18n";
@@ -215,6 +216,12 @@ function IapPanel({
             onPress={onRestore}
           />
         </View>
+
+        {/* Web monetization slot (docs/todo.md #2): inside the player-
+            invoked shop sheet only — never over the game canvas. The
+            component no-ops on native and while the AdSense config is
+            empty (hidden-no-op pattern). */}
+        <AdSenseBanner />
       </View>
     </BottomModal>
   );

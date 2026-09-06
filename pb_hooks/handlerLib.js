@@ -134,7 +134,14 @@ function handleVerify(app, body) {
   if (logic.writeBudgetExceeded((recentWriteEvents(app, deviceId) || []).length)) {
     return tooManyRequests();
   }
-  const verified = verifyPurchase(body.platform, productId, token);
+  // Web (Stripe) verify passes the device id so the sidecar can bind the
+  // Checkout session's metadata to this device (anti session-replay).
+  const verified = verifyPurchase(
+    body.platform,
+    productId,
+    token,
+    body.platform === "web" ? deviceId : undefined,
+  );
   if (!verified) return badRequest("token verification failed");
   const row = {
     productId: logic.PRODUCTS[productId],
@@ -164,6 +171,67 @@ function handleRestore(app, body) {
       ])
     : listEntitlements(app, body.deviceId);
   return ok({ entitlements: entitlements });
+}
+
+/**
+ * Stripe webhook receiver — the BACKUP mint path (the primary is the
+ * client return-visit verify, which hits handleVerify with platform=web).
+ *
+ * Security model: this route is UNAUTHENTICATED on purpose — Stripe's
+ * signing secret is a server credential the goja runtime would have to
+ * re-implement HMAC-SHA256 for, and the raw request body is consumed by
+ * the time a handler sees it (e.request.getBody() panics — probed on
+ * v0.40.2). So the signature is NOT verified here. Instead the event
+ * body is treated as an untrusted HINT: the only thing that mints is the
+ * sidecar's Stripe-API lookup (verifyStripeCheckout with the secret key,
+ * same "verify against the store API" pattern as Play/Apple). A spoofed
+ * POST costs the attacker one API lookup that cannot match their
+ * product/device — it can never mint.
+ *
+ * Idempotency: Stripe retries deliveries; the event id is recorded in the
+ * `events` collection (kind="stripe-event", payload=eventId) and a repeat
+ * delivery is a no-op.
+ */
+function handleStripeWebhook(app, body) {
+  const v = logic.validateStripeWebhookEvent(body);
+  if (!v.ok) return badRequest(v.error);
+  // Dedup on the Stripe event id (retries, and the two paths minting the
+  // same session are fine — the entitlement upsert is idempotent too).
+  const seen = app.findRecordsByFilter(
+    "events",
+    "kind = {:kind} && payload = {:payload}",
+    "",
+    1,
+    0,
+    { kind: "stripe-event", payload: body.id },
+  );
+  if ((seen || []).length > 0) {
+    return ok({ processed: false, reason: "duplicate event" });
+  }
+  const verified = verifyPurchase(
+    "web",
+    v.productId,
+    v.sessionId,
+    v.deviceId,
+  );
+  if (!verified) return badRequest("token verification failed");
+  const row = {
+    productId: logic.PRODUCTS[v.productId],
+    platform: "web",
+    tokenHash: globalThis.$security.sha256(v.sessionId),
+    verifiedAt: new Date().toISOString(),
+  };
+  upsertDeviceRow(app, "entitlements", v.deviceId, row);
+  const collection = app.findCollectionByNameOrId("events");
+  app.save(
+    new Record(collection, {
+      deviceId: v.deviceId,
+      kind: "stripe-event",
+      payload: body.id,
+      ts: Date.now(),
+    }),
+  );
+  return ok({ processed: true });
 }
 
 // -- cloud saves -------------------------------------------------------------
@@ -667,6 +735,7 @@ function handleAuthLink(app, body) {
 const handlers = {
   verify: handleVerify,
   restore: handleRestore,
+  "stripe/webhook": handleStripeWebhook,
   "cloud/push": handleCloudPush,
   "cloud/pull": handleCloudPull,
   "leaderboard/submit": handleLeaderboardSubmit,

@@ -20,6 +20,13 @@
  * tagged and account-linked rows of other devices become reachable):
  *   /api/app/verify              → { entitlements: [storeId…] }
  *   /api/app/restore             → { entitlements: [storeId…] }
+ *   /api/app/stripe/webhook      → { processed: bool }   // Stripe
+ *                                // checkout.session.completed delivery.
+ *                                // UNAUTHENTICATED by design: the event
+ *                                // body is an untrusted hint, the only
+ *                                // mint gate is the sidecar's Stripe-API
+ *                                // lookup (see handleStripeWebhook).
+ *                                // Idempotent on the Stripe event id.
  *   /api/app/cloud/push          → { updatedAt }   // the STORED value
  *   /api/app/cloud/pull          → { snapshot: {…} | null }
  *   /api/app/leaderboard/submit  → { ok: true }
@@ -80,6 +87,7 @@ function route(name) {
 
 route("verify");
 route("restore");
+route("stripe/webhook");
 route("cloud/push");
 route("cloud/pull");
 route("leaderboard/submit");
