@@ -17,7 +17,6 @@ import ComboIndicator from "./components/ComboIndicator";
 import PurchaseButtons from "./components/PurchaseButtons";
 import MiningCanvas from "./components/MiningCanvas";
 import MenuPanel from "./components/MenuPanel";
-import CosmeticsSection from "./components/CosmeticsSection";
 import type { AccountSettingsProps } from "./components/AccountTab";
 import SavePill from "./components/SavePill";
 import OnboardingOverlay from "./components/OnboardingOverlay";
@@ -116,17 +115,17 @@ export default function MinesOfDoom() {
     true,
   );
 
-  // The tabs inside the upgrades side drawer (todo: "upgrades menu as a
-  // side hidden overlay on the canvas"): upgrades + the shop (cosmetics —
-  // todo: "Move cosmetics from settings to shop"). The keypad is NOT a
-  // drawer tab: when keypad mode is on it lives in its own bottom strip
-  // (the core-loop input, always reachable), when off the OS keyboard
-  // handles answers and there is no on-screen keypad at all.
-  const [drawerTab, setDrawerTab] = useState<"upgrades" | "shop">(
-    "upgrades",
-  );
+  // The upgrades side drawer (todo: "upgrades menu as a side hidden
+  // overlay on the canvas") holds the purchase list ONLY — the gem
+  // cosmetics shop is NOT a tab here (todo: "No shop next to upgrades
+  // menu"); it lives in the menu sheet's Shop view (MenuPanel). The
+  // keypad is likewise not in the drawer: when keypad mode is on it
+  // lives in its own bottom strip (the core-loop input, always
+  // reachable), when off the OS keyboard handles answers and there is
+  // no on-screen keypad at all.
   // The drawer is hidden by default: the cave canvas keeps the whole
-  // mid-screen, and the ⚒ UPGRADES button in the top menu row opens it.
+  // mid-screen, and the ⛏ upgrades button floating over the cave opens
+  // it.
   const [upgradesOpen, setUpgradesOpen] = useState(false);
 
   // First-run onboarding (plan §2.1): shown until dismissed; the flag
@@ -1000,6 +999,7 @@ export default function MinesOfDoom() {
             onClearAnalytics={onClearAnalytics}
             cloudSave={cloudSaveSettings}
             account={accountSettings}
+            cosmetics={cosmetics}
           />
           <SavePill
             dirty={saveDirty}
@@ -1147,60 +1147,6 @@ export default function MinesOfDoom() {
             />
             <View testID="upgrades-drawer" style={styles.upgradesDrawer}>
               <View style={styles.purchasesHeader}>
-                <View style={styles.purchasesTabs}>
-                  <Pressable
-                    testID="upgrades-tab"
-                    accessibilityRole="button"
-                    accessibilityLabel={t("main.a11yUpgradesTab")}
-                    accessibilityState={{
-                      selected: drawerTab === "upgrades",
-                    }}
-                    onPress={() => setDrawerTab("upgrades")}
-                    style={[
-                      styles.purchasesToggle,
-                      drawerTab === "upgrades"
-                        ? styles.purchasesTabActive
-                        : null,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.purchasesToggleText,
-                        drawerTab === "upgrades"
-                          ? styles.purchasesTabActiveText
-                          : null,
-                      ]}
-                    >
-                      {t("main.upgrades")}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    testID="shop-tab"
-                    accessibilityRole="button"
-                    accessibilityLabel={t("main.a11yShopTab")}
-                    accessibilityState={{
-                      selected: drawerTab === "shop",
-                    }}
-                    onPress={() => setDrawerTab("shop")}
-                    style={[
-                      styles.purchasesToggle,
-                      drawerTab === "shop"
-                        ? styles.purchasesTabActive
-                        : null,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.purchasesToggleText,
-                        drawerTab === "shop"
-                          ? styles.purchasesTabActiveText
-                          : null,
-                      ]}
-                    >
-                      {t("main.shop")}
-                    </Text>
-                  </Pressable>
-                </View>
                 <Pressable
                   testID="upgrades-drawer-close"
                   accessibilityRole="button"
@@ -1212,14 +1158,7 @@ export default function MinesOfDoom() {
                 </Pressable>
               </View>
               <ScrollView style={styles.purchasesScroll}>
-                {drawerTab === "shop" ? (
-                  // Shop tab (todo: "Move cosmetics from settings to
-                  // shop"): the gem cosmetics list moved here out of the
-                  // settings sheet so it lives with the other spend-
-                  // minerals surface.
-                  <CosmeticsSection {...cosmetics} />
-                ) : (
-                  <PurchaseButtons
+                <PurchaseButtons
                 visible={visiblePurchases}
                 minerals={gameState.minerals}
                 gems={gameState.gems}
@@ -1248,7 +1187,6 @@ export default function MinesOfDoom() {
                 onUpgradeMinerPower={upgradeMinerPower}
                 onSinkNewShaft={sinkNewShaft}
                 />
-                )}
               </ScrollView>
             </View>
           </>

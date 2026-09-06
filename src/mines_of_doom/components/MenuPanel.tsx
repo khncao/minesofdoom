@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo, useState, type ComponentProps } from "react";
 import { Pressable, Text, View } from "react-native";
 import BottomModal from "src/components/BottomModal";
 import { useT } from "src/hooks/useI18n";
@@ -12,17 +12,27 @@ import AccountTab, { type AccountSettingsProps } from "./AccountTab";
 import AboutTab from "./AboutTab";
 import GoalsContent from "./GoalsPanel";
 import RecordsContent from "./RecordsPanel";
+import CosmeticsSection from "./CosmeticsSection";
 import { SaveData, SettingsData } from "../game";
 import { styles } from "../styles";
 
-type MenuView = "settings" | "save" | "account" | "goals" | "records" | "about";
+type MenuView =
+  | "settings"
+  | "save"
+  | "account"
+  | "shop"
+  | "goals"
+  | "records"
+  | "about";
 
 /**
  * Footer menu (plan "Adjust", reorganized for the todo
  * "reorganize menus with clean reimplementation"): one menu button opens
- * a sheet with six short views — Settings (gameplay preferences),
+ * a sheet with seven short views — Settings (gameplay preferences),
  * Save (autosave, save code, Save/Reset, cloud backup), Account
- * (optional login), Goals, Records, and About (legal, inquiries,
+ * (optional login), Shop (the gem cosmetics — todo: "No shop next to
+ * upgrades menu — shop items should be options to buy with gems in
+ * cosmetics shop"), Goals, Records, and About (legal, inquiries,
  * debug). Each view stays a few screens tall instead of the old single
  * settings scroll that mixed gameplay, save-data, account and legal
  * content; the mute toggle stays above the switcher and the daily
@@ -49,6 +59,7 @@ function MenuPanel({
   onClearAnalytics,
   cloudSave,
   account,
+  cosmetics,
 }: {
   settingsData: SettingsData;
   onChangeSettingsData: (newSettings: SettingsData) => void;
@@ -81,6 +92,10 @@ function MenuPanel({
   /** Optional-account settings bundle (see AccountSettingsProps); the
    *  section hides itself while the provider is unavailable. */
   account: AccountSettingsProps;
+  /** The gem cosmetics shop (todo: "No shop next to upgrades menu") —
+   *  the cosmetics moved OUT of the upgrades drawer's shop tab into
+   *  this menu sheet's own Shop view. */
+  cosmetics: ComponentProps<typeof CosmeticsSection>;
 }) {
   const t = useT();
   const [view, setView] = useState<MenuView>("settings");
@@ -142,6 +157,10 @@ function MenuPanel({
     () => <RecordsContent stats={stats} />,
     [stats],
   );
+  const shopChildren = useMemo(
+    () => <CosmeticsSection {...cosmetics} />,
+    [cosmetics],
+  );
   const aboutChildren = useMemo(
     () => (
       <AboutTab analytics={analytics} onClearAnalytics={onClearAnalytics} />
@@ -186,6 +205,12 @@ function MenuPanel({
             testID="menu-tab-account"
           />
           <MenuNavButton
+            label={t("menu.shop")}
+            active={view === "shop"}
+            onPress={() => setView("shop")}
+            testID="menu-tab-shop"
+          />
+          <MenuNavButton
             label={t("menu.goals")}
             active={view === "goals"}
             onPress={() => setView("goals")}
@@ -210,11 +235,13 @@ function MenuPanel({
             ? saveChildren
             : view === "account"
               ? accountChildren
-              : view === "goals"
-                ? goalsChildren
-                : view === "records"
-                  ? recordsChildren
-                  : aboutChildren}
+              : view === "shop"
+                ? shopChildren
+                : view === "goals"
+                  ? goalsChildren
+                  : view === "records"
+                    ? recordsChildren
+                    : aboutChildren}
       </View>
     </BottomModal>
   );

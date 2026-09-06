@@ -48,13 +48,11 @@ appId: com.minus4kelvin.minesofdoom
 - takeScreenshot: 02_mining.png
 
 # State 3/4 — the upgrades drawer. The side overlay on the canvas is
-# hidden by default; open it from the top menu row, then tap the
-# upgrades tab; asserting a buy button proves the drawer is actually
-# rendered, not just its tab bar.
+# hidden by default; the floating ⛏ button over the cave opens it
+# (single view since the shop tab moved to the menu sheet's Shop view);
+# asserting a buy button proves the drawer is actually rendered.
 - tapOn:
     id: upgrades-toggle
-- tapOn:
-    id: upgrades-tab
 - assertVisible:
     id: btn-upgrade-power
 - takeScreenshot: 03_upgrades.png

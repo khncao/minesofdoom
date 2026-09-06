@@ -26,10 +26,7 @@ export const es: Record<TranslationKey, string> = {
   "main.upgrades": "MEJORAS",
   "main.a11yShowUpgrades": "Mostrar mejoras",
   "main.a11yHideUpgrades": "Ocultar mejoras",
-  "main.shop": "TIENDA",
   "main.a11yCloseUpgrades": "Cerrar mejoras",
-  "main.a11yUpgradesTab": "Pestaña de mejoras",
-  "main.a11yShopTab": "Pestaña de tienda",
   "main.a11yMenu": "Menú",
   "main.a11yLeaderboard": "Clasificación — los mejores mineros",
 
@@ -158,6 +155,7 @@ export const es: Record<TranslationKey, string> = {
   "menu.settings": "⚙️ Ajustes",
   "menu.save": "💾 Guardado",
   "menu.account": "👤 Cuenta",
+  "menu.shop": "🛍️ Tienda",
   "menu.goals": "🎯 Objetivos",
   "menu.records": "📊 Récords",
   "menu.about": "ℹ️ Información",

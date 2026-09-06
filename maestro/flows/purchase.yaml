@@ -28,13 +28,12 @@ appId: com.minus4kelvin.minesofdoom
     id: equation-display
 
 # The upgrades drawer (side overlay on the canvas) is hidden by default;
-# open it from the top menu row and switch to the upgrades tab first; both
-# core currency groups then render (the mineral-spend button and the
-# gem-spend button are always visible).
+# the floating ⛏ button over the cave opens it (single view since the
+# shop tab moved to the menu sheet); both core currency groups then
+# render (the mineral-spend button and the gem-spend button are always
+# visible).
 - tapOn:
     id: upgrades-toggle
-- tapOn:
-    id: upgrades-tab
 - assertVisible:
     id: btn-upgrade-power
 - assertVisible:

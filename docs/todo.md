@@ -15,5 +15,4 @@ Completed items are removed from this file (see git history); only remaining wor
 
 
 - [ ] Main screen move upgrades button floating somewhere over the canvas out of the way
-- [ ] No shop next to upgrades menu--shop items should be options to buy with gems in cosmetics shop
 - [ ] Update UI for dark theme default
