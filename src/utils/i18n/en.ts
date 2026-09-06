@@ -305,6 +305,8 @@ export const en = {
     "purchases and leaderboard row to a new device.",
   "settings.accountEmail": "Email",
   "settings.accountPassword": "Password (8–72 characters)",
+  "settings.accountConfirmPassword":
+    "Confirm the new password (only for a new account)",
   "settings.accountSignIn": "Sign in",
   "settings.accountRegister": "Create account",
   "settings.accountGoogle": "Continue with Google",

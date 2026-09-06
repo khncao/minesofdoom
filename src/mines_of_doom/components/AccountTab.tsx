@@ -88,6 +88,7 @@ function AccountSection({ account }: { account: AccountSettingsProps }) {
   const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -95,9 +96,15 @@ function AccountSection({ account }: { account: AccountSettingsProps }) {
 
   const emailOk = isValidEmailInput(email);
   const passwordOk = isValidPasswordInput(password);
+  // The confirm field is only required for a NEW account (todo "Add
+  // password confirmation if registering"): a matching confirm proves the
+  // password was typed deliberately — no re-typed-on-a-wrong-keyboard
+  // account that can't be logged into. Sign-in ignores the field.
+  const confirmOk = confirm.length > 0 && confirm === password;
 
   const submit = async (mode: "login" | "register") => {
     if (busy || !emailOk || !passwordOk) return;
+    if (mode === "register" && !confirmOk) return;
     setBusy(true);
     setFormError(null);
     try {
@@ -214,6 +221,17 @@ function AccountSection({ account }: { account: AccountSettingsProps }) {
         textContentType="password"
         maxLength={72}
       />
+      <TextInput
+        testID="account-confirm-password"
+        style={{ ...styles.text, ...styles.textInputBox }}
+        placeholder={t("settings.accountConfirmPassword")}
+        placeholderTextColor="#999"
+        value={confirm}
+        onChangeText={setConfirm}
+        secureTextEntry
+        textContentType="newPassword"
+        maxLength={72}
+      />
       {formError !== null && (
         <Text style={{ ...styles.text, fontSize: 11, color: "#e07070" }}>
           {formError}
@@ -232,7 +250,7 @@ function AccountSection({ account }: { account: AccountSettingsProps }) {
         />
         <Button
           title={t("settings.accountRegister")}
-          disabled={!emailOk || !passwordOk || busy}
+          disabled={!emailOk || !passwordOk || !confirmOk || busy}
           onPress={() => void submit("register")}
           style={{ flex: 1 }}
           testId="account-register"

@@ -298,6 +298,8 @@ export const es: Record<TranslationKey, string> = {
     "compras y fila de clasificación a un dispositivo nuevo.",
   "settings.accountEmail": "Correo",
   "settings.accountPassword": "Contraseña (8–72 caracteres)",
+  "settings.accountConfirmPassword":
+    "Confirma la contraseña nueva (solo para crear cuenta)",
   "settings.accountSignIn": "Iniciar sesión",
   "settings.accountRegister": "Crear cuenta",
   "settings.accountGoogle": "Continuar con Google",
