@@ -4,6 +4,7 @@ import {
   COMBO_TIER_SIZE,
   DEPTH_TIERS,
   GEM_CHANCE_MAX_LEVELS,
+  computeBuyAll,
   computeOfflineMinerals,
   computeOfflineTopUpMinerals,
   createEmptySaveData,
@@ -45,7 +46,7 @@ import {
   getVisiblePurchases,
   hasAffordablePurchase,
 } from "../game";
-import type { PurchaseAffordability, PurchaseId } from "../game";
+import type { BuyAllPlan, PurchaseAffordability, PurchaseId } from "../game";
 import { DEFAULT_CAVE_THEME, DEFAULT_CAVE_TINTS } from "../cosmetics";
 import { Equation, Ops } from "src/utils/math/equations";
 import {
@@ -1205,3 +1206,291 @@ describe("getDepthTierProgress (cave continuous scroll)", () => {
     expect(getDepthTierProgress(end + 10_000)).toBe(1);
   });
 });
+
+describe("computeBuyAll (buy-all plans)", () => {
+  // Affordability helper: sane defaults with a couple of lines unlocked.
+  const aff = (o: Partial<PurchaseAffordability> = {}): PurchaseAffordability => ({
+    minerals: 0n,
+    gems: 0,
+    clickPower: 1,
+    minerPower: 1,
+    miners: 0,
+    fastMiners: 0,
+    legendaryMiners: 0,
+    gemChanceLevels: 0,
+    clickBoostLevels: 0,
+    comboResistLevels: 0,
+    prestigeLevel: 0,
+    lifetimeMinerals: 0n,
+    minerPowerUnlocked: false,
+    fastMinerUnlocked: false,
+    legendaryMinerUnlocked: false,
+    prestigeUnlocked: false,
+    ...o,
+  });
+
+  // Per-level greedy oracle: repeatedly buy the single cheapest eligible,
+  // affordable next level (ties: fixed line order) until nothing fits — the
+  // exact thing a patient hand-tapper would do. The batched computeBuyAll
+  // must produce the identical plan.
+  function oracleBuyAll(
+    currency: "minerals" | "gems",
+    s: PurchaseAffordability,
+    visible?: ReadonlySet<PurchaseId>,
+  ): BuyAllPlan {
+    type LineKey =
+      | "clickPower"
+      | "minerPower"
+      | "miners"
+      | "fastMiners"
+      | "legendaryMiners"
+      | "gemChance"
+      | "clickBoost"
+      | "comboResist";
+    type Line = {
+      key: LineKey;
+      id: PurchaseId;
+      cost: (level: number) => number;
+      max: number | null;
+    };
+    const lines: Line[] =
+      currency === "minerals"
+        ? [
+            { key: "clickPower", id: "power", cost: getClickUpgradeCost, max: null },
+            { key: "minerPower", id: "minerPower", cost: getMinerPowerUpgradeCost, max: null },
+          ]
+        : [
+            { key: "miners", id: "miner", cost: getMinerUpgradeCost, max: null },
+            { key: "fastMiners", id: "fastMiner", cost: getFastMinerCost, max: null },
+            { key: "legendaryMiners", id: "legendaryMiner", cost: getLegendaryMinerCost, max: null },
+            { key: "gemChance", id: "gemChance", cost: getGemChanceCost, max: GEM_CHANCE_MAX_LEVELS },
+            { key: "clickBoost", id: "clickBoost", cost: getClickBoostCost, max: CLICK_BOOST_MAX_LEVELS },
+            { key: "comboResist", id: "comboResist", cost: getComboResistCost, max: COMBO_RESIST_MAX_LEVELS },
+          ];
+    const unlocked: Record<PurchaseId, boolean> = {
+      power: true,
+      miner: true,
+      gem: false, // currency conversion — never part of buy-all
+      minerPower: s.minerPowerUnlocked,
+      fastMiner: s.fastMinerUnlocked,
+      gemChance: s.fastMinerUnlocked,
+      legendaryMiner: s.legendaryMinerUnlocked,
+      clickBoost: s.prestigeUnlocked,
+      comboResist: s.prestigeUnlocked,
+      prestige: false,
+    };
+    const plan: BuyAllPlan = {
+      clickPower: 0,
+      minerPower: 0,
+      miners: 0,
+      fastMiners: 0,
+      legendaryMiners: 0,
+      gemChance: 0,
+      clickBoost: 0,
+      comboResist: 0,
+      totalLevels: 0,
+      totalCost: 0,
+    };
+    let budget =
+      currency === "minerals" ? s.minerals : BigInt(Math.max(0, s.gems));
+    // The oracle's own running levels — cost curves advance per purchase,
+    // so the level must move as the plan grows.
+    const levels = {
+      clickPower: s.clickPower,
+      minerPower: s.minerPower,
+      miners: s.miners,
+      fastMiners: s.fastMiners,
+      legendaryMiners: s.legendaryMiners,
+      gemChance: s.gemChanceLevels,
+      clickBoost: s.clickBoostLevels,
+      comboResist: s.comboResistLevels,
+    };
+    // Per-level loop — fine at test budgets (keeps totals in float range).
+    for (let step = 0; step < 100_000; step++) {
+      let bestIdx = -1;
+      let bestCost = Number.POSITIVE_INFINITY;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const level = levels[line.key];
+        if (visible != null && !visible.has(line.id)) continue;
+        if (!unlocked[line.id]) continue;
+        if (line.max != null && level >= line.max) continue;
+        const cost = line.cost(level);
+        // Ties keep the EARLIER line (strictly-cheaper replaces) — the
+        // same deterministic pick computeBuyAll makes.
+        if (!Number.isFinite(cost) || cost >= bestCost) continue;
+        if (budget < BigInt(cost)) continue;
+        bestIdx = i;
+        bestCost = cost;
+      }
+      if (bestIdx < 0) break;
+      const line = lines[bestIdx];
+      levels[line.key] += 1;
+      budget -= BigInt(bestCost);
+      plan[line.key] += 1;
+      plan.totalLevels += 1;
+      plan.totalCost += bestCost;
+    }
+    return plan;
+  }
+
+  it("minerals group: spends cheapest first and reports exact totals", () => {
+    // clickPower=1 (next 1), minerPower=1 unlocked (next 1): tie → the
+    // fixed line order decides (clickPower is listed first).
+    const s = aff({
+      minerals: 1_000n,
+      clickPower: 1,
+      minerPower: 1,
+      minerPowerUnlocked: true,
+      lifetimeMinerals: 1_000n,
+    });
+    const plan = computeBuyAll("minerals", s);
+    const oracle = oracleBuyAll("minerals", s);
+    expect(plan).toEqual(oracle);
+    expect(plan.totalLevels).toBe(plan.clickPower + plan.minerPower);
+    // Exact float total (small numbers) and within budget.
+    expect(BigInt(Math.floor(plan.totalCost))).toBeLessThanOrEqual(
+      s.minerals,
+    );
+    expect(plan.clickPower).toBeGreaterThan(0);
+  });
+
+  it("matches the per-level greedy oracle on many random states", () => {
+    const ids = [
+      "power",
+      "minerPower",
+      "miner",
+      "fastMiner",
+      "gemChance",
+      "legendaryMiner",
+      "clickBoost",
+      "comboResist",
+    ] as const;
+    for (let i = 0; i < 200; i++) {
+      const s = aff({
+        minerals: BigInt(Math.floor(Math.random() * 2e7)),
+        gems: (Math.random() * 2000) | 0,
+        clickPower: 1 + ((Math.random() * 50) | 0),
+        minerPower: 1 + ((Math.random() * 15) | 0),
+        miners: (Math.random() * 30) | 0,
+        fastMiners: (Math.random() * 15) | 0,
+        legendaryMiners: (Math.random() * 8) | 0,
+        gemChanceLevels: (Math.random() * 20) | 0,
+        clickBoostLevels: (Math.random() * 10) | 0,
+        comboResistLevels: (Math.random() * 10) | 0,
+        minerPowerUnlocked: Math.random() < 0.5,
+        fastMinerUnlocked: Math.random() < 0.5,
+        legendaryMinerUnlocked: Math.random() < 0.5,
+        prestigeUnlocked: Math.random() < 0.5,
+      });
+      const visible = new Set<PurchaseId>(
+        ids.filter(() => Math.random() < 0.8),
+      );
+      for (const currency of ["minerals", "gems"] as const) {
+        expect(computeBuyAll(currency, s, visible)).toEqual(
+          oracleBuyAll(currency, s, visible),
+        );
+      }
+    }
+  });
+
+  it("respects goal-tier unlocks, the visibility set, and never overshoots the budget", () => {
+    // Everything unlocked in state, but the UI hides every line except the
+    // core ones — buy-all may only buy what's rendered.
+    const s = aff({
+      minerals: 100_000n,
+      gems: 500,
+      minerPowerUnlocked: true,
+      fastMinerUnlocked: true,
+      legendaryMinerUnlocked: true,
+      prestigeUnlocked: true,
+    });
+    const visible = new Set<PurchaseId>(["power", "miner"]);
+    const pg = computeBuyAll("gems", s, visible);
+    expect(pg.miners).toBeGreaterThan(0);
+    expect(
+      pg.fastMiners + pg.legendaryMiners + pg.gemChance + pg.clickBoost + pg.comboResist,
+    ).toBe(0);
+    // Locked lines are skipped even when visible.
+    const locked = computeBuyAll("minerals", aff({ minerals: 10_000n }));
+    expect(locked.minerPower).toBe(0); // minerPowerUnlocked=false
+    expect(locked.clickPower).toBeGreaterThan(0);
+    // Budgets: never overshoot, on hand-picked and random states.
+    expect(
+      BigInt(Math.floor(locked.totalCost)),
+    ).toBeLessThanOrEqual(10_000n);
+    for (let i = 0; i < 60; i++) {
+      const minerals = BigInt(Math.floor(Math.random() * 2e6));
+      const gems = (Math.random() * 400) | 0;
+      const rs = aff({
+        minerals,
+        gems,
+        clickPower: 1 + ((Math.random() * 30) | 0),
+        minerPower: 1 + ((Math.random() * 10) | 0),
+        miners: (Math.random() * 20) | 0,
+        fastMiners: (Math.random() * 10) | 0,
+        gemChanceLevels: (Math.random() * 5) | 0,
+        minerPowerUnlocked: Math.random() < 0.5,
+        fastMinerUnlocked: Math.random() < 0.5,
+        legendaryMinerUnlocked: Math.random() < 0.5,
+        prestigeUnlocked: Math.random() < 0.5,
+      });
+      expect(
+        BigInt(Math.floor(computeBuyAll("minerals", rs).totalCost)),
+      ).toBeLessThanOrEqual(minerals);
+      expect(
+        BigInt(Math.floor(computeBuyAll("gems", rs).totalCost)),
+      ).toBeLessThanOrEqual(BigInt(gems));
+    }
+  });
+
+  it("capped gem lines stop at their caps", () => {
+    const s = aff({
+      gems: 100_000,
+      fastMinerUnlocked: true,
+      prestigeUnlocked: true,
+      gemChanceLevels: GEM_CHANCE_MAX_LEVELS - 1,
+      clickBoostLevels: CLICK_BOOST_MAX_LEVELS,
+    });
+    const plan = computeBuyAll("gems", s);
+    expect(plan.gemChance).toBe(1); // one level to the cap, then done
+    expect(plan.clickBoost).toBe(0); // already at the cap
+    expect(plan.comboResist).toBeLessThanOrEqual(COMBO_RESIST_MAX_LEVELS);
+  });
+
+  it("empty budget buys nothing", () => {
+    const s = aff({ minerals: 0n, gems: 0, minerPowerUnlocked: true });
+    expect(computeBuyAll("minerals", s)).toEqual({
+      clickPower: 0,
+      minerPower: 0,
+      miners: 0,
+      fastMiners: 0,
+      legendaryMiners: 0,
+      gemChance: 0,
+      clickBoost: 0,
+      comboResist: 0,
+      totalLevels: 0,
+      totalCost: 0,
+    });
+  });
+
+  it("handles endgame mineral budgets in milliseconds (batching)", () => {
+    const s = aff({
+      minerals: 10n ** 16n, // far past float-safe — batched greedy only
+      clickPower: 1000,
+      minerPower: 5,
+      minerPowerUnlocked: true,
+      lifetimeMinerals: 10n ** 16n,
+    });
+    const t0 = Date.now();
+    const plan = computeBuyAll("minerals", s);
+    const ms = Date.now() - t0;
+    expect(plan.totalLevels).toBeGreaterThan(1000);
+    // The whole point of batching: not thousands of scans per level.
+    expect(ms).toBeLessThan(500);
+    expect(BigInt(Math.floor(plan.totalCost))).toBeLessThanOrEqual(
+      s.minerals,
+    );
+  });
+});
+

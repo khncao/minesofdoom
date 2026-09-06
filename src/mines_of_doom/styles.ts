@@ -161,6 +161,25 @@ export const styles = StyleSheet.create({
     fontSize: 11,
     userSelect: "none",
   },
+  // Combo-save pill (todo: "Allow saving combo with rewarded-ad"): sits
+  // under the combo indicator while a lost combo is still saveable — the
+  // combo palette (amber) so it reads as "the combo thing you just lost".
+  comboSavePill: {
+    alignSelf: "center",
+    marginTop: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: "rgba(84, 54, 12, 0.92)",
+    borderWidth: 1,
+    borderColor: "#ffaa44",
+  },
+  comboSavePillText: {
+    color: "#ffe08a",
+    fontSize: 12,
+    fontWeight: "bold",
+    userSelect: "none",
+  },
   messageOverlay: {
     position: "absolute",
     top: "38%",

@@ -83,6 +83,11 @@ export const en = {
   // --- Combo indicator ----------------------------------------------------
   "combo.active": "🔥 {combo}x combo",
   "combo.untilNext": "{count} more → ×{mult}",
+  // The main-screen combo-save pill (todo: "Allow saving combo with
+  // rewarded-ad"): shown right after a multiplier-worthy combo is lost,
+  // with the offer window's seconds left; the tap is the "watch" tap.
+  "combo.saveOffer": "🔥 Combo {combo} lost — save it ({time}s)",
+  "combo.saveOfferClaiming": "🔥 Saving combo {combo}…",
 
   // --- Equation area ------------------------------------------------------
   "equation.pending": "correct: +{gain} 🪨",
@@ -93,6 +98,13 @@ export const en = {
   "purchase.groupMinerals": "SPEND 🪨 MINERALS",
   "purchase.groupGems": "SPEND 💎 GEMS",
   "purchase.groupPrestige": "PRESTIGE",
+  // Buy-all buttons in the group headers (todo: buy-all buttons): the
+  // greedy plan's total levels and total cost in the group's currency.
+  "purchase.buyAllMinerals": "⚡ ALL +{count} (-{cost} 🪨)",
+  "purchase.buyAllGems": "⚡ ALL +{count} (-{cost} 💎)",
+  "purchase.a11yBuyAllMinerals":
+    "Buy all mineral upgrades: +{count} levels",
+  "purchase.a11yBuyAllGems": "Buy all gem upgrades: +{count} levels",
   "purchase.nextCost": ", next {cost}",
   "purchase.upgradePower": "UPGRADE POWER (-{cost} 🪨) ({power})",
   "purchase.upgradeMiners": "UPGRADE MINERS (-{cost} 🪨) ({power})",

@@ -30,8 +30,6 @@ Completed items are removed from this file (see git history); only remaining wor
     Only open follow-up: S6 (kid-safety/age rating — external store check).
 - [ ] harden pocketbase and the server it's running on following industry standards
 - [ ] move gem shop cosmetics to one time purchase shop with gem and cash buy options
-- [ ] add indicator that combo can be saved after losing a large combo with rewarded ad
-- [ ] add buy all mineral upgrades button and buy all gem upgrades button
 - [ ] use keyboard avoiding views to ensure inputs aren't covered by keyboard (such as in settings)
 
 - [ ] IAP — test purchase → entitlement → wipe local key → restore. use mines-play-35 avd

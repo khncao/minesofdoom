@@ -14,6 +14,7 @@ import EquationDisplay from "./components/EquationDisplay";
 import AnswerInput, { MAX_ANSWER_LENGTH } from "./components/AnswerInput";
 import NumericKeypad from "src/components/NumericKeypad";
 import ComboIndicator from "./components/ComboIndicator";
+import ComboSaveIndicator from "./components/ComboSaveIndicator";
 import PurchaseButtons from "./components/PurchaseButtons";
 import MiningCanvas from "./components/MiningCanvas";
 import MenuPanel from "./components/MenuPanel";
@@ -33,6 +34,7 @@ import {
   getPrestigeMultiplier,
   getResistantComboReset,
   getClickBoostMultiplier,
+  COMBO_TIER_SIZE,
   getVisiblePurchases,
   hasAffordablePurchase,
   SettingsData,
@@ -164,6 +166,8 @@ export default function MinesOfDoom() {
     buyGemChance,
     buyClickBoost,
     buyComboResist,
+    buyAllMinerals,
+    buyAllGems,
     upgradeMinerPower,
     completeTiers,
     completeAchievements,
@@ -1193,6 +1197,23 @@ export default function MinesOfDoom() {
           comboMultiplier={comboMultiplier}
           flashAnim={flashAnim}
         />
+        {/* Combo-save pill (todo: "Allow saving combo with rewarded-ad"):
+            the in-place "undo" for a combo just lost. It only renders
+            while the claim is actually possible (canClaimComboSave covers
+            provider availability, the offer window and the daily caps)
+            AND the lost combo was worth a multiplier (COMBO_TIER_SIZE —
+            the first tier-up; a lost sub-tier combo had no multiplier to
+            lose), so small early-game losses don't nag. */}
+        {adRewards.canClaimComboSave &&
+          comboSave != null &&
+          comboSave.combo >= COMBO_TIER_SIZE && (
+            <ComboSaveIndicator
+              combo={comboSave.combo}
+              until={comboSave.until}
+              claiming={comboSaveClaiming}
+              onClaim={() => handleAdClaim("comboSave")}
+            />
+          )}
         {/* The cave keeps the whole mid-screen: the upgrades drawer
             overlays it (hidden by default) instead of pushing it around,
             and the keypad strip below renders only while the on-screen
@@ -1305,6 +1326,8 @@ export default function MinesOfDoom() {
                 onBuyComboResist={buyComboResist}
                 onUpgradeMinerPower={upgradeMinerPower}
                 onSinkNewShaft={sinkNewShaft}
+                onBuyAllMinerals={buyAllMinerals}
+                onBuyAllGems={buyAllGems}
                 />
               </ScrollView>
             </View>

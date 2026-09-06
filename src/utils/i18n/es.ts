@@ -69,6 +69,12 @@ export const es: Record<TranslationKey, string> = {
   // --- Combo indicator ----------------------------------------------------
   "combo.active": "🔥 combo de {combo}x",
   "combo.untilNext": "{count} más → ×{mult}",
+  // La píldora de "combo guardado" de la pantalla principal (todo: "Allow
+  // saving combo with rewarded-ad"): aparece justo después de perder un
+  // combo que vale multiplicador, con los segundos restantes de la oferta;
+  // el toque es el toque de "ver anuncio".
+  "combo.saveOffer": "🔥 Combo {combo} perdido — guárdalo ({time}s)",
+  "combo.saveOfferClaiming": "🔥 Guardando combo {combo}…",
 
   // --- Equation area ------------------------------------------------------
   "equation.pending": "correcto: +{gain} 🪨",
@@ -79,6 +85,13 @@ export const es: Record<TranslationKey, string> = {
   "purchase.groupMinerals": "GASTAR 🪨 MINERALES",
   "purchase.groupGems": "GASTAR 💎 GEMAS",
   "purchase.groupPrestige": "PRESTIGIO",
+  // Botones de "comprar todo" en los encabezados de grupo (todo: buy-all
+  // buttons): niveles totales y coste total del plan, en la moneda del grupo.
+  "purchase.buyAllMinerals": "⚡ TODO +{count} (-{cost} 🪨)",
+  "purchase.buyAllGems": "⚡ TODO +{count} (-{cost} 💎)",
+  "purchase.a11yBuyAllMinerals":
+    "Comprar todas las mejoras de minerales: +{count} niveles",
+  "purchase.a11yBuyAllGems": "Comprar todas las mejoras de gemas: +{count} niveles",
   "purchase.nextCost": ", siguiente {cost}",
   "purchase.upgradePower": "MEJORAR PODER (-{cost} 🪨) ({power})",
   "purchase.upgradeMiners": "MEJORAR MINEROS (-{cost} 🪨) ({power})",

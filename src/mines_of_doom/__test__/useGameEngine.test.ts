@@ -9,9 +9,11 @@ import { act, renderHook } from "@testing-library/react-native";
 import { useGameEngine } from "../hooks/useGameEngine";
 import {
   SaveData,
+  BuyAllPlan,
   createEmptySaveData,
   serializeSaveData,
   saveDataKey,
+  computeBuyAll,
   getMineralsPerSec,
   getClickUpgradeCost,
   getMinerUpgradeCost,
@@ -612,5 +614,164 @@ describe("useGameEngine — save codes", () => {
       await Promise.resolve();
     });
     expect(ok).toBe(false);
+  });
+});
+
+describe("useGameEngine — buy-all", () => {
+  // Full PurchaseAffordability straight from a save (unlock flags
+  // parameterized — the engine applies plans; gating lives in the UI).
+  const affordFrom = (s: SaveData, o = {}): Parameters<typeof computeBuyAll>[1] =>
+    ({
+      minerals: s.minerals,
+      gems: s.gems,
+      clickPower: s.clickPower,
+      minerPower: s.minerPower,
+      miners: s.miners,
+      fastMiners: s.fastMiners,
+      legendaryMiners: s.legendaryMiners,
+      gemChanceLevels: s.gemChanceLevels,
+      clickBoostLevels: s.clickBoostLevels,
+      comboResistLevels: s.comboResistLevels,
+      prestigeLevel: s.prestigeLevel,
+      lifetimeMinerals: s.lifetimeMinerals,
+      minerPowerUnlocked: true,
+      fastMinerUnlocked: true,
+      legendaryMinerUnlocked: true,
+      prestigeUnlocked: true,
+      ...o,
+    });
+
+  it("applies a minerals plan with exact per-level costs", async () => {
+    const minerals = 50_000n;
+    const { result } = await renderEngine({
+      minerals,
+      lifetimeMinerals: minerals,
+    });
+    const s0 = result.current.gameState;
+    const plan = computeBuyAll("minerals", affordFrom(s0));
+    expect(plan.totalLevels).toBeGreaterThan(0);
+    await act(async () => {
+      result.current.buyAllMinerals(plan);
+      await Promise.resolve();
+    });
+    const s = result.current.gameState;
+    // Recompute the exact remainder the way the engine must have.
+    let rem = minerals;
+    let cp = s0.clickPower;
+    for (let i = 0; i < plan.clickPower; i++) {
+      rem -= BigInt(getClickUpgradeCost(cp));
+      cp += 1;
+    }
+    let mp = s0.minerPower;
+    for (let i = 0; i < plan.minerPower; i++) {
+      rem -= BigInt(getMinerPowerUpgradeCost(mp));
+      mp += 1;
+    }
+    expect(s.clickPower).toBe(cp);
+    expect(s.minerPower).toBe(mp);
+    expect(s.minerals).toBe(rem);
+    expect(s.lifetimeMinerals).toBe(minerals); // spending doesn't un-lifetime
+  });
+
+  it("an overstated plan never overpays — it stops where money runs out", async () => {
+    // A plan computed for a rich state...
+    const rich = await renderEngine({
+      minerals: 100_000n,
+      lifetimeMinerals: 100_000n,
+    });
+    const plan = computeBuyAll("minerals", affordFrom(rich.result.current.gameState));
+    expect(plan.clickPower + plan.minerPower).toBeGreaterThan(10);
+    // ...applied to a state with only 98 minerals (1+16+81 = exactly three
+    // power levels from clickPower 1).
+    const poor = await renderEngine({ minerals: 98n, lifetimeMinerals: 98n });
+    await act(async () => {
+      poor.result.current.buyAllMinerals(plan);
+      await Promise.resolve();
+    });
+    const s = poor.result.current.gameState;
+    expect(s.minerals).toBe(0n);
+    expect(s.clickPower).toBe(4);
+    expect(s.minerPower).toBe(1); // second line never reached
+  });
+
+  it("applies a gems plan and totals gems spent", async () => {
+    const { result } = await renderEngine({ gems: 200 });
+    const s0 = result.current.gameState;
+    const plan = computeBuyAll("gems", affordFrom(s0));
+    expect(plan.totalLevels).toBeGreaterThan(0);
+    await act(async () => {
+      result.current.buyAllGems(plan);
+      await Promise.resolve();
+    });
+    const s = result.current.gameState;
+    let g = s0.gems;
+    let spent = 0;
+    let m = s0.miners;
+    for (let i = 0; i < plan.miners; i++) {
+      g -= getMinerUpgradeCost(m);
+      spent += getMinerUpgradeCost(m);
+      m += 1;
+    }
+    let f = s0.fastMiners;
+    for (let i = 0; i < plan.fastMiners; i++) {
+      g -= getFastMinerCost(f);
+      spent += getFastMinerCost(f);
+      f += 1;
+    }
+    let l = s0.legendaryMiners;
+    for (let i = 0; i < plan.legendaryMiners; i++) {
+      g -= getLegendaryMinerCost(l);
+      spent += getLegendaryMinerCost(l);
+      l += 1;
+    }
+    let gc = s0.gemChanceLevels;
+    for (let i = 0; i < plan.gemChance; i++) {
+      g -= getGemChanceCost(gc);
+      spent += getGemChanceCost(gc);
+      gc += 1;
+    }
+    let cb = s0.clickBoostLevels;
+    for (let i = 0; i < plan.clickBoost; i++) {
+      g -= getClickBoostCost(cb);
+      spent += getClickBoostCost(cb);
+      cb += 1;
+    }
+    let cr = s0.comboResistLevels;
+    for (let i = 0; i < plan.comboResist; i++) {
+      g -= getComboResistCost(cr);
+      spent += getComboResistCost(cr);
+      cr += 1;
+    }
+    expect(s.miners).toBe(m);
+    expect(s.fastMiners).toBe(f);
+    expect(s.legendaryMiners).toBe(l);
+    expect(s.gemChanceLevels).toBe(gc);
+    expect(s.clickBoostLevels).toBe(cb);
+    expect(s.comboResistLevels).toBe(cr);
+    expect(s.gems).toBe(g);
+    expect(s.totalGemsSpent).toBe(s0.totalGemsSpent + spent);
+  });
+
+  it("an empty plan is a no-op (same state object)", async () => {
+    const { result } = await renderEngine();
+    const before = result.current.gameState;
+    const empty: BuyAllPlan = {
+      clickPower: 0,
+      minerPower: 0,
+      miners: 0,
+      fastMiners: 0,
+      legendaryMiners: 0,
+      gemChance: 0,
+      clickBoost: 0,
+      comboResist: 0,
+      totalLevels: 0,
+      totalCost: 0,
+    };
+    await act(async () => {
+      result.current.buyAllMinerals(empty);
+      result.current.buyAllGems(empty);
+      await Promise.resolve();
+    });
+    expect(result.current.gameState).toBe(before);
   });
 });

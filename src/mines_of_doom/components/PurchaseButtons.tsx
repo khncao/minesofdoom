@@ -1,5 +1,5 @@
-import { memo } from "react";
-import { Text, View } from "react-native";
+import { memo, type ReactNode, useMemo } from "react";
+import { Pressable, Text, View } from "react-native";
 import Button from "src/components/Button";
 import { useT } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
@@ -9,7 +9,10 @@ import {
   COMBO_RESIST_MAX_LEVELS,
   GEM_CHANCE_MAX_LEVELS,
   PRESTIGE_LEVELS,
+  type BuyAllPlan,
+  type PurchaseAffordability,
   type PurchaseId,
+  computeBuyAll,
   gemMineralCost,
   getClickBoostCost,
   getClickBoostMultiplier,
@@ -55,6 +58,8 @@ const PurchaseButtons = memo(function PurchaseButtons({
   onBuyComboResist,
   onUpgradeMinerPower,
   onSinkNewShaft,
+  onBuyAllMinerals,
+  onBuyAllGems,
   visible,
 }: {
   /**
@@ -96,6 +101,8 @@ const PurchaseButtons = memo(function PurchaseButtons({
   onBuyComboResist: () => void;
   onUpgradeMinerPower: () => void;
   onSinkNewShaft: () => void;
+  onBuyAllMinerals: (plan: BuyAllPlan) => void;
+  onBuyAllGems: (plan: BuyAllPlan) => void;
 }) {
   const t = useT();
   const fastCost = getFastMinerCost(fastMiners);
@@ -133,12 +140,98 @@ const PurchaseButtons = memo(function PurchaseButtons({
   const comboResistCost = getComboResistCost(comboResistLevels);
   const comboResistMaxed = comboResistLevels >= COMBO_RESIST_MAX_LEVELS;
   const comboKeepPct = Math.round(getComboRetention(comboResistLevels) * 100);
+  // "Buy all" plans (todo: buy-all buttons): one greedy per-level plan per
+  // currency group, mirroring the individual buttons' disabled flags and
+  // visibility — buy-all only ever buys what its group could buy by hand.
+  // Cheap enough to recompute per render (this list only mounts while the
+  // drawer is open), memo keeps the drawer's memoized rows quiet.
+  const affordability: PurchaseAffordability = useMemo(
+    () => ({
+      minerals,
+      gems,
+      clickPower,
+      minerPower,
+      miners,
+      fastMiners,
+      legendaryMiners,
+      gemChanceLevels,
+      clickBoostLevels,
+      comboResistLevels,
+      prestigeLevel,
+      lifetimeMinerals,
+      minerPowerUnlocked,
+      fastMinerUnlocked,
+      legendaryMinerUnlocked,
+      prestigeUnlocked,
+    }),
+    [
+      minerals,
+      gems,
+      clickPower,
+      minerPower,
+      miners,
+      fastMiners,
+      legendaryMiners,
+      gemChanceLevels,
+      clickBoostLevels,
+      comboResistLevels,
+      prestigeLevel,
+      lifetimeMinerals,
+      minerPowerUnlocked,
+      fastMinerUnlocked,
+      legendaryMinerUnlocked,
+      prestigeUnlocked,
+    ],
+  );
+  const mineralPlan = useMemo(
+    () => computeBuyAll("minerals", affordability, visible),
+    [affordability, visible],
+  );
+  const gemPlan = useMemo(
+    () => computeBuyAll("gems", affordability, visible),
+    [affordability, visible],
+  );
   return (
     <View style={{ gap: 5, marginTop: 8 }}>
       {/* Plan §2.1 "button hierarchy": buttons are grouped by the currency
           they spend, with a tinted header per group; gem buttons use the
           gem Button tone so the two groups read at a glance. */}
-      <PurchaseGroupHeader label={t("purchase.groupMinerals")} color="#8fbf8f" />
+      <PurchaseGroupHeader
+        label={t("purchase.groupMinerals")}
+        color="#8fbf8f"
+        action={
+          mineralPlan.totalLevels > 0 && (
+            <Pressable
+              testID="btn-buy-all-minerals"
+              accessibilityRole="button"
+              accessibilityLabel={t("purchase.a11yBuyAllMinerals", {
+                count: mineralPlan.totalLevels,
+              })}
+              onPress={() => onBuyAllMinerals(mineralPlan)}
+              style={{
+                backgroundColor: "#503121",
+                borderRadius: 5,
+                paddingHorizontal: 6,
+                paddingVertical: 3,
+              }}
+            >
+              <Text
+                style={{
+                  color: "white",
+                  fontSize: 11,
+                  fontWeight: "bold",
+                  userSelect: "none",
+                }}
+              >
+                {t("purchase.buyAllMinerals", {
+                  count: formatNumber(mineralPlan.totalLevels),
+                  cost: formatNumber(mineralPlan.totalCost),
+                })}
+              </Text>
+            </Pressable>
+          )
+        }
+      />
       <Button
         testId="btn-upgrade-power"
         disabled={minerals < BigInt(getClickUpgradeCost(clickPower))}
@@ -175,7 +268,42 @@ const PurchaseButtons = memo(function PurchaseButtons({
         })}
       />
 
-      <PurchaseGroupHeader label={t("purchase.groupGems")} color="#7fd4ff" />
+      <PurchaseGroupHeader
+        label={t("purchase.groupGems")}
+        color="#7fd4ff"
+        action={
+          gemPlan.totalLevels > 0 && (
+            <Pressable
+              testID="btn-buy-all-gems"
+              accessibilityRole="button"
+              accessibilityLabel={t("purchase.a11yBuyAllGems", {
+                count: gemPlan.totalLevels,
+              })}
+              onPress={() => onBuyAllGems(gemPlan)}
+              style={{
+                backgroundColor: "#1f4356",
+                borderRadius: 5,
+                paddingHorizontal: 6,
+                paddingVertical: 3,
+              }}
+            >
+              <Text
+                style={{
+                  color: "white",
+                  fontSize: 11,
+                  fontWeight: "bold",
+                  userSelect: "none",
+                }}
+              >
+                {t("purchase.buyAllGems", {
+                  count: formatNumber(gemPlan.totalLevels),
+                  cost: formatNumber(gemPlan.totalCost),
+                })}
+              </Text>
+            </Pressable>
+          )
+        }
+      />
       <Button
         tone="gem"
         testId="btn-buy-miner"
@@ -321,7 +449,20 @@ const PurchaseButtons = memo(function PurchaseButtons({
 
 /** Small tinted divider labeling which currency a purchase group spends
  *  (plan §2.1 "button hierarchy"). */
-function PurchaseGroupHeader({ label, color }: { label: string; color: string }) {
+function PurchaseGroupHeader({
+  label,
+  color,
+  action,
+}: {
+  label: string;
+  color: string;
+  /**
+   * Optional trailing control (the buy-all button): it sits after the
+   * right-hand line, so the divider still frames the label and the action
+   * reads as part of the group, not a separate row.
+   */
+  action?: ReactNode;
+}) {
   return (
     <View
       style={{
@@ -339,6 +480,7 @@ function PurchaseGroupHeader({ label, color }: { label: string; color: string })
         {label}
       </Text>
       <View style={{ height: 1, flex: 1, backgroundColor: color, opacity: 0.5 }} />
+      {action}
     </View>
   );
 }

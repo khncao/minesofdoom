@@ -9,6 +9,7 @@ import {
   CLICK_BOOST_MAX_LEVELS,
   COMBO_RESIST_MAX_LEVELS,
   GEM_CHANCE_MAX_LEVELS,
+  BuyAllPlan,
   SaveData,
   buildSaveData,
   computeOfflineMinerals,
@@ -677,6 +678,109 @@ export function useGameEngine(
     });
   }, []);
 
+  // "Buy all" for the mineral-upgrade lines (todo: "add buy all mineral
+  // upgrades button"): applies a BuyAllPlan computed by computeBuyAll.
+  // Every level is re-checked against the LIVE state per level, so a stale
+  // or over-stated plan can never overpay — it simply stops where money
+  // runs out. The counts are what the UI's label promised, so the total
+  // spent always matches the cost the player tapped.
+  const buyAllMinerals = useCallback((plan: BuyAllPlan) => {
+    setGameState((n: SaveData) => {
+      let minerals = n.minerals;
+      let clickPower = n.clickPower;
+      for (let i = 0; i < plan.clickPower; i++) {
+        const cost = getClickUpgradeCost(clickPower);
+        if (!Number.isFinite(cost) || minerals < BigInt(cost)) break;
+        minerals -= BigInt(cost);
+        clickPower += 1;
+      }
+      let minerPower = n.minerPower;
+      for (let i = 0; i < plan.minerPower; i++) {
+        const cost = getMinerPowerUpgradeCost(minerPower);
+        if (!Number.isFinite(cost) || minerals < BigInt(cost)) break;
+        minerals -= BigInt(cost);
+        minerPower += 1;
+      }
+      if (clickPower === n.clickPower && minerPower === n.minerPower) {
+        return n;
+      }
+      return { ...n, minerals, clickPower, minerPower };
+    });
+  }, []);
+
+  // "Buy all" for the gem-upgrade lines (todo: "add buy all gem upgrades
+  // button") — same per-level re-check as buyAllMinerals.
+  const buyAllGems = useCallback((plan: BuyAllPlan) => {
+    setGameState((n: SaveData) => {
+      let gems = n.gems;
+      let spent = 0;
+      let miners = n.miners;
+      for (let i = 0; i < plan.miners; i++) {
+        const cost = getMinerUpgradeCost(miners);
+        if (!Number.isFinite(cost) || gems < cost) break;
+        gems -= cost;
+        spent += cost;
+        miners += 1;
+      }
+      let fastMiners = n.fastMiners;
+      for (let i = 0; i < plan.fastMiners; i++) {
+        const cost = getFastMinerCost(fastMiners);
+        if (!Number.isFinite(cost) || gems < cost) break;
+        gems -= cost;
+        spent += cost;
+        fastMiners += 1;
+      }
+      let legendaryMiners = n.legendaryMiners;
+      for (let i = 0; i < plan.legendaryMiners; i++) {
+        const cost = getLegendaryMinerCost(legendaryMiners);
+        if (!Number.isFinite(cost) || gems < cost) break;
+        gems -= cost;
+        spent += cost;
+        legendaryMiners += 1;
+      }
+      let gemChanceLevels = n.gemChanceLevels;
+      for (let i = 0; i < plan.gemChance; i++) {
+        if (gemChanceLevels >= GEM_CHANCE_MAX_LEVELS) break;
+        const cost = getGemChanceCost(gemChanceLevels);
+        if (!Number.isFinite(cost) || gems < cost) break;
+        gems -= cost;
+        spent += cost;
+        gemChanceLevels += 1;
+      }
+      let clickBoostLevels = n.clickBoostLevels;
+      for (let i = 0; i < plan.clickBoost; i++) {
+        if (clickBoostLevels >= CLICK_BOOST_MAX_LEVELS) break;
+        const cost = getClickBoostCost(clickBoostLevels);
+        if (!Number.isFinite(cost) || gems < cost) break;
+        gems -= cost;
+        spent += cost;
+        clickBoostLevels += 1;
+      }
+      let comboResistLevels = n.comboResistLevels;
+      for (let i = 0; i < plan.comboResist; i++) {
+        if (comboResistLevels >= COMBO_RESIST_MAX_LEVELS) break;
+        const cost = getComboResistCost(comboResistLevels);
+        if (!Number.isFinite(cost) || gems < cost) break;
+        gems -= cost;
+        spent += cost;
+        comboResistLevels += 1;
+      }
+      if (spent === 0) return n;
+      return {
+        ...n,
+        gems,
+        totalGemsSpent: n.totalGemsSpent + spent,
+        miners,
+        minersOwnedEver: Math.max(n.minersOwnedEver, miners),
+        fastMiners,
+        legendaryMiners,
+        gemChanceLevels,
+        clickBoostLevels,
+        comboResistLevels,
+      };
+    });
+  }, []);
+
   // Tier-3 unlock (plan §4.1 "New Shaft", §4.6): sink a new shaft — reset the
   // run's mining operation (minerals, all three miner types, click & miner
   // power) in exchange for banking a permanent multiplier based on lifetime
@@ -843,6 +947,8 @@ export function useGameEngine(
     buyGemChance,
     buyClickBoost,
     buyComboResist,
+    buyAllMinerals,
+    buyAllGems,
     upgradeMinerPower,
     completeTiers,
     completeAchievements,

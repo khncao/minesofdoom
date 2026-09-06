@@ -874,6 +874,280 @@ export function hasAffordablePurchase(
   return false;
 }
 
+/**
+ * How many levels the buy-all action can buy in one call, per currency.
+ * (todo: "buy all mineral upgrades" / "buy all gem upgrades").
+ */
+export type BuyAllPlan = {
+  clickPower: number;
+  minerPower: number;
+  miners: number;
+  fastMiners: number;
+  legendaryMiners: number;
+  gemChance: number;
+  clickBoost: number;
+  comboResist: number;
+  totalLevels: number;
+  /**
+   * Sum of every bought level's cost, in the plan's currency. Float
+   * (display only) — the engine re-derives exact per-level costs when it
+   * applies the plan, so this can never overstate what is spent.
+   */
+  totalCost: number;
+};
+
+/**
+ * Max size of one cheapest-line batch inside computeBuyAll. Batches keep the
+ * per-level greedy cheap on huge endgame budgets (a batch is a
+ * binary-searched run of levels on a single line); the cap only bounds the
+ * worst case — a capped batch simply ends the round and the loop re-evaluates.
+ */
+const BUY_ALL_MAX_BATCH = 2 ** 22;
+/**
+ * Defensive bound on computeBuyAll rounds (a round = one cheapest-line
+ * batch). Rounds are bounded by how often the cheapest affordable line
+ * switches plus one, not by level counts — this cap only guards against
+ * pathological cost-curve oscillation.
+ */
+const BUY_ALL_MAX_ROUNDS = 1000;
+
+/**
+ * Float sum of `count` levels of `cost` starting at `fromLevel` (inclusive).
+ * Approximate by design — used only to size batches; affordability is
+ * re-checked per level with exact (BigInt / integer) arithmetic wherever the
+ * plan is applied.
+ */
+function buyAllCumulativeCost(
+  cost: (level: number) => number,
+  fromLevel: number,
+  count: number,
+): number {
+  let sum = 0;
+  for (let i = 0; i < count; i++) {
+    sum += cost(fromLevel + i);
+    if (!Number.isFinite(sum)) break;
+  }
+  return sum;
+}
+
+/**
+ * "Buy all" for one currency group (todo: "add buy all mineral upgrades
+ * button and buy all gem upgrades button"): the per-line level counts a
+ * greedy per-level purchase would buy — repeatedly buy the single cheapest
+ * next level among the eligible lines until nothing else is affordable —
+ * plus the total cost in that currency.
+ *
+ * Rules, mirroring the individual buttons' disabled flags (so buy-all only
+ * ever buys what its group could buy by hand):
+ *  - minerals group: click-power upgrade always; miner-power upgrade once
+ *    unlocked; "buy a gem" is a currency conversion, NOT an upgrade, and is
+ *    deliberately excluded (buy-all must never drain the wallet to gems);
+ *  - gems group: all three miner types, gem chance, click ×2 and combo
+ *    resistance — each behind its goal-tier unlock, the capped lines behind
+ *    their caps;
+ *  - `visible` (when given) hides lines whose button isn't rendered, same
+ *    as the row visibility rules; locked/unaffordable lines are skipped.
+ *
+ * The greedy is batched for speed on endgame budgets: each round buys a
+ * run of levels on the cheapest line (binary-searched, valid while every
+ * level in the run stays strictly cheaper than the next-cheapest rival and
+ * fits the budget), then re-evaluates — which is exactly the per-level
+ * greedy, just without re-scanning level by level.
+ */
+export function computeBuyAll(
+  currency: "minerals" | "gems",
+  s: PurchaseAffordability,
+  visible?: ReadonlySet<PurchaseId>,
+): BuyAllPlan {
+  const plan: BuyAllPlan = {
+    clickPower: 0,
+    minerPower: 0,
+    miners: 0,
+    fastMiners: 0,
+    legendaryMiners: 0,
+    gemChance: 0,
+    clickBoost: 0,
+    comboResist: 0,
+    totalLevels: 0,
+    totalCost: 0,
+  };
+  type LineKey =
+    | "clickPower"
+    | "minerPower"
+    | "miners"
+    | "fastMiners"
+    | "legendaryMiners"
+    | "gemChance"
+    | "clickBoost"
+    | "comboResist";
+  type Line = {
+    key: LineKey;
+    id: PurchaseId;
+    level: number;
+    max: number | null;
+    cost: (level: number) => number;
+  };
+  const lines: Line[] =
+    currency === "minerals"
+      ? [
+          {
+            key: "clickPower",
+            id: "power",
+            level: s.clickPower,
+            max: null,
+            cost: getClickUpgradeCost,
+          },
+          {
+            key: "minerPower",
+            id: "minerPower",
+            level: s.minerPower,
+            max: null,
+            cost: getMinerPowerUpgradeCost,
+          },
+        ]
+      : [
+          {
+            key: "miners",
+            id: "miner",
+            level: s.miners,
+            max: null,
+            cost: getMinerUpgradeCost,
+          },
+          {
+            key: "fastMiners",
+            id: "fastMiner",
+            level: s.fastMiners,
+            max: null,
+            cost: getFastMinerCost,
+          },
+          {
+            key: "legendaryMiners",
+            id: "legendaryMiner",
+            level: s.legendaryMiners,
+            max: null,
+            cost: getLegendaryMinerCost,
+          },
+          {
+            key: "gemChance",
+            id: "gemChance",
+            level: s.gemChanceLevels,
+            max: GEM_CHANCE_MAX_LEVELS,
+            cost: getGemChanceCost,
+          },
+          {
+            key: "clickBoost",
+            id: "clickBoost",
+            level: s.clickBoostLevels,
+            max: CLICK_BOOST_MAX_LEVELS,
+            cost: getClickBoostCost,
+          },
+          {
+            key: "comboResist",
+            id: "comboResist",
+            level: s.comboResistLevels,
+            max: COMBO_RESIST_MAX_LEVELS,
+            cost: getComboResistCost,
+          },
+        ];
+  // Same gating as the buttons' disabled flags (see PurchaseButtons.tsx
+  // and hasAffordablePurchase): visibility first, then the goal-tier unlock.
+  const eligible = (line: Line): boolean => {
+    if (visible != null && !visible.has(line.id)) return false;
+    switch (line.id) {
+      case "power":
+      case "miner":
+        return true;
+      case "minerPower":
+        return s.minerPowerUnlocked;
+      case "fastMiner":
+      case "gemChance":
+        return s.fastMinerUnlocked;
+      case "legendaryMiner":
+        return s.legendaryMinerUnlocked;
+      case "clickBoost":
+      case "comboResist":
+        return s.prestigeUnlocked;
+      default:
+        // Exhaustive over PurchaseId — a new purchase id without a gate
+        // here would silently be un-buyable via buy-all; fail loud.
+        return false;
+    }
+  };
+  let budget =
+    currency === "minerals" ? s.minerals : BigInt(Math.max(0, s.gems));
+  for (let round = 0; round < BUY_ALL_MAX_ROUNDS; round++) {
+    // Every eligible, not-maxed line whose next level the budget can cover,
+    // cheapest first (ties keep the fixed line order — the deterministic
+    // pick a repeated hand-tap would make is arbitrary anyway).
+    const affordable = lines
+      .filter((line) => {
+        const next = line.cost(line.level);
+        return (
+          eligible(line) &&
+          (line.max == null || line.level < line.max) &&
+          Number.isFinite(next) &&
+          budget >= BigInt(next)
+        );
+      })
+      .map((line) => ({ line, next: line.cost(line.level) }))
+      .sort(
+        (a, b) => a.next - b.next || lines.indexOf(a.line) - lines.indexOf(b.line),
+      );
+    if (affordable.length === 0) break;
+    const best = affordable[0].line;
+    // The batch may grow while every level in it stays strictly cheaper
+    // than the next-cheapest rival's next cost (once it isn't, the rival is
+    // due its pick — re-evaluate) and while the float cumulative fits the
+    // budget (the engine's exact per-level application is the authority).
+    const rivalNext =
+      affordable.length > 1 ? affordable[1].next : Number.POSITIVE_INFINITY;
+    const valid = (count: number): boolean => {
+      if (best.max != null && best.level + count > best.max) return false;
+      // count === 1 is always valid (the line is affordable and, on a tie,
+      // the greedy still buys one level and re-evaluates).
+      if (
+        count > 1 &&
+        best.cost(best.level + count - 1) >= rivalNext
+      ) {
+        return false;
+      }
+      const sum = buyAllCumulativeCost(
+        best.cost,
+        best.level,
+        count,
+      );
+      return Number.isFinite(sum) && BigInt(Math.floor(sum)) <= budget;
+    };
+    // Binary-search the largest valid batch: double hi while valid (the
+    // geometric series keeps the total work ~2x the final batch), then
+    // split the last [hi, 2hi] gap.
+    let hi = 1;
+    while (hi < BUY_ALL_MAX_BATCH && valid(hi << 1)) {
+      hi <<= 1;
+    }
+    // Invariant at the split: valid(hi) and, if hi < cap, valid(2hi) false —
+    // so the answer is in [hi, 2hi); when hi hit the cap it is exactly hi.
+    let answer = hi;
+    if (hi < BUY_ALL_MAX_BATCH) {
+      let a = hi;
+      let b = (hi << 1) + 1; // exclusive-ish; valid(b) false (b = 2hi)
+      while (a + 1 < b) {
+        const mid = (a + b) >> 1;
+        if (valid(mid)) a = mid;
+        else b = mid;
+      }
+      answer = a;
+    }
+    const sum = buyAllCumulativeCost(best.cost, best.level, answer);
+    plan[best.key] += answer;
+    best.level += answer;
+    plan.totalLevels += answer;
+    plan.totalCost += sum;
+    budget -= BigInt(Math.floor(sum));
+  }
+  return plan;
+}
+
 export function getClickUpgradeCost(level: number): number {
   return level * level * level * level;
 }
