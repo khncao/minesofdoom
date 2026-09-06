@@ -92,6 +92,37 @@ expects the store provider.
 `/healthz` → `configured.ios: true`) and the web Stripe/AdSense console
 items above. The Android purchase leg itself is DONE (below).
 
+**Progress (2026-09-06, PM, emulator billing network):** the purchase-leg
+re-run for the wipe leg is currently blocked by the emulator's network
+state, not the app: from ~15:30 on, `queryProductDetailsAsync` →
+`Response code: 6` (SERVICE_UNAVAILABLE) and Finsky's monetization gRPC
+logs `net::ERR_CONNECTION_REFUSED` — survived device reboot, wifi
+toggle, and a full emulator restart (`-no-snapshot`), while plain
+egress is fine (pings OK, the Play Store app page loads). The license
+tester purchase worked on this AVD earlier the same day, so it's a
+transient egress condition. Research (2026-09-06, DuckDuckGo sources):
+code 6 is a documented TRANSIENT error (Google's own guidance: retry
+with backoff; SO #78834570 + Adapty + RevenueCat all report bursts of
+it in production, resolved by waiting); other documented causes are
+Finsky service unavailability (issuetracker #309541595 — force-stop/
+clear-cache `com.android.vending`) and stale emulator/host network
+state. The signature here (ping + Play Store UI fine, ONLY the
+monetization gRPC refused) matches a selective host-side egress filter
+(VPN / AV network shield / corporate firewall) or a transient Google-
+edge anomaly on the billing endpoint. Next steps in order: (1) wait
+hours and retry, (2) disable host VPN/AV/firewall and retry, (3) clear
+`com.android.vending` cache, (4) physical phone with the license tester
+(no extra setup). Also confirmed while investigating: launching via
+`npx expo run:android` (Metro up) serves the **dev bundle**
+(`__DEV__=true`), which selects the **labeled dev-sim provider** — the
+panel shows "⚠️ Development build: purchases are simulated" and the
+"purchase" resolves in ~1.5 s with **zero** ExpoIap/BillingClient
+logcat lines (no Play Billing call at all). That's why IAP "works" in
+dev-client launches; it does NOT exercise the wipe leg (dev-sim has no
+store record, so `pm clear` genuinely loses the grant). Standalone
+launch (no Metro) loads the embedded production bundle (`__DEV__=false`)
+→ real store provider → the billing-network failure above.
+
 **Progress (2026-09-06, license tester):** the §4 external blocker is
 gone — a Gmail is registered as a Play Console license tester on
 `internal` (the UI-only action the v3 API can't do), and the purchase

@@ -47,4 +47,8 @@ Completed items are removed from this file (see git history); only remaining wor
     tester) → wipe local key (pm clear) → relaunch → entitlement re-derived
     from the store record. The wipe leg needs a build that includes
     reconcileStore (a50aea0) — the 1.0.8 AAB and the earlier dev build
-    predate it
+    predate it. 2026-09-06 PM: the purchase-leg re-run is blocked by the
+    emulator billing network (billing gRPC ERR_CONNECTION_REFUSED — worked
+    earlier the same day; `docs/blockers.md`), and "works via
+    expo run:android" is the labeled dev-sim provider (dev bundle,
+    `__DEV__=true`), not real Play Billing
