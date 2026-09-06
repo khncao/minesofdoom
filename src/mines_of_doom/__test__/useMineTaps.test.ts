@@ -6,6 +6,10 @@
  */
 import { act, renderHook } from "@testing-library/react-native";
 import { useMineTaps } from "../hooks/useMineTaps";
+import {
+  JUICE_WAVE_INTERVAL_MS,
+  MAX_JUICE_WAVES,
+} from "../juice";
 
 type UseMineTapsProps = Parameters<typeof useMineTaps>[0];
 
@@ -110,5 +114,90 @@ describe("useMineTaps — 20Hz gain flush", () => {
     tap(r.result, 2);
     await settle(() => addTapGain.mock.calls.length === 2);
     expect(addTapGain.mock.calls).toEqual([[10n], [50n]]);
+  });
+});
+
+describe("useMineTaps — juice waves scale with the mined amount", () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => {
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
+  });
+
+  it("repeats the swing + debris once per wave, block breaks once per tap", () => {
+    const swing = jest.fn();
+    const debris = jest.fn();
+    const blockBreak = jest.fn();
+    const { result } = renderHook(() =>
+      useMineTaps(
+        makeProps({
+          clickPower: 1234n, // 4 digits → 4 waves
+          playerPickaxeAnimRef: { current: swing },
+          debrisRef: { current: { trigger: debris } },
+          blockBreakRef: { current: { trigger: blockBreak } },
+        }),
+      ),
+    );
+    tap(result, 1);
+    // Wave 0 runs immediately, the rest land at each interval.
+    expect(swing).toHaveBeenCalledTimes(1);
+    expect(debris).toHaveBeenCalledTimes(1);
+    act(() => { jest.advanceTimersByTime(JUICE_WAVE_INTERVAL_MS); });
+    expect(swing).toHaveBeenCalledTimes(2);
+    act(() => { jest.advanceTimersByTime(JUICE_WAVE_INTERVAL_MS); });
+    expect(swing).toHaveBeenCalledTimes(3);
+    act(() => { jest.advanceTimersByTime(JUICE_WAVE_INTERVAL_MS); });
+    expect(swing).toHaveBeenCalledTimes(4);
+    expect(debris).toHaveBeenCalledTimes(4);
+    expect(blockBreak).toHaveBeenCalledTimes(1);
+    // No wave past the digit count.
+    act(() => { jest.advanceTimersByTime(JUICE_WAVE_INTERVAL_MS * 10); });
+    expect(swing).toHaveBeenCalledTimes(4);
+  });
+
+  it("a single-digit gain mines a single wave (early game feels crisp)", () => {
+    const swing = jest.fn();
+    const { result } = renderHook(() =>
+      useMineTaps(
+        makeProps({
+          clickPower: 7n,
+          playerPickaxeAnimRef: { current: swing },
+        }),
+      ),
+    );
+    tap(result, 3);
+    act(() => { jest.advanceTimersByTime(JUICE_WAVE_INTERVAL_MS * 10); });
+    expect(swing).toHaveBeenCalledTimes(3);
+  });
+
+  it("huge gains cap at MAX_JUICE_WAVES", () => {
+    const swing = jest.fn();
+    const { result } = renderHook(() =>
+      useMineTaps(
+        makeProps({
+          clickPower: 10n ** 30n,
+          playerPickaxeAnimRef: { current: swing },
+        }),
+      ),
+    );
+    tap(result, 1);
+    act(() => { jest.advanceTimersByTime(JUICE_WAVE_INTERVAL_MS * 20); });
+    expect(swing).toHaveBeenCalledTimes(MAX_JUICE_WAVES);
+  });
+
+  it("reduce motion collapses the waves to one", () => {
+    const swing = jest.fn();
+    const { result } = renderHook(() =>
+      useMineTaps(
+        makeProps({
+          clickPower: 1234n,
+          playerPickaxeAnimRef: { current: swing },
+          reduceMotion: true,
+        }),
+      ),
+    );
+    tap(result, 2);
+    act(() => { jest.advanceTimersByTime(JUICE_WAVE_INTERVAL_MS * 10); });
+    expect(swing).toHaveBeenCalledTimes(2);
   });
 });

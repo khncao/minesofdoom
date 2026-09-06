@@ -7,6 +7,8 @@ import {
 import type { DebrisParticlesRef } from "src/components/DebrisParticles";
 import type { BlockBreakRef } from "src/components/BlockBreak";
 import type { SoundKey } from "./useSounds";
+import { getJuiceWaves } from "../juice";
+import { useJuiceWaves } from "./useJuiceWaves";
 
 const TAP_FLUSH_INTERVAL = 50;
 
@@ -19,6 +21,7 @@ export function useMineTaps({
   addTapGain,
   onResetCombo,
   onGain,
+  reduceMotion = false,
 }: {
   clickPower: bigint;
   play: (key: SoundKey, minInterval?: number) => void;
@@ -29,6 +32,8 @@ export function useMineTaps({
   onResetCombo: () => void;
   /** Optional per-tap feedback hook (e.g. floating "+N" text). */
   onGain?: (gain: bigint) => void;
+  /** OS reduce-motion preference: decorative waves collapse to one. */
+  reduceMotion?: boolean;
 }) {
   // Rapid mine taps: accumulate gains in a ref and flush to state at a
   // fixed 20Hz rate, so fast tapping causes a handful of cheap re-renders
@@ -39,6 +44,9 @@ export function useMineTaps({
   const lastTapFlushRef = useRef(0);
   const clickPowerRef = useRef(clickPower);
   clickPowerRef.current = clickPower;
+  const reduceMotionRef = useRef(reduceMotion);
+  reduceMotionRef.current = reduceMotion;
+  const { run: runJuiceWaves } = useJuiceWaves();
 
   const scheduleTapFlush = useCallback(() => {
     if (tapFlushScheduledRef.current) {
@@ -66,9 +74,18 @@ export function useMineTaps({
     pendingTapGainRef.current += gain;
     scheduleTapFlush();
     play("pickaxe", 60);
-    playerPickaxeAnimRef.current();
-    debrisRef.current?.trigger();
+    // The block breaks once per tap; the swing + debris repeat as many
+    // waves as the mined amount earns (juice.ts) — capped, and collapsed
+    // to a single wave under the OS reduce-motion preference, which
+    // suppresses the decorative repeats but keeps the action's own hit.
     blockBreakRef.current?.trigger();
+    runJuiceWaves(
+      reduceMotionRef.current ? 1 : getJuiceWaves(gain),
+      () => {
+        playerPickaxeAnimRef.current();
+        debrisRef.current?.trigger();
+      },
+    );
     onResetCombo();
     onGain?.(gain);
   }, [
@@ -79,6 +96,7 @@ export function useMineTaps({
     debrisRef,
     blockBreakRef,
     onGain,
+    runJuiceWaves,
   ]);
 
   return { mineTap };

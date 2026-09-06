@@ -63,6 +63,8 @@ import { useSounds } from "./hooks/useSounds";
 import { useCombo } from "./hooks/useCombo";
 import { useShakeInput } from "./hooks/useShakeInput";
 import { useMineTaps } from "./hooks/useMineTaps";
+import { useJuiceWaves } from "./hooks/useJuiceWaves";
+import { getJuiceTextSize, getJuiceWaves } from "./juice";
 import { useAccessibilityReduceMotion } from "./hooks/useAccessibilityReduceMotion";
 import { useEquations } from "./hooks/useEquations";
 import { noteCrashEvent, setCrashContextState } from "./crashContext";
@@ -516,6 +518,9 @@ export default function MinesOfDoom() {
   const debrisRef = useRef<DebrisParticlesRef>(null);
   const blockBreakRef = useRef<BlockBreakRef>(null);
   const floatingTextRef = useRef<FloatingTextRef>(null);
+  // Juice-wave scheduler for equation answers (canvas taps schedule their
+  // own waves inside useMineTaps). See juice.ts.
+  const juiceWaves = useJuiceWaves();
 
   // Milestone toasts when depth crosses a 10m boundary (depth itself changes
   // every 500 minerals, so every-1m would be spam).
@@ -603,8 +608,14 @@ export default function MinesOfDoom() {
   }, [gameState, completeAchievements, displayMessage, t, content]);
 
   // Floating "+N" on canvas taps (stable so memoized consumers stay stable).
+  // The size scales with the mined amount (juice.ts).
   const handleTapGain = useCallback(
-    (gain: bigint) => floatingTextRef.current?.spawn(`+${formatNumber(gain)}`),
+    (gain: bigint) =>
+      floatingTextRef.current?.spawn(
+        `+${formatNumber(gain)}`,
+        undefined,
+        getJuiceTextSize(gain),
+      ),
     [],
   );
 
@@ -621,6 +632,7 @@ export default function MinesOfDoom() {
     addTapGain,
     onResetCombo: handleComboReset,
     onGain: handleTapGain,
+    reduceMotion,
   });
 
   const {
@@ -632,19 +644,24 @@ export default function MinesOfDoom() {
     equationSettings,
     onCorrect: (value) => {
       const gem = applyAnswerReward(value, comboMultiplier, combo + 1);
-      play("pickaxe", 60);
-      playerPickaxeAnimRef.current();
-      debrisRef.current?.trigger();
-      blockBreakRef.current?.trigger();
-      incrementCombo();
       // Floating "+N" showing exactly what this answer was worth.
       const gain =
         BigInt(Math.max(1, value)) *
         BigInt(comboMultiplier) *
         effectiveClickPower;
+      play("pickaxe", 60);
+      incrementCombo();
+      // Juice scales with the mined amount (juice.ts): the swing + debris
+      // repeat per wave, the block breaks once per answer.
+      blockBreakRef.current?.trigger();
+      juiceWaves.run(reduceMotion ? 1 : getJuiceWaves(gain), () => {
+        playerPickaxeAnimRef.current();
+        debrisRef.current?.trigger();
+      });
       floatingTextRef.current?.spawn(
         `+${formatNumber(gain)} ${emojis.mineral}`,
         "#8fbf8f",
+        getJuiceTextSize(gain),
       );
       if (gem) {
         floatingTextRef.current?.spawn(`+1 ${emojis.gem}`, "#7fd4ff");

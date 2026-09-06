@@ -9,13 +9,15 @@ import React, {
 import { Animated, Easing, Text, View } from "react-native";
 
 export type FloatingTextRef = {
-  spawn: (text: string, color?: string) => void;
+  /** Optional size (px) lets big gains float bigger (see juice.ts). */
+  spawn: (text: string, color?: string, size?: number) => void;
 };
 
 type Item = {
   id: number;
   text: string;
   color: string;
+  size: number;
   x: number; // horizontal jitter, in % of container width
 };
 
@@ -24,6 +26,7 @@ let nextId = 0;
 // Hard cap so a tap-spam burst can't build up an unbounded list of
 // animations (oldest ones simply keep running out; new ones are dropped).
 const MAX_ITEMS = 16;
+const DEFAULT_TEXT_SIZE = 18;
 
 const FloatingText = ({
   item,
@@ -73,7 +76,7 @@ const FloatingText = ({
       <Text
         style={{
           color: item.color,
-          fontSize: 18,
+          fontSize: item.size,
           fontWeight: "bold",
           textShadowColor: "black",
           textShadowRadius: 3,
@@ -97,16 +100,25 @@ const FloatingTextLayer = forwardRef<FloatingTextRef>(function FloatingTextLayer
 ) {
   const [items, setItems] = useState<Item[]>([]);
 
-  const spawn = useCallback((text: string, color = "#fff") => {
-    setItems((prev) =>
-      prev.length >= MAX_ITEMS
-        ? prev
-        : [
-            ...prev,
-            { id: nextId++, text, color, x: (Math.random() - 0.5) * 30 },
-          ],
-    );
-  }, []);
+  const spawn = useCallback(
+    (text: string, color = "#fff", size = DEFAULT_TEXT_SIZE) => {
+      setItems((prev) =>
+        prev.length >= MAX_ITEMS
+          ? prev
+          : [
+              ...prev,
+              {
+                id: nextId++,
+                text,
+                color,
+                size,
+                x: (Math.random() - 0.5) * 30,
+              },
+            ],
+      );
+    },
+    [],
+  );
 
   const remove = useCallback((id: number) => {
     setItems((prev) => prev.filter((i) => i.id !== id));
