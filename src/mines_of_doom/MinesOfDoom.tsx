@@ -755,8 +755,9 @@ export default function MinesOfDoom() {
     }
   }, [equationSettings]);
 
-  // Footer save pill (plan §2.1): saves immediately (autosave continues in
-  // the background) and confirms with a toast so the tap has feedback.
+  // Top-row save button (plan §2.1): saves immediately (autosave
+  // continues in the background) and confirms with a toast so the tap
+  // has feedback.
   const handleSaveNow = useCallback(() => {
     noteCrashEvent("manual save");
     saveGame();
@@ -970,26 +971,9 @@ export default function MinesOfDoom() {
             keyboard. It wraps on narrow screens; the canvas floor below
             it keeps the cave visible even with every button showing. */}
         <View style={styles.headerRow}>
-          <SavePill
-            dirty={saveDirty}
-            reduceMotion={reduceMotion}
-            onSave={handleSaveNow}
-          />
-          <Pressable
-            testID="upgrades-toggle"
-            accessibilityRole="button"
-            accessibilityLabel={
-              upgradesOpen
-                ? t("main.a11yHideUpgrades")
-                : t("main.a11yShowUpgrades")
-            }
-            onPress={() => setUpgradesOpen(!upgradesOpen)}
-            style={styles.upgradesToggle}
-          >
-            <Text style={styles.upgradesToggleText}>
-              ⛏ {t("main.upgrades")}
-            </Text>
-          </Pressable>
+          {/* Menu is the first button (todo: "move menu button to top
+              left of main screen") — the entry point to every other
+              top-row button's settings and to save/account/goals. */}
           <MenuPanel
             settingsData={settingsData}
             onChangeSettingsData={handleSettingsDataChange}
@@ -1013,6 +997,26 @@ export default function MinesOfDoom() {
             cloudSave={cloudSaveSettings}
             account={accountSettings}
           />
+          <SavePill
+            dirty={saveDirty}
+            reduceMotion={reduceMotion}
+            onSave={handleSaveNow}
+          />
+          <Pressable
+            testID="upgrades-toggle"
+            accessibilityRole="button"
+            accessibilityLabel={
+              upgradesOpen
+                ? t("main.a11yHideUpgrades")
+                : t("main.a11yShowUpgrades")
+            }
+            onPress={() => setUpgradesOpen(!upgradesOpen)}
+            style={styles.upgradesToggle}
+          >
+            <Text style={styles.upgradesToggleText}>
+              ⛏ {t("main.upgrades")}
+            </Text>
+          </Pressable>
           <DailyBonusButton
             claimable={dailyBonus.claimable}
             bonus={dailyBonus.bonus}

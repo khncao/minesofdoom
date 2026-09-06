@@ -18,9 +18,6 @@ Completed items are removed from this file (see git history); only remaining wor
 - [ ] Add password confirmation if registering
 - [ ] Make sure all screens with inputs have keyboard avoiding views
 
-- [ ] Main screen save button icon only
 - [ ] Main screen move upgrades button floating somewhere over the canvas out of the way
-- [ ] Disable mental math tip auto scroll
-- [ ] Move menu button to top left of main screen (first button)
 - [ ] No shop next to upgrades menu--shop items should be options to buy with gems in cosmetics shop
 - [ ] Update UI for dark theme default

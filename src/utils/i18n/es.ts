@@ -120,8 +120,7 @@ export const es: Record<TranslationKey, string> = {
   "a11y.dailyClaimed":
     "Bonus diario reclamado hoy. Vuelve mañana para el siguiente bonus.",
 
-  // --- Save pill ----------------------------------------------------------
-  "save.pill": "Guardar",
+  // --- Save button ---------------------------------------------------------
   "a11y.save": "Guardar partida",
   "a11y.saveDirty": "Guardar partida (cambios sin guardar)",
 

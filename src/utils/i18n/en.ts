@@ -132,8 +132,7 @@ export const en = {
   "a11y.dailyClaimed":
     "Daily bonus claimed today. Come back tomorrow for the next bonus.",
 
-  // --- Save pill ----------------------------------------------------------
-  "save.pill": "Save",
+  // --- Save button ---------------------------------------------------------
   "a11y.save": "Save game",
   "a11y.saveDirty": "Save game (unsaved changes)",
 

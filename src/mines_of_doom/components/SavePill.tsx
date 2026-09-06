@@ -1,14 +1,15 @@
 import { memo, useEffect, useRef } from "react";
 import { Animated, Pressable, Text, View } from "react-native";
 import { useT } from "src/hooks/useI18n";
-import { styles } from "../styles";
 
 /**
  * Save affordance (plan §2.1 "settings modal discoverability"): saving is
- * no longer buried in the menu — this footer pill saves immediately, and
- * its amber dot pulses while state has changed since the last successful
- * write (saveDirty from useGameEngine). Autosave still runs in the
- * background; the pill just makes saving a first-class, visible action.
+ * no longer buried in the menu — this top-row button saves immediately, and
+ * its status dot pulses amber while state has changed since the last
+ * successful write (saveDirty from useGameEngine), green when clean. Icon
+ * only (todo: "main screen save button icon only") so the row stays a
+ * compact strip of icon buttons. Autosave still runs in the background;
+ * the button just makes saving a first-class, visible action.
  * The pulse is a 600ms opacity loop (native driver) and is suppressed
  * entirely under the OS reduce-motion preference.
  */
@@ -55,23 +56,20 @@ const SavePill = memo(function SavePill({
         dirty ? t("a11y.saveDirty") : t("a11y.save")
       }
       onPress={onSave}
-      // Same 8px margin as the top-row icon buttons so the row stays
-      // uniform.
+      // Same margin/padding as the BottomModal icon buttons (☰, trophy…)
+      // so the top row stays a uniform strip of icon buttons.
       style={({ pressed }) => ({
         margin: 4,
         flexDirection: "row",
         alignItems: "center",
         gap: 5,
-        paddingVertical: 9,
-        paddingHorizontal: 10,
+        paddingVertical: 8,
+        paddingHorizontal: 8,
         borderRadius: 14,
         backgroundColor: pressed ? "#3a3a3a" : "#333",
       })}
     >
-      <Text style={{ fontSize: 14, userSelect: "none" }}>💾</Text>
-      <Text style={{ ...styles.text, fontSize: 12, opacity: 0.9 }}>
-        {t("save.pill")}
-      </Text>
+      <Text style={{ fontSize: 16, userSelect: "none" }}>💾</Text>
       {dirty ? (
         <Animated.View
           style={{

@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useState } from "react";
 import { Pressable, Switch, Text, View } from "react-native";
 import IntegerInput from "src/components/IntegerInput";
 import Tooltip from "src/components/Tooltip";
@@ -320,33 +320,20 @@ const TIPS: readonly { title: TranslationKey; body: TranslationKey }[] = [
   },
 ];
 
-/** How long one tip stays on screen before the auto-advance scrolls to
- *  the next (todo: "Show tips one at a time with auto scrolling"). */
-const TIP_INTERVAL_MS = 8000;
-
 /**
  * Mental math tips (todo: "Add a tips section in settings menu teaching
  * techniques for mental arithmetic", then "Show tips one at a time with
  * auto scrolling"): the eight tips used to stack into a long column that
- * pushed the rest of settings off-screen; now ONE tip is shown at a time
- * and the card auto-advances every TIP_INTERVAL_MS (the "auto scroll",
- * looping back to the first). Tapping the card skips to the next tip
- * immediately (and restarts the timer — the effect re-runs on index
- * change), so a skimmer is never caught waiting behind a long tip they
- * already read.
+ * pushed the rest of settings off-screen; now ONE tip is shown at a time.
+ * The auto-advance was removed (todo: "disable mental math tip auto
+ * scroll") — the card is fully manual: tapping it advances to the next
+ * tip, looping back to the first, so a reader can linger on any tip
+ * without the content scrolling away out from under them.
  */
 function TipsSection() {
   const { t } = useI18n();
   const [index, setIndex] = useState(0);
   const tip = TIPS[index % TIPS.length];
-
-  useEffect(() => {
-    const id = setTimeout(
-      () => setIndex((i) => (i + 1) % TIPS.length),
-      TIP_INTERVAL_MS,
-    );
-    return () => clearTimeout(id);
-  }, [index]);
 
   const nextTip = () => setIndex((i) => (i + 1) % TIPS.length);
 
