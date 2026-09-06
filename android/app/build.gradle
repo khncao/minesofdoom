@@ -33,6 +33,12 @@ react {
     //   skip the bundling of the JS bundle and the assets. By default is just 'debug'.
     //   If you add flavors like lite, prod, etc. you'll have to list your debuggableVariants.
     // debuggableVariants = ["liteDebug", "prodDebug"]
+    // MARK (local patch, re-apply after every expo prebuild — AGENTS.md):
+    // empty list = the debug variant is NOT skipped for bundling, so a debug
+    // APK embeds assets/index.android.bundle and boots standalone on an
+    // emulator without a Metro dev server (the e2e flow needs this; without
+    // it a debug APK shows the red box "Unable to load script").
+    debuggableVariants = []
 
     /* Bundling */
     //   A list containing the node command and its flags. Default is just 'node'.

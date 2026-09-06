@@ -1,0 +1,31 @@
+# Ad-hoc (on-device, debug APK): entitlement wipe verification, run
+# AFTER `adb shell pm clear com.minus4kelvin.minesofdoom`. The catalog
+# must render, and NO pack may show "Owned" — the entitlements live in
+# AsyncStorage on the device (never in the save), so a wiped app has
+# none until a store restore re-mints them.
+appId: com.minus4kelvin.minesofdoom
+---
+- launchApp: com.minus4kelvin.minesofdoom
+
+- assertVisible:
+    id: onboarding-skip
+    optional: true
+- tapOn:
+    id: onboarding-skip
+    optional: true
+
+- assertVisible:
+    id: equation-display
+
+# Open the IAP panel and confirm the catalog renders with no ownership.
+- tapOn:
+    text: "🛍️"
+- assertVisible:
+    text: "One-time purchases"
+- assertVisible:
+    text: "Buy"
+- assertNotVisible:
+    text: "Owned"
+
+- takeScreenshot:
+    path: iap-wiped.png

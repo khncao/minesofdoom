@@ -209,3 +209,38 @@ no-ops by construction: a web session is real (sign in / sign out /
 account delete all work against the same server) but tags nothing
 cloud-side until those land. Not yet verified in a real browser (emulator
 pass above is native-only).
+
+## IAP — real purchase → entitlement → wipe → restore (todo, partially verified 2026-09-06)
+
+Verified on-device (mines-play-35 AVD, debug APK with the embedded
+bundle restored — the `debuggableVariants = []` patch was missing from
+the working tree after the SDK 57 prebuild and has been re-applied):
+
+- [x] App boots standalone (no Metro) — the red box is gone once the
+  embedded bundle is back.
+- [x] IAP panel renders the full catalog with real SKUs/prices.
+- [x] **Entitlement is device-local + wipe works**: a previously
+  granted pack showed "Owned"; after `adb shell pm clear` + fresh
+  launch the same catalog shows zero "Owned"
+  (`maestro/adhoc/iap-wipe-verify.yaml`). Entitlements live in
+  AsyncStorage, never in the save.
+
+**Blocked on (all require the Play Console UI — not doable from here;
+this host also blocks `oauth2.googleapis.com`, so the Play Developer
+API can't be used to check product/track state):**
+
+1. Play Console → app → Monetize → License testing → **API key** →
+   `adb shell am start -a com.android.vending.BILLING -e key <KEY>`
+   (docs/store-integration.md §2.4 — lets a debug-signed APK talk to
+   Play Billing; the Play Store on the AVD is signed in as
+   minus4kelvin@gmail.com).
+2. Confirm the AVD is a registered **test device** (Monetize → Test
+   devices) and a **test card** is set (Monetize → Test payments).
+3. The embedded bundle is production-mode (`__DEV__` false), so the
+   dev-sim / "Real store billing" toggle is not in it — a plain buy
+   hits Play Billing directly (production behavior). Expected: sheet
+   opens for the real SKU, purchase completes, `/api/app/verify` mints
+   the server entitlement, button flips to "Owned".
+4. Re-run `maestro/adhoc/iap-wipe-verify.yaml` steps, then hit
+   **Restore** in the IAP panel — the server record (step 3) must
+   re-mint the entitlement on the wiped device.
