@@ -6,12 +6,31 @@ Completed items are removed from this file (see git history); only remaining wor
 - [ ] continuous task: document features then explore and document missing
   features — pass 1 DONE 2026-09: `docs/features.md` v1 (full implemented-
   feature catalog, file-anchored) + researched gap list (§7, genre /
-  math-game checklists, verified absent from src/). Next passes: keep §6-
-  style catalog entries current on feature commits, and promote gap items
-  into active todos (candidates flagged: weekly challenges, daily equation,
-  share images, idle reminders; haptics DONE 2026-09 — `haptics.ts` /
-  `useHaptics.ts` + settings toggle, see features.md §3).
+  math-game checklists, verified absent from src/). Pass 2 DONE 2026-09:
+  gap candidates promoted into the active todos below (weekly challenges,
+  share images), and the in-app idle reminder implemented (see below). Next
+  passes: keep §6-style catalog entries current on feature commits, and
+  keep promoting §7 gap items into active todos. (Earlier gap items: haptics
+  DONE 2026-09 — `haptics.ts` / `useHaptics.ts` + settings toggle, see
+  features.md §3; daily equation DONE 2026-09-07 — seeded
+  `getSeededEquation` + `dailyEquation.ts`, see features.md §2.)
 
+- [x] idle reminder (features.md §7 gap candidate, in-app half) — DONE:
+  `idleReminder.ts` (pure show/hidden decision: 60s idle threshold, once
+  per session, settings-gated) + `hooks/useIdleReminder.ts` (5s poll, toast
+  via the message overlay) wired to cave taps + answer submits in
+  MinesOfDoom; settings toggle `idleReminder` (default on, en/es copy in
+  SettingsPanel) and unit tests (`__test__/idleReminder.test.ts`). Deliberately
+  reward-free and timer-free (no dark patterns). The OS home-screen widget
+  half stays open in features.md §7.
+- [ ] weekly challenges — recurring "weekly contract" on a longer cadence
+  than the daily bonus, reusing the goal-tier derived-metric machinery
+  (`goals.ts`) (features.md §7 candidate). Guardrails: real weekly window
+  only (no fake scarcity), rewards earnable free.
+
+- [ ] share images — render a shareable PNG badge (achievements / records)
+  instead of plain text (`share.ts` today) (features.md §7 candidate; the
+  native half will need a share-sheet dependency, e.g. `expo-sharing`).
 - [o] Add stripe payment provider for web one time products — **code done**
   (hosted Checkout provider + sidecar Stripe-API confirm + the
   `/api/app/stripe/webhook` backup mint; docs/store-integration.md §2.6).

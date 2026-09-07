@@ -247,6 +247,31 @@ const SettingsContent = memo(function SettingsContent({
           />
         </View>
       </Tooltip>
+      <Tooltip
+        label={t("settings.tooltipIdleReminder")}
+        content={t("settings.idleReminderHelp")}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Text style={{ ...styles.text, fontSize: 11 }}>
+            {t("settings.idleReminder")}
+          </Text>
+          <Switch
+            value={settingsData.idleReminder}
+            onValueChange={(newVal) => {
+              onChangeSettingsData({
+                ...settingsData,
+                idleReminder: newVal,
+              });
+            }}
+          />
+        </View>
+      </Tooltip>
       <Tooltip label={t("settings.tooltipEmojiArt")} content={t("settings.emojiArtHelp")}>
         <View
           style={{

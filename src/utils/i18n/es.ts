@@ -41,6 +41,9 @@ export const es: Record<TranslationKey, string> = {
   "toast.comboUp": "¡Combo x{mult}!",
   "toast.comboDropped": "¡El combo bajó a {combo}!",
   "toast.comboLost": "¡Combo perdido!",
+  "toast.idleReminder":
+    "La mina sigue recogiendo mientras no estás, y tu progreso se guarda " +
+    "automáticamente — ¡vuelve a ver lo acumulado!",
   "toast.saved": "Partida guardada",
   "toast.settingsSaved": "Guardado",
   "toast.invalidSaveCode": "Código de guardado no válido.",
@@ -57,6 +60,10 @@ export const es: Record<TranslationKey, string> = {
   "toast.dailyBonus": "Bonus diario: +{bonus} minerales",
   "toast.dailyBonusStreak":
     "Bonus diario: +{bonus} minerales (¡racha de {streak} días!)",
+  "toast.dailyEquation":
+    "¡Ecuación del día resuelta: +{bonus} de minerales!",
+  "toast.dailyEquationStart":
+    "Ecuación del día: resuélvela para +{bonus} minerales — los errores no cuestan nada",
   "toast.iapPackUnlocked": "Desbloqueaste {name} — ¡búscalo en Cosméticos!",
   "toast.adFinishedGems": "Anuncio terminado: +{count} 💎",
   "toast.adFinishedDouble":
@@ -130,6 +137,9 @@ export const es: Record<TranslationKey, string> = {
     "Reclamar bonus diario: +{bonus} minerales, inicia la racha del día {day}",
   "a11y.dailyClaimed":
     "Bonus diario reclamado hoy. Vuelve mañana para el siguiente bonus.",
+  "a11y.dailyEquationPending":
+    "Ecuación del día: sin resolver (+{bonus} minerales)",
+  "a11y.dailyEquationSolved": "Ecuación del día: resuelta hoy",
 
   // --- Save button ---------------------------------------------------------
   "a11y.save": "Guardar partida",
@@ -184,6 +194,7 @@ export const es: Record<TranslationKey, string> = {
   "settings.tooltipHard": "Ecuaciones de modo difícil",
   "settings.tooltipEmojiArt": "Arte de emoji (modo ligero)",
   "settings.tooltipHaptics": "Retroalimentación háptica",
+  "settings.tooltipIdleReminder": "Recordatorio de inactividad",
   "settings.tooltipShowAll":
     "Mostrar siempre todos los botones de mejora",
   "settings.gainFormula":
@@ -261,6 +272,13 @@ export const es: Record<TranslationKey, string> = {
     "en las incorrectas, y un doble toque en logros y compras. " +
     "Desactivado: sin vibración; el sonido no se ve afectado. En " +
     "dispositivos sin vibrador no cambia nada de ninguna forma.",
+  "settings.idleReminder": "Recordatorio de inactividad: ",
+  "settings.idleReminderHelp":
+    "Activado (por defecto): tras un minuto sin tocar la cueva ni responder " +
+    "una ecuación, un mensaje único recuerda que la mina sigue recogiendo " +
+    "mientras no estás y que el progreso se guarda solo. Aparece a lo sumo " +
+    "una vez por sesión y no da ninguna recompensa — es información, no un " +
+    "temporizador. Desactivado: silencio.",
   "settings.emojiArt": "Arte de emoji (modo ligero): ",
   "settings.emojiArtHelp":
     "Desactivado (por defecto): mineros, monedas, escombros y el fondo de la " +

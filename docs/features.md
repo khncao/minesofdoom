@@ -60,9 +60,22 @@ Items adopted from that list move into `docs/todo.md`.
 - **Daily bonus / streak** — 10k base × streak (capped) for returning each
   local day; stored separately from the save so a lost streak never costs
   progress (`dailyBonus.ts`, `components/DailyBonusButton.tsx`).
+- **Equation of the day** — one fixed equation per local day, the SAME
+  equation for every player/device (FNV-1a day-key seed → mulberry32 →
+  `getSeededEquation`, always-soft classic+percent+missing shape); a 📅
+  header button forces it into the main display, where wrong answers are
+  penalty-free and a solve pays a flat 25k bonus once per day. Solved-day
+  lives in its own AsyncStorage key, like the daily bonus (`dailyEquation.ts`,
+  `hooks/useDailyEquation.ts`, `components/DailyEquationButton.tsx`).
 - **Local records** — personal-best panel (depth, combo, minerals/sec, …)
   over the same lifetime stats a live leaderboard would use (`records.ts`,
   `components/RecordsPanel.tsx`).
+- **Idle reminder** — after a minute without a cave tap or an answer
+  (while the app is open), a one-per-session toast reminds the player the
+  mine keeps collecting and progress autosaves. Settings toggle, on by
+  default; no reward, no fake timer — plain information per the no-dark-
+  patterns guardrail (the §7 gap candidate, in-app half; the home-screen
+  widget half stays open) (`idleReminder.ts`, `hooks/useIdleReminder.ts`).
 - **Free-path benchmark** — a deterministic free-casual persona simulating
   the full economy in CI; fails if a balance change makes first prestige
   slower than the target (`freePath.ts`).
@@ -174,10 +187,11 @@ genre-impact; anything picked up goes into `docs/todo.md`.
 - **Weekly / monthly challenges** — daily bonus exists; nothing recurs on a
   longer cadence. A "weekly contract" (reuse the goal-tier derived-metric
   machinery, `goals.ts`) is the cheapest next retention tick.
-- **Daily rotating challenge equations** — a fixed daily seed (the
-  persona sim in `freePath.ts` already proves determinism is cheap) for a
-  daily "equation of the day" with a bonus. Differentiates the math genre;
-  engagement research consistently cites fresh daily content.
+- ~~**Daily rotating challenge equations**~~ — **DONE 2026-09-07** (todo
+  "daily equation"): seeded day-key equations in `utils/math/equations.ts`
+  (`hashString` + `mulberry32` + `getSeededEquation`), flat-bonus solve
+  reward with penalty-free wrong answers (`mines_of_doom/dailyEquation.ts`).
+  See §2 "Equation of the day".
 - **Seasonal / limited-time events** — the genre's main re-engagement
   driver (real-time events, event cosmetics). Note: real limited windows
   only — the no-fake-scarcity guardrail forbids fake timers, and the
@@ -192,9 +206,11 @@ genre-impact; anything picked up goes into `docs/todo.md`.
 
 ### Player-facing surfaces
 
-- **Home-screen widget + idle reminders** — no `expo-notifications` /
-  widget anywhere in `src/`. Standard idle-game "come collect" pattern;
-  must stay a simple reminder (no dark patterns).
+- **Home-screen widget** — ~~+ idle reminders~~ (the in-app idle reminder
+  is DONE 2026-09 — `idleReminder.ts` / `useIdleReminder.ts` + settings
+  toggle, see §2). No `expo-notifications` / widget anywhere in `src/`:
+  the OS-level "come collect" push remains; must stay a simple reminder
+  (no dark patterns).
 - **Sound volume controls** — haptics landed 2026-09 (the `haptics`
   settings toggle, §3); sound is still mute-only (no volume, no
   per-sound toggles).

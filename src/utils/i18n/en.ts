@@ -56,6 +56,9 @@ export const en = {
   "toast.comboUp": "Combo x{mult}!",
   "toast.comboDropped": "Combo dropped to {combo}!",
   "toast.comboLost": "Combo lost!",
+  "toast.idleReminder":
+    "The mine keeps collecting while you're away, and your progress autosaves — " +
+    "come back to check the haul!",
   "toast.saved": "Game saved",
   "toast.settingsSaved": "Saved",
   "toast.invalidSaveCode": "Invalid save code.",
@@ -71,6 +74,10 @@ export const en = {
   "toast.dailyBonus": "Daily bonus: +{bonus} minerals",
   "toast.dailyBonusStreak":
     "Daily bonus: +{bonus} minerals (day {streak} streak!)",
+  "toast.dailyEquation":
+    "Equation of the Day solved: +{bonus} minerals!",
+  "toast.dailyEquationStart":
+    "Equation of the Day: solve it for +{bonus} minerals — wrong answers are free",
   "toast.iapPackUnlocked": "Unlocked {name} — find it in Cosmetics!",
   "toast.adFinishedGems": "Ad finished: +{count} 💎",
   "toast.adFinishedDouble":
@@ -141,6 +148,9 @@ export const en = {
     "Claim daily bonus: +{bonus} minerals, starts day {day} streak",
   "a11y.dailyClaimed":
     "Daily bonus claimed today. Come back tomorrow for the next bonus.",
+  "a11y.dailyEquationPending":
+    "Equation of the Day: unsolved (+{bonus} minerals)",
+  "a11y.dailyEquationSolved": "Equation of the Day: solved today",
 
   // --- Save button ---------------------------------------------------------
   "a11y.save": "Save game",
@@ -264,6 +274,13 @@ export const en = {
   "settings.tip.division.body":
     "Read a ÷ b as “b × what = a?”: 48 ÷ 6 → 6 × 8 = 48, so 8. If it " +
     "doesn't ring a bell, walk the multiples of b up from 1.",
+  "settings.tooltipIdleReminder": "Idle reminder",
+  "settings.idleReminder": "Idle reminder: ",
+  "settings.idleReminderHelp":
+    "On (default): after a minute without a cave tap or an answer, a one-time " +
+    "message reminds you that the mine keeps collecting while you're away and " +
+    "your progress autosaves. It shows at most once per session and pays " +
+    "nothing — information, not a timer. Off: it stays quiet.",
   "settings.haptics": "Haptic feedback: ",
   "settings.hapticsHelp":
     "On (default): the device vibrates on the events that carry the game's " +

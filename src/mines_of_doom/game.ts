@@ -105,6 +105,14 @@ export type SettingsData = {
    * platforms without haptics hardware anyway.
    */
   haptics: boolean;
+  /**
+   * Idle reminder (on by default): after a minute without a cave tap or
+   * answer, a single one-per-session toast reminds the player that the
+   * mine keeps collecting while away and progress autosaves (see
+   * idleReminder.ts / hooks/useIdleReminder.ts). No reward, no timer —
+   * a plain information nudge.
+   */
+  idleReminder: boolean;
 };
 
 export const saveDataKey = "save";
@@ -693,6 +701,7 @@ export const defaultSettingsData = {
   showAllPurchases: false,
   emojiArt: false,
   haptics: true,
+  idleReminder: true,
 };
 
 /** Every purchase button id (see PurchaseId). */

@@ -22,6 +22,7 @@ import type { AccountSettingsProps } from "./components/AccountTab";
 import SavePill from "./components/SavePill";
 import OnboardingOverlay from "./components/OnboardingOverlay";
 import DailyBonusButton from "./components/DailyBonusButton";
+import DailyEquationButton from "./components/DailyEquationButton";
 import {
   ALL_PURCHASE_IDS,
   defaultSettingsData,
@@ -67,11 +68,14 @@ import { useCombo } from "./hooks/useCombo";
 import { useShakeInput } from "./hooks/useShakeInput";
 import { useMineTaps } from "./hooks/useMineTaps";
 import { useJuiceWaves } from "./hooks/useJuiceWaves";
+import { useIdleReminder } from "./hooks/useIdleReminder";
 import { getJuiceTextSize, getJuiceWaves } from "./juice";
 import { useAccessibilityReduceMotion } from "./hooks/useAccessibilityReduceMotion";
 import { useEquations } from "./hooks/useEquations";
 import { noteCrashEvent, setCrashContextState } from "./crashContext";
 import { useDailyBonus } from "./hooks/useDailyBonus";
+import { useDailyEquation } from "./hooks/useDailyEquation";
+import { DAILY_EQUATION_BONUS } from "./dailyEquation";
 import { useAnalytics } from "./hooks/useAnalytics";
 import { useAdRewards } from "./hooks/useAdRewards";
 import { useCloudSave, type CloudSaveSettingsProps } from "./hooks/useCloudSave";
@@ -662,14 +666,57 @@ export default function MinesOfDoom() {
     reduceMotion,
   });
 
+  // Idle reminder (features.md §7 gap candidate): a one-per-session,
+  // once-per-minute-of-idle toast reminding that the mine keeps
+  // collecting and autosaves. The activity signals are the two core-loop
+  // inputs the player is actually doing: cave taps and answer submits —
+  // the wrapper below marks both.
+  const { markActivity } = useIdleReminder({
+    // Gated on the onboarding overlay being gone (its stored flag loaded
+    // AND dismissed): a player slowly reading first-run setup isn't idle,
+    // and the overlay's full-screen backdrop shouldn't get a toast on top.
+    enabled:
+      settingsData.idleReminder &&
+      !onboardingLoading &&
+      onboardingDone === true,
+    displayMessage,
+  });
+  const mineTapWithActivity = useCallback(
+    () => {
+      markActivity();
+      mineTap();
+    },
+    [markActivity, mineTap],
+  );
+
+  // Equation of the Day (todo "daily equation", features.md §7): one
+  // fixed equation per local day, identical for every player (seeded by
+  // the day key — see dailyEquation.ts). While in mode the main display
+  // shows today's equation: wrong answers are penalty-free (see
+  // isSoftIncorrect below), a correct one pays the normal reward AND the
+  // daily bonus, then the mode exits.
+  const dailyEquation = useDailyEquation({ displayMessage });
+  const [dailyEquationMode, setDailyEquationMode] = useState(false);
+  const dailyEquationModeRef = useRef(dailyEquationMode);
+  dailyEquationModeRef.current = dailyEquationMode;
+
   const {
     equation,
     textInput,
     setTextInput,
     handleSubmit,
+    showEquation,
   } = useEquations({
     equationSettings,
     onCorrect: (value) => {
+      if (dailyEquationModeRef.current) {
+        // The displayed equation IS today's (forced in by the button):
+        // the daily bonus stacks on top of the normal answer reward.
+        addTapGain(BigInt(DAILY_EQUATION_BONUS));
+        dailyEquation.markSolved();
+        setDailyEquationMode(false);
+        haptic("success");
+      }
       const gem = applyAnswerReward(value, comboMultiplier, combo + 1);
       // Floating "+N" showing exactly what this answer was worth.
       const gain =
@@ -719,7 +766,49 @@ export default function MinesOfDoom() {
       }
       resetCombo(retention);
     },
+    // Wrong answers are penalty-free while today's equation is displayed:
+    // no combo reset, and the equation stays on screen for a retry.
+    isSoftIncorrect: () => dailyEquationModeRef.current,
+    onSoftIncorrect: () => {
+      play("stone", 150);
+      shake();
+      haptic("error");
+    },
   });
+
+  // Answer submits mark idle-reminder activity too (the other half of
+  // the core loop after cave taps): the wrapper is what AnswerInput /
+  // NumericKeypad receive as onSubmit.
+  const handleSubmitActivity = useCallback(
+    () => {
+      markActivity();
+      handleSubmit();
+    },
+    [markActivity, handleSubmit],
+  );
+
+  // Equation-of-the-day entry point: force today's equation into the main
+  // display and enter the soft-wrong mode. The button is disabled once
+  // solved, so a start always targets an unsolved day.
+  const handleDailyEquationStart = useCallback(() => {
+    if (dailyEquation.solved || dailyEquationModeRef.current) return;
+    noteCrashEvent("equation of the day started");
+    setDailyEquationMode(true);
+    showEquation(dailyEquation.equation);
+    displayMessage(
+      t("toast.dailyEquationStart", {
+        bonus: formatNumber(dailyEquation.bonus),
+      }),
+      5000,
+    );
+  }, [
+    dailyEquation.solved,
+    dailyEquation.equation,
+    dailyEquation.bonus,
+    showEquation,
+    displayMessage,
+    t,
+  ]);
 
   const handleMuteChange = useCallback((newVal: boolean) => setMute(newVal), [setMute]);
 
@@ -1114,6 +1203,11 @@ export default function MinesOfDoom() {
             streak={dailyBonus.streak}
             onClaim={handleDailyClaim}
           />
+          <DailyEquationButton
+            solved={dailyEquation.solved}
+            bonus={dailyEquation.bonus}
+            onStart={handleDailyEquationStart}
+          />
           {/* The trophy renders only while the provider is available
               (plan §Leaderboard "Availability gate"): hidden until the
               Pocketbase URL is configured, same rule as the ad/IAP
@@ -1186,7 +1280,7 @@ export default function MinesOfDoom() {
         <AnswerInput
           value={textInput}
           setTextInput={setTextInput}
-          onSubmit={handleSubmit}
+          onSubmit={handleSubmitActivity}
           shakeAnim={shakeAnim}
           useKeypad={onScreenKeypad}
           // While the onboarding overlay is up the input must not raise the
@@ -1232,7 +1326,7 @@ export default function MinesOfDoom() {
           miners={gameState.miners}
           fastMiners={gameState.fastMiners}
           legendaryMiners={gameState.legendaryMiners}
-          onTap={mineTap}
+          onTap={mineTapWithActivity}
           playerPickaxeAnimRef={playerPickaxeAnimRef}
           debrisRef={debrisRef}
           blockBreakRef={blockBreakRef}
@@ -1287,7 +1381,7 @@ export default function MinesOfDoom() {
             onDigit={handleKeypadDigit}
             onBackspace={handleKeypadBackspace}
             onClear={handleKeypadClear}
-            onSubmit={handleSubmit}
+            onSubmit={handleSubmitActivity}
           />
         )}
         {/* The upgrades drawer (todo: upgrades menu as a side hidden
