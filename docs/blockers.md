@@ -22,10 +22,7 @@ on fresh installs.
 iOS `APPLE_*` App Store Connect API key for the sidecar
 (`docs/backlog.md`, iOS section), and (2) the **web Stripe + AdSense
 console side** (Stripe account → the `price_…` catalog + a
-`checkout.session.completed` webhook at the sidecar's `/stripe/webhook`
-(needs the Caddy route on the public Pocketbase URL → the sidecar port,
-plus the `whsec_…` in the `STRIPE_WEBHOOK_SECRET` sidecar env, alongside
-`STRIPE_SECRET_KEY` and `MDOOM_PB_URL`); AdSense approval → the `ca-pub-` client + a banner slot) —
+`checkout.session.completed` webhook at `https://minesofdoom.minus4kelvin.com/stripe/webhook` — that URL is **routed live** to the sidecar since 2026-09-06 (Caddy `@stripe_webhook` matcher, before the Pocketbase catchall; fail-closed 400 `webhook not configured` until the sidecar's `STRIPE_WEBHOOK_SECRET` lands, alongside `STRIPE_SECRET_KEY` and `MDOOM_PB_URL`); AdSense approval → the `ca-pub-` client + a banner slot) —
 all code is built and config-gated, none of it runs until those land.
 The §4 purchase leg is **no longer blocked** (license tester registered
 2026-09-06, purchase confirmed on the dev build). The 26 Play products are live and
@@ -129,7 +126,11 @@ logcat lines (no Play Billing call at all). That's why IAP "works" in
 dev-client launches; it does NOT exercise the wipe leg (dev-sim has no
 store record, so `pm clear` genuinely loses the grant). Standalone
 launch (no Metro) loads the embedded production bundle (`__DEV__=false`)
-→ real store provider → the billing-network failure above.
+→ real store provider → the billing-network failure above. (2026-09-06 PM:
+the build leg is done — a debug APK from c04e03b, which includes
+reconcileStore, is installed on mines-play-35 and boot-smoke clean; the
+wipe flow `maestro/adhoc/iap-wipe-verify.yaml` now asserts the full leg,
+Owned re-derived after `pm clear`. Only the billing network is left.)
 
 **Progress (2026-09-06, license tester):** the §4 external blocker is
 gone — a Gmail is registered as a Play Console license tester on
@@ -269,7 +270,10 @@ pass above is native-only).
 the container/service level of that todo is done (2026-09-06), but three
 OS-level items on `kelvin@100.109.48.41` (Debian 12, docker as systemd
 services) are blocked on an INTERACTIVE sudo password — non-interactive
-sudo is disabled, so they need a human at the terminal. Run once:
+sudo is disabled (re-confirmed 2026-09-06: `sudo -ln` needs a password,
+`/usr/sbin/ufw status` refuses non-root, fail2ban not installed, and
+`apt list --upgradable` shows the 5 docker packages at 29.7.2 → 29.8.0).
+They need a human at the terminal. Run once:
 1. `sudo apt update && sudo apt upgrade` — 5 docker packages carried
    security updates (unattended-upgrades is not installed; this is the
    only patching path).

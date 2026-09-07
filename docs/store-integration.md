@@ -434,7 +434,8 @@ started") from ever being mistaken for a confirmed payment.
    `price_…` id. (No subscriptions — the catalog is one-time packs.)
 2. **Webhook:** add an endpoint at
    `https://minesofdoom.minus4kelvin.com/stripe/webhook` (the sidecar
-   port, fronted by Caddy at the public Pocketbase URL — see
+   port, fronted by Caddy at the public Pocketbase URL — **this route is
+   live since 2026-09-06**, fail-closed until step 3's env lands — see
    `docs/pocketbase-plan.md`) and subscribe it to
    `checkout.session.completed` only. Copy its `whsec_…` signing secret.
    (`pk_`/`sk_` never go in the URL; the `whsec_…` is a server credential

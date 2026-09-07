@@ -9,6 +9,9 @@ Completed items are removed from this file (see git history); only remaining wor
   Remaining is the external console side only: Stripe products/prices,
   the `pk_`/`sk_` keys, the webhook endpoint + sidecar env, then flip
   `storeConfig.stripe` (all-or-nothing, shop stays hidden until then).
+  The public `/stripe/webhook` URL is already routed to the sidecar
+  (Caddy, 2026-09-06, fail-closed until `STRIPE_WEBHOOK_SECRET` lands),
+  so the Stripe console's webhook endpoint can point at it as-is.
 - [o] Add adsense for web ads — **code done** (the shop-sheet banner,
   `AdSenseBanner.web.tsx` + the `+html.tsx` loader; §1.1). Remaining is
   external: AdSense approval + the `ca-pub-` client + a banner slot, then
@@ -64,9 +67,14 @@ Completed items are removed from this file (see git history); only remaining wor
 - [ ] IAP — on-device verification of the above: purchase (DONE 2026-09-06 —
     purchase leg confirmed working on the dev build, mines-play-35, license
     tester) → wipe local key (pm clear) → relaunch → entitlement re-derived
-    from the store record. The wipe leg needs a build that includes
-    reconcileStore (a50aea0) — the 1.0.8 AAB and the earlier dev build
-    predate it. 2026-09-06 PM: the purchase-leg re-run is blocked by the
+    from the store record. **Build leg DONE 2026-09-06 PM:** a debug APK
+    from HEAD (c04e03b, supersedes a50aea0 — the embedded-bundle variant,
+    boots standalone with the real store provider) is installed on
+    mines-play-35 (versionName 1.0.8, boot-smoke clean); the wipe flow
+    (`maestro/adhoc/iap-wipe-verify.yaml`) now asserts the FULL leg: pm
+    clear → relaunch → panel settles back to **Owned** once reconcileStore
+    re-derives it from the store record (90 s window). What remains is the
+    billing network (see below) → `maestro test maestro/adhoc/iap-wipe-verify.yaml`. 2026-09-06 PM: the purchase-leg re-run is blocked by the
     emulator billing network (billing gRPC ERR_CONNECTION_REFUSED — worked
     earlier the same day; `docs/blockers.md`), and "works via
     expo run:android" is the labeled dev-sim provider (dev bundle,
