@@ -60,6 +60,17 @@ Items adopted from that list move into `docs/todo.md`.
 - **Daily bonus / streak** — 10k base × streak (capped) for returning each
   local day; stored separately from the save so a lost streak never costs
   progress (`dailyBonus.ts`, `components/DailyBonusButton.tsx`).
+- **Weekly contract** — a recurring contract on a longer cadence than the
+  daily bonus: 3 goals that are DELTAS on the save's monotonic lifetime
+  metrics (answer 75 equations / mine 500k minerals / own 2 more miners
+  this week), with a flat 150k mineral bonus claimable once per week when
+  all three are met. Progress is derived state in the goals.ts pattern:
+  the week's opening metric values are snapshotted as baselines, progress
+  is current − baseline (clamped at 0), so only this week's gains count and
+  nothing is a mutable flag. The real weekly window only (no fake
+  scarcity) and the reward is earnable free, per the guardrails. State
+  lives in its own AsyncStorage key, like the daily bonus (`weeklyChallenge.ts`,
+  `hooks/useWeeklyChallenge.ts`, `components/WeeklyContractButton.tsx`).
 - **Equation of the day** — one fixed equation per local day, the SAME
   equation for every player/device (FNV-1a day-key seed → mulberry32 →
   `getSeededEquation`, always-soft classic+percent+missing shape); a 📅
@@ -184,9 +195,13 @@ genre-impact; anything picked up goes into `docs/todo.md`.
 
 ### Engagement / progression
 
-- **Weekly / monthly challenges** — daily bonus exists; nothing recurs on a
-  longer cadence. A "weekly contract" (reuse the goal-tier derived-metric
-  machinery, `goals.ts`) is the cheapest next retention tick.
+- ~~**Weekly / monthly challenges**~~ — **DONE 2026-09** (todo "weekly
+  challenges"): the weekly contract — 3 delta-goals on monotonic lifetime
+  metrics with a flat weekly mineral bonus, derived-state progress via a
+  week-start baseline snapshot, real weekly window, free-earnable reward
+  (`mines_of_doom/weeklyChallenge.ts`, `hooks/useWeeklyChallenge.ts`,
+  `components/WeeklyContractButton.tsx`). See §2 "Weekly contract". The
+  monthly cadence stays open if it ever earns its place.
 - ~~**Daily rotating challenge equations**~~ — **DONE 2026-09-07** (todo
   "daily equation"): seeded day-key equations in `utils/math/equations.ts`
   (`hashString` + `mulberry32` + `getSeededEquation`), flat-bonus solve

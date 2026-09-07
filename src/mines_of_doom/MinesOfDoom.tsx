@@ -23,6 +23,7 @@ import SavePill from "./components/SavePill";
 import OnboardingOverlay from "./components/OnboardingOverlay";
 import DailyBonusButton from "./components/DailyBonusButton";
 import DailyEquationButton from "./components/DailyEquationButton";
+import WeeklyContractButton from "./components/WeeklyContractButton";
 import {
   ALL_PURCHASE_IDS,
   defaultSettingsData,
@@ -74,6 +75,7 @@ import { useAccessibilityReduceMotion } from "./hooks/useAccessibilityReduceMoti
 import { useEquations } from "./hooks/useEquations";
 import { noteCrashEvent, setCrashContextState } from "./crashContext";
 import { useDailyBonus } from "./hooks/useDailyBonus";
+import { useWeeklyChallenge } from "./hooks/useWeeklyChallenge";
 import { useDailyEquation } from "./hooks/useDailyEquation";
 import { DAILY_EQUATION_BONUS } from "./dailyEquation";
 import { useAnalytics } from "./hooks/useAnalytics";
@@ -911,6 +913,20 @@ export default function MinesOfDoom() {
     dailyClaim();
   }, [dailyClaim]);
 
+  // Weekly contract (todo: "weekly challenges"): the same additive grant
+  // path as the daily bonus; progress is a derived delta on the live save
+  // (see weeklyChallenge.ts for the design rules).
+  const weeklyContract = useWeeklyChallenge({
+    save: gameState,
+    grantMinerals: addTapGain,
+    displayMessage,
+  });
+  const weeklyClaim = weeklyContract.claim;
+  const handleWeeklyClaim = useCallback(() => {
+    noteCrashEvent("weekly contract claimed");
+    weeklyClaim();
+  }, [weeklyClaim]);
+
   // Local event logging (guardrail 5, "measure before scaling"): the
   // app-open record happens inside the hook (after its stored record has
   // loaded); the milestones are fired from the effects below. The hook is
@@ -1202,6 +1218,14 @@ export default function MinesOfDoom() {
             bonus={dailyBonus.bonus}
             streak={dailyBonus.streak}
             onClaim={handleDailyClaim}
+          />
+          <WeeklyContractButton
+            claimable={weeklyContract.claimable}
+            claimed={weeklyContract.claimed}
+            bonus={weeklyContract.bonus}
+            done={weeklyContract.doneCount}
+            total={weeklyContract.total}
+            onClaim={handleWeeklyClaim}
           />
           <DailyEquationButton
             solved={dailyEquation.solved}

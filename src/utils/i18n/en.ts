@@ -78,6 +78,7 @@ export const en = {
     "Equation of the Day solved: +{bonus} minerals!",
   "toast.dailyEquationStart":
     "Equation of the Day: solve it for +{bonus} minerals — wrong answers are free",
+  "toast.weeklyContract": "Weekly contract complete: +{bonus} minerals",
   "toast.iapPackUnlocked": "Unlocked {name} — find it in Cosmetics!",
   "toast.adFinishedGems": "Ad finished: +{count} 💎",
   "toast.adFinishedDouble":
@@ -151,6 +152,9 @@ export const en = {
   "a11y.dailyEquationPending":
     "Equation of the Day: unsolved (+{bonus} minerals)",
   "a11y.dailyEquationSolved": "Equation of the Day: solved today",
+  "a11y.weeklyClaimable": "Claim weekly contract: +{bonus} minerals",
+  "a11y.weeklyProgress": "Weekly contract: {done} of {total} goals complete",
+  "a11y.weeklyClaimed": "Weekly contract claimed for this week",
 
   // --- Save button ---------------------------------------------------------
   "a11y.save": "Save game",

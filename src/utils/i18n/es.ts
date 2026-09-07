@@ -64,6 +64,8 @@ export const es: Record<TranslationKey, string> = {
     "¡Ecuación del día resuelta: +{bonus} de minerales!",
   "toast.dailyEquationStart":
     "Ecuación del día: resuélvela para +{bonus} minerales — los errores no cuestan nada",
+  "toast.weeklyContract":
+    "Contrato semanal completado: +{bonus} minerales",
   "toast.iapPackUnlocked": "Desbloqueaste {name} — ¡búscalo en Cosméticos!",
   "toast.adFinishedGems": "Anuncio terminado: +{count} 💎",
   "toast.adFinishedDouble":
@@ -140,6 +142,10 @@ export const es: Record<TranslationKey, string> = {
   "a11y.dailyEquationPending":
     "Ecuación del día: sin resolver (+{bonus} minerales)",
   "a11y.dailyEquationSolved": "Ecuación del día: resuelta hoy",
+  "a11y.weeklyClaimable": "Reclamar contrato semanal: +{bonus} minerales",
+  "a11y.weeklyProgress":
+    "Contrato semanal: {done} de {total} objetivos completados",
+  "a11y.weeklyClaimed": "Contrato semanal reclamado esta semana",
 
   // --- Save button ---------------------------------------------------------
   "a11y.save": "Guardar partida",

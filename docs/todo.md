@@ -23,10 +23,17 @@ Completed items are removed from this file (see git history); only remaining wor
   SettingsPanel) and unit tests (`__test__/idleReminder.test.ts`). Deliberately
   reward-free and timer-free (no dark patterns). The OS home-screen widget
   half stays open in features.md §7.
-- [ ] weekly challenges — recurring "weekly contract" on a longer cadence
-  than the daily bonus, reusing the goal-tier derived-metric machinery
-  (`goals.ts`) (features.md §7 candidate). Guardrails: real weekly window
-  only (no fake scarcity), rewards earnable free.
+- [x] weekly challenges — DONE: the "weekly contract" (features.md §2
+  "Weekly contract" / §7 candidate): `weeklyChallenge.ts` (pure
+  derived-state: week-start baseline snapshot on the save's monotonic
+  lifetime metrics, progress = current − baseline clamped at 0, one claim
+  per real local week) + `hooks/useWeeklyChallenge.ts` (60s week-rollover
+  tick, rollover persist, double-claim-gated via stateRef — mirrors
+  `useDailyBonus`) + `components/WeeklyContractButton.tsx` (📜 in the top
+  menu row next to the daily bonus) + en/es copy + unit tests
+  (`__test__/weeklyChallenge.test.ts`). 3 goals (75 answers / 500k minerals
+  / 2 more miners) → flat 150k bonus. Guardrails held: real weekly window
+  only (no fake scarcity), reward earnable free.
 
 - [ ] share images — render a shareable PNG badge (achievements / records)
   instead of plain text (`share.ts` today) (features.md §7 candidate; the
