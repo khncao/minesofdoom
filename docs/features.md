@@ -81,6 +81,19 @@ Items adopted from that list move into `docs/todo.md`.
 - **Local records** — personal-best panel (depth, combo, minerals/sec, …)
   over the same lifetime stats a live leaderboard would use (`records.ts`,
   `components/RecordsPanel.tsx`).
+- **Share badges** — sharing a completed achievement renders a 320x180
+  PNG badge (game name, "BADGE EARNED", the achievement name, the
+  player's deepest depth) instead of plain text. The badge is pure TS —
+  a 5x7 pixel font laid out onto an RGBA buffer and encoded by a pako-
+  based PNG encoder (`shareBadge.ts`, `utils/png.ts`) so it renders
+  identically everywhere with no canvas dependency; the platform hand-off
+  splits like the iap/ad providers: native writes the PNG to the cache
+  and hands it to expo-sharing (`shareImage.ts`), web draws the pixels
+  onto an offscreen canvas and shares a File via the Web Share API
+  (`shareImage.web.ts`). Every failure degrades to the pre-baseline
+  plain-text share, so a share tap always does something honest; a
+  user-closed sheet is a no-op, not a re-opened sheet (`shareImage.ts`,
+  `shareImage.web.ts`, wired in `components/GoalsPanel.tsx`).
 - **Idle reminder** — after a minute without a cave tap or an answer
   (while the app is open), a one-per-session toast reminds the player the
   mine keeps collecting and progress autosaves. Settings toggle, on by
@@ -233,8 +246,11 @@ genre-impact; anything picked up goes into `docs/todo.md`.
 - **More languages** — en/es only; the i18n table machinery
   (`utils/i18n/`) makes adding locales cheap, and the kid-skewed audience
   argues for more coverage eventually.
-- **Share images** — achievement shares are plain text (`share.ts`);
-  rendering a shareable PNG badge is the genre norm.
+- ~~**Share images**~~ — **DONE 2026-09** (todo "share images"): a pure-TS
+  320x180 PNG badge (pixel font + pako PNG encoder) shared via
+  expo-sharing (native) / Web Share API files (web), degrading to the
+  plain-text share on any failure (`shareBadge.ts`, `shareImage.ts`,
+  `shareImage.web.ts`). See §2 "Share badges".
 - **Deep/universal links** — none; save transfer is clipboard-only
   (`saveCode.ts`).
 

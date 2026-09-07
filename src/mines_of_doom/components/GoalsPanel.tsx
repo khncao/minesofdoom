@@ -3,7 +3,8 @@ import { Pressable, Text, View } from "react-native";
 import { emojis } from "src/utils/graphics/emojis";
 import { useContent, useT } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
-import { shareText } from "../share";
+import { shareBadgeBytes } from "../shareImage";
+import { renderAchievementBadge } from "../shareBadge";
 import {
   GOAL_TIERS,
   getCompletedTierIds,
@@ -133,10 +134,12 @@ const GoalsContent = memo(function GoalsContent({
                 {formatNumber(a.target)} · +{formatNumber(a.bonusMinerals)}{" "}
                 {emojis.mineral}
               </Text>
-              {/* Share action (docs/store-integration.md §3):
-                  a plain-text string via the platform share sheet, no
-                  backend. Only on COMPLETED rows — sharing an unearned
-                  badge would be a lie. */}
+              {/* Share action (docs/store-integration.md §3): a rendered
+                  PNG badge (shareBadge.ts) via the platform share sheet,
+                  no backend. Only on COMPLETED rows — sharing an unearned
+                  badge would be a lie. The badge render + share is
+                  fire-and-forget; shareBadgeBytes never rejects and
+                  falls back to the plain-text share itself. */}
               {done && (
                 <Pressable
                   accessibilityRole="button"
@@ -144,7 +147,12 @@ const GoalsContent = memo(function GoalsContent({
                     name: title,
                   })}
                   onPress={() => {
-                    void shareText(
+                    const badge = renderAchievementBadge(
+                      title,
+                      stats.maxDepth,
+                    );
+                    void shareBadgeBytes(
+                      badge,
                       t("share.achievement", { name: title }),
                     );
                   }}

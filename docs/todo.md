@@ -35,9 +35,20 @@ Completed items are removed from this file (see git history); only remaining wor
   / 2 more miners) → flat 150k bonus. Guardrails held: real weekly window
   only (no fake scarcity), reward earnable free.
 
-- [ ] share images — render a shareable PNG badge (achievements / records)
-  instead of plain text (`share.ts` today) (features.md §7 candidate; the
-  native half will need a share-sheet dependency, e.g. `expo-sharing`).
+- [x] share images — DONE: the achievement share now renders a 320x180
+  PNG badge instead of plain text (features.md §2 "Share badges" / §7
+  candidate). Pure-TS render: 5x7 pixel font + RGBA layout + pako-based
+  PNG encoder (`shareBadge.ts`, `utils/png.ts`, `pako` dep) — no canvas
+  dependency, identical pixels on every platform. Platform hand-off
+  follows the provider pattern: native writes the PNG to the cache and
+  shares it via `expo-sharing` (`shareImage.ts`), web draws the pixel
+  buffer onto an offscreen canvas and shares a File via the Web Share
+  API (`shareImage.web.ts`). Every failure degrades to the pre-baseline
+  plain-text share (`share.ts`), so a share tap always does something
+  honest; a dismissed sheet is a no-op, not a re-opened one. Wired into
+  `components/GoalsPanel.tsx`; unit tests (`__test__/shareBadge.test.ts`,
+  `__test__/shareImage.test.ts`, `__test__/shareImage.web.test.ts`,
+  `utils/png.test.ts`).
 - [o] Add stripe payment provider for web one time products — **code done**
   (hosted Checkout provider + sidecar Stripe-API confirm + the
   `/api/app/stripe/webhook` backup mint; docs/store-integration.md §2.6).
