@@ -296,6 +296,12 @@ export const en = {
     "double-tap on achievements and purchases. Off: no vibration, sound " +
     "is unaffected. On devices without haptics hardware this does nothing " +
     "either way.",
+  "settings.tooltipMusic": "Cave ambience",
+  "settings.music": "Cave ambience: ",
+  "settings.musicHelp":
+    "A soft, looping cave drone under the sound effects (on by default). " +
+    "It plays at half the sound-volume level, and the menu's mute toggle " +
+    "still wins — while muted, nothing plays. Off: silence under the SFX.",
   "settings.tooltipSoundVolume": "Sound volume",
   "settings.soundVolume": "Sound volume: ",
   "settings.soundVolumeHelp":

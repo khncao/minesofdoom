@@ -1,7 +1,13 @@
+import { AppState } from "react-native";
 import { createAudioPlayer, type AudioPlayer } from "expo-audio";
-import { useCallback, useEffect, useRef } from "react";
-import { pickaxeSound, stoneSound, pickaxeSoundFiles } from "assets/index";
-import { clampSoundVolume } from "../game";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  pickaxeSound,
+  stoneSound,
+  pickaxeSoundFiles,
+  ambientLoop,
+} from "assets/index";
+import { clampSoundVolume, musicLevel } from "../game";
 
 export type SoundKey = "pickaxe" | "stone";
 
@@ -23,9 +29,12 @@ export function useSounds(
   pickaxeId: string | undefined,
   /** SFX volume in percent (0–100, settings.soundVolume). */
   volume: number,
+  /** Cave-ambience music toggle (settings.music, on by default). */
+  music: boolean,
 ) {
   const pickaxeRef = useRef<AudioPlayer | null>(null);
   const stoneRef = useRef<AudioPlayer | null>(null);
+  const musicRef = useRef<AudioPlayer | null>(null);
   const pickaxeSoundsRef = useRef<Partial<Record<string, AudioPlayer>>>({});
   // Ref (not a hook dep) so `play` keeps a stable identity across
   // pickaxe switches — it is memoized into useMineTaps etc.
@@ -82,13 +91,56 @@ export function useSounds(
     ids.forEach((id, i) => {
       pickaxeSoundsRef.current[id] = players[1 + i];
     });
+    // The looping cave-ambience bed (todo: "Music / ambient loop"): the
+    // 20 s WAV is exactly periodic (scripts/generate-ambient-loop.mjs),
+    // so the player's loop flag alone is what makes it seamless. Created
+    // paused — the music effect below decides whether it plays.
+    const musicPlayer = createAudioPlayer(ambientLoop);
+    musicPlayer.loop = true;
+    musicPlayer.pause();
+    musicRef.current = musicPlayer;
     return () => {
       players.forEach((p) => p.pause());
+      musicPlayer.pause();
       pickaxeRef.current = null;
       stoneRef.current = null;
       pickaxeSoundsRef.current = {};
+      musicRef.current = null;
     };
   }, []);
+
+  // A looping bed must not keep playing behind the app: track foreground
+  // state and pause the bed when backgrounded. (SFX players don't need
+  // this — their clips are ~0.2 s and end on their own.)
+  const [appActive, setAppActive] = useState(() => {
+    try {
+      return AppState.currentState === "active";
+    } catch {
+      return true;
+    }
+  });
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (status) => {
+      setAppActive(status === "active");
+    });
+    return () => sub.remove();
+  }, []);
+
+  // Runs after the creation effect (declaration order), so on mount it
+  // decides on the freshly created player. The menu mute toggle still
+  // wins: muted OR music-off OR backgrounded pauses the bed, otherwise
+  // it plays.
+  useEffect(() => {
+    const p = musicRef.current;
+    if (p == null) {
+      return;
+    }
+    if (!appActive || muted || !music) {
+      p.pause();
+    } else {
+      void p.play();
+    }
+  }, [appActive, muted, music]);
 
   // Runs after the creation effect (declaration order), so on mount it
   // lands on the freshly created players; on later settings changes it
@@ -105,6 +157,11 @@ export function useSounds(
         p.volume = level;
       }
     });
+    // The music bed sits at MUSIC_VOLUME_RATIO of the SFX level so it
+    // stays a bed, not a competitor, when the volume is turned up.
+    if (musicRef.current != null) {
+      musicRef.current.volume = musicLevel(volume);
+    }
   }, [volume]);
 
   return { play };

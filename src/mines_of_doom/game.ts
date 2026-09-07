@@ -120,6 +120,12 @@ export type SettingsData = {
    */
   idleReminder: boolean;
   /**
+   * Cave ambience music (on by default): a soft looping ambient bed under
+   * the SFX — plays at MUSIC_VOLUME_RATIO of the SFX level and follows the
+   * menu mute toggle (see hooks/useSounds.ts). Off: SFX only.
+   */
+  music: boolean;
+  /**
    * SFX volume in percent (0–100, default 100): the level of every
    * in-game sound, on top of the menu mute toggle (which still wins —
    * a muted player never hears anything). Stepped in 10% units from
@@ -730,6 +736,7 @@ export const defaultSettingsData = {
   emojiArt: false,
   haptics: true,
   idleReminder: true,
+  music: true,
   soundVolume: 100,
 };
 
@@ -746,6 +753,17 @@ export function clampSoundVolume(volume: unknown): number {
     return defaultSettingsData.soundVolume;
   }
   return Math.min(100, Math.max(0, Math.round(n)));
+}
+
+/**
+ * The ambient music bed plays UNDER the SFX, not at their level: this
+ * fraction of the (clamped) SFX volume setting, on expo-audio's 0.0–1.0
+ * scale. Pure so the level law is unit-testable next to clampSoundVolume.
+ */
+export const MUSIC_VOLUME_RATIO = 0.5;
+
+export function musicLevel(soundVolume: unknown): number {
+  return (clampSoundVolume(soundVolume) / 100) * MUSIC_VOLUME_RATIO;
 }
 
 /** Every purchase button id (see PurchaseId). */

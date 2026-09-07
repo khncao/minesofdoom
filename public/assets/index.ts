@@ -14,3 +14,7 @@ export const pickaxeSoundFiles: Record<string, SoundAsset> = {
   shadow: require("./audio/pickaxe-shadow.wav"),
 };
 export const pickaxeImg = require("./pickaxe.png");
+// Looping cave-ambience music bed (todo: "Music / ambient loop"). Synthesized
+// by scripts/generate-ambient-loop.mjs; 20 s, exactly periodic, loops with
+// the expo-audio player's `loop` flag.
+export const ambientLoop: SoundAsset = require("./audio/cave-ambient.wav");

@@ -281,6 +281,14 @@ export const es: Record<TranslationKey, string> = {
     "en las incorrectas, y un doble toque en logros y compras. " +
     "Desactivado: sin vibración; el sonido no se ve afectado. En " +
     "dispositivos sin vibrador no cambia nada de ninguna forma.",
+  "settings.tooltipMusic": "Ambiente de cueva",
+  "settings.music": "Ambiente de cueva: ",
+  "settings.musicHelp":
+    "Un zumbido suave de cueva en bucle bajo los efectos de sonido " +
+    "(activado por defecto). Suena a la mitad del nivel de volumen de " +
+    "sonido, y el botón de silencio del menú sigue imponiéndose: con " +
+    "silencio activado no suena nada. Desactivado: silencio bajo los " +
+    "efectos.",
   "settings.tooltipSoundVolume": "Volumen de sonido",
   "settings.soundVolume": "Volumen de sonido: ",
   "settings.soundVolumeHelp":

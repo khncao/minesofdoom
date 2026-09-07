@@ -153,8 +153,14 @@ Items adopted from that list move into `docs/todo.md`.
   **sound-volume** setting (0–100%, default 100%, stepped in 10% units in
   the settings panel; `clampSoundVolume` keeps parsed/hand-edited values in
   range, the menu mute toggle still wins — a muted player never hears
-  anything regardless of the volume).
-  No music.
+  anything regardless of the volume). Plus a **cave-ambience** music bed
+  (on by default, settings toggle): a 20 s exactly-periodic looping WAV
+  synthesized in-repo (`scripts/generate-ambient-loop.mjs` →
+  `public/assets/audio/cave-ambient.wav`) played by `hooks/useSounds.ts`
+  with the player's loop flag, at half the SFX level (`musicLevel` /
+  `MUSIC_VOLUME_RATIO` in `game.ts`), paused while muted, music-off, or
+  backgrounded (AppState); asset nets in
+  `scripts/__test__/ambientLoop.test.ts`.
 - **Accessibility & UX** — accessibility labels/roles throughout,
   reduce-motion preference respected (`hooks/useAccessibilityReduceMotion.ts`),
   keyboard-avoiding modal sheets, onboarding overlay with skip
@@ -218,10 +224,11 @@ Items adopted from that list move into `docs/todo.md`.
   (`analytics.ts`, `crashLog.ts`, `crashContext.ts`,
   `components/ErrorBoundary.tsx`).
 - **Settings** — autosave cadence, show-all-purchases, emoji-art fallback,
-  haptics, sound volume, mute, language (`hooks/useSettings.ts`,
+  haptics, cave-ambience music, sound volume, mute, language
+  (`hooks/useSettings.ts`,
   `components/SettingsPanel.tsx`, `components/SaveTab.tsx`,
   `components/MenuPanel.tsx`).
-- **Quality** — Jest suites over the pure modules (860+ tests), Maestro
+- **Quality** — Jest suites over the pure modules (980+ tests), Maestro
   e2e flows, Play Console CLI helper (`npm run play`), static-export-safe
   routing (AGENTS.md).
 - **Support** — in-app mailto inquiries button (`components/InquiriesButton.tsx`).
@@ -276,7 +283,14 @@ genre-impact; anything picked up goes into `docs/todo.md`.
   hand-edited values in range, applied to every expo-audio player by
   `hooks/useSounds.ts` (mute toggle still wins). See §3 "Sound".
   Per-sound toggles stay open if they ever earn their place.
-- **Music / ambient loop** — SFX only; no background audio.
+- ~~**Music / ambient loop**~~ — **DONE 2026-09** (todo "music /
+  ambient loop"): the cave-ambience bed — a 20 s exactly-periodic looping
+  WAV synthesized in-repo (`scripts/generate-ambient-loop.mjs`), played
+  under the SFX at half the sound-volume level by `hooks/useSounds.ts`
+  (player loop flag, half-level `musicLevel` law, paused while muted /
+  music-off / backgrounded), settings toggle `settings.music` (on by
+  default). See §3 "Sound". Per-sound toggles stay open if they ever earn
+  their place (see the sound-volume note above).
 - **More languages** — en/es only; the i18n table machinery
   (`utils/i18n/`) makes adding locales cheap, and the kid-skewed audience
   argues for more coverage eventually.

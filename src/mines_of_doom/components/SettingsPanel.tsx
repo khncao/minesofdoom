@@ -247,6 +247,35 @@ const SettingsContent = memo(function SettingsContent({
           />
         </View>
       </Tooltip>
+      {/* Cave ambience (todo: "Music / ambient loop", features.md §7 gap):
+          the looping music-bed toggle — the settings soundVolume still
+          scales it (at half level, musicLevel) and the menu mute toggle
+          still wins; this just switches the bed on/off. */}
+      <Tooltip
+        label={t("settings.tooltipMusic")}
+        content={t("settings.musicHelp")}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Text style={{ ...styles.text, fontSize: 11 }}>
+            {t("settings.music")}
+          </Text>
+          <Switch
+            value={settingsData.music}
+            onValueChange={(newVal) => {
+              onChangeSettingsData({
+                ...settingsData,
+                music: newVal,
+              });
+            }}
+          />
+        </View>
+      </Tooltip>
       {/* Sound volume (todo: sound volume controls, features.md §7 gap): the
           SFX level on top of the menu mute toggle — the toggle still wins,
           this only sets the level when un-muted. Stepped in 10% units, the

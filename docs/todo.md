@@ -12,7 +12,9 @@ Completed items are removed from this file (see git history); only remaining wor
   Pass 3 DONE 2026-09: the gem pocket implemented (todo "random
   in-game events" below). Next passes: keep §6-style catalog entries
   current on feature commits, and keep promoting §7 gap items into
-  active todos. (Earlier gap items: haptics
+  active todos. Pass 4 DONE 2026-09: §7's "Music / ambient loop" promoted
+  and implemented (item below), catalog entries kept current on the way.
+  (Earlier gap items: haptics
   DONE 2026-09 — `haptics.ts` / `useHaptics.ts` + settings toggle, see
   features.md §3; daily equation DONE 2026-09-07 — seeded
   `getSeededEquation` + `dailyEquation.ts`, see features.md §2.)
@@ -96,6 +98,31 @@ Completed items are removed from this file (see git history); only remaining wor
   wins. Old settings saves get the 100 default via the existing
   `{ ...defaultSettingsData, ...parsed }` merge (no migration needed).
   en/es copy + unit tests (`game.test.ts` — default + clamp matrix).
+
+- [x] music / ambient loop (features.md §7 gap candidate, promoted this
+  iteration) — DONE: the cave-ambience bed (features.md §3 "Sound").
+  `scripts/generate-ambient-loop.mjs` synthesizes a 20 s exactly-periodic
+  looping WAV in-repo (pad partials at integer multiples of 1/20 Hz,
+  integer-cycle amplitude LFOs, a circular — period-preserving —
+  low-passed noise bed, five seeded drip blips with two cave echoes
+  confined to the loop interior, plus a 0.35 s head/tail fade as redundant
+  seam insurance) → `public/assets/audio/cave-ambient.wav` (640 KB, 16-bit
+  mono 16 kHz). Playback: `useSounds` gains a 4th `settings.music` arg (new
+  `SettingsData.music`, default ON; old saves get it via the existing
+  `{ ...defaultSettingsData, ...parsed }` merge — no migration). A
+  dedicated looping player created once, paused until decided: the menu's
+  mute toggle still wins, and the bed ALSO pauses while the app is
+  backgrounded (AppState — a looping clip must not keep playing behind
+  the app). Level law: `musicLevel` = soundVolume × 0.5
+  (`MUSIC_VOLUME_RATIO` in `game.ts`, pure, unit-tested) so the bed stays a
+  bed when the volume is maxed. Settings row: a "Cave ambience" switch next
+  to the sound-volume row (en/es copy + tooltip). Tests:
+  `scripts/__test__/ambientLoop.test.ts` (generator determinism, the
+  committed asset byte-pinned to the generator's output, WAV sanity,
+  headroom, and seam-continuity nets) + default/`musicLevel` matrix in
+  `game.test.ts`. Guardrails held: default-on but a quiet half-level bed
+  with a plain opt-out, and the menu mute still silences everything — no
+  surprise, no dark pattern.
 
 - [o] Add stripe payment provider for web one time products — **code done**
   (hosted Checkout provider + sidecar Stripe-API confirm + the

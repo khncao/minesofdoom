@@ -45,6 +45,7 @@ import {
   ALWAYS_VISIBLE_PURCHASES,
   defaultSettingsData,
   clampSoundVolume,
+  musicLevel,
   getVisiblePurchases,
   hasAffordablePurchase,
 } from "../game";
@@ -975,6 +976,21 @@ describe("getVisiblePurchases", () => {
     expect(clampSoundVolume(NaN)).toBe(100);
     expect(clampSoundVolume("80")).toBe(100);
     expect(clampSoundVolume(undefined)).toBe(100);
+  });
+
+  test("settings default keeps cave ambience on (muting is opt-in)", () => {
+    expect(defaultSettingsData.music).toBe(true);
+  });
+
+  test("musicLevel keeps the bed at half the clamped SFX level", () => {
+    expect(musicLevel(100)).toBe(0.5);
+    expect(musicLevel(0)).toBe(0);
+    expect(musicLevel(40)).toBe(0.2);
+    expect(musicLevel(-10)).toBe(0);
+    expect(musicLevel(250)).toBe(0.5);
+    // junk input clamps to the 100 default first, then halves
+    expect(musicLevel(NaN)).toBe(0.5);
+    expect(musicLevel("70")).toBe(0.5);
   });
 
   test("mineral-cost buttons reveal once lifetime minerals reach the base cost", () => {
