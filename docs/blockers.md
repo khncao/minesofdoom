@@ -264,3 +264,16 @@ IAP section and docs/store-integration.md §2.6; it reuses this same web
 session token when present.) Not yet verified in a real browser (emulator
 pass above is native-only).
 
+
+**Server hardening — OS-level items remain (todo "harden pocketbase..."):**
+the container/service level of that todo is done (2026-09-06), but three
+OS-level items on `kelvin@100.109.48.41` (Debian 12, docker as systemd
+services) are blocked on an INTERACTIVE sudo password — non-interactive
+sudo is disabled, so they need a human at the terminal. Run once:
+1. `sudo apt update && sudo apt upgrade` — 5 docker packages carried
+   security updates (unattended-upgrades is not installed; this is the
+   only patching path).
+2. `sudo ufw status verbose` — confirm 22/tcp + 80/443/tcp ALLOW (the
+   rules were added earlier; just verifying they survived).
+3. OPTIONAL: `sudo apt install fail2ban` for sshd brute-force protection —
+   decide if wanted (tailscale + key-only ssh + ufw already shrink it).

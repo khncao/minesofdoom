@@ -236,6 +236,15 @@ describe("handleStripeWebhook trusted-source gate (S2)", () => {
     expect(app.rows.entitlements).toHaveLength(1);
   });
 
+  test("the key header arrives v0.40 wire-shaped (snake_case x_mdoom_key) and passes", () => {
+    // requestInfo().headers surfaces SNAKE-CASED names (probed live on the
+    // public v0.40.3 deployment: x_mdoom_key / cf_connecting_ip / …). A
+    // hyphen-only lookup 403'd the sidecar's own correctly-keyed forward.
+    const res = handler({ x_mdoom_key: "shared-key" });
+    expect(res.status).toBe(200);
+    expect(app.rows.entitlements).toHaveLength(1);
+  });
+
   test("a missing header is a 403 and mints nothing", () => {
     const res = handler(undefined);
     expect(res.status).toBe(403);

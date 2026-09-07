@@ -28,7 +28,28 @@ Completed items are removed from this file (see git history); only remaining wor
     `terms-of-use.html` **generated from the same modules** by
     `legalDocs.test.ts`) both **fixed this iteration** and tested.
     Only open follow-up: S6 (kid-safety/age rating — external store check).
-- [ ] harden pocketbase and the server it's running on following industry standards
+- [ ] harden pocketbase and the server it's running on following industry
+    standards — container/service level DONE 2026-09-06 (see
+    docs/blockers.md for the remaining OS-level items): the deployed
+    `pb_hooks/` was swapped to the security-fixed repo copy (S1 CSPRNG,
+    S2 webhook gate, S3 iterated-SHA-256 KDF — the live copy predates
+    those commits), PocketBase bumped 0.40.2 → 0.40.3 (bug fixes + Go
+    dependency security bumps), the sidecar image rebuilt from the repo
+    sources, and the shared sidecar↔PocketBase key generated into
+    `.env` (chmod 600) on the server — the `/api/app/stripe/webhook`
+    gate is enforced live (403 without the `x-mdoom-key` header, which
+    the sidecar sends on its own round-trips). Caddy: security headers
+    (HSTS/nosniff/X-Frame/referrer/-Server), 1 MB request-body cap, and
+    its default per-client throttle stays on (sustained rate limiting is
+    the pb_hooks layer's job per-device — the Caddyfile `rate_limit`
+    directive is an experimental v2 module, not in the stock image). Compose:
+    `cap_drop [ALL]` + `no-new-privileges` + `read_only` + tmpfs + mem caps
+    + healthchecks on pocketbase and sidecar (caddy gets mem cap only — its
+    gosu entrypoint conflicts with no-new-privileges). IP spoofing probed:
+    Caddy trusts the Cloudflare edge (auto-detected) and ignores forwarded
+    headers from any direct peer, and Cloudflare itself rejects client
+    requests carrying forged `CF-Connecting-IP`. **Open:** the three
+    OS-level items need an interactive sudo password (docs/blockers.md).
 
 - [x] IAP — entitlements re-derive from the store's own record after a local
     data loss ("iap not persisting on android" fix): the store provider now

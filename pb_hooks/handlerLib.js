@@ -35,12 +35,19 @@ function tooManyRequests() {
  * absent or not a string. Tolerates an undefined/absent map (a runtime that
  * does not surface headers → the caller sees "", and a configured gate
  * refuses — fail closed).
+ *
+ * KEY-SHAPE gotcha (probed live on v0.40.3, 2026-09-06): requestInfo
+ * surfaces header names SNAKE-CASED — `x-mdoom-key` arrives as
+ * `x_mdoom_key`, `cf-connecting-ip` as `cf_connecting_ip`. A hyphen-only
+ * comparison therefore NEVER matches on the wire (the public deployment's
+ * webhook gate 403'd the sidecar's own correctly-keyed forward), so both
+ * sides are normalized: lowercase + `-` → `_` before comparing.
  */
 function headerValue(headers, name) {
   if (!headers || typeof headers !== "object") return "";
-  const lower = String(name).toLowerCase();
+  const lower = String(name).toLowerCase().replace(/-/g, "_");
   for (const key of Object.keys(headers)) {
-    if (String(key).toLowerCase() !== lower) continue;
+    if (String(key).toLowerCase().replace(/-/g, "_") !== lower) continue;
     const value = headers[key];
     if (typeof value === "string") return value;
     if (Array.isArray(value)) return String(value[value.length - 1] || "");
