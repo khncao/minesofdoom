@@ -296,6 +296,14 @@ export const en = {
     "double-tap on achievements and purchases. Off: no vibration, sound " +
     "is unaffected. On devices without haptics hardware this does nothing " +
     "either way.",
+  "settings.tooltipSoundVolume": "Sound volume",
+  "settings.soundVolume": "Sound volume: ",
+  "settings.soundVolumeHelp":
+    "The level of all in-game sound effects (0–100%, default 100%). − and + " +
+    "step in 10% increments and apply immediately. The menu's mute toggle " +
+    "still wins — while muted, the volume sets nothing.",
+  "a11y.decreaseSoundVolume": "Decrease sound volume",
+  "a11y.increaseSoundVolume": "Increase sound volume",
   "settings.emojiArt": "Emoji art (low-end mode): ",
   "settings.emojiArtHelp":
     "Off (default): miners, currency icons, debris and the cave backdrop " +

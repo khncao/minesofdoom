@@ -1,6 +1,7 @@
 import { createAudioPlayer, type AudioPlayer } from "expo-audio";
 import { useCallback, useEffect, useRef } from "react";
 import { pickaxeSound, stoneSound, pickaxeSoundFiles } from "assets/index";
+import { clampSoundVolume } from "../game";
 
 export type SoundKey = "pickaxe" | "stone";
 
@@ -17,7 +18,12 @@ export type SoundKey = "pickaxe" | "stone";
 // expo-audio (SDK 53+) replaced expo-av — expo-av's prebuilt AARs were
 // never rebuilt for RN 0.86's JSI API change (Runtime → IRuntime) and
 // crash at dlopen on the new architecture.
-export function useSounds(muted: boolean, pickaxeId?: string) {
+export function useSounds(
+  muted: boolean,
+  pickaxeId: string | undefined,
+  /** SFX volume in percent (0–100, settings.soundVolume). */
+  volume: number,
+) {
   const pickaxeRef = useRef<AudioPlayer | null>(null);
   const stoneRef = useRef<AudioPlayer | null>(null);
   const pickaxeSoundsRef = useRef<Partial<Record<string, AudioPlayer>>>({});
@@ -29,6 +35,12 @@ export function useSounds(muted: boolean, pickaxeId?: string) {
   // Throttle per sound: replaying the same sound is a pause+seek+play, so
   // just cap the rate to avoid hammering the audio layer while spamming.
   const lastPlayRef = useRef<Partial<Record<SoundKey, number>>>({});
+
+  // Volume (0–100 percent, clamped) applied to every player it exists on.
+  // Set on the live players when the setting changes — the players are
+  // created once and never re-created for a volume change.
+  const volumeRef = useRef(clampSoundVolume(volume));
+  volumeRef.current = clampSoundVolume(volume);
 
   const play = useCallback(
     (key: SoundKey, minInterval = 0) => {
@@ -77,6 +89,23 @@ export function useSounds(muted: boolean, pickaxeId?: string) {
       pickaxeSoundsRef.current = {};
     };
   }, []);
+
+  // Runs after the creation effect (declaration order), so on mount it
+  // lands on the freshly created players; on later settings changes it
+  // updates them in place. expo-audio's volume is 0.0–1.0.
+  useEffect(() => {
+    const level = volumeRef.current / 100;
+    const players: Array<AudioPlayer | null> = [
+      pickaxeRef.current,
+      stoneRef.current,
+      ...Object.values(pickaxeSoundsRef.current).map((p) => p ?? null),
+    ];
+    players.forEach((p) => {
+      if (p != null) {
+        p.volume = level;
+      }
+    });
+  }, [volume]);
 
   return { play };
 }

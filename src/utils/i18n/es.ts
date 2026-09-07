@@ -281,6 +281,15 @@ export const es: Record<TranslationKey, string> = {
     "en las incorrectas, y un doble toque en logros y compras. " +
     "Desactivado: sin vibración; el sonido no se ve afectado. En " +
     "dispositivos sin vibrador no cambia nada de ninguna forma.",
+  "settings.tooltipSoundVolume": "Volumen de sonido",
+  "settings.soundVolume": "Volumen de sonido: ",
+  "settings.soundVolumeHelp":
+    "El nivel de todos los efectos de sonido del juego (0–100 %, por defecto " +
+    "100 %). − y + ajustan en pasos de 10 % y se aplican al instante. El " +
+    "botón de silencio del menú sigue imponiéndose: con silencio activado, " +
+    "el volumen no cambia nada.",
+  "a11y.decreaseSoundVolume": "Bajar el volumen de sonido",
+  "a11y.increaseSoundVolume": "Subir el volumen de sonido",
   "settings.idleReminder": "Recordatorio de inactividad: ",
   "settings.idleReminderHelp":
     "Activado (por defecto): tras un minuto sin tocar la cueva ni responder " +

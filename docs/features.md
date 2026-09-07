@@ -143,8 +143,13 @@ Items adopted from that list move into `docs/todo.md`.
   (`haptics.ts`, `hooks/useHaptics.ts`, wired in `MinesOfDoom.tsx`);
   iOS-leading-zero patterns, 50 ms global throttle, no-op on haptics-less
   hardware (desktop web).
-- **Sound** — expo-av SFX incl. per-pickaxe swings; mute toggle
-  (`hooks/useSounds.ts`, `components/MuteToggle.tsx`). No music.
+- **Sound** — expo-audio SFX incl. per-pickaxe swings; mute toggle
+  (`hooks/useSounds.ts`, `components/MuteToggle.tsx`) plus a
+  **sound-volume** setting (0–100%, default 100%, stepped in 10% units in
+  the settings panel; `clampSoundVolume` keeps parsed/hand-edited values in
+  range, the menu mute toggle still wins — a muted player never hears
+  anything regardless of the volume).
+  No music.
 - **Accessibility & UX** — accessibility labels/roles throughout,
   reduce-motion preference respected (`hooks/useAccessibilityReduceMotion.ts`),
   keyboard-avoiding modal sheets, onboarding overlay with skip
@@ -208,7 +213,7 @@ Items adopted from that list move into `docs/todo.md`.
   (`analytics.ts`, `crashLog.ts`, `crashContext.ts`,
   `components/ErrorBoundary.tsx`).
 - **Settings** — autosave cadence, show-all-purchases, emoji-art fallback,
-  haptics, mute, language (`hooks/useSettings.ts`,
+  haptics, sound volume, mute, language (`hooks/useSettings.ts`,
   `components/SettingsPanel.tsx`, `components/SaveTab.tsx`,
   `components/MenuPanel.tsx`).
 - **Quality** — Jest suites over the pure modules (860+ tests), Maestro
@@ -258,9 +263,12 @@ genre-impact; anything picked up goes into `docs/todo.md`.
   toggle, see §2). No `expo-notifications` / widget anywhere in `src/`:
   the OS-level "come collect" push remains; must stay a simple reminder
   (no dark patterns).
-- **Sound volume controls** — haptics landed 2026-09 (the `haptics`
-  settings toggle, §3); sound is still mute-only (no volume, no
-  per-sound toggles).
+- ~~**Sound volume controls**~~ — **DONE 2026-09** (todo "sound volume
+  controls"): the SFX volume — 0–100% (default 100%), a settings row
+  stepped in 10% units, `clampSoundVolume` in `game.ts` keeping parsed or
+  hand-edited values in range, applied to every expo-audio player by
+  `hooks/useSounds.ts` (mute toggle still wins). See §3 "Sound".
+  Per-sound toggles stay open if they ever earn their place.
 - **Music / ambient loop** — SFX only; no background audio.
 - **More languages** — en/es only; the i18n table machinery
   (`utils/i18n/`) makes adding locales cheap, and the kid-skewed audience

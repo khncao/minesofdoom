@@ -12,7 +12,7 @@ import {
   type OperatorKey,
   type MultiplySymbol,
 } from "src/utils/math/equations";
-import { SettingsData } from "../game";
+import { SettingsData, clampSoundVolume } from "../game";
 import { styles } from "../styles";
 
 /**
@@ -245,6 +245,67 @@ const SettingsContent = memo(function SettingsContent({
               });
             }}
           />
+        </View>
+      </Tooltip>
+      {/* Sound volume (todo: sound volume controls, features.md §7 gap): the
+          SFX level on top of the menu mute toggle — the toggle still wins,
+          this only sets the level when un-muted. Stepped in 10% units, the
+          same immediate-apply pattern as the switches around it. */}
+      <Tooltip
+        label={t("settings.tooltipSoundVolume")}
+        content={t("settings.soundVolumeHelp")}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Text style={{ ...styles.text, fontSize: 11, flex: 1 }}>
+            {t("settings.soundVolume")}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("a11y.decreaseSoundVolume")}
+            onPress={() =>
+              onChangeSettingsData({
+                ...settingsData,
+                soundVolume: clampSoundVolume(settingsData.soundVolume - 10),
+              })
+            }
+            style={{
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 6,
+              backgroundColor: "#2a2a2a",
+            }}
+          >
+            <Text style={{ ...styles.text, fontSize: 11 }}>−</Text>
+          </Pressable>
+          <Text
+            style={{ ...styles.text, fontSize: 11, width: 36, textAlign: "center" }}
+          >
+            {settingsData.soundVolume}%
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("a11y.increaseSoundVolume")}
+            onPress={() =>
+              onChangeSettingsData({
+                ...settingsData,
+                soundVolume: clampSoundVolume(settingsData.soundVolume + 10),
+              })
+            }
+            style={{
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 6,
+              backgroundColor: "#2a2a2a",
+            }}
+          >
+            <Text style={{ ...styles.text, fontSize: 11 }}>+</Text>
+          </Pressable>
         </View>
       </Tooltip>
       <Tooltip

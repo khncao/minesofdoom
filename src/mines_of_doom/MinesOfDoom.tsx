@@ -486,8 +486,14 @@ export default function MinesOfDoom() {
   );
 
   // The "pickaxe" sound is the equipped pickaxe's unique swing sound
-  // (falls back to the generic one for unknown ids, see useSounds).
-  const { play } = useSounds(mute, gameState.selectedPickaxe);
+  // (falls back to the generic one for unknown ids, see useSounds). The
+  // volume is the settings soundVolume (0–100, default 100) — the menu
+  // mute toggle still wins over it.
+  const { play } = useSounds(
+    mute,
+    gameState.selectedPickaxe,
+    settingsData.soundVolume,
+  );
   // Haptic feedback (settings toggle, on by default): same stable-callback
   // pattern as `play` so the memoized tap/answer handlers can use it.
   const { haptic } = useHaptics(settingsData.haptics);

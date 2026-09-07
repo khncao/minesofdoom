@@ -113,6 +113,14 @@ export type SettingsData = {
    * a plain information nudge.
    */
   idleReminder: boolean;
+  /**
+   * SFX volume in percent (0–100, default 100): the level of every
+   * in-game sound, on top of the menu mute toggle (which still wins —
+   * a muted player never hears anything). Stepped in 10% units from
+   * the settings panel and clamped by clampSoundVolume on the way in
+   * (see useSounds.ts).
+   */
+  soundVolume: number;
 };
 
 export const saveDataKey = "save";
@@ -702,7 +710,23 @@ export const defaultSettingsData = {
   emojiArt: false,
   haptics: true,
   idleReminder: true,
+  soundVolume: 100,
 };
+
+/**
+ * Clamp a parsed/persisted SFX volume to the 0–100 percent range. Old
+ * saves (pre-soundVolume) never carry the field — the settings merge
+ * ({ ...defaultSettingsData, ...parsed }) supplies the 100 default — so
+ * this guards the UI step and any hand-edited save code: junk values
+ * fall back to the default instead of NaN-ing the audio layer.
+ */
+export function clampSoundVolume(volume: unknown): number {
+  const n = typeof volume === "number" ? volume : NaN;
+  if (!Number.isFinite(n)) {
+    return defaultSettingsData.soundVolume;
+  }
+  return Math.min(100, Math.max(0, Math.round(n)));
+}
 
 /** Every purchase button id (see PurchaseId). */
 export type PurchaseId =

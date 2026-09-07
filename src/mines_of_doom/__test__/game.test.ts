@@ -43,6 +43,7 @@ import {
   ALL_PURCHASE_IDS,
   ALWAYS_VISIBLE_PURCHASES,
   defaultSettingsData,
+  clampSoundVolume,
   getVisiblePurchases,
   hasAffordablePurchase,
 } from "../game";
@@ -916,6 +917,21 @@ describe("getVisiblePurchases", () => {
 
   test("settings default keeps haptics on (vibration is opt-OUT)", () => {
     expect(defaultSettingsData.haptics).toBe(true);
+  });
+
+  test("settings default keeps sound volume full (lowering is opt-in)", () => {
+    expect(defaultSettingsData.soundVolume).toBe(100);
+  });
+
+  test("clampSoundVolume keeps volumes in 0–100 and rejects junk", () => {
+    expect(clampSoundVolume(0)).toBe(0);
+    expect(clampSoundVolume(100)).toBe(100);
+    expect(clampSoundVolume(-30)).toBe(0);
+    expect(clampSoundVolume(170)).toBe(100);
+    expect(clampSoundVolume(55.4)).toBe(55);
+    expect(clampSoundVolume(NaN)).toBe(100);
+    expect(clampSoundVolume("80")).toBe(100);
+    expect(clampSoundVolume(undefined)).toBe(100);
   });
 
   test("mineral-cost buttons reveal once lifetime minerals reach the base cost", () => {

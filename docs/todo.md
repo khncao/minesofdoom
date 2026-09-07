@@ -66,6 +66,17 @@ Completed items are removed from this file (see git history); only remaining wor
   the window is real (no fake urgency), missing it costs nothing, the
   bonus flows through `addTapGain` (lifetime stats stay exact), odds
   are identical for every player, not persisted.
+- [x] sound volume controls (features.md §7 gap candidate, promoted this
+  iteration) — DONE: SFX volume 0–100% (default 100) as a new
+  `SettingsData.soundVolume` field, a − / % / + stepped row (10% steps,
+  immediate-apply, like the haptics switch) in the settings panel, and
+  `clampSoundVolume` in `game.ts` so parsed/hand-edited values can't NaN
+  the audio layer. `useSounds` takes the volume and sets
+  `AudioPlayer.volume` on every live player (created once, updated in
+  place on change — no player re-creation); the menu mute toggle still
+  wins. Old settings saves get the 100 default via the existing
+  `{ ...defaultSettingsData, ...parsed }` merge (no migration needed).
+  en/es copy + unit tests (`game.test.ts` — default + clamp matrix).
 
 - [o] Add stripe payment provider for web one time products — **code done**
   (hosted Checkout provider + sidecar Stripe-API confirm + the
