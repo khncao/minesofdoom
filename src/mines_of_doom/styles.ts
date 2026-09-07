@@ -27,13 +27,20 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: 3,
   },
-  // Canvas wrapper (todo: upgrades side overlay): position:relative so
-  // the upgrades drawer + backdrop can anchor to the canvas rect itself.
-  canvasWrap: {
-    flex: 3,
+  // Play area (todo: upgrades panel on top of keypad): canvas + keypad
+  // strip together, position:relative so the upgrades drawer + backdrop
+  // can anchor to the WHOLE area — the drawer overlays the keypad strip
+  // instead of stopping at the canvas edge.
+  playArea: {
+    flex: 1,
     minWidth: "98%",
     margin: 4,
     position: "relative",
+  },
+  // Canvas wrapper (todo: upgrades side overlay): flex:3 fills the play
+  // area above the keypad strip (flex-shrinkable keys, see NumericKeypad).
+  canvasWrap: {
+    flex: 3,
     // Floor so the cave is never squeezed out of existence on short
     // screens (plan "Adjust" — canvas always visible).
     minHeight: 140,
@@ -44,9 +51,9 @@ export const styles = StyleSheet.create({
     overflow: "hidden",
   },
   // Upgrades drawer header (todo: upgrades menu as a side hidden overlay
-  // on the canvas): the upgrades/shop tab bar + the close button. The
-  // drawer itself anchors to the canvas wrapper's right edge, so it
-  // never sits where the OS keyboard covers the bottom of the screen.
+  // on the canvas): the close button row. The drawer itself anchors to
+  // the play area's right edge (canvas + keypad), so it never sits where
+  // the OS keyboard covers the bottom of the screen.
   purchasesHeader: {
     flexDirection: "row",
     justifyContent: "space-between",

@@ -1209,6 +1209,7 @@ export default function MinesOfDoom() {
             overlays it (hidden by default) instead of pushing it around,
             and the keypad strip below renders only while the on-screen
             keypad setting is on. */}
+        <View style={styles.playArea}>
         <View style={styles.canvasWrap}>
         <MiningCanvas
           depth={depth}
@@ -1262,11 +1263,27 @@ export default function MinesOfDoom() {
             />
           )}
         </Pressable>
+        </View>
+        {/* Keypad strip (todo: keypad in a tab view with upgrades): the
+            on-screen numpad lives in its own strip below the canvas —
+            the core-loop input, always reachable. Renders only while the
+            on-screen keypad setting is on; off, the OS keyboard handles
+            answers and the strip doesn't exist at all. The upgrades
+            drawer overlays it (todo: upgrades panel on top of keypad). */}
+        {onScreenKeypad && (
+          <NumericKeypad
+            onDigit={handleKeypadDigit}
+            onBackspace={handleKeypadBackspace}
+            onClear={handleKeypadClear}
+            onSubmit={handleSubmit}
+          />
+        )}
         {/* The upgrades drawer (todo: upgrades menu as a side hidden
-            overlay on the canvas): hidden by default, anchored to the
-            canvas wrapper's right edge so the OS keyboard — which covers
-            the bottom strip — can never hide it. A tap on the dimmed
-            backdrop closes it. */}
+            overlay on the canvas; panel shows ON TOP of the keypad):
+            hidden by default, anchored to the play area's right edge
+            (canvas + keypad strip) so the OS keyboard — which covers the
+            bottom strip — can never hide it. A tap on the dimmed backdrop
+            closes it. */}
         {upgradesOpen && (
           <>
             <Pressable
@@ -1325,19 +1342,6 @@ export default function MinesOfDoom() {
           </>
         )}
         </View>
-        {/* Keypad strip (todo: keypad in a tab view with upgrades): the
-            on-screen numpad lives in its own strip below the canvas —
-            the core-loop input, always reachable. Renders only while the
-            on-screen keypad setting is on; off, the OS keyboard handles
-            answers and the strip doesn't exist at all. */}
-        {onScreenKeypad && (
-          <NumericKeypad
-            onDigit={handleKeypadDigit}
-            onBackspace={handleKeypadBackspace}
-            onClear={handleKeypadClear}
-            onSubmit={handleSubmit}
-          />
-        )}
         </View>
         {showMessage && (
           <View style={styles.messageOverlay} pointerEvents="none">

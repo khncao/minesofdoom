@@ -29,8 +29,6 @@ Completed items are removed from this file (see git history); only remaining wor
     `legalDocs.test.ts`) both **fixed this iteration** and tested.
     Only open follow-up: S6 (kid-safety/age rating — external store check).
 - [ ] harden pocketbase and the server it's running on following industry standards
-- [ ] use keyboard avoiding views to ensure inputs aren't covered by keyboard (such as in settings)
-- [ ] upgrades panel should show on top of keypad
 
 - [x] IAP — entitlements re-derive from the store's own record after a local
     data loss ("iap not persisting on android" fix): the store provider now

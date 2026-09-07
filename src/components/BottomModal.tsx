@@ -1,14 +1,30 @@
 import React, { memo, useState } from "react";
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
   Text,
+  type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useT } from "src/hooks/useI18n";
+
+// Web has no OS keyboard, so the avoidance root is a plain View there
+// (same pattern as AnswerInput's AvoidingView — keeps the web bundle free
+// of any KAV behavior and the intent explicit). Native carries the real
+// KeyboardAvoidingView.
+type AvoidingRootProps = {
+  children?: React.ReactNode;
+  style?: ViewStyle;
+  behavior?: "height" | "padding";
+};
+const AvoidingRoot = (Platform.OS === "web"
+  ? View
+  : KeyboardAvoidingView) as React.ComponentType<AvoidingRootProps>;
 
 export interface BottomModalProps {
   pressable?: React.ReactNode;
@@ -89,7 +105,23 @@ function BottomModal({
         onRequestClose={() => setOpen(false)}
         transparent={true}
       >
-        <View style={styles.root}>
+        {/* Keyboard avoidance (todo "keyboard avoiding views"): the sheets
+            hold TextInputs (save-code import, account form, leaderboard
+            name). A transparent Modal's window is not guaranteed to
+            resize with the OS keyboard on every platform (Android
+            adjustResize applies to the activity window; the Modal dialog
+            window and iOS behave differently), so the bottom-pinned sheet
+            can end up UNDER the keyboard. This KAV compensates only for
+            the ACTUAL overlap between its frame and the keyboard: when a
+            platform has already resized the window, the overlap is zero
+            and the KAV adds nothing — so it cannot double-avoid. The
+            sheet + backdrop are absolutely inset, which sits inside the
+            padding box, so the padding/height shrink lifts the whole
+            sheet above the keyboard. */}
+        <AvoidingRoot
+          style={styles.root}
+          behavior={Platform.OS === "android" ? "height" : "padding"}
+        >
           {/* Full-viewport backdrop (sibling of the sheet, NOT a spacer):
               every tap outside the sheet closes it. */}
           <Pressable
@@ -132,7 +164,7 @@ function BottomModal({
               props.children
             )}
           </View>
-        </View>
+        </AvoidingRoot>
       </Modal>
     </>
   );
@@ -154,16 +186,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: "rgba(0,0,0,0.5)",
   },
-  // KEYBOARD NOTE (todo "keyboard avoiding views" audit): the sheets are
-  // intentionally NOT wrapped in a KeyboardAvoidingView. On Android the
-  // manifest's adjustResize and on iOS RN's default root resize shrink
-  // the window when the keyboard shows, and this bottom-pinned sheet
-  // re-lays-out on top of the keyboard (focused fields in the scrollable
-  // sheet scroll into view — RN does that for TextInputs in ScrollViews).
-  // A KAV here would DOUBLE-avoid (shift by the keyboard height AGAIN).
-  // The one surface that needs its own KAV is AnswerInput (game screen,
-  // not a modal) — it carries it. Web has no OS keyboard.
-  //
   // Opaque sheet pinned to the bottom edge, full width. The paddingBottom
   // floor (20) is overridden by the caller with the safe-inset-aware
   // value (see the sheet style array) — kept here as the web/no-bar case.
