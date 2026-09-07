@@ -3,6 +3,14 @@
 Legend: [ ] not started, [o] in progress
 Completed items are removed from this file (see git history); only remaining work is tracked here.
 
+- [ ] continuous task: document features then explore and document missing
+  features — pass 1 DONE 2026-09: `docs/features.md` v1 (full implemented-
+  feature catalog, file-anchored) + researched gap list (§7, genre /
+  math-game checklists, verified absent from src/). Next passes: keep §6-
+  style catalog entries current on feature commits, and promote gap items
+  into active todos (candidates flagged: weekly challenges, daily equation,
+  haptics, share images, idle reminders).
+
 - [o] Add stripe payment provider for web one time products — **code done**
   (hosted Checkout provider + sidecar Stripe-API confirm + the
   `/api/app/stripe/webhook` backup mint; docs/store-integration.md §2.6).
@@ -12,6 +20,7 @@ Completed items are removed from this file (see git history); only remaining wor
   The public `/stripe/webhook` URL is already routed to the sidecar
   (Caddy, 2026-09-06, fail-closed until `STRIPE_WEBHOOK_SECRET` lands),
   so the Stripe console's webhook endpoint can point at it as-is.
+
 - [o] Add adsense for web ads — **code done** (the shop-sheet banner,
   `AdSenseBanner.web.tsx` + the `+html.tsx` loader; §1.1). Remaining is
   external: AdSense approval + the `ca-pub-` client + a banner slot, then
@@ -31,6 +40,7 @@ Completed items are removed from this file (see git history); only remaining wor
     `terms-of-use.html` **generated from the same modules** by
     `legalDocs.test.ts`) both **fixed this iteration** and tested.
     Only open follow-up: S6 (kid-safety/age rating — external store check).
+
 - [ ] harden pocketbase and the server it's running on following industry
     standards — container/service level DONE 2026-09-06 (see
     docs/blockers.md for the remaining OS-level items): the deployed
