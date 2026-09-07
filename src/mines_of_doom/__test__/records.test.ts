@@ -15,9 +15,9 @@ describe("local records (plan §4.3 personal bests)", () => {
   test("a fresh save has every record at zero", () => {
     const records = getRecords(createEmptySaveData());
     for (const r of records) {
-      // "0 m" is the unit-suffixed depth row; everything else is a bare
-      // zero or a 0/N chain fraction.
-      expect(r.value).toMatch(/^0 m$|^0$|^0\/\d+$/);
+      // "0 m" is the unit-suffixed depth row, "0s" the playtime row; the
+      // rest are bare zeros or 0/N chain fractions.
+      expect(r.value).toMatch(/^0 m$|^0s$|^0$|^0\/\d+$/);
     }
     // The chain rows show 0/total, not a bare zero.
     expect(byId(records, "tiers")?.value).toBe(`0/${GOAL_TIERS.length}`);

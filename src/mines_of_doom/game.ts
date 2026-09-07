@@ -63,6 +63,12 @@ export type SaveData = {
   totalGemsMinted: number;
   totalGemsSpent: number;
   totalPrestiges: number;
+  // Lifetime ACTIVE time in the mine, whole seconds (todo: statistics
+  // detail). Counted by the engine's tick loop while the app is running
+  // (foreground/active time only — offline earnings and away time never
+  // count), flushed into state at save time. Display stat for the records
+  // panel; never gates progression.
+  playSeconds: number;
   // Goal tier ids whose completion celebration has already fired (the
   // completion itself is derived from lifetime stats in goals.ts).
   completedTiers: string[];
@@ -124,7 +130,7 @@ export type SettingsData = {
 };
 
 export const saveDataKey = "save";
-export const saveVersion = 10;
+export const saveVersion = 11;
 export const settingsDataKey = "settings";
 export const equationSettingsKey = "equationSettings";
 
@@ -277,6 +283,18 @@ const migrations: Record<
   // VALUES are unchanged (numbers here, strings once serialized post-10);
   // buildSaveData parses them to bigint, so the migration is a no-op.
   9: (data) => ({ ...data, saveVersion: 10 }),
+  // 10 -> 11: lifetime active time (playSeconds). Old saves have no clock to
+  // recover — they start at 0, so the counter measures time from the update
+  // forward (honest: it never back-fills away time as play time).
+  10: (data) => {
+    const num = (v: unknown, fallback: number) =>
+      typeof v === "number" && Number.isFinite(v) ? v : fallback;
+    return {
+      ...data,
+      saveVersion: 11,
+      playSeconds: Math.max(0, Math.floor(num(data.playSeconds, 0))),
+    };
+  },
   // 7 -> 8: tier-4 cosmetic line (cave themes). Old saves own just the free
   // default and haven't changed the cave look; junk ids are dropped and the
   // free default is always kept owned, like every other cosmetic field.
@@ -373,6 +391,7 @@ export function buildSaveData(
     totalGemsMinted: num(migrated.totalGemsMinted, 0),
     totalGemsSpent: num(migrated.totalGemsSpent, 0),
     totalPrestiges: num(migrated.totalPrestiges, 0),
+    playSeconds: Math.max(0, Math.floor(num(migrated.playSeconds, 0))),
     completedTiers: Array.isArray(migrated.completedTiers)
       ? migrated.completedTiers.filter((t): t is string =>
           typeof t === "string",
@@ -661,6 +680,7 @@ export function createEmptySaveData(): SaveData {
     totalGemsMinted: 0,
     totalGemsSpent: 0,
     totalPrestiges: 0,
+    playSeconds: 0,
     completedTiers: [],
     completedAchievements: [],
     playerSeed: Math.floor(Math.random() * 2147483647) || 1,

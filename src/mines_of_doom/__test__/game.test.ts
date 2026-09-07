@@ -6,6 +6,7 @@ import {
   GEM_CHANCE_MAX_LEVELS,
   computeBuyAll,
   computeOfflineMinerals,
+  buildSaveData,
   computeOfflineTopUpMinerals,
   createEmptySaveData,
   gemChancePerLevel,
@@ -770,6 +771,48 @@ describe("migrateSaveData", () => {
     });
     expect(migrated.ownedCaveThemes).toEqual(["natural", "amethyst"]);
     expect(migrated.selectedCaveTheme).toBe(DEFAULT_CAVE_THEME);
+  });
+});
+
+describe("playtime save field (todo: statistics detail)", () => {
+  test("new saves start the active-time clock at zero", () => {
+    expect(createEmptySaveData().playSeconds).toBe(0);
+  });
+
+  test("v10 save gains playSeconds=0 (no clock to recover)", () => {
+    const migrated = migrateSaveData({ minerals: 1, saveVersion: 10 });
+    expect(migrated.saveVersion).toBe(saveVersion);
+    expect(migrated.playSeconds).toBe(0);
+  });
+
+  test("a save already carrying playSeconds keeps it through migrations", () => {
+    const migrated = migrateSaveData({
+      saveVersion: 10,
+      playSeconds: 12345.9,
+    });
+    expect(migrated.playSeconds).toBe(12345);
+  });
+
+  test("buildSaveData clamps junk playSeconds (hand-edited save codes)", () => {
+    const now = Date.now();
+    expect(
+      buildSaveData(
+        migrateSaveData({ saveVersion: 11, playSeconds: -100, minerals: 1 }),
+        now,
+      ).playSeconds,
+    ).toBe(0);
+    expect(
+      buildSaveData(
+        migrateSaveData({ saveVersion: 11, playSeconds: "banana", minerals: 1 }),
+        now,
+      ).playSeconds,
+    ).toBe(0);
+    expect(
+      buildSaveData(
+        migrateSaveData({ saveVersion: 11, playSeconds: 86_400.7, minerals: 1 }),
+        now,
+      ).playSeconds,
+    ).toBe(86_400);
   });
 });
 

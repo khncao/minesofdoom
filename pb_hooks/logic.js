@@ -52,7 +52,7 @@ const PRODUCTS = {
 // push with a newer version is REJECTED, not stored: a future client
 // would import its own save back through a migration path this server
 // doesn't know, so dropping it is the safe answer.
-const MAX_SAVE_VERSION = 10;
+const MAX_SAVE_VERSION = 11;
 
 // Cloud-save DoS boundary (plan): a real save is ~1.5KB, the cap is
 // the spam boundary, not a feature limit.

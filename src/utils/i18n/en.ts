@@ -418,6 +418,11 @@ export const en = {
   "records.header":
     "Personal bests, kept on your save — they survive spending and " +
     "prestiges.",
+  "records.session":
+    "This session — since the app was last opened.",
+  "records.sessionMinerals": "Minerals mined",
+  "records.sessionAnswers": "Equations answered",
+  "records.sessionTime": "Time in the mine",
 
   // --- Legal section -----------------------------------------------------------
   "legal.heading": "Legal & privacy",

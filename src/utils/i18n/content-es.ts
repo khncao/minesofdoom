@@ -95,6 +95,7 @@ export const contentEs: ContentTable = {
   "record:combo": { title: "Combo más largo" },
   "record:minerals": { title: "Minerales extraídos (total)" },
   "record:answers": { title: "Ecuaciones resueltas" },
+  "record:playtime": { title: "Tiempo en la mina" },
   "record:miners": { title: "Más mineros a la vez" },
   "record:gems-minted": { title: "Gemas obtenidas" },
   "record:gems-spent": { title: "Gemas gastadas" },

@@ -68,6 +68,14 @@ export function useGameEngine(
   // Total ticks elapsed since launch, used for autosave cadence.
   const tickCountRef = useRef(0);
   const lastSaveTickRef = useRef(0);
+  // Lifetime ACTIVE play-time clock, whole seconds (todo: statistics
+  // detail). Authoritative copy of SaveData.playSeconds while the app
+  // runs: the tick loop advances it once per fired interval (so it only
+  // counts time the engine was actually ticking — foreground/active time,
+  // never offline earnings), and saveGame flushes it into state + the
+  // serialized save. Kept out of state between saves so a no-miner idle
+  // session doesn't re-render the tree once a second.
+  const playSecondsRef = useRef(0);
   // Stale-save flag (plan §2.1 "save affordance"): true whenever state
   // has changed since the last successful write. This is accurate, not
   // aspirational — with miners running the state changes every tick, so
@@ -119,6 +127,7 @@ export function useGameEngine(
         if (data == null) return;
         setGameState(data);
         startTime.current = data.startTime;
+        playSecondsRef.current = data.playSeconds;
         if (offlineMinerals > 0n) {
           offlineDoubleRef.current = offlineMinerals;
           setOfflineDouble(offlineMinerals);
@@ -215,9 +224,18 @@ export function useGameEngine(
 
   const saveGame = useCallback(() => {
     if (!loadedRef.current) return;
+    // Flush the play-time clock into state (bails out when already current)
+    // and serialize it explicitly, so every save path (autosave, background,
+    // pagehide, manual, cloud) persists the clock as of NOW even though the
+    // state copy in the ref may not have re-rendered with the flush yet.
+    const playSeconds = playSecondsRef.current;
+    setGameState(
+      (n: SaveData) => (n.playSeconds === playSeconds ? n : { ...n, playSeconds }),
+    );
     const data = serializeSaveData({
       ...gameStateRef.current,
       saveTime: Date.now(),
+      playSeconds,
     });
     setSaveData(data)
       .then(() => setSaveDirty(false))
@@ -273,6 +291,8 @@ export function useGameEngine(
         return;
       }
       tickCountRef.current += elapsed;
+      // elapsed is whole ticks (msPerTick = 1s) of actual engine uptime.
+      playSecondsRef.current += elapsed;
       if (
         gameStateRef.current.miners > 0 ||
         gameStateRef.current.fastMiners > 0 ||
@@ -844,6 +864,7 @@ export function useGameEngine(
       minerals: decoded.minerals + offline,
       lifetimeMinerals: decoded.lifetimeMinerals + offline,
     });
+    playSecondsRef.current = decoded.playSeconds;
     if (topUp > 0n) {
       offlineTopUpRef.current = topUp;
       setOfflineTopUp(topUp);
@@ -894,6 +915,7 @@ export function useGameEngine(
       minerals: data.minerals + offline,
       lifetimeMinerals: data.lifetimeMinerals + offline,
     });
+    playSecondsRef.current = data.playSeconds;
     if (topUp > 0n) {
       offlineTopUpRef.current = topUp;
       setOfflineTopUp(topUp);
@@ -903,6 +925,7 @@ export function useGameEngine(
 
   const resetGame = useCallback(() => {
     setGameState(createEmptySaveData());
+    playSecondsRef.current = 0;
     // Clear async first; the next periodic save rewrites a fresh state, so
     // even if removal fails the stored save converges to the reset state.
     AsyncStorage.removeItem(saveDataKey).catch((e) => {

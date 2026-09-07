@@ -1,4 +1,4 @@
-import { formatNumber } from "./format";
+import { formatDuration, formatNumber } from "./format";
 
 describe("formatNumber", () => {
   test("small numbers shown in full", () => {
@@ -17,6 +17,29 @@ describe("formatNumber", () => {
   test("non-finite input doesn't throw", () => {
     expect(formatNumber(NaN)).toBe("NaN");
     expect(formatNumber(Infinity)).toBe("Infinity");
+  });
+
+  test("formatDuration shows the two most significant units", () => {
+    expect(formatDuration(0)).toBe("0s");
+    expect(formatDuration(42)).toBe("42s");
+    expect(formatDuration(59)).toBe("59s");
+    expect(formatDuration(60)).toBe("1m 0s");
+    expect(formatDuration(754)).toBe("12m 34s");
+    expect(formatDuration(3599)).toBe("59m 59s");
+    expect(formatDuration(3600)).toBe("1h 0m");
+    expect(formatDuration(16200)).toBe("4h 30m");
+    expect(formatDuration(86400)).toBe("1d 0h");
+    expect(formatDuration(3 * 86400 + 4 * 3600 + 12 * 60)).toBe("3d 4h");
+    // Seconds-only input never invents a higher unit.
+    expect(formatDuration(3661)).toBe("1h 1m");
+  });
+
+  test("formatDuration clamps junk input to 0s", () => {
+    expect(formatDuration(-5)).toBe("0s");
+    expect(formatDuration(NaN)).toBe("0s");
+    expect(formatDuration(Infinity)).toBe("0s");
+    // Fractional seconds truncate.
+    expect(formatDuration(42.9)).toBe("42s");
   });
 
   test("bigint inputs format identically to their number equivalents", () => {

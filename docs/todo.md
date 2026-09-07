@@ -37,6 +37,25 @@ Completed items are removed from this file (see git history); only remaining wor
   / 2 more miners) → flat 150k bonus. Guardrails held: real weekly window
   only (no fake scarcity), reward earnable free.
 
+- [x] statistics detail — DONE (2026-09, iteration 9): the records view
+  gained a lifetime “Time in the mine” row and a per-session block
+  (minerals, answers, active time since the app was last opened). Save:
+  `playSeconds: number` on `SaveData` (save v10→v11; old saves start at
+  0 — no clock to recover, and away time is never counted as play time;
+  `pb_hooks` MAX_SAVE_VERSION bumped to 11). Clock: the engine's tick
+  loop (1 s cadence, existing `elapsed` clamp) advances a
+  `playSecondsRef` — foreground/active time only — flushed into state at
+  save time (absolute set, not a delta) and serialized on every save
+  path; reset/import restore re-sync the ref. Pure layer:
+  `session.ts` (launch baseline + current−baseline, clamped at zero so a
+  mid-session reset/import can't render negatives) and `formatDuration`
+  in `utils/format.ts` (“3d 4h”/“12m 30s”/“42s”). UI: new `playtime`
+  record row (`records.ts`, content-es parity) + a “This session” block
+  in `RecordsPanel` fed by `MinesOfDoom` (baseline snapshotted once at
+  load) through `MenuPanel` — labels via `t()`, so no content-namespace
+  coupling. F2P-neutral display stat; never gates anything. Tests:
+  `__test__/session.test.ts`, `format.test.ts`, migration/clamp cases in
+  `game.test.ts`.
 - [x] share images — DONE: the achievement share now renders a 320x180
   PNG badge instead of plain text (features.md §2 "Share badges" / §7
   candidate). Pure-TS render: 5x7 pixel font + RGBA layout + pako-based

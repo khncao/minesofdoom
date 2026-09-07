@@ -43,6 +43,11 @@ import {
   mulFloats,
 } from "./game";
 import {
+  createSessionBaseline,
+  getSessionStats,
+  SessionBaseline,
+} from "./session";
+import {
   getAchievement,
   getAchievementBonus,
   getCompletedAchievementIds,
@@ -205,6 +210,20 @@ export default function MinesOfDoom() {
     getCaveTheme(gameState.selectedCaveTheme),
     depthTier.id,
   );
+  // Session baseline (todo: statistics detail): a snapshot of the save's
+  // lifetime counters taken once, at the first render after the stored
+  // save has loaded. The "this session" stats are current − baseline
+  // (clamped in getSessionStats), so a mid-session reset/import can only
+  // read 0, never negative. The one-shot ref init (never reset) means the
+  // baseline survives the render pass it's created in; write-during-render
+  // is safe here because it's idempotent and happens exactly once.
+  const sessionBaselineRef = useRef<SessionBaseline | null>(null);
+  if (isLoaded && sessionBaselineRef.current === null) {
+    sessionBaselineRef.current = createSessionBaseline(gameState);
+  }
+  const sessionStats = sessionBaselineRef.current
+    ? getSessionStats(gameState, sessionBaselineRef.current)
+    : null;
   // Depth-tier click bonus + banked prestige multiplier + the tier-3 click
   // x2 upgrade included: this is the value taps and answers actually pay
   // with (the engine applies the same multipliers authoritatively), so
@@ -1238,6 +1257,7 @@ export default function MinesOfDoom() {
               HARD_MODE_UNLOCK_TIER,
             )}
             stats={gameState}
+            session={sessionStats}
             analytics={analytics}
             onClearAnalytics={onClearAnalytics}
             cloudSave={cloudSaveSettings}

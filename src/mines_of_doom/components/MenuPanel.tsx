@@ -13,6 +13,7 @@ import AboutTab from "./AboutTab";
 import GoalsContent from "./GoalsPanel";
 import RecordsContent from "./RecordsPanel";
 import { SaveData, SettingsData } from "../game";
+import { SessionStats } from "../session";
 import { styles } from "../styles";
 
 type MenuView =
@@ -54,6 +55,7 @@ function MenuPanel({
   onKeypadChange,
   hardModeUnlocked,
   stats,
+  session,
   analytics,
   onClearAnalytics,
   cloudSave,
@@ -78,6 +80,9 @@ function MenuPanel({
   hardModeUnlocked: boolean;
   /** Lifetime save data — feeds the goals/records views' derived progress. */
   stats: SaveData;
+  /** This-session stats (delta vs. the launch baseline); null until the
+   *  save has loaded (the records view hides its session block). */
+  session: SessionStats | null;
   /** Guardrail 6: the local analytics record for the About-tab debug
    *  section (single owner is MinesOfDoom's useAnalytics; this is a
    *  read-through, not a second storage reader). */
@@ -148,8 +153,8 @@ function MenuPanel({
   );
   const goalsChildren = useMemo(() => <GoalsContent stats={stats} />, [stats]);
   const recordsChildren = useMemo(
-    () => <RecordsContent stats={stats} />,
-    [stats],
+    () => <RecordsContent stats={stats} session={session} />,
+    [stats, session],
   );
   const aboutChildren = useMemo(
     () => (

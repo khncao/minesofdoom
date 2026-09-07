@@ -417,6 +417,11 @@ export const es: Record<TranslationKey, string> = {
   "records.header":
     "Récords personales, guardados en tu partida — sobreviven a los gastos " +
     "y a los prestigio.",
+  "records.session":
+    "Esta sesión — desde que abriste la app.",
+  "records.sessionMinerals": "Minerales extraídos",
+  "records.sessionAnswers": "Ecuaciones resueltas",
+  "records.sessionTime": "Tiempo en la mina",
 
   // --- Legal section -----------------------------------------------------------
   "legal.heading": "Legal y privacidad",

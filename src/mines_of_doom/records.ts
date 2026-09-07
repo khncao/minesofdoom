@@ -1,7 +1,7 @@
 import { SaveData } from "./game";
 import { GOAL_TIERS, getCompletedTierIds } from "./goals";
 import { ACHIEVEMENTS, getCompletedAchievementIds } from "./achievements";
-import { formatNumber } from "src/utils/format";
+import { formatDuration, formatNumber } from "src/utils/format";
 
 /**
  * Local "Records" — personal bests (plan §4.3 leaderboard groundwork).
@@ -48,6 +48,12 @@ export function getRecords(save: SaveData): RecordEntry[] {
       icon: "🧮",
       label: "Equations answered",
       value: formatNumber(save.lifetimeCorrect),
+    },
+    {
+      id: "playtime",
+      icon: "⏱️",
+      label: "Time in the mine",
+      value: formatDuration(save.playSeconds),
     },
     {
       id: "miners",

@@ -32,6 +32,27 @@ export function formatNumber(value: number | bigint): string {
 }
 
 /**
+ * Format a duration in whole seconds as the two most significant units
+ * ("3d 4h", "4h 12m", "12m 30s", "42s"). For play-time stats, where a
+ * trailing zero unit carries no information. Junk input (non-finite,
+ * negative) formats as "0s" — a stat can never render NaN.
+ */
+export function formatDuration(totalSeconds: number): string {
+  const s =
+    Number.isFinite(totalSeconds) && totalSeconds > 0
+      ? Math.floor(totalSeconds)
+      : 0;
+  const days = Math.floor(s / 86400);
+  const hours = Math.floor((s % 86400) / 3600);
+  const minutes = Math.floor((s % 3600) / 60);
+  const seconds = s % 60;
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+}
+
+/**
  * bigint formatting that mirrors the number path:
  * - < 10,000 → full integer
  * - >= 10,000 → scaled by 1000s with a suffix, adaptive decimals

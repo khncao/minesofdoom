@@ -80,7 +80,12 @@ Items adopted from that list move into `docs/todo.md`.
   `hooks/useDailyEquation.ts`, `components/DailyEquationButton.tsx`).
 - **Local records** — personal-best panel (depth, combo, minerals/sec, …)
   over the same lifetime stats a live leaderboard would use (`records.ts`,
-  `components/RecordsPanel.tsx`).
+  `components/RecordsPanel.tsx`). Since the statistics-detail todo it also
+  has a lifetime “Time in the mine” row (`SaveData.playSeconds`, save
+  v11) and a “This session” block — minerals/answers/time since the app
+  was last opened, derived by `session.ts` (baseline snapshot at launch,
+  current − baseline clamped at zero) with `formatDuration` in
+  `utils/format.ts`.
 - **Share badges** — sharing a completed achievement renders a 320x180
   PNG badge (game name, "BADGE EARNED", the achievement name, the
   player's deepest depth) instead of plain text. The badge is pure TS —
@@ -253,8 +258,10 @@ genre-impact; anything picked up goes into `docs/todo.md`.
   in-game events"): the gem pocket — a rare tap-to-collect bonus node in
   the cave (`gemPocket.ts`, `hooks/useGemPocket.ts`, rendered in
   `components/MiningCanvas.tsx`). See §2 "Gem pocket".
-- **Statistics detail** — records panel shows personal bests only; no
-  per-session stats, no time-played breakdown, no export.
+- ~~**Statistics detail**~~ — **DONE 2026-09** (todo “statistics detail”):
+  the records panel now carries a lifetime “Time in the mine” row and a
+  per-session block (minerals, answers, active time since launch) —
+  see §2 “Local records”. (No export; that was never the ask.)
 
 ### Player-facing surfaces
 
