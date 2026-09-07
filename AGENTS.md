@@ -136,8 +136,13 @@ So test/source files import like `import ... from "src/mines_of_doom/game"` or
   server is still preferred and hot-reload still works; the embedded bundle is
   only the fallback. Don't "clean up" this line. The same generated file also
   carries the Play upload-key release-signing block (loads the root
-  `keystore.properties`); both patches are marked with comments and are
-  wiped by `expo prebuild` — re-apply both after every prebuild.
+  `keystore.properties`); both patches are marked with comments in the file.
+  `expo prebuild` wipes them, so they are re-applied **automatically** by the
+  `./plugins/withDebugSigning` config plugin (enabled in `app.config.ts` →
+  `plugins`), which runs on every prebuild and is idempotent — `expo prebuild
+  --clean` reproduces the committed `build.gradle` byte-for-byte. Don't edit the
+  patched regions by hand or remove the plugin; unit test:
+  `plugins/__test__/withDebugSigning.test.js`.
 - The Play upload keystore and its properties live at the **project root**
   (`my-upload-key.keystore` + `keystore.properties`, both gitignored) — never
   under `android/`, because `expo prebuild` clears that directory (it once

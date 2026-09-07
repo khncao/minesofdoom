@@ -75,8 +75,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   // the static export emitted an HTML page per source file, incl. tests.)
   plugins: [
     ["expo-router", { root: "src/app" }],
-    // "./plugins/androidPrebuildPatches",
-    // "./plugins/withDebugSigning",
+    // Re-applies the local android/app/build.gradle patches (debuggableVariants = []
+    // + Play upload-key signing) that `expo prebuild` wipes. See the plugin's header.
+    "./plugins/withDebugSigning",
     ["react-native-google-mobile-ads", googleMobileAdsPluginOptions],
     // SDK 57 dropped the top-level `splash` key from the config schema; the
     // splash screen is now configured through the expo-splash-screen plugin.

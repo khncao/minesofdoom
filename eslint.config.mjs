@@ -50,6 +50,12 @@ export default [
     rules: { "@typescript-eslint/no-var-requires": "off" },
   },
   {
+    // Plugin jest tests (plain CommonJS) — same treatment as the pb_hooks suite.
+    files: ["plugins/__test__/**/*.js"],
+    languageOptions: { globals: { ...globals.jest } },
+    rules: { "@typescript-eslint/no-var-requires": "off" },
+  },
+  {
     // Pocketbase v0.4x JS-hook runtime bindings (pb_hooks/ — see
     // pocketbase/pocketbase plugins/jsvm in v0.40.x). require/module/
     // process are already covered by the globals.node block above.
