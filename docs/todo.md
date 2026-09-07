@@ -8,9 +8,11 @@ Completed items are removed from this file (see git history); only remaining wor
   feature catalog, file-anchored) + researched gap list (§7, genre /
   math-game checklists, verified absent from src/). Pass 2 DONE 2026-09:
   gap candidates promoted into the active todos below (weekly challenges,
-  share images), and the in-app idle reminder implemented (see below). Next
-  passes: keep §6-style catalog entries current on feature commits, and
-  keep promoting §7 gap items into active todos. (Earlier gap items: haptics
+  share images), and the in-app idle reminder implemented (see below).
+  Pass 3 DONE 2026-09: the gem pocket implemented (todo "random
+  in-game events" below). Next passes: keep §6-style catalog entries
+  current on feature commits, and keep promoting §7 gap items into
+  active todos. (Earlier gap items: haptics
   DONE 2026-09 — `haptics.ts` / `useHaptics.ts` + settings toggle, see
   features.md §3; daily equation DONE 2026-09-07 — seeded
   `getSeededEquation` + `dailyEquation.ts`, see features.md §2.)
@@ -49,6 +51,22 @@ Completed items are removed from this file (see git history); only remaining wor
   `components/GoalsPanel.tsx`; unit tests (`__test__/shareBadge.test.ts`,
   `__test__/shareImage.test.ts`, `__test__/shareImage.web.test.ts`,
   `utils/png.test.ts`).
+- [x] random in-game events — DONE: the "gem pocket" (features.md §2
+  "Gem pocket" / §7 candidate): `gemPocket.ts` (pure: per-1s-check
+  1/120 spawn roll behind a real 30 s lifetime + 5 min cooldown, bonus =
+  8× effective click power floored at 20 and Number-capped, deterministic
+  HUD-safe position from the seed — injectable rng for tests) +
+  `hooks/useGemPocket.ts` (1 s check loop, collect-once ref guard
+  mirroring `useDailyBonus`, expiry honest across backgrounded time,
+  gated while the onboarding overlay is up) + the node rendered in
+  `components/MiningCanvas.tsx` with its own responder (a pocket tap
+  never falls through to hold-to-mine), a quick-tap collect, a
+  reduce-motion-respecting pulse, gem sprite / emoji fallback, en/es
+  copy + unit tests (`__test__/gemPocket.test.ts`). Guardrails held:
+  the window is real (no fake urgency), missing it costs nothing, the
+  bonus flows through `addTapGain` (lifetime stats stay exact), odds
+  are identical for every player, not persisted.
+
 - [o] Add stripe payment provider for web one time products — **code done**
   (hosted Checkout provider + sidecar Stripe-API confirm + the
   `/api/app/stripe/webhook` backup mint; docs/store-integration.md §2.6).

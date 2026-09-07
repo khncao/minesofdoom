@@ -70,6 +70,7 @@ import { useShakeInput } from "./hooks/useShakeInput";
 import { useMineTaps } from "./hooks/useMineTaps";
 import { useJuiceWaves } from "./hooks/useJuiceWaves";
 import { useIdleReminder } from "./hooks/useIdleReminder";
+import { useGemPocket } from "./hooks/useGemPocket";
 import { getJuiceTextSize, getJuiceWaves } from "./juice";
 import { useAccessibilityReduceMotion } from "./hooks/useAccessibilityReduceMotion";
 import { useEquations } from "./hooks/useEquations";
@@ -690,6 +691,37 @@ export default function MinesOfDoom() {
     },
     [markActivity, mineTap],
   );
+
+  // Gem pocket (features.md §7 "Random in-game events"): a rare bonus
+  // node that forms in the cave; tap it for a bonus scaled to the
+  // current click power, or let it fade. The collect flows through
+  // addTapGain so lifetime stats stay exact, and counts as activity for
+  // the idle reminder (it IS a cave interaction).
+  const handlePocketCollected = useCallback(
+    (bonus: number) => {
+      const gain = BigInt(bonus);
+      play("pickaxe", 80);
+      haptic("success");
+      markActivity();
+      floatingTextRef.current?.spawn(
+        `+${formatNumber(gain)} ${emojis.mineral}`,
+        "#ffd47f",
+        getJuiceTextSize(gain),
+      );
+      displayMessage(
+        t("toast.gemPocketCollected", { bonus: formatNumber(gain) }),
+        3000,
+      );
+    },
+    [play, haptic, markActivity, floatingTextRef, displayMessage, t],
+  );
+  const gemPocket = useGemPocket({
+    enabled: !onboardingLoading && onboardingDone === true,
+    clickPower: effectiveClickPower,
+    grantMinerals: addTapGain,
+    displayMessage,
+    onCollected: handlePocketCollected,
+  });
 
   // Equation of the Day (todo "daily equation", features.md §7): one
   // fixed equation per local day, identical for every player (seeded by
@@ -1351,6 +1383,8 @@ export default function MinesOfDoom() {
           fastMiners={gameState.fastMiners}
           legendaryMiners={gameState.legendaryMiners}
           onTap={mineTapWithActivity}
+          pocket={gemPocket.pocket}
+          onPocketCollect={gemPocket.collect}
           playerPickaxeAnimRef={playerPickaxeAnimRef}
           debrisRef={debrisRef}
           blockBreakRef={blockBreakRef}

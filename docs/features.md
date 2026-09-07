@@ -94,6 +94,23 @@ Items adopted from that list move into `docs/todo.md`.
   plain-text share, so a share tap always does something honest; a
   user-closed sheet is a no-op, not a re-opened sheet (`shareImage.ts`,
   `shareImage.web.ts`, wired in `components/GoalsPanel.tsx`).
+- **Gem pocket (random in-cave bonus)** — a rare bonus node that
+  forms in the cave while the game is open (per-1s-check 1/120 odds once
+  a 5-min post-pocket cooldown has elapsed; the pocket itself lives a
+  real 30 s). Tapping it (a quick tap, no hold) pays ~8× the current
+  effective click power (floored at 20 early, capped for Number safety)
+  through the normal tap-gain path so lifetime stats stay exact; left
+  alone it simply fades, ungained — pure upside, no penalty. The spawn
+  is pure logic with an injectable rng (`gemPocket.ts`), the 1 s check
+  loop + collect-once ref guard live in the hook (`hooks/useGemPocket.ts`),
+  and the node renders in `components/MiningCanvas.tsx` with its own
+  responder (a tap on it never falls through to hold-to-mine), a
+  reduce-motion-respecting pulse, seeded position in a HUD-safe zone,
+  and the gem sprite / emoji fallback. Not persisted (a reload never
+  resurrects or forfeits one) and no spawns or toasts under the
+  onboarding overlay. Guardrails held: the window is real, missing it
+  costs nothing, odds are identical for every player (`features.md §7`
+  "Random in-game events", in-repo half).
 - **Idle reminder** — after a minute without a cave tap or an answer
   (while the app is open), a one-per-session toast reminds the player the
   mine keeps collecting and progress autosaves. Settings toggle, on by
@@ -227,8 +244,10 @@ genre-impact; anything picked up goes into `docs/todo.md`.
 - **Multi-layer prestige / ascension** — single multiplier bank (6 levels);
   big idle games add a second meta-axis (ascension points → new tree).
   Bigger design lift than the single-shaft reset.
-- **Random in-game events** — rare bonus nodes/encounters while idling
-  (e.g. a gem pocket that must be tapped). Cheap juice/retention overlap.
+- ~~**Random in-game events**~~ — **DONE 2026-09** (todo "random
+  in-game events"): the gem pocket — a rare tap-to-collect bonus node in
+  the cave (`gemPocket.ts`, `hooks/useGemPocket.ts`, rendered in
+  `components/MiningCanvas.tsx`). See §2 "Gem pocket".
 - **Statistics detail** — records panel shows personal bests only; no
   per-session stats, no time-played breakdown, no export.
 

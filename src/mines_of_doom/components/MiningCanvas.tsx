@@ -1,5 +1,5 @@
-import { memo, MutableRefObject, RefObject, useRef, useState } from "react";
-import { Image, Text, View } from "react-native";
+import { memo, MutableRefObject, RefObject, useEffect, useRef, useState } from "react";
+import { Animated, Easing, Image, Text, View } from "react-native";
 import { useT } from "src/hooks/useI18n";
 import Miner from "./Miner";
 import DebrisParticles, {
@@ -15,6 +15,7 @@ import { gemSpriteUri, mineralChunkSpriteUri } from "src/utils/graphics/pixelArt
 import { emojis } from "src/utils/graphics/emojis";
 import { rosterSeed } from "../cosmetics";
 import { styles } from "../styles";
+import { GemPocket, pocketPosition } from "../gemPocket";
 
 // Pixel-art currency icons (plan §4.5) — replaces the old 🪨/💎 emoji
 // display. Call the (internally cached) getters lazily so emoji mode never
@@ -49,6 +50,8 @@ const MiningCanvas = memo(function MiningCanvas({
   pickaxeId,
   reduceMotion,
   emojiArt,
+  pocket,
+  onPocketCollect,
 }: {
   depth: bigint;
   /** Progress toward the next depth tier, 0..1 — the cave's continuous slide. */
@@ -72,6 +75,10 @@ const MiningCanvas = memo(function MiningCanvas({
   reduceMotion: boolean;
   /** Low-end fallback (plan §4.5): emoji instead of pixel sprites. */
   emojiArt: boolean;
+  /** The live rare bonus node (gemPocket.ts), or null when none. */
+  pocket: GemPocket | null;
+  /** Collect the live pocket (quick tap, no hold required). */
+  onPocketCollect: () => void;
   debrisRef: RefObject<DebrisParticlesRef | null>;
   blockBreakRef: RefObject<BlockBreakRef | null>;
   floatingTextRef: RefObject<FloatingTextRef | null>;
@@ -83,6 +90,36 @@ const MiningCanvas = memo(function MiningCanvas({
   // hold is in flight; on release the snap-back + (mined?) swing play.
   const [holding, setHolding] = useState(false);
   const t = useT();
+
+  // Pocket presence pulse: one scale loop, only while a pocket is live and
+  // the player hasn't opted out of decorative motion.
+  const pocketScale = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (pocket == null || reduceMotion) {
+      pocketScale.setValue(1);
+      return;
+    }
+    pocketScale.setValue(1);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pocketScale, {
+          toValue: 1.25,
+          duration: 500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pocketScale, {
+          toValue: 1,
+          duration: 500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pocket, reduceMotion, pocketScale]);
+
   return (
     /*
       Plain View + responder system instead of Pressable.
@@ -120,6 +157,54 @@ const MiningCanvas = memo(function MiningCanvas({
         emojiArt={emojiArt}
       />
       <FloatingTextLayer ref={floatingTextRef} />
+      {pocket != null &&
+        (() => {
+          const { leftPct, topPct } = pocketPosition(pocket.seed);
+          return (
+            /*
+              Its own responder: the deepest view wins the negotiation, so
+              a tap here never falls through to the cave's hold-to-mine,
+              and the pocket collects on a QUICK tap (no MINE_HOLD_MS) —
+              it's a bonus, so an accidental tap can only ever help.
+            */
+            <Animated.View
+              testID="gem-pocket"
+              accessibilityRole="button"
+              accessibilityLabel={t("a11y.gemPocket", {
+                bonus: formatNumber(pocket.bonus),
+              })}
+              style={{
+                position: "absolute",
+                left: `${leftPct}%`,
+                top: `${topPct}%`,
+              }}
+              onStartShouldSetResponder={() => true}
+              onResponderRelease={() => onPocketCollect()}
+              onResponderTerminate={() => {}}
+            >
+              <Animated.View
+                style={{
+                  transform: [{ scale: pocketScale }],
+                  width: 34,
+                  height: 34,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {emojiArt ? (
+                  <Text style={{ fontSize: 26, userSelect: "none" }}>
+                    {emojis.gem}
+                  </Text>
+                ) : (
+                  <Image
+                    source={{ uri: gemSpriteUri() }}
+                    style={{ width: 28, height: 28 }}
+                  />
+                )}
+              </Animated.View>
+            </Animated.View>
+          );
+        })()}
       <View style={{ alignItems: "center" }}>
         <View style={styles.flexCenteredRow}>
           {emojiArt ? (
