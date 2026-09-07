@@ -21,7 +21,7 @@
         {
             "label": "start expo android",
             "type": "shell",
-            "command": "npx expo run:android"
+            "command": "npx expo run:android -d mines-play-35"
         },
         {
             // Boots the phone AVD headless (if not already running), waits for

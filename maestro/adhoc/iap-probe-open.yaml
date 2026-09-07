@@ -1,0 +1,24 @@
+# Ad-hoc probe: open the shop panel, screenshot, then tap the cheapest
+# buy button to open the Play billing sheet.
+appId: com.minus4kelvin.minesofdoom
+---
+- launchApp: com.minus4kelvin.minesofdoom
+- assertVisible:
+    id: onboarding-skip
+    optional: true
+- tapOn:
+    id: onboarding-skip
+    optional: true
+
+- assertVisible:
+    id: equation-display
+
+- tapOn:
+    text: "🛍️"
+- assertVisible:
+    text: "One-time purchases"
+- takeScreenshot:
+    path: iap-panel.png
+- tapOn:
+    text: "$0.99"
+

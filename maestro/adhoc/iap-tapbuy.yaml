@@ -1,0 +1,7 @@
+appId: com.minus4kelvin.minesofdoom
+---
+- tapOn:
+    text: "Buy"
+- assertVisible:
+    text: "…"
+    optional: true
