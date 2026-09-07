@@ -134,3 +134,78 @@ describe("useEquations — basics", () => {
     expect(result.onCorrect).toHaveBeenCalledWith(40);
   });
 });
+
+describe("useEquations — soft-incorrect mode (equation of the day)", () => {
+  function renderSoftTest() {
+    const onCorrect = jest.fn();
+    const onIncorrect = jest.fn();
+    const onSoftIncorrect = jest.fn();
+    const soft = { current: false };
+    const r = renderHook(() =>
+      useEquations({
+        equationSettings: settings(),
+        onCorrect,
+        onIncorrect,
+        isSoftIncorrect: () => soft.current,
+        onSoftIncorrect,
+      }),
+    );
+    return {
+      get current() {
+        return r.result.current;
+      },
+      // submit() takes UseEquationsTest; props never change in these tests.
+      rerender: () => {},
+      onCorrect,
+      onIncorrect,
+      onSoftIncorrect,
+      soft,
+    };
+  }
+
+  it("showEquation force-displays an equation and clears the input", () => {
+    const result = renderSoftTest();
+    act(() => result.current.setTextInput("9"));
+    const daily = { op: "*", a: 3, b: 4, answer: 12 } as const;
+    act(() => result.current.showEquation(daily));
+    expect(result.current.equation).toEqual(daily);
+    expect(result.current.textInput).toBe("");
+  });
+
+  it("a wrong answer in soft mode is penalty-free: no onIncorrect, the equation stays for a retry", async () => {
+    const result = renderSoftTest();
+    act(() => result.current.showEquation({ op: "*", a: 3, b: 4, answer: 12 }));
+    result.soft.current = true;
+    await submit(result, "5");
+    expect(result.onSoftIncorrect).toHaveBeenCalledTimes(1);
+    expect(result.onIncorrect).not.toHaveBeenCalled();
+    expect(result.onCorrect).not.toHaveBeenCalled();
+    // No roll: the same equation is on screen for a retry.
+    expect(result.current.equation.answer).toBe(12);
+    expect(result.current.textInput).toBe("");
+  });
+
+  it("a correct answer in soft mode pays normally and rolls the next random equation", async () => {
+    const result = renderSoftTest();
+    act(() => result.current.showEquation({ op: "*", a: 3, b: 4, answer: 12 }));
+    eqQueue.push(eq(7));
+    result.soft.current = true;
+    await submit(result, "12");
+    // "*" carries no operator bonus: the raw answer value.
+    expect(result.onCorrect).toHaveBeenCalledTimes(1);
+    expect(result.onCorrect).toHaveBeenCalledWith(12);
+    expect(result.onIncorrect).not.toHaveBeenCalled();
+    expect(result.current.equation.answer).toBe(7);
+  });
+
+  it("without soft mode enabled, wrong answers keep the normal penalty", async () => {
+    const result = renderSoftTest();
+    act(() => result.current.showEquation({ op: "*", a: 3, b: 4, answer: 12 }));
+    eqQueue.push(eq(9));
+    // soft stays false
+    await submit(result, "5");
+    expect(result.onIncorrect).toHaveBeenCalledTimes(1);
+    expect(result.onSoftIncorrect).not.toHaveBeenCalled();
+    expect(result.current.equation.answer).toBe(9);
+  });
+});

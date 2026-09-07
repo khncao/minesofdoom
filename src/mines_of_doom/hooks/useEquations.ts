@@ -18,10 +18,22 @@ export function useEquations({
   equationSettings,
   onCorrect,
   onIncorrect,
+  isSoftIncorrect,
+  onSoftIncorrect,
 }: {
   equationSettings: EquationSettings;
   onCorrect: (value: number) => void;
   onIncorrect: () => void;
+  /**
+   * Penalty-free wrong answers (the equation-of-the-day mode, todo
+   * "daily equation"): when the returned flag is true, a wrong answer
+   * does NOT call onIncorrect (no combo reset) and does NOT roll a new
+   * equation — onSoftIncorrect (if given) is called instead, so the
+   * caller can still shake/sound. The displayed equation stays put so
+   * the player can retry.
+   */
+  isSoftIncorrect?: () => boolean;
+  onSoftIncorrect?: () => void;
 }) {
   const [equation, setEquation] = useState<Equation>(() =>
     getRandomEquation(equationSettings),
@@ -39,6 +51,8 @@ export function useEquations({
     equationSettings,
     onCorrect,
     onIncorrect,
+    isSoftIncorrect,
+    onSoftIncorrect,
     textInput,
     equation,
   });
@@ -46,6 +60,8 @@ export function useEquations({
     equationSettings,
     onCorrect,
     onIncorrect,
+    isSoftIncorrect,
+    onSoftIncorrect,
     textInput,
     equation,
   };
@@ -60,6 +76,8 @@ export function useEquations({
       equationSettings,
       onCorrect,
       onIncorrect,
+      isSoftIncorrect,
+      onSoftIncorrect,
     } = latestRef.current;
 
     let value = -1;
@@ -76,12 +94,33 @@ export function useEquations({
       // abs/fround.
       value *= getAnswerPayoutMultiplier(equation);
       onCorrect(Math.max(1, value));
-    } else {
-      onIncorrect();
+      setTextInput("");
+      setEquation(getRandomEquation(equationSettings));
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      return;
     }
+    if (isSoftIncorrect?.()) {
+      // Penalty-free mode: feedback only, the equation stays for a retry.
+      onSoftIncorrect?.();
+      setTextInput("");
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      return;
+    }
+    onIncorrect();
     setTextInput("");
     setEquation(getRandomEquation(equationSettings));
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /**
+   * Force-display an equation (the equation of the day): swaps it into
+   * the main display and clears any half-typed answer. The normal flow
+   * resumes on the next submit (a correct answer rolls the next random
+   * equation as usual).
+   */
+  const showEquation = useCallback((next: Equation) => {
+    setEquation(next);
+    setTextInput("");
   }, []);
 
   return {
@@ -89,5 +128,6 @@ export function useEquations({
     textInput,
     setTextInput,
     handleSubmit,
+    showEquation,
   };
 }

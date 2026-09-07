@@ -103,11 +103,18 @@ export type Equation = {
 export const approxeq = (v1: number, v2: number, epsilon = 0.01) =>
   Math.abs(v1 - v2) <= epsilon;
 
-/** Uniform integer in [min, max) — matches the legacy getRandomInt(max) range. */
-export function getRandomIntInRange(min: number, max: number): number {
+/** Uniform integer in [min, max) — matches the legacy getRandomInt(max) range.
+ *  `rng` is injectable (defaults to Math.random) so the same guarantees can
+ *  be driven by a seeded PRNG — that's what makes the deterministic
+ *  "equation of the day" possible (see getSeededEquation). */
+export function getRandomIntInRange(
+  min: number,
+  max: number,
+  rng: () => number = Math.random,
+): number {
   const lo = Math.min(min, max);
   const hi = Math.max(min, max);
-  return lo + Math.floor(Math.random() * (hi - lo));
+  return lo + Math.floor(rng() * (hi - lo));
 }
 
 // Kept for backwards compatibility with any existing callers.
@@ -130,9 +137,10 @@ function generateTermsEquation(
   op: string,
   minNumber: number,
   maxNumber: number,
+  rng: () => number = Math.random,
 ): Equation | null {
-  let a = getRandomIntInRange(minNumber, maxNumber);
-  let b = getRandomIntInRange(minNumber, maxNumber);
+  let a = getRandomIntInRange(minNumber, maxNumber, rng);
+  let b = getRandomIntInRange(minNumber, maxNumber, rng);
 
   switch (op) {
     case Ops.sub: {
@@ -143,10 +151,11 @@ function generateTermsEquation(
     case Ops.div: {
       // Exact division: pick b (the divisor), then a as a multiple of b
       // within range so the answer is always an integer.
-      b = getRandomIntInRange(1, maxNumber); // divisor in [1, maxNumber-1]
+      b = getRandomIntInRange(1, maxNumber, rng); // divisor in [1, maxNumber-1]
       const minK = Math.max(1, Math.ceil(minNumber / b));
       const maxK = Math.floor((maxNumber - 1) / b);
-      const k = minK <= maxK ? getRandomIntInRange(minK, maxK + 1) : 1;
+      const k =
+        minK <= maxK ? getRandomIntInRange(minK, maxK + 1, rng) : 1;
       a = b * k;
       break;
     }
@@ -165,11 +174,11 @@ function generateTermsEquation(
         return minK <= maxK;
       });
       if (feasible.length === 0) return null;
-      const p = feasible[Math.floor(Math.random() * feasible.length)];
+      const p = feasible[Math.floor(rng() * feasible.length)];
       const step = 100 / p;
       const minK = Math.max(1, Math.ceil(minNumber / step));
       const maxK = Math.floor((maxNumber - 1) / step);
-      const k = getRandomIntInRange(minK, maxK + 1);
+      const k = getRandomIntInRange(minK, maxK + 1, rng);
       a = p;
       b = step * k;
       break;
@@ -212,14 +221,18 @@ function generateTermsEquation(
 function generateMissingEquation(
   minNumber: number,
   maxNumber: number,
+  rng: () => number = Math.random,
 ): Equation {
-  const baseOp =
-    Math.random() < 0.5 ? Ops.add : Ops.mult;
+  const baseOp = rng() < 0.5 ? Ops.add : Ops.mult;
   if (baseOp === Ops.add) {
-    const a = getRandomIntInRange(minNumber, maxNumber);
+    const a = getRandomIntInRange(minNumber, maxNumber, rng);
     // answer = b - a: keep it in [1, maxNumber - minNumber] so the
     // answer is at least as bounded as any other operand.
-    const answer = getRandomIntInRange(1, Math.max(1, maxNumber - minNumber));
+    const answer = getRandomIntInRange(
+      1,
+      Math.max(1, maxNumber - minNumber),
+      rng,
+    );
     const b = a + answer;
     return { op: baseOp, a, b, answer, missing: true };
   }
@@ -228,9 +241,9 @@ function generateMissingEquation(
   const lo = Math.max(2, minNumber);
   const a =
     lo < maxNumber
-      ? getRandomIntInRange(lo, maxNumber)
+      ? getRandomIntInRange(lo, maxNumber, rng)
       : Math.min(Math.max(1, minNumber), Math.max(1, maxNumber - 1));
-  const answer = getRandomIntInRange(1, maxNumber);
+  const answer = getRandomIntInRange(1, maxNumber, rng);
   const b = a * answer;
   return { op: baseOp, a, b, answer, missing: true };
 }
@@ -260,7 +273,10 @@ function generateMissingEquation(
  *   [minNumber, maxNumber) except the sub-clamp (c <= running result, so
  *   the answer can't go negative) and the division divisor range.
  */
-export function getRandomEquation(prefs: EquationSettings): Equation {
+export function getRandomEquation(
+  prefs: EquationSettings,
+  rng: () => number = Math.random,
+): Equation {
   const minNumber = Math.max(0, Math.floor(prefs.minNumber ?? 0));
   const maxNumber = Math.max(2, Math.floor(prefs.maxNumber ?? 12));
 
@@ -294,11 +310,11 @@ export function getRandomEquation(prefs: EquationSettings): Equation {
   // (which can't fail, so the last return is never actually hit).
   const generate = (): Equation => {
     for (let i = 0; i < choices.length + 1; i++) {
-      const choice = choices[Math.floor(Math.random() * choices.length)];
+      const choice = choices[Math.floor(rng() * choices.length)];
       const eq =
         choice.kind === "missing"
-          ? generateMissingEquation(minNumber, maxNumber)
-          : generateTermsEquation(choice.op, minNumber, maxNumber);
+          ? generateMissingEquation(minNumber, maxNumber, rng)
+          : generateTermsEquation(choice.op, minNumber, maxNumber, rng);
       if (eq !== null) return eq;
     }
     return {
@@ -315,7 +331,7 @@ export function getRandomEquation(prefs: EquationSettings): Equation {
   // 2-term shape — no op2/c — so it's bit-identical to the old behavior.
   if (prefs.hardMode) {
     const op2Pool = regularOps.length > 0 ? regularOps : [Ops.mult];
-    const pickOp = () => op2Pool[Math.floor(Math.random() * op2Pool.length)];
+    const pickOp = () => op2Pool[Math.floor(rng() * op2Pool.length)];
     const op2 = pickOp();
     // In hard mode the first step is always one of the classic four ops,
     // so equation.answer IS the left-to-right running result.
@@ -326,12 +342,12 @@ export function getRandomEquation(prefs: EquationSettings): Equation {
         // Clamp c to the running result so the final answer stays
         // non-negative (the running result already is, by the guarantees
         // above). Same spirit as the a >= b swap in 2-term subtraction.
-        c = Math.min(getRandomIntInRange(minNumber, maxNumber), running);
+        c = Math.min(getRandomIntInRange(minNumber, maxNumber, rng), running);
         break;
       case Ops.div: {
         if (running === 0) {
           // 0 / c = 0 is exact for any c; a plain in-range divisor works.
-          c = getRandomIntInRange(1, maxNumber);
+          c = getRandomIntInRange(1, maxNumber, rng);
         } else {
           // Exact division at the second step too: pick a divisor of the
           // running result (d=1 always divides, so the list is never
@@ -340,13 +356,13 @@ export function getRandomEquation(prefs: EquationSettings): Equation {
           for (let d = 1; d < maxNumber; d++) {
             if (running % d === 0) divisors.push(d);
           }
-          c = divisors[Math.floor(Math.random() * divisors.length)];
+          c = divisors[Math.floor(rng() * divisors.length)];
         }
         break;
       }
       default:
         // + and * keep the in-range operand rule.
-        c = getRandomIntInRange(minNumber, maxNumber);
+        c = getRandomIntInRange(minNumber, maxNumber, rng);
     }
 
     switch (op2) {
@@ -370,6 +386,54 @@ export function getRandomEquation(prefs: EquationSettings): Equation {
   }
 
   return equation;
+}
+
+/**
+ * FNV-1a 32-bit string hash — cheap, dependency-free, and stable across
+ * platforms (Math.imul is exact 32-bit multiplication by spec), so a day
+ * key seeds the SAME number on web, Android and iOS.
+ */
+export function hashString(str: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+/**
+ * mulberry32 — a tiny, fast, deterministic 32-bit PRNG. Good-enough quality
+ * for picking equation terms (NOT for security — the CSPRNG helper in the
+ * account modules exists precisely because Math.random/mulberry32 are not
+ * crypto-grade).
+ */
+export function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t = (t + Math.imul(t ^ (t >>> 7), t | 61)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Deterministic equation for a string seed: the same seed (e.g. a local
+ * day key "2026-09-07") yields the SAME equation on every device and
+ * platform, forever — the "equation of the day" primitive. `prefs` fixes
+ * the shapes/range (callers pass fixed prefs, never player settings, so
+ * the day's equation is identical for all players); the generation itself
+ * reuses getRandomEquation, so all of its answer guarantees (integral,
+ * non-negative, exact divisions) hold unchanged.
+ */
+export function getSeededEquation(
+  seed: string,
+  prefs: EquationSettings,
+): Equation {
+  const rng = mulberry32(hashString(seed));
+  return getRandomEquation(prefs, rng);
 }
 
 /** The visible glyph for an op under the player's multiply-symbol choice. */

@@ -4,8 +4,11 @@ import {
   approxeq,
   defaultEquationSettings,
   formatEquation,
+  getSeededEquation,
   getRandomEquation,
   getOpDisplay,
+  hashString,
+  mulberry32,
 } from "./equations";
 
 const ALL_ON: EquationSettings = {
@@ -367,6 +370,47 @@ describe("getRandomEquation hard mode (tier-5, 3-term ×2)", () => {
       expect(eq.op).toBe(Ops.mult);
       expect(eq.op2).toBe(Ops.mult);
       expect(eq.answer).toBe((eq.a as number) * (eq.b as number) * (eq.c as number));
+    }
+  });
+});
+
+describe("seeded generation (equation-of-the-day primitive)", () => {
+  test("hashString is a stable unsigned 32-bit hash, sensitive to day-key changes", () => {
+    expect(hashString("2026-06-07")).toBe(hashString("2026-06-07"));
+    expect(hashString("2026-06-07")).not.toBe(hashString("2026-06-08"));
+    expect(hashString("")).toBe(0x811c9dc5); // FNV offset basis
+    for (let i = 0; i < 200; i++) {
+      const h = hashString(`day-${i}`);
+      expect(h).toBeGreaterThanOrEqual(0);
+      expect(h).toBeLessThanOrEqual(0xffffffff);
+    }
+  });
+
+  test("mulberry32 is deterministic and emits [0, 1)", () => {
+    const a = mulberry32(42);
+    const b = mulberry32(42);
+    const seq = Array.from({ length: 100 }, () => a());
+    expect(Array.from({ length: 100 }, () => b())).toEqual(seq);
+    for (const x of seq) {
+      expect(x).toBeGreaterThanOrEqual(0);
+      expect(x).toBeLessThan(1);
+    }
+    expect(mulberry32(42)()).not.toBe(mulberry32(43)());
+  });
+
+  test("getSeededEquation is deterministic per seed and varies across seeds", () => {
+    const prefs: EquationSettings = { ...ALL_ON, percent: true, missing: true };
+    const a = getSeededEquation("2026-06-07", prefs);
+    expect(getSeededEquation("2026-06-07", prefs)).toEqual(a);
+    expect(getSeededEquation("2026-06-08", prefs)).not.toEqual(a);
+  });
+
+  test("rng injection drives getRandomEquation exactly (no hidden Math.random)", () => {
+    const prefs: EquationSettings = { ...ALL_ON, percent: true, missing: true };
+    for (let i = 0; i < 50; i++) {
+      const rng = mulberry32(i);
+      const eq = getRandomEquation(prefs, rng);
+      expect(getRandomEquation(prefs, mulberry32(i))).toEqual(eq);
     }
   });
 });
