@@ -183,6 +183,7 @@ export const es: Record<TranslationKey, string> = {
   "settings.operatorEquations": "Ecuaciones de {name}",
   "settings.tooltipHard": "Ecuaciones de modo difícil",
   "settings.tooltipEmojiArt": "Arte de emoji (modo ligero)",
+  "settings.tooltipHaptics": "Retroalimentación háptica",
   "settings.tooltipShowAll":
     "Mostrar siempre todos los botones de mejora",
   "settings.gainFormula":
@@ -252,6 +253,14 @@ export const es: Record<TranslationKey, string> = {
   "settings.tip.division.body":
     "Lee a ÷ b como «b × cuánto = a?»: 48 ÷ 6 → 6 × 8 = 48, luego 8. Si no " +
     "te suena, recorre los múltiplos de b desde 1.",
+  "settings.haptics": "Retroalimentación háptica: ",
+  "settings.hapticsHelp":
+    "Activado (por defecto): el dispositivo vibra con los eventos de la " +
+    "jugada — un toque corto en cada golpe de pico (las ganancias grandes " +
+    "vibran un poco más), un latido en las respuestas correctas, un golpe " +
+    "en las incorrectas, y un doble toque en logros y compras. " +
+    "Desactivado: sin vibración; el sonido no se ve afectado. En " +
+    "dispositivos sin vibrador no cambia nada de ninguna forma.",
   "settings.emojiArt": "Arte de emoji (modo ligero): ",
   "settings.emojiArtHelp":
     "Desactivado (por defecto): mineros, monedas, escombros y el fondo de la " +

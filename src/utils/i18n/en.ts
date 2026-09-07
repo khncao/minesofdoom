@@ -196,6 +196,7 @@ export const en = {
   "settings.operatorEquations": "{name} equations",
   "settings.tooltipHard": "Hard mode equations",
   "settings.tooltipEmojiArt": "Emoji art (low-end mode)",
+  "settings.tooltipHaptics": "Haptic feedback",
   "settings.tooltipShowAll": "Always show all upgrade buttons",
   "settings.gainFormula":
     "Minerals mined per correct answer = answer × click power × combo " +
@@ -263,6 +264,14 @@ export const en = {
   "settings.tip.division.body":
     "Read a ÷ b as “b × what = a?”: 48 ÷ 6 → 6 × 8 = 48, so 8. If it " +
     "doesn't ring a bell, walk the multiples of b up from 1.",
+  "settings.haptics": "Haptic feedback: ",
+  "settings.hapticsHelp":
+    "On (default): the device vibrates on the events that carry the game's " +
+    "feedback — a short tick on each mine (bigger gains buzz a touch " +
+    "longer), a beat on correct answers, a thud on wrong ones, and a " +
+    "double-tap on achievements and purchases. Off: no vibration, sound " +
+    "is unaffected. On devices without haptics hardware this does nothing " +
+    "either way.",
   "settings.emojiArt": "Emoji art (low-end mode): ",
   "settings.emojiArtHelp":
     "Off (default): miners, currency icons, debris and the cave backdrop " +

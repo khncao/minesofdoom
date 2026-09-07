@@ -9,7 +9,8 @@ Completed items are removed from this file (see git history); only remaining wor
   math-game checklists, verified absent from src/). Next passes: keep §6-
   style catalog entries current on feature commits, and promote gap items
   into active todos (candidates flagged: weekly challenges, daily equation,
-  haptics, share images, idle reminders).
+  share images, idle reminders; haptics DONE 2026-09 — `haptics.ts` /
+  `useHaptics.ts` + settings toggle, see features.md §3).
 
 - [o] Add stripe payment provider for web one time products — **code done**
   (hosted Checkout provider + sidecar Stripe-API confirm + the

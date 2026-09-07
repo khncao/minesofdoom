@@ -62,6 +62,7 @@ import { useMessages } from "./hooks/useMessages";
 import { useGameEngine } from "./hooks/useGameEngine";
 import { useSettings } from "./hooks/useSettings";
 import { useSounds } from "./hooks/useSounds";
+import { useHaptics } from "./hooks/useHaptics";
 import { useCombo } from "./hooks/useCombo";
 import { useShakeInput } from "./hooks/useShakeInput";
 import { useMineTaps } from "./hooks/useMineTaps";
@@ -480,6 +481,9 @@ export default function MinesOfDoom() {
   // The "pickaxe" sound is the equipped pickaxe's unique swing sound
   // (falls back to the generic one for unknown ids, see useSounds).
   const { play } = useSounds(mute, gameState.selectedPickaxe);
+  // Haptic feedback (settings toggle, on by default): same stable-callback
+  // pattern as `play` so the memoized tap/answer handlers can use it.
+  const { haptic } = useHaptics(settingsData.haptics);
   const reduceMotion = useAccessibilityReduceMotion();
   const {
     combo,
@@ -593,7 +597,8 @@ export default function MinesOfDoom() {
         6000,
       );
     }
-  }, [gameState, completeTiers, displayMessage, t, content]);
+    if (newly.length > 0) haptic("success");
+  }, [gameState, completeTiers, displayMessage, t, content, haptic]);
 
   // Achievements (plan §4.1): one-off bonus badges, kept distinct from the
   // goal tier gates above. Same derived-completion + idempotent-updater
@@ -623,18 +628,22 @@ export default function MinesOfDoom() {
       }),
       6000,
     );
-  }, [gameState, completeAchievements, displayMessage, t, content]);
+    haptic("success");
+  }, [gameState, completeAchievements, displayMessage, t, content, haptic]);
 
   // Floating "+N" on canvas taps (stable so memoized consumers stay stable).
-  // The size scales with the mined amount (juice.ts).
+  // The size scales with the mined amount (juice.ts), and so does the tap
+  // haptic (haptics.ts) — late-game taps buzz a little longer.
   const handleTapGain = useCallback(
-    (gain: bigint) =>
+    (gain: bigint) => {
       floatingTextRef.current?.spawn(
         `+${formatNumber(gain)}`,
         undefined,
         getJuiceTextSize(gain),
-      ),
-    [],
+      );
+      haptic("tap", getJuiceWaves(gain));
+    },
+    [haptic],
   );
 
   // Stable context value: creating a new object every render would re-render
@@ -668,6 +677,7 @@ export default function MinesOfDoom() {
         BigInt(comboMultiplier) *
         effectiveClickPower;
       play("pickaxe", 60);
+      haptic("tap", getJuiceWaves(gain));
       incrementCombo();
       // Juice scales with the mined amount (juice.ts): the swing + debris
       // repeat per wave, the block breaks once per answer.
@@ -694,6 +704,7 @@ export default function MinesOfDoom() {
     onIncorrect: () => {
       play("stone", 150);
       shake();
+      haptic("error");
       // Combo resistance (tier-3 gem upgrade): part of the combo survives.
       const retention = getComboRetention(gameState.comboResistLevels);
       noteComboLoss(combo);
@@ -1017,8 +1028,9 @@ export default function MinesOfDoom() {
       const grant = IAP_PACK_GRANTS[id];
       if (grant.kind === "caveTheme") buyCaveTheme(grant.id);
       else buyCosmetic(grant.id);
+      haptic("success");
     },
-    [buyCosmetic, buyCaveTheme],
+    [buyCosmetic, buyCaveTheme, haptic],
   );
   const handleShopSelect = useCallback(
     (id: IapProductId) => {

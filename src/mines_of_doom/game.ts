@@ -98,6 +98,13 @@ export type SettingsData = {
    * strips) for devices where image decode/render is the bottleneck.
    */
   emojiArt: boolean;
+  /**
+   * Haptic feedback (on by default): tap ticks on mining, a beat on
+   * correct answers, a thud on wrong ones, a double-tap on achievements
+   * and purchases (see haptics.ts / hooks/useHaptics.ts). Off on
+   * platforms without haptics hardware anyway.
+   */
+  haptics: boolean;
 };
 
 export const saveDataKey = "save";
@@ -685,6 +692,7 @@ export const defaultSettingsData = {
   autosave: 30,
   showAllPurchases: false,
   emojiArt: false,
+  haptics: true,
 };
 
 /** Every purchase button id (see PurchaseId). */

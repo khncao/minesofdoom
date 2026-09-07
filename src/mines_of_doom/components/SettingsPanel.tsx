@@ -225,6 +225,28 @@ const SettingsContent = memo(function SettingsContent({
           equation-solving tricks — rendered before the display switches
           so it sits with the equation settings it explains. */}
       <TipsSection />
+      <Tooltip label={t("settings.tooltipHaptics")} content={t("settings.hapticsHelp")}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Text style={{ ...styles.text, fontSize: 11 }}>
+            {t("settings.haptics")}
+          </Text>
+          <Switch
+            value={settingsData.haptics}
+            onValueChange={(newVal) => {
+              onChangeSettingsData({
+                ...settingsData,
+                haptics: newVal,
+              });
+            }}
+          />
+        </View>
+      </Tooltip>
       <Tooltip label={t("settings.tooltipEmojiArt")} content={t("settings.emojiArtHelp")}>
         <View
           style={{

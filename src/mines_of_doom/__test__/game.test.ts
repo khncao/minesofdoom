@@ -914,6 +914,10 @@ describe("getVisiblePurchases", () => {
     expect(defaultSettingsData.emojiArt).toBe(false);
   });
 
+  test("settings default keeps haptics on (vibration is opt-OUT)", () => {
+    expect(defaultSettingsData.haptics).toBe(true);
+  });
+
   test("mineral-cost buttons reveal once lifetime minerals reach the base cost", () => {
     const minerPowerBase = getMinerPowerUpgradeCost(1);
     const below: Lifetime = {

@@ -82,6 +82,13 @@ Items adopted from that list move into `docs/todo.md`.
   shake on errors; magnitude log-scales with the mined amount
   (`juice.ts`, `hooks/useJuiceWaves.ts`, `components/FloatingTextLayer.tsx`,
   `components/DebrisParticles.tsx`, `hooks/useShakeInput.ts`).
+- **Haptics** — settings toggle (on by default) driving the same juice
+  scaling through `Vibration`: a per-tap tick that buzzes a little longer
+  as gains grow, a beat on correct answers, a thud on wrong ones, and a
+  double-tap on tier/achievement completions and purchases
+  (`haptics.ts`, `hooks/useHaptics.ts`, wired in `MinesOfDoom.tsx`);
+  iOS-leading-zero patterns, 50 ms global throttle, no-op on haptics-less
+  hardware (desktop web).
 - **Sound** — expo-av SFX incl. per-pickaxe swings; mute toggle
   (`hooks/useSounds.ts`, `components/MuteToggle.tsx`). No music.
 - **Accessibility & UX** — accessibility labels/roles throughout,
@@ -147,8 +154,9 @@ Items adopted from that list move into `docs/todo.md`.
   (`analytics.ts`, `crashLog.ts`, `crashContext.ts`,
   `components/ErrorBoundary.tsx`).
 - **Settings** — autosave cadence, show-all-purchases, emoji-art fallback,
-  mute, language (`hooks/useSettings.ts`, `components/SettingsPanel.tsx`,
-  `components/SaveTab.tsx`, `components/MenuPanel.tsx`).
+  haptics, mute, language (`hooks/useSettings.ts`,
+  `components/SettingsPanel.tsx`, `components/SaveTab.tsx`,
+  `components/MenuPanel.tsx`).
 - **Quality** — Jest suites over the pure modules (860+ tests), Maestro
   e2e flows, Play Console CLI helper (`npm run play`), static-export-safe
   routing (AGENTS.md).
@@ -187,9 +195,9 @@ genre-impact; anything picked up goes into `docs/todo.md`.
 - **Home-screen widget + idle reminders** — no `expo-notifications` /
   widget anywhere in `src/`. Standard idle-game "come collect" pattern;
   must stay a simple reminder (no dark patterns).
-- **Haptics + sound volume controls** — no vibration/haptic calls at all,
-  and sound is mute-only (no volume, no per-sound toggles). Haptics scale
-  with the existing juice-wave system (`juice.ts`).
+- **Sound volume controls** — haptics landed 2026-09 (the `haptics`
+  settings toggle, §3); sound is still mute-only (no volume, no
+  per-sound toggles).
 - **Music / ambient loop** — SFX only; no background audio.
 - **More languages** — en/es only; the i18n table machinery
   (`utils/i18n/`) makes adding locales cheap, and the kid-skewed audience
