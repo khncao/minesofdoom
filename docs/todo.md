@@ -5,6 +5,15 @@ Completed items are removed from this file (see git history); only remaining wor
 
 - [ ] continuous task: document features then explore and document missing
   features--do not implement until approved
+  - Pass 13 done 2026-09-13 (input & control layer — the hand on the
+    screen; passes 3–13 are in `docs/features.md`). Candidates documented,
+    nothing implemented: a tap-vs-hold settings toggle (pair of the pass-3
+    reduce-effects row), a gamepad / controller path (web leg is a thin
+    web-only module; the Android leg gets DPAD/controller keys free on
+    ChromeOS/TV — one-device verification), a keyboard-operability walk of
+    the shipped web build, and an alternative-input pin (Playdate: adapt
+    the verb vocabulary, not the hardware). All not planned — trigger-gated
+    on player signals per the pass-11/12 discipline.
 
 - [o] Stripe (web IAP) — **configured in test mode (2026-09-08)**: the 26
   products + one-time USD prices synced to the Stripe test account via

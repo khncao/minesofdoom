@@ -5,10 +5,16 @@
  * billing SDK is ever bundled into the web build.
  *
  * Flow (hosted Checkout, the no-card-UI-in-the-app option):
- *   1. `purchase()` loads stripe.js (publishable key from storeConfig —
- *      public by design; the sk_ secret lives only in the VPS sidecar)
- *      and calls `redirectToCheckout` with the product's Price id plus
- *      metadata { mdoomDeviceId, mdoomProductId, mdoomSession }.
+ *   1. `purchase()` POSTs the device id + product id to the VPS sidecar's
+ *      `POST /stripe/checkout`, which creates the hosted Checkout Session
+ *      server-side (secret key) with metadata { mdoomDeviceId,
+ *      mdoomProductId, mdoomSession } and the success/cancel return URLs,
+ *      and replies with the session id. Server-side creation is required:
+ *      the current stripe.js `redirectToCheckout` validator rejects the
+ *      legacy client-side params (metadata, lineItems, … — IntegrationError
+ *      before the redirect), and the metadata is what the mint paths gate
+ *      on. The sidecar picks the Price from its own map — this client
+ *      never sees a Price id.
  *   2. The browser navigates to Stripe's hosted page; payment happens
  *      THERE, not in this page. `redirectToCheckout` resolving means
  *      "the redirect has started" — NOT "the payment succeeded".
@@ -43,7 +49,6 @@ import {
   storeConfig,
   isPocketbaseConfigured,
   isStripeConfigured,
-  getStripePrice,
 } from "./storeConfig";
 import { getIapDeviceId } from "./iapDeviceId";
 
@@ -65,15 +70,11 @@ export const PENDING_VERIFY_KEY = "iapPendingVerifies";
 // dependency — the hosted-redirect path needs exactly one method) --------
 
 interface StripeRedirectClient {
-  redirectToCheckout(params: {
-    mode: "payment";
-    lineItems: { price: string }[];
-    successUrl: string;
-    cancelUrl: string;
-    allowPromotionCodes?: boolean;
-    metadata?: Record<string, string>;
-    clientReferenceId?: string;
-  }): Promise<unknown>;
+  /** Session-id form: the server already created the session (with the
+   *  metadata + return URLs), so this is the only parameter passed —
+   *  passing ANY other param alongside `sessionId` is rejected by
+   *  Stripe's validator. */
+  redirectToCheckout(params: { sessionId: string }): Promise<unknown>;
 }
 type StripeConstructor = (
   publishableKey: string,
@@ -296,43 +297,26 @@ export const storeIapProvider: IapProvider = {
 
   async purchase(productId, sessionToken) {
     if (!this.isAvailable()) return "error";
-    const priceId = getStripePrice(productId);
-    if (!priceId) return "error";
     const deviceId = await getIapDeviceId();
     // A previous launch may have queued this session with a dead network;
     // a fresh launch heals the queue before the player opens the panel.
     await replayPendingVerifies(deviceId, sessionToken);
+    // Server-side session creation (see module docstring): the sidecar
+    // owns the Price map, the mint-gating metadata, and the return URLs.
+    // A non-`cs_` reply (or transport failure) means the hosted page was
+    // never created — a plain error outcome.
+    const res = await postJson(`${storeConfig.pocketbaseUrl}/stripe/checkout`, {
+      deviceId,
+      productId,
+    });
+    const sessionId: unknown = res?.sessionId;
+    if (typeof sessionId !== "string" || !/^cs_/.test(sessionId)) {
+      return "error";
+    }
     const stripe = await loadStripe();
     if (!stripe) return "error";
-    const origin =
-      typeof globalThis !== "undefined" &&
-      (globalThis as { window?: { location?: { origin?: string } } })
-        .window?.location?.origin;
-    const base = origin && origin.startsWith("http") ? origin : "http://localhost";
     try {
-      await stripe.redirectToCheckout({
-        mode: "payment",
-        lineItems: [{ price: priceId }],
-        // success/cancel return to the app root with flags; the
-        // {CHECKOUT_SESSION_ID} placeholder is replaced by Stripe with the
-        // hosted session's id. The app's web-only on-mount effect
-        // (MinesOfDoom.tsx) reads ?iap=success + ?iap_sid, calls
-        // noteCheckoutSuccess + restore, and cleans the URL.
-        successUrl:
-          `${base}/?iap=success` +
-          `&iap_product=${encodeURIComponent(productId)}` +
-          "&iap_sid={CHECKOUT_SESSION_ID}",
-        cancelUrl: `${base}/?iap=cancel`,
-        allowPromotionCodes: false,
-        metadata: {
-          mdoomDeviceId: deviceId,
-          mdoomProductId: productId,
-          ...(sessionToken
-            ? { mdoomSession: sessionToken }
-            : {}),
-        },
-        clientReferenceId: deviceId,
-      });
+      await stripe.redirectToCheckout({ sessionId });
       // The redirect has started — the page is navigating to Stripe's
       // hosted checkout. NOT a payment confirmation: this provider sets
       // grantsLocally:false, so useIap must not grant on this result.
@@ -340,9 +324,8 @@ export const storeIapProvider: IapProvider = {
       // (the webhook mint and/or the return-visit verify).
       return "purchased";
     } catch (err) {
-      // Session creation failed (bad price id, declined before the
-      // redirect, browser without support, ...): the hosted page never
-      // opened, so this is a plain error outcome.
+      // The redirect failed after the session was created (e.g. key/
+      // session mode mismatch): the hosted page never opened.
       console.warn("Stripe redirectToCheckout failed", err);
       return "error";
     }

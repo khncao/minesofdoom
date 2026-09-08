@@ -188,6 +188,35 @@ function parseSidecarConfig(env) {
   if (typeof e.APPLE_BUNDLE_ID === "string" && e.APPLE_BUNDLE_ID.trim().length > 0) {
     cfg.appleBundleId = e.APPLE_BUNDLE_ID.trim();
   }
+  // Stripe web checkout CREATION (the /stripe/checkout route the browser
+  // calls before redirectToCheckout). Two env pieces, both fail-closed:
+  //   MDOOM_STRIPE_PRICE_MAP  JSON object { internalProductId: "price_…" } —
+  //     the SERVER's price source of truth. The client never supplies a
+  //     Price id, so a tampered client can't buy a cheap Price for a
+  //     premium product (the client's own storeConfig is display-only).
+  //     Malformed / empty → the route stays unconfigured (no sessions).
+  //   MDOOM_WEB_BASE_URL      the web app origin+base path (no trailing
+  //     slash) — the hosted page's success/cancel return to here. Must be
+  //     https (the production deploy) for the route to arm.
+  if (typeof e.MDOOM_STRIPE_PRICE_MAP === "string" && e.MDOOM_STRIPE_PRICE_MAP.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(e.MDOOM_STRIPE_PRICE_MAP);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const map = {};
+        for (const [k, v] of Object.entries(parsed)) {
+          if (typeof k === "string" && k.length > 0 && typeof v === "string" && v.length > 0) {
+            map[k] = v;
+          }
+        }
+        if (Object.keys(map).length > 0) cfg.stripePriceMap = map;
+      }
+    } catch {
+      /* malformed JSON → no price map → /stripe/checkout stays 503 (fail closed) */
+    }
+  }
+  if (typeof e.MDOOM_WEB_BASE_URL === "string" && e.MDOOM_WEB_BASE_URL.trim().length > 0) {
+    cfg.webBaseUrl = e.MDOOM_WEB_BASE_URL.trim().replace(/\/+$/, "");
+  }
   return cfg;
 }
 
@@ -541,6 +570,72 @@ async function verifyStripeCheckout(stripeCfg, productId, sessionId, deviceId, c
   return { valid: true };
 }
 
+/**
+ * Create a hosted Checkout Session for a web purchase (the sidecar's
+ * POST /stripe/checkout, called by the browser BEFORE redirectToCheckout).
+ * Why server-side: the current stripe.js redirectToCheckout validator
+ * rejects the legacy client-side params (metadata, lineItems, …) with an
+ * IntegrationError, AND the session needs metadata the mint paths gate on
+ * (mdoomDeviceId / mdoomProductId / mdoomSession — the same names
+ * verifyStripeCheckout and the webhook mint read), which only a secret-key
+ * holder can attach. The Price id comes from the SERVER's map
+ * (priceMap = cfg.stripePriceMap), never the client, and the return URLs
+ * are built from the configured web base (webBaseUrl) — a tampered client
+ * can only ever request one of the mapped products for its own device id.
+ *
+ * Never throws; `{ ok: false, reason }` on every failure path.
+ */
+async function createStripeCheckoutSession(stripeCfg, priceMap, webBaseUrl, productId, deviceId, ctx) {
+  const fetch = ctx && ctx.fetch;
+  if (!fetch) return { ok: false, reason: "no fetch in context" };
+  if (!stripeCfg || typeof stripeCfg.secretKey !== "string" || stripeCfg.secretKey.length === 0) {
+    return { ok: false, reason: "stripe not configured" };
+  }
+  if (!priceMap || typeof priceMap[productId] !== "string" || priceMap[productId].length === 0) {
+    return { ok: false, reason: "product not in price map" };
+  }
+  if (typeof webBaseUrl !== "string" || !/^https:\/\//.test(webBaseUrl)) {
+    return { ok: false, reason: "web base url not configured" };
+  }
+  const mdoomSession = crypto.randomBytes(16).toString("hex");
+  const base = webBaseUrl.replace(/\/+$/, "");
+  const params = new URLSearchParams();
+  params.set("mode", "payment");
+  params.set("line_items[0][price]", priceMap[productId]);
+  params.set("line_items[0][quantity]", "1");
+  // The {CHECKOUT_SESSION_ID} placeholder is replaced by Stripe with the
+  // hosted session's id; the app's web-only on-mount effect reads the
+  // flags back (MinesOfDoom.tsx) and cleans the URL.
+  params.set(
+    "success_url",
+    base + "?iap=success&iap_product=" + encodeURIComponent(productId) + "&iap_sid={CHECKOUT_SESSION_ID}",
+  );
+  params.set("cancel_url", base + "?iap=cancel");
+  params.set("metadata[mdoomDeviceId]", deviceId);
+  params.set("metadata[mdoomProductId]", productId);
+  params.set("metadata[mdoomSession]", mdoomSession);
+  const headers = {
+    Authorization: "Bearer " + stripeCfg.secretKey,
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+  if (stripeCfg.apiVersion) headers["Stripe-Version"] = stripeCfg.apiVersion;
+  let res;
+  try {
+    res = await fetch(STRIPE_API_BASE + "/checkout/sessions", {
+      method: "POST",
+      headers,
+      body: params.toString(),
+    });
+  } catch {
+    return { ok: false, reason: "stripe unreachable" };
+  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data || typeof data.id !== "string" || !/^cs_/.test(data.id)) {
+    return { ok: false, reason: "stripe session create failed (http " + res.status + ")" };
+  }
+  return { ok: true, sessionId: data.id, mdoomSession };
+}
+
 // Stripe webhook signature tolerance (Stripe's documented example uses 5
 // minutes; symmetric so a small server/Stripe clock skew can't wedge it).
 const STRIPE_SIGNATURE_TOLERANCE_SEC = 300;
@@ -634,6 +729,7 @@ module.exports = {
   STRIPE_API_BASE,
   STRIPE_SIGNATURE_TOLERANCE_SEC,
   verifyStripeCheckout,
+  createStripeCheckoutSession,
   verifyStripeWebhookSignature,
   verifyApplePurchase,
   verifyPurchase,

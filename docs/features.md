@@ -56,20 +56,46 @@ Performance Journey" (2025-11: core-vitals tour, ApplicationExitInfo),
 and Bugspulse "Crash Rate Benchmarks by Industry 2026" (consolidates
 Crashlytics / Instabug / Embrace numbers; treat magnitudes as
 illustrative, as passes 4 and 6 did). Items
-adopted from that list move into `docs/todo.md`.
+adopted from that list move into `docs/todo.md`;
+2026-09 pass 12: the web platform layer — the only platform dimension
+passes 7–11 left un-audited, and the surface this iteration's Stripe
+web-IAP work made first-class. MDN "Making PWAs installable" + "Storage
+quotas and eviction criteria" (official), RevenueCat engineering "Can you
+use Stripe for in-app purchases?" (2026: the Epic v. Apple carve-out, the
+web-checkout conversion dip, cross-device entitlement sync, and the gap
+Stripe leaves to a backend), and the 2026 offline-first PWA caching
+checklist (MDN service-worker caching guide + the cache-strategy table);
+2026 pass 13: the input & control layer — gamedesign.gg "Mobile Game UX
+Design" (Hoober 2013 one-handed-hold field data, thumb zones, target-size
+canon, the gesture-affordance rule, portrait-for-idle), W3C WCAG 2.2
+target-size-minimum criteria (2.5.5 / 2.5.8), the simplified.media Gamepad
+API guide (polling model, standard mapping, the handheld / TV-browser
+surfaces), the Android / ChromeOS input-compatibility docs, and Rizzo et
+al. "Playdate" (IJHCI 2016) on input methods for players with motor
+impairments. Items adopted from that list move into `docs/todo.md`.
 
 ## 1. Core gameplay
 
-- **Tap mining** — tap or hold the cave canvas to mine; gains scale with
-  click power, depth-tier click bonus, gem-upgrade tap/answer multipliers,
-  combo and prestige (`components/MiningCanvas.tsx`,
-  `hooks/useMineTaps.ts`).
+- **Tap mining** — hold the cave canvas (300 ms — a quick tap
+deliberately does nothing; the fat-finger filter the a11y label states as
+"Hold to mine" and the canvas carries a persistent caption) to mine; gains
+scale with click power, depth-tier click bonus, gem-upgrade tap/answer
+multipliers, combo and prestige (`components/MiningCanvas.tsx: MINE_HOLD_MS`,
+`hooks/useMineTaps.ts` — the web canvas uses a plain-View responder instead
+of Pressable so rapid tapping doesn't double-render).
 - **Equations** — the main active loop: solve arithmetic to earn minerals ×
   click power × combo multiplier. Seven toggleable types (multiply, add,
   subtract, division, percent, square, "missing"-operand), configurable
   number range, **hard mode** (3-term equations, 2× payout), and a
-  display-symbol preference (`*`/`×`, `/`/`÷`). Answer via on-screen numeric
-  keypad or OS keyboard (`utils/math/equations.ts`,
+  display-symbol preference (`*`/`×`, `/`/`÷`). Answer via the OS
+  keyboard (default — autofocused numeric field, Enter submits,
+  `KeyboardAvoidingView` on native, a plain read-only box on web where the
+  keyboard never shifts layout) or the settings-toggled **on-screen
+  keypad** (a 3-column digit strip beside the upgrades list: 56 px keys
+  that flex-shrink to a 44 px floor on short screens so a bottom row is
+  never clipped off the edge, ⌫ held clears the answer, 12-digit cap;
+  the input is deliberately un-focusable while the onboarding overlay is
+  up, an e2e-discovered fix) (`utils/math/equations.ts`,
   `hooks/useEquations.ts`, `components/AnswerInput.tsx`,
   `components/NumericKeypad.tsx`).
 - **Combo** — streak multiplier in tier steps; wrong answer/mine tap zeroes
@@ -281,10 +307,17 @@ adopted from that list move into `docs/todo.md`.
   (`analytics.ts`, `crashLog.ts`, `crashContext.ts`,
   `components/ErrorBoundary.tsx`).
 - **Settings** — autosave cadence, show-all-purchases, emoji-art fallback,
-  haptics, cave-ambience music, sound volume, mute, language
+  haptics, cave-ambience music, sound volume, mute, language,
+  on-screen keypad, equation types / range / hard mode / symbols
   (`hooks/useSettings.ts`,
   `components/SettingsPanel.tsx`, `components/SaveTab.tsx`,
   `components/MenuPanel.tsx`).
+- **Save affordance** — the top-row save pill: saves immediately on tap,
+  its status dot pulses amber while state is dirty since the last
+  successful write and goes green when clean; icon-only to keep the row a
+  compact strip, pulse suppressed under reduce-motion; autosave still runs
+  in the background — the pill makes saving a first-class visible action
+  rather than a menu dig (`components/SavePill.tsx`).
 - **Quality** — Jest suites over the pure modules (980+ tests), Maestro
   e2e flows, Play Console CLI helper (`npm run play`), static-export-safe
   routing (AGENTS.md).
@@ -994,6 +1027,221 @@ remaining class (native process death) is exactly what
 ApplicationExitInfo + vitals see *from outside* — so the gap is
 aggregation, not detection.
 
+### The web platform layer (pass 12 — entry surface, cross-device parity, offline)
+
+Passes 7–11 audited the funnel and stability for the native app; the one
+platform dimension none of them touched is the **web build, which is already
+live** — and this iteration's Stripe work made web a first-class
+monetization surface, not just a static export. Live audit (2026-09-08,
+`app.config.ts` + `src/`): web is a **static export** (`output: "static"`)
+served from the GitHub Pages subpath `https://khncao.github.io/minesofdoom`
+(the subpath is pinned by `experiments.baseUrl: "/minesofdoom"` — without it
+the export emits asset URLs at the domain root and the page renders blank),
+with **no service worker, no PWA manifest, no offline capability** — every
+launch fetches the JS bundle + assets over the network. Web IAP is the only
+web-specific monetization path (Stripe; native is the stores, §4), web ads
+run the AdSense Ad Placement API as parity, and persistence rides the
+AsyncStorage→browser-storage shim. In one line: web is a monetizable surface
+that is today a *page*, not an *app*.
+
+- **Stripe web IAP is the right architecture, and the store-compliance
+literature confirms the boundary we already hold** — RevenueCat's 2026
+engineering piece on "can you use Stripe for in-app purchases" is precise
+about where our design sits: since the April 2025 *Epic v. Apple* ruling,
+the App Store lets **US iOS apps** link out to an external web checkout, but
+that carve-out is for the *native* app; **web is the only surface where
+Stripe-first is unambiguously allowed** (no store commission, no IAP
+mandate). The piece's headline discipline — treat web checkout as a
+*complement to, not a replacement for,* native IAP, and A/B before scaling
+(their Dipsea test showed a conversion dip moving iOS users to web
+checkout) — is exactly our posture: native uses `expo-iap` (Play Billing /
+StoreKit), Stripe runs **only** on web. The cross-device entitlement sync it
+describes ("web purchases unlock in-app instantly… as soon as a payment is
+complete, entitlements sync across devices") is already our architecture —
+the Pocketbase entitlement row is the sync point and `reconcileStore`
+re-derives from the store record, so a web purchase appears on a signed-in
+native device at its next restore. **Canon pin:** the server-created
+Checkout Session + webhook/return-visit double-mint design is the right
+pattern, and the "Stripe alone doesn't handle app-to-web checkout /
+entitlement syncing / cross-platform unification" gap is precisely the role
+our Pocketbase sidecar fills.
+- **Offline / installable (PWA) is the one big missing web-standard feature —
+and the most deferrable** — MDN's installability guide + the 2026
+offline-first checklists: an installable web app = a web-app **manifest** +
+a **service worker** (registered and active on https) → the browser offers
+an install prompt and can cache every asset. The canonical cache split for
+an idle game (offline-first): **cache-only** for critical assets (our
+sprites/audio — a static pixel-art canvas with no remote content),
+**cache-first** for the JS bundle/CSS/fonts, versioned + invalidated per
+build, with a static fallback page for the cache-miss class. Consequence if
+built: the web build installs to the phone home screen and plays fully
+offline — and an idle game is the ideal offline-first shape (progress is
+local, nothing is real-time). Cost/risks: a service worker over the GitHub
+Pages **subpath** is fiddly (SW scope + cache keys must honor
+`baseUrl: "/minesofdoom"`), static-export + SW versioning needs a deliberate
+cache-bust strategy, and it adds a second delivery path to test on every
+release. **Candidate, not planned** — the trigger is a real install/offline
+demand signal (a web-cohort D1 dip attributable to reconnect cost, or a
+player ask), not FOMO. Today the absence is low-blast-radius: it's a page
+served from CDN-cached GitHub Pages, so a refresh on a flaky network
+re-fetches the bundle and then plays; nothing is lost.
+- **Web storage posture is right and the quota is not a constraint** —
+MDN's storage-quotas page: best-effort storage (`localStorage`) persists
+while the origin is under quota **and** the device has room, and the
+per-origin `localStorage` budget is ~5 MB in browsers (IndexedDB is far
+larger, device-dependent). Our save is a single small JSON blob (the
+save-code format, `saveCode.ts`) — orders of magnitude under the 5 MB
+budget, on our own origin (the GH Pages subpath), so capacity and eviction
+under normal use are a non-issue. The real web-storage risk is **eviction,
+not capacity** (browsers may reclaim best-effort storage under device
+pressure), and the mitigation already exists in the right shape: a
+save-code export (manual + prompted) **and** a cloud save
+(`cloudSave.ts`, LWW with a durable budget) — so a cleared or evicted
+browser never loses a run. **Canon pin:** no storage work — the quota is
+~100× the save size and the two escape hatches already cover the eviction
+class.
+- **Cross-device parity is an account story, not a web story — and we hold
+it** — the web→native funnel (and web↔native parity) rides the optional
+account layer (§5): a web player who signs in carries cloud save +
+entitlements to a native install, and a native player on web gets the same.
+The web→native *install* funnel itself (deep link to the store, deferred
+install) is a candidate, not planned — there is no store-linking /
+deferred-install infra, and the free path is identical on both platforms
+(guardrail 1), so a web player can enjoy the whole game without installing.
+Trigger: a web→native conversion metric (guardrail 5) that justifies a
+deep-link CTA.
+- **Web ads parity is done and is the one web monetization surface we won't
+expand** — the AdSense Ad Placement API rewarded parity (rewarded-only, no
+banners/interstitials — guardrails 2–3, hard per-day caps in pure code,
+§4) is already live and mirrors the native posture. No ad work here.
+- **Canon pins (confirmed correct, not gaps):** (1) the **static export on a
+subpath is right for a first-party idle game** — the subpath `baseUrl` fix is
+load-bearing (without it the export renders blank at the domain root), and
+delivery is a CDN-cached static bundle behind GitHub Pages → Caddy →
+Pocketbase, so there is no SSR to get wrong. (2) the **web surface is
+deliberately small** — web exists as a monetization surface (Stripe) and an
+ad-parity surface (AdSense), not as a full second app; the features we are
+*not* doing (PWA/offline, deep-link install funnel, web push) are
+signal-gated candidates, the passes 10/11 "no code unless the numbers say
+there is" discipline applied to the platform layer. (3) the **server-created
+Session + double-mint Stripe design is the canonical one** — the client
+mints nothing; the webhook and the return-visit both re-derive from
+Stripe's paid state through the sidecar; the Pocketbase row is the single
+entitlement source. That is the cross-platform unification RevenueCat says
+"Stripe alone" can't do — and we have it.
+
+### Inputs & the control layer (pass 13 — the hand on the screen)
+
+Passes 3–12 audited everything above the hand: content, sessions, the
+funnel, the platform, stability. The one layer none of them touched is
+the hand itself — the verbs the player performs, and how they are
+discovered, sized, and (not) extended beyond touch. Live audit
+(2026-09-13, `src/`): the control vocabulary is exactly **three verbs** —
+a **300 ms hold** on the cave canvas to mine (a quick tap deliberately
+does nothing; the canvas carries a persistent "hold to mine" caption),
+**digit entry** (the OS-keyboard field, the default, or the
+settings-toggled on-screen keypad), and **confirm** (Enter / the keypad's
+`=`). There is no gamepad path anywhere (no `getGamepads`, no native
+controller module), no device-motion input (`useShakeInput` is the
+answer box's error *shake* animation, not an accelerometer), no keyboard
+surface beyond the answer field (no `tabIndex` / focus management
+anywhere; every touch surface is an RN `Pressable`, which RN-web gives
+default focus semantics), and the app is portrait-locked
+(`app.config.ts: orientation: "portrait"`). Tap targets run 44–56 px
+(`styles.ts`, `NumericKeypad.tsx`); safe-area insets are honored via
+`react-native-safe-area-context` on the main screen, the bottom modal, and
+the onboarding overlay; 25 a11y strings label the touch surfaces
+(`utils/i18n/en.ts`). Source-quality note per the pass-6 discipline: the
+target-size criteria (W3C / Apple HIG / Material) are primary and exact;
+the Hoober hold-mode numbers are a single 2013 field study cited by a
+2026 UX piece — direction only; the gamepad guide is a vendor engineering
+blog (mechanics accurate, no market-share numbers — none exist to cite
+honestly).
+
+- **Target sizing passes every published standard — canon pin, not a
+gap** — WCAG 2.2's target-size criteria (2.5.5 at Level-AA publication,
+2.5.8 in 2.2) require a 24×24 CSS-px minimum (with small-target spacing
+escapes); Apple HIG says 44 pt, Material 48 dp. Our floor is the 44 px
+keypad minimum (56 px natural), so **every** interactive target clears all
+three by size alone — the keypad's 6 px gap is under Material's 8 dp
+recommendation, but that spacing rule exists only to rescue
+sub-minimum targets, of which we have none. The one geometry rule the 2026
+UX canon states that we already meet is pinned with its seam named: anchor
+interactive UI to safe-area insets and let the playfield absorb aspect
+drift (16:9 → 19.5:9 → 20:9 → foldables) — `useSafeAreaInsets` in
+`MinesOfDoom.tsx` / `BottomModal.tsx` / `OnboardingOverlay.tsx` is exactly
+that shape, verified. No code.
+- **Hold is the genre-canonical verb, and it is a one-knob accessibility
+exposure in both directions** — the UX canon pins the verb itself:
+long-press is the standard "give me more / charge" mapping (the intent
+players already expect a hold to mean), and the portrait one-thumb idle
+is the canonical shape — Hoober's field data (~49 % one-handed / 36 %
+cradled / 15 % two-handed holding, via the 2026 piece) is why idlers sit
+with match-3 and card games in the portrait genres. The portrait lock is
+therefore a pin, not a gap (landscape buys dual-stick control this game
+deliberately lacks — see "Deliberately absent"). The exposure: the hold is
+a *timed* verb — the 300 ms gate filters fat-finger contact (good), but it
+is also a sustained press, and a player whose tremor breaks a 300 ms
+contact — or who simply expects a tap — has no mining path but the hold.
+Cheap version: a settings toggle that sets `MINE_HOLD_MS` to 0 (tap
+mines), one persisted boolean beside the pass-3 reduce-effects row, the
+a11y label flipping with it. Candidate, not planned.
+- **Gesture invisibility is handled at the one place it bites — pin** —
+the canon's Norman rule: gestures have no affordance, a gesture nobody
+discovers is a feature that does not exist, and a *required* hidden
+gesture is worse than an invisible one. Our required verb (the hold) is
+the one in-game affordance that matters: a persistent "hold to mine"
+caption under the player — the verb is taught in-context, not in a
+tutorial, exactly the fix the canon prescribes. The quick-tap gem pocket
+is the one deliberately hidden gesture, and it is pure upside (an
+accidental tap can only ever help — already pinned in §2 "Gem pocket").
+No candidate; the rule is a constraint on *future* features: any gesture
+added later (none exist — no swipe, no pinch anywhere in `src/`) ships
+with its caption.
+- **Gamepad / controller is the one input surface with a real loss
+surface — and ours is the smallest possible mapping** — the 2026
+browser-gamepad canon: players reach browser games on Steam Deck / ROG
+Ally / Legion Go and through TV browsers (Samsung Tizen, LG webOS) where
+a broken controller path is *unplayable*, not inconvenient — and the
+mechanics that pin the implementation: poll `navigator.getGamepads()`
+every frame (only connect/disconnect are real events), pads are hidden
+until the first button press (fingerprinting privacy), "standard"
+mapping normalizes Xbox/PS button indices, radial deadzone 0.10–0.25,
+hot-plug keyed on pad identity not slot, rumble feature-detected. Our
+verb set (mine, digit, confirm, panel up/down) maps one-button-per-verb
+with digits riding the on-screen keypad that already exists (or a D-pad).
+The honest cost notes: the web bundle is RN-web, whose responder system
+doesn't poll gamepads, so the web leg is a thin web-only module; the
+Android leg gets DPAD / controller keys *free* on ChromeOS and TV (the
+platform's input-compatibility layer delivers them to Android apps —
+verifiable on one device, no new infrastructure); the iOS leg is the only
+genuine native module (GameController framework). Trigger-gated per the
+pass-11/12 discipline: a handheld/desktop signal from the pass-12
+web-cohort instrumentation, or a player ask — not FOMO. Candidate, not
+planned.
+- **Keyboard operability past the answer field is the cheap 80 % — and
+the load-bearing accessibility step** — today the only keyboard surface is
+the answer field (autofocused, numeric, Enter submits); the HUD icon row,
+panels, and keypad are pointer targets, and no `tabIndex` / focus
+management exists anywhere in `src/` — so a web-desktop player (the
+monetization surface pass 12 made first-class) drives the whole game with
+a mouse, and a keyboard-only or switch-access user is stuck at the HUD.
+Two steps, in order: (1) *verify* — with a keyboard only, can a player
+tab through the menu panels, open the shop, and buy on the shipped web
+build? RN-web gives `Pressable`s default focus semantics in many cases, so
+this check is discipline, not code; (2) if the walk finds holes, the fix
+is standard focus/tab-order props on the affected rows. It is
+load-bearing for the reason the input-methods research (Rizzo et al.,
+"Playdate", IJHCI 2016) makes explicit: no single alternative input
+method wins across players and tasks — what keeps a game playable is a
+*small, remappable verb vocabulary*, and both platforms' OS stacks
+(iOS Eye Control / AssistiveTouch, Android Accessibility Suite / switch
+control) arrive through exactly the keyboard/pointer semantics this step
+guarantees. Ours — hold, digit, confirm — is already the study's
+adaptable shape; this step is what makes that true from a keyboard. The
+gamepad item above also routes through this seam. Candidate (verification
+first), not planned.
+
 ### Monetization benchmarks (pass 6 — revenue-side targets for guardrail 5)
 
 The GameGrowthAdvisor F2P-monetization comparison (2026, rebuilt against
@@ -1164,5 +1412,11 @@ the first amendment since 2013 and reshapes the S6 age-rating decision
   Paid-UA creative and audience-segmented store pages — gated by
   guardrail 5 (measure before scaling); see the pass-10 canon pins in
   "Store presence & the pre-install layer".
+- Device-motion input (shake-to-X tropes — the accelerometer is the one
+  input a motor-impaired player cannot use, and no verb here would need
+  it), landscape / dual-thumb (no dual-stick genre; the
+  portrait-is-canonical pin), and voice / social input (no real-time
+  social surface exists) — pass 13, the input-side absences.
+
   These show up on genre checklists and are listed here so future passes
   don't "discover" them as missing.

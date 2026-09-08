@@ -12,16 +12,6 @@ const BASE = "https://pb.example.test";
 const PK = "pk_test_abc123";
 const STORE_ID = IAP_STORE_IDS.packGold;
 
-type RedirectParams = {
-  mode: string;
-  lineItems: { price: string }[];
-  successUrl: string;
-  cancelUrl: string;
-  allowPromotionCodes?: boolean;
-  metadata?: Record<string, string>;
-  clientReferenceId?: string;
-};
-
 type RedirectClient = { redirectToCheckout: jest.Mock };
 
 /** Fresh module registry for the web provider + its config siblings.
@@ -88,10 +78,17 @@ type FakeWindow = {
   Stripe?: () => RedirectClient;
 };
 
-function makeWindow(overrides: { Stripe?: () => RedirectClient } = {}) {
+function makeWindow(
+  overrides: { Stripe?: () => RedirectClient; pathname?: string } = {},
+) {
   const created: FakeScript[] = [];
   const win: FakeWindow = {
-    location: { origin: "https://mine.test" },
+    location: {
+      origin: "https://mine.test",
+      ...(overrides.pathname !== undefined
+        ? { pathname: overrides.pathname }
+        : {}),
+    },
     ...overrides,
     document: {
       querySelector: () => null,
@@ -180,43 +177,67 @@ describe("web provider: gating", () => {
 });
 
 describe("web provider: purchase redirect", () => {
-  it("redirects to hosted Checkout with the product's price + metadata", async () => {
+  it("requests the session from the sidecar, then redirects with ONLY the session id", async () => {
     const { storeConfig, web, freshIds } = loadWeb();
     configureStripe(storeConfig, freshIds);
     const client: RedirectClient = { redirectToCheckout: jest.fn().mockResolvedValue({ id: "cs_1" }) };
     const { win } = makeWindow({ Stripe: () => client });
     setWindow(win);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ sessionId: "cs_test_abc" }),
+    });
 
     await expect(web.storeIapProvider.purchase("packGold")).resolves.toBe(
       "purchased", // redirect started — NOT a payment confirmation
     );
 
+    // Leg 1: the session-creation POST (device binding + product only —
+    // the Price id and return URLs live on the server).
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as [string, object];
+    expect(url).toBe(`${BASE}/stripe/checkout`);
+    const body = JSON.parse((init as { body: string }).body);
+    expect(body.productId).toBe("packGold");
+    expect(body.deviceId).toMatch(/^dev-/);
+    // Leg 2: the redirect carries ONLY the session id (Stripe's current
+    // validator rejects any other param alongside sessionId).
     expect(client.redirectToCheckout).toHaveBeenCalledTimes(1);
-    const p: RedirectParams = client.redirectToCheckout.mock.calls[0][0];
-    expect(p.mode).toBe("payment");
-    expect(p.lineItems).toEqual([{ price: "price_packGold" }]);
-    expect(p.successUrl).toContain("https://mine.test/?iap=success");
-    expect(p.successUrl).toContain("iap_product=packGold");
-    expect(p.successUrl).toContain("{CHECKOUT_SESSION_ID}");
-    expect(p.cancelUrl).toContain("?iap=cancel");
-    expect(p.allowPromotionCodes).toBe(false);
-    expect(p.metadata?.mdoomProductId).toBe("packGold");
-    expect(p.metadata?.mdoomDeviceId).toMatch(/^dev-/);
-    expect(p.clientReferenceId).toBe(p.metadata?.mdoomDeviceId);
+    expect(client.redirectToCheckout.mock.calls[0][0]).toEqual({
+      sessionId: "cs_test_abc",
+    });
   });
 
-  it("tags the session token into the metadata when signed in", async () => {
+  it("resolves 'error' and never redirects when the sidecar refuses the session", async () => {
     const { storeConfig, web, freshIds } = loadWeb();
     configureStripe(storeConfig, freshIds);
-    const client: RedirectClient = { redirectToCheckout: jest.fn().mockResolvedValue({ id: "cs_1" }) };
+    const client: RedirectClient = { redirectToCheckout: jest.fn() };
     const { win } = makeWindow({ Stripe: () => client });
     setWindow(win);
+    // Non-2xx (e.g. the price map is not configured on the server).
+    fetchMock.mockResolvedValue({ ok: false, json: async () => ({}) });
 
-    await web.storeIapProvider.purchase("packGold", "sess_tok");
-    expect(
-      (client.redirectToCheckout.mock.calls[0][0] as RedirectParams).metadata
-        ?.mdoomSession,
-    ).toBe("sess_tok");
+    await expect(web.storeIapProvider.purchase("packGold")).resolves.toBe(
+      "error",
+    );
+    expect(client.redirectToCheckout).not.toHaveBeenCalled();
+  });
+
+  it("resolves 'error' when the sidecar reply has no valid session id", async () => {
+    const { storeConfig, web, freshIds } = loadWeb();
+    configureStripe(storeConfig, freshIds);
+    const client: RedirectClient = { redirectToCheckout: jest.fn() };
+    const { win } = makeWindow({ Stripe: () => client });
+    setWindow(win);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ sessionId: "not-a-session" }),
+    });
+
+    await expect(web.storeIapProvider.purchase("packGold")).resolves.toBe(
+      "error",
+    );
+    expect(client.redirectToCheckout).not.toHaveBeenCalled();
   });
 
   it("resolves 'error' when the redirect rejects (hosted page never opened)", async () => {
@@ -228,6 +249,10 @@ describe("web provider: purchase redirect", () => {
     const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
     const { win } = makeWindow({ Stripe: () => client });
     setWindow(win);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ sessionId: "cs_test_abc" }),
+    });
 
     await expect(web.storeIapProvider.purchase("packGold")).resolves.toBe(
       "error",
@@ -238,6 +263,10 @@ describe("web provider: purchase redirect", () => {
   it("resolves 'error' when there is no window (never throws)", async () => {
     const { storeConfig, web, freshIds } = loadWeb();
     configureStripe(storeConfig, freshIds);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ sessionId: "cs_test_abc" }),
+    });
     await expect(web.storeIapProvider.purchase("packGold")).resolves.toBe(
       "error",
     );
@@ -249,6 +278,10 @@ describe("web provider: purchase redirect", () => {
     const client: RedirectClient = { redirectToCheckout: jest.fn().mockResolvedValue({ id: "cs_1" }) };
     const { win, created } = makeWindow(); // no window.Stripe yet
     setWindow(win);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ sessionId: "cs_test_abc" }),
+    });
 
     const pending = web.storeIapProvider.purchase("packGold");
     await settle();

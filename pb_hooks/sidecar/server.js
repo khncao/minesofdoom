@@ -53,6 +53,16 @@
  *                              (checkout.session.completed → /stripe/webhook
  *                              on THIS port; Caddy fronts the public URL).
  *                              Empty → /stripe/webhook refuses everything.
+ *   MDOOM_STRIPE_PRICE_MAP    JSON { internalProductId: "price_…" } — the
+ *                              server-side Price source for the browser
+ *                              POST /stripe/checkout (hosted-session
+ *                              creation). The client never supplies a
+ *                              Price id. Empty/malformed → that route
+ *                              refuses everything (fail closed).
+ *   MDOOM_WEB_BASE_URL        https origin+base path of the deployed web
+ *                              app (no trailing slash) — the hosted
+ *                              page's success/cancel return URLs. Must be
+ *                              https for /stripe/checkout to arm.
  *   MDOOM_PB_URL               internal Pocketbase base URL — after a valid
  *                              signature the event is forwarded verbatim to
  *                              Pocketbase's /api/app/stripe/webhook (which
@@ -70,6 +80,7 @@ const {
   verifyPurchase,
   verifyIdentity,
   verifyStripeWebhookSignature,
+  createStripeCheckoutSession,
 } = require("./verify.js");
 
 const TIMEOUT_MS = 15000;
@@ -124,6 +135,20 @@ function startServer({ env = process.env, listen = true, fetch: injectedFetch = 
   // (fail closed — a webhook that can't verify can't mint).
   const webhookSecret = String(env.STRIPE_WEBHOOK_SECRET || "").trim();
   const pbUrl = String(env.MDOOM_PB_URL || "").trim().replace(/\/+$/, "");
+  // Browser-facing CORS. /stripe/checkout is the ONLY route the deployed web
+  // app calls cross-origin (GH Pages origin → this sidecar); every other
+  // route is server-to-server (Pocketbase, Stripe) and needs no CORS. The
+  // allowed origin is the ORIGIN part (scheme+host) of MDOOM_WEB_BASE_URL —
+  // the same env that arms the route, so an unconfigured sidecar allows NO
+  // origin (fail closed, matching the route's own all-or-nothing rule).
+  let webCorsOrigin = null;
+  if (cfg.webBaseUrl) {
+    try {
+      webCorsOrigin = new URL(cfg.webBaseUrl).origin;
+    } catch {
+      webCorsOrigin = null; // malformed base URL → no origin allowed
+    }
+  }
 
   // fetch with a hard timeout; every external call dies at TIMEOUT_MS.
   const baseFetch = injectedFetch || globalThis.fetch;
@@ -280,9 +305,80 @@ function startServer({ env = process.env, listen = true, fetch: injectedFetch = 
     return json(res, 502, { error: "pocketbase error", upstream: up.status });
   }
 
+  // The browser-facing checkout-creation route. The client posts its
+  // device id + the internal product id; the server picks the Price from
+  // its own map (the client never sees or supplies a Price id) and
+  // returns the session id for stripe.redirectToCheckout({ sessionId }).
+  // Unauthenticated by design: the caller is the public web app. It mints
+  // nothing — the grant still requires a PAID session confirmed against
+  // the Stripe API (the /stripe/webhook mint and the return-visit verify).
+  async function handleStripeCheckout(req, res) {
+    if (!cfg.stripe || !cfg.stripePriceMap || !cfg.webBaseUrl) {
+      return json(res, 400, { error: "checkout not configured" });
+    }
+    let raw;
+    try {
+      raw = await readBody(req);
+    } catch {
+      return json(res, 400, { error: "body too large" });
+    }
+    let body;
+    try {
+      body = JSON.parse(raw || "{}");
+    } catch {
+      return json(res, 400, { error: "body must be JSON" });
+    }
+    const { deviceId, productId } = body || {};
+    // deviceId feeds the session's device-binding metadata; productId is
+    // an allowlist key into the server's price map. Both are echoed into
+    // Stripe metadata, so keep them short and character-allowlisted.
+    if (typeof deviceId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(deviceId)) {
+      return json(res, 400, { error: "invalid deviceId" });
+    }
+    if (typeof productId !== "string" || !Object.prototype.hasOwnProperty.call(cfg.stripePriceMap, productId)) {
+      return json(res, 400, { error: "invalid productId" });
+    }
+    let out;
+    try {
+      out = await createStripeCheckoutSession(
+        cfg.stripe,
+        cfg.stripePriceMap,
+        cfg.webBaseUrl,
+        productId,
+        deviceId,
+        { fetch: fetchImpl, nowSec: Date.now() / 1000 },
+      );
+    } catch (err) {
+      console.error("[sidecar] stripe checkout crashed:", err);
+      return json(res, 500, { error: "internal error" });
+    }
+    if (!out.ok) {
+      console.warn(`[sidecar] stripe checkout REFUSED product=${productId}: ${out.reason}`);
+      return json(res, 502, { error: out.reason });
+    }
+    return json(res, 200, { sessionId: out.sessionId });
+  }
+
   const server = http.createServer(async (req, res) => {
     try {
       const url = (req.url || "/").split("?")[0];
+      // CORS: answer the browser's preflight for a same-web-app origin and
+      // stamp the allow-origin header on the real response. setHeader'd CORS
+      // fields survive the later res.writeHead(...) in json(), which merges
+      // rather than clears. A non-matching origin gets no CORS headers and
+      // the request falls through to the normal (405 / auth) handling.
+      const origin = req.headers["origin"];
+      if (webCorsOrigin && typeof origin === "string" && origin === webCorsOrigin) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+        res.setHeader("Vary", "Origin");
+        res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+        if (req.method === "OPTIONS") {
+          res.setHeader("Access-Control-Max-Age", "86400");
+          res.writeHead(204);
+          return res.end();
+        }
+      }
       if (req.method === "GET" && url === "/healthz") {
         return json(res, 200, {
           ok: true,
@@ -290,6 +386,7 @@ function startServer({ env = process.env, listen = true, fetch: injectedFetch = 
             android: !!cfg.play,
             ios: !!cfg.apple,
             web: !!cfg.stripe,
+            stripeCheckout: { priceMap: !!cfg.stripePriceMap, webBaseUrl: !!cfg.webBaseUrl },
             stripeWebhook: { signature: webhookSecret.length > 0, pocketbase: pbUrl.length > 0 },
             identity: { google: !!cfg.googleClientId, apple: !!cfg.appleBundleId },
           },
@@ -305,6 +402,9 @@ function startServer({ env = process.env, listen = true, fetch: injectedFetch = 
       }
       if (req.method === "POST" && url === "/stripe/webhook") {
         return await handleStripeWebhook(req, res);
+      }
+      if (req.method === "POST" && url === "/stripe/checkout") {
+        return await handleStripeCheckout(req, res);
       }
       return json(res, 405, { error: "not found" });
     } catch (err) {
