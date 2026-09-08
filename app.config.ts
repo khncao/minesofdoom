@@ -94,5 +94,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   // dist/assets/*), otherwise "assets/index" imports don't resolve.
   experiments: {
     tsconfigPaths: true,
+    // The web app is deployed to a GitHub Pages project subpath
+    // (https://khncao.github.io/minesofdoom), so the static export must
+    // emit asset URLs under /minesofdoom — without this the HTML
+    // referenced /_expo/... at the domain root and the deployed app
+    // rendered blank (found 2026-09-08 while testing Stripe checkout
+    // in a real browser).
+    baseUrl: "/minesofdoom",
   },
 });
