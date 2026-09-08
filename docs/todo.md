@@ -27,13 +27,18 @@ Completed items are removed from this file (see git history); only remaining wor
   end to end: sidecar `/healthz` → `configured.web: true` +
   `stripeWebhook: {signature: true, pocketbase: true}`; a properly-signed
   synthetic event mints nothing for an unknown session (fail closed) and
-  a bad signature is refused at the sidecar. **Remaining:** step 6 of
-  docs/store-integration.md §2.6 — one test-card purchase through hosted
-  Checkout (4242… card, test mode) confirming the redirect grant AND the
-  webhook's idempotent backup mint for the same (device, product) row;
-  then the sk_live flip at launch (re-run both sync commands with a
-  `sk_live_` key + `--live`, re-paste the price map, re-sync the webhook
-  secret — the endpoint URL is the same, the secret changes per key).
+  a bad signature is refused at the sidecar. Step 6 of
+  docs/store-integration.md §2.6 **verified 2026-09-08**:
+  `scripts/stripe/checkoutTest.mjs` drove a hosted Checkout session end
+  to end (a no-cost order under the script's blank-card policy — no card
+  number is ever sent; the documented no-cost-orders sandbox flow),
+  confirming the redirect grant (client verify fetch → HTTP 200) AND the
+  webhook's idempotent backup mint for the same (device, product) row —
+  session `complete`/`paid`, exactly 1 `pack_gold` row (session
+  `cs_test_a1f0WT…`, device `mdoom-step6-mtstwwil`). **Remaining:** the
+  sk_live flip at launch (re-run both sync commands with a `sk_live_`
+  key + `--live`, re-paste the price map, re-sync the webhook secret —
+  the endpoint URL is the same, the secret changes per key).
 
 - [o] audit project security and compliance — **reviewed + `docs/security-audit.md`**
     (fail-closed verify, device-scoped private collections, no secrets in
@@ -68,4 +73,3 @@ yet (internal track 1.0.8 only), so nothing published to verify; Play
 Developer API v3 no longer exposes content ratings (top-level app
 endpoint 404s, `edits.details` carries none) — the questionnaire is a
 Play Console UI step BEFORE the first production release.
-

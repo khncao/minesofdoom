@@ -20,9 +20,10 @@ on fresh installs.
 
 **Remaining external items:** (1) the iOS `APPLE_*` App Store Connect
 API key for the sidecar (`docs/backlog.md`, iOS section), and (2) the
-Stripe **step-6 test-card purchase** (`todo.md` — one 4242… hosted-
-Checkout purchase confirming the redirect grant + the webhook's
-idempotent backup mint, then the `sk_live` flip at launch). The web
+Stripe **`sk_live` flip at launch** (`todo.md` — step-6 test purchase
+is **done 2026-09-08**: `scripts/stripe/checkoutTest.mjs` confirmed the
+redirect grant + the webhook's idempotent backup mint for the same
+(device, product) row via a no-cost hosted-Checkout order). The web
 Stripe + AdSense console side that used to sit here has LANDED: Stripe
 test mode is fully configured (`syncStripe.mjs products` + `webhook`,
 sidecar `/healthz` → `configured.web: true` +

@@ -22,7 +22,7 @@ findings are low-severity hardening (S2) and compliance (S4 privacy policy,
 S6 kid-safety) items.
 
 | # | Severity | Finding | Status |
-|---|----------|---------|--------|
+| --- | ---------- | --------- | -------- |
 | S1 | Medium | Session tokens / password salts / account ids minted from `Math.random` (a PRNG, not a CSPRNG) | **Fixed** (this iteration) |
 | S2 | Low | Stripe webhook is unauthenticated and not per-request rate-limited | **Fixed** (this iteration) |
 | S3 | Low | Email/password hashed with single-iteration SHA-256 (no KDF) | **Fixed** (this iteration) |
@@ -88,7 +88,7 @@ hex chars), so it is a drop-in for the existing call sites (session token
 behavior — strictly an improvement, never a regression.
 
 Verified: `pb_hooks/__test__/secureRandom.test.js` (CSPRNG path + fallback path
-+ shape/length + non-constant across calls), and the handler test mock now
+- shape/length + non-constant across calls), and the handler test mock now
 mirrors the real `$security`. Full suite: 801 tests green.
 
 **Residual.** None in practice — current Pocketbase ships
@@ -158,7 +158,7 @@ existing rows, `verifyPassword` still accepts the legacy `sha256:` form, and
 `handleAuthLogin` **transparently re-hashes to the KDF on the next successful
 login** (same salt, no user action, no lockout) — so no migration is required.
 
-Verified: `logic.test.js` (KDF round-trip, wrong-password, determinism / 
+Verified: `logic.test.js` (KDF round-trip, wrong-password, determinism /
 iteration- and salt-sensitivity, 1-iteration == plain sha256, legacy still
 verifies + `passwordNeedsUpgrade` flag, malformed never verifies). Full suite:
 803 tests green.
@@ -206,6 +206,7 @@ Ads are **rewarded-only** (guardrail 2) — no banners or interstitials — and 
 Android AdMob App ID is set while the iOS one is still empty. The web AdSense
 banner is shop-sheet-only, labeled, and gated behind explicit config. Because a
 math idle game skews young, confirm for the chosen age rating:
+
 - The Play App Content rating and App Store age rating.
 - Whether the AdMob SDK's `TAG_FOR_CHILD_DIRECTED_TREATMENT` flag should be set
   for that rating (guarded by the platform's policy on child-directed ads).

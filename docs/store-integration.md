@@ -471,8 +471,22 @@ started") from ever being mistaken for a confirmed payment.
    `pk_`/`price_` ids, and the sidecar env (`STRIPE_SECRET_KEY`,
    `STRIPE_WEBHOOK_SECRET`, `MDOOM_PB_URL`) landed on the VPS with the
    sidecar `/healthz` reporting `configured.web: true` +
-   `stripeWebhook: {signature: true, pocketbase: true}`. Remaining: step
-   6 (test-card purchase) and the sk_live flip at launch.
+   `stripeWebhook: {signature: true, pocketbase: true}`. Step 6 is
+   **verified 2026-09-08** — `node scripts/stripe/checkoutTest.mjs`
+   drove a hosted Checkout session end to end (a no-cost order — the
+   script's blank-card policy, the documented
+   `docs.stripe.com/payments/checkout/no-cost-orders` sandbox flow —
+   so no card number is ever sent): the hosted page completed, the
+   return navigation carried `?iap=success&iap_sid=cs_…` back, the
+   session reached `complete` / `payment_status: paid` (no PaymentIntent
+   for no-cost, as documented), the **webhook leg** minted the
+   `pack_gold` entitlement row (restore visible ~1s after completion)
+   and the **redirect leg** (the exact client verify fetch) returned
+   HTTP 200 upserting the SAME row — exactly 1 row, idempotently. The
+   real paid session-creation route (`--via-sidecar` → the sidecar's
+   `POST /stripe/checkout`) is verified for session creation; it cannot
+   be driven to completion by the script (blank card is policy). The
+   only remaining step is the `sk_live` flip at launch.
 
    **Steps 1–2 are scriptable** — `node scripts/stripe/syncStripe.mjs
    products` (idempotent, creates the 26 products + prices from
@@ -510,10 +524,17 @@ started") from ever being mistaken for a confirmed payment.
 5. **Deploy:** rebuild the web export (`npm run deploy`) and reload the
    sidecar (new env). The IAP panel appears in the web shop sheet only
    once both the URL and the full Stripe block are set.
-6. **Test with a Stripe test key + test card** (`pk_test_…`/
-   `sk_test_…`): buy a pack, confirm the redirect back grants it via
-   `restore()`, and confirm the webhook also minted the same (device,
-   product) row idempotently. Then flip to live keys for launch.
+6. **Test with a Stripe test key** (`pk_test_…`/
+   `sk_test_…`): `node scripts/stripe/checkoutTest.mjs` drives the whole
+   leg — a no-cost order (blank-card policy; the script never sends a
+   card number) through hosted Checkout, then confirms the redirect back
+   grants the entitlement via the client verify fetch AND the webhook
+   minted the same (device, product) row idempotently (exactly 1 row).
+   **DONE 2026-09-08** (see the status block above; session
+   `cs_test_a1f0WT…`). Then flip to live keys for launch — re-run both
+   `syncStripe.mjs` commands with a `sk_live_` key + `--live`, re-paste
+   the price map into `storeConfig.ts`, and re-sync the webhook secret
+   (the endpoint URL is the same; the `whsec_` secret changes per key).
 
 **Why hosted Checkout and not Payment Element:** it keeps all
 PCI-scoped card fields on Stripe's page (lowest cardholder-data
