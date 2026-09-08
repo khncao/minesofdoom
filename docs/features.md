@@ -12,7 +12,11 @@ Mind Studios idle-clicker design/monetization guide, Various Cloud +
 GameNeAI mobile-accessibility playbooks;
 2026 pass 4: Duolingo streak-system teardown (deconstructoroffun),
 PlayIO D1/D7/D30 retention benchmarks 2026, GameAnalytics 2025 retention
-report (11,600 games / 1.48B MAU), math-app gamification roundups). Items
+report (11,600 games / 1.48B MAU), math-app gamification roundups;
+2026-09 pass 5: the idle-game prestige canon — Pecorella "The Math of
+Idle Games, Part III" (Game Developer) via a 2026-07 prestige-math/
+progression-pacing canon report, MissionsSanx prestige-layer guide,
+AppFollow 2026 retention/review-signal workflow). Items
 adopted from that list move into `docs/todo.md`.
 
 ## 1. Core gameplay
@@ -322,12 +326,34 @@ genre-impact; anything picked up goes into `docs/todo.md`.
   (e.g. goal-directed resource routing), not replace them.
 - **Multi-layer prestige / ascension** — single multiplier bank (6 levels);
   big idle games add a second meta-axis (ascension points → new tree).
-  Bigger design lift than the single-shaft reset.
+  Bigger design lift than the single-shaft reset. Pass 5 pins the shape
+  against the prestige canon (Pecorella, "The Math of Idle Games, Part
+  III", via the 2026-07 canon report): two families — **lifetime-stats**
+  (Cookie Clicker heavenly chips; currency from cumulative earnings) vs
+  **since-reset** (Egg, Inc., Clicker Heroes; fresh currency per run —
+  rewards active play, staircase tiers). Ours is lifetime-stats, and a
+  **finite fixed table** (6 thresholds, ×1 → ×5) rather than a curve: the
+  canon's steepness table (Realm Grinder quadratic → 4× the previous run
+  to double currency; AdVenture Capitalist √ → 3–4×; Cookie Clicker ∛ →
+  8×; Egg, Inc. 1/7-power → 128×) is the cost of another reset — ours
+  costs nothing once a threshold is hit, and the top level makes the
+  prestige axis *end* (canon: "when prestige is over, players leave").
+  Its named countermeasure is a **second-axis surprise** (AdVenture
+  Capitalist's Angels, Paperclips phase shifts) so a reset reads as a
+  new game, not a taller one — that is the concrete candidate shape
+  for this item, layered on the existing single bank, and it's where the
+  narrative-flavor layer above would attach (prestige as the story
+  beat, not just a number).
 - ~~**Random in-game events**~~ — **DONE 2026-09** (todo "random
   in-game events"): the gem pocket — a rare tap-to-collect bonus node in
   the cave (`gemPocket.ts`, `hooks/useGemPocket.ts`, rendered in
-  `components/MiningCanvas.tsx`). See §2 "Gem pocket".
-- **Adaptive difficulty / mastery tiers** — pass 4. The equation
+  `components/MiningCanvas.tsx`). See §2 "Gem pocket". Pass 5 (canon):
+  the genre's variable-ratio "spice" — Cookie Clicker's golden cookie,
+  5 %/min spawn, 13 s lifetime, weighted rarity — is the canon's
+  dopamine-schedule pattern; our pocket sits at the same spawn order
+  (1/120 per 1 s ≈ 5 %/min, 30 s lifetime), so a rarity-weighted pocket
+  pool is the documented growth path for this item if it's ever picked
+  up. — pass 4. The equation
   difficulty is static per player setting: a number range + optional
   hard mode, chosen once in settings and unchanged by performance.
   The math-engagement research line (spaced-repetition / mastery apps)
@@ -398,6 +424,19 @@ these are the numbers to compare that data to):
   Arcade fades fast; puzzle/board/idle "frequently match or beat
   RPG-level numbers at D7 and D30" — the most favorable genre fit for
   a math-idle.
+- **Name the retention definition before comparing** (AppFollow 2026):
+  classic retention counts players active on *exactly* day N; rolling
+  counts day-N-or-later and always reads higher — a top reason two
+  studios quoting "D7" disagree. `analytics.ts` carries the raw events;
+  state the definition when the D1/D7 numbers land. Same piece's churn-
+  diagnosis workflow, which the dashboard can't do: track store **review
+  / rating themes per app version** — economy complaints, repetitive
+  events, and first-session (FTUE) friction surface in reviews *before*
+  cohorts explain the drop, and FTUE difficulty spikes are a named D1
+  driver (the onboarding overlay + skip is the current FTUE surface).
+  Cheap habit: when a cohort drops, read the review window of the
+  release that shipped before it (`npm run play` covers listings,
+  not reviews — that leg is manual until the CLI gains it).
 
 ### Player-facing surfaces
 

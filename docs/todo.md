@@ -47,24 +47,3 @@ Completed items are removed from this file (see git history); only remaining wor
     GIS/Apple legs remain manual (`docs/blockers.md`).
     Only open follow-up: S6 (kid-safety/age rating — external store check).
 
-- [x] IAP — entitlements re-derive from the store's own record after a local
-    data loss ("iap not persisting on android" fix): the store provider now
-    implements `reconcileStore()` (expo-iap `getAvailablePurchases`), called
-    once on launch (silent, after the entitlement storage load lands) — the
-    panel has NO manual Restore button: the launch reconcile IS the sync.
-    It re-grants
-    owned products, re-acks leftover un-acked records, and re-verifies each
-    token so the server row re-mints under the device's CURRENT id — the
-    only restore path that works for anonymous players after a wipe (their
-    server rows are keyed by the old device id). Unit-tested in
-    iapProvider.test.ts + useIap.test.ts (863 tests green).
-- [x] IAP — on-device verification of the above: **DONE 2026-09-08** —
-    the transient emulator billing-egress condition cleared on its own and
-    the FULL wipe leg passed on mines-play-35 (1.0.8 / c04e03b debug APK):
-    `pm clear` → `maestro test maestro/adhoc/iap-wipe-verify.yaml` →
-    reconcileStore re-derived the owned Gold Pickaxe from the store record
-    alone (production bundle, no dev toggle — the optional toggle steps
-    WARN by design). Purchase leg (2026-09-06) + build leg + wipe leg all
-    green; see the "RESOLVED 2026-09-08" note in `docs/blockers.md`.
-    (Completed items are removed next cleanup pass — kept one pass as the
-    unblock record.)
