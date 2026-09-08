@@ -23,7 +23,12 @@ AppsFlyer 2025–26 monetization analysis, TopOn H1-2025 ad-format data,
 Sensor Tower IAP totals, Lancaric hybrid-casual App Store analysis,
 Liftoff casual ROAS) and the FTC COPPA 2025 final rule (Federal
 Register 2025-04-22, now in full effect) as the S6 kid-safety decision
-input). Items
+input;
+2026-09 pass 7: first-session / FTUE research — PlayIO "Onboarding
+Decides Your D1" (FTUE funnel metrics → D1), LoadoutLore "Skip to
+Play" (the tutorial-skip generation, 2026), NastyRodent "Onboarding
+and FTUE Design: The AAA Production Playbook" (push vs pull
+revelation, minimum viable rule set). Items
 adopted from that list move into `docs/todo.md`.
 
 ## 1. Core gameplay
@@ -444,6 +449,73 @@ these are the numbers to compare that data to):
   Cheap habit: when a cohort drops, read the review window of the
   release that shipped before it (`npm run play` covers listings,
   not reviews — that leg is manual until the CLI gains it).
+
+### FTUE / first session (pass 7 — the D1 driver the benchmarks named)
+
+Pass 4 named "FTUE difficulty spikes" a D1 driver but never audited
+our FTUE surface against first-session research; this pass is that
+audit. The current surface: a **4-step static overlay before the first
+dig** — three text tips (equations, combo, miners) plus a first-time
+setup step (equation types, × / ÷ symbols, keypad style) — skippable
+at any point, dismissal persisted as a single boolean
+(`components/OnboardingOverlay.tsx`; the flag is the ONLY onboarding
+telemetry that exists — no per-step or per-event data). The 2026
+first-session literature's shape: **tutorial ⊂ onboarding ⊂ FTUE**
+(FTUE = everything from launch to a working mental model of the game,
+~10–60 min; the tour is one implementation, not the discipline);
+mobile players get ~2–3 minutes to prove value, **core gameplay
+within 60 s of install**, an "aha" within 90 s; studios shipping
+isolated pre-game tutorial sequences see ~40 % hour-one drop-off, and
+the fix is teaching woven into early play, not a better tour.
+
+- **FTUE funnel instrumentation is absent** — the pass-7 metrics to
+  add (guardrail 5's first-class D1 input): time-to-core-gameplay
+  (baseline 60 s), **per-step drop-off** ("12 % leave at step three"),
+  tour completion rate, first-session length, and **session 1→2
+  conversion** — the literature's direct leading indicator of D1. Read
+  as a step funnel, never as an average. Today the dismiss flag
+  can't even say WHICH of the four steps churns. Cheap first step:
+  the events into the existing `analytics.ts` local logger; the
+  numbers are what decide whether any of the items below are worth
+  doing.
+- **The current tour is the research's anti-pattern** — four
+  front-loaded static text screens *before* play are the exact
+  "static text box / training room" pattern the skip-generation
+  literature blames for the Pavlovian skip (players trained on
+  2000s–2010s forced tutorials now skip on instinct, often before
+  reading the prompt). The same literature caps the first-run tour
+  at **two steps** and prefers **pull revelation** (contextual,
+  state-triggered hints — the tooltip appears when the thing becomes
+  relevant) over push (modals: "skipped often, remembered poorly").
+  The three tips are the natural demotees: a nudge when the combo
+  first ignites, when the first miner first becomes affordable, when
+  the first depth change fires — in-world, one contextual hint each,
+  no tour. Candidate, not planned.
+- **The setup step vs. the "defer settings" rule** — the first-time
+  setup BEFORE the first dig was an explicit prior todo; first-session
+  research says defer settings until after the first win and land the
+  aha within 90 s. A genuine tension between the two sources, not a
+  bug in either. If this is ever picked up, the funnel item above is
+  what decides it (dismiss → first-solve time per path); a possible
+  middle: keep setup, but after the first solved equation rather
+  than before the first dig. Candidate, not planned.
+- **Design the skip path, not just the skip button** — "a skip that
+  dumps a genre-experienced player into a HUD with zero context is
+  its own churn source." Our skip goes straight to the full HUD; the
+  equation + keypad IS the minimum viable rule set (the idle-math
+  analogue of the playbook's "match three, get a reward" example), so
+  the exposure is smaller than in a system-heavy game — but the 2026
+  personalization trend (even a two-way **veteran-vs-new** split
+  "measurably cuts early churn") has a ready-made signal here: a
+  returner with a save, or a fast Skip tap, is the veteran. Candidate,
+  not planned.
+- **End-of-first-session hook** — research wants a visible early
+  milestone (a first goal, a level-up) plus a reason to come back by
+  the end of session 1. Ours: goal tier t1 is the first milestone in
+  reach, the daily bonus is the return hook, a day-1 push would be
+  the bridge (pairs with the home-screen widget item). Likely
+  sufficient on paper; the funnel item is what confirms it. Not a
+  candidate by itself.
 
 ### Monetization benchmarks (pass 6 — revenue-side targets for guardrail 5)
 
