@@ -40,7 +40,13 @@ Tideward offline-progression design note (alpha-tested offline UX);
 moment-of-return, reactivation measurement), XtremePush "Gamification
 for dormant player reactivation" (Apr 2026: dormancy tiers, comeback
 mechanics, cross-channel frequency caps), Pushwoosh game retention case
-studies (justDice / Bladestorm / Beach Bum). Items
+studies (justDice / Bladestorm / Beach Bum);
+2026-09 pass 10: store presence & the pre-install layer —
+GameGrowthAdvisor ASO-for-mobile-games guide (Apr 2026, a 50+ launch
+studio; qualitative + case studies), Digital Applied ASO-statistics 2026
+(collection consolidating AppTweak / Sensor Tower / AppFollow numbers),
+the Play Console store-listing-experiments page (official), and the
+Play Core in-app-review guide (official). Items
 adopted from that list move into `docs/todo.md`.
 
 ## 1. Core gameplay
@@ -740,6 +746,127 @@ number, exactly as pass 4 did for retention.
   win-back copy) and the **empty return** (capped haul + reset streak —
   the first two items of this pass).
 
+### Store presence & the pre-install layer (pass 10 — the segment before the funnel)
+
+Passes 7–9 audited everything from install onward; this pass audits the
+segment before the funnel: how a player finds the game, whether the
+listing converts the browse, and the rating cold start a brand-new app
+carries. Live audit (2026-09-11, `npm run play` against the Console +
+`src/`): the production track is **empty** (internal 1.0.8 only), the
+en-US listing is **title only** — no short description, no full
+description, no screenshots at any size, no other language — and the
+app has no in-app review prompt. So this is a launch checklist, not a
+gap list: most of it gates the production release itself, which is
+already gated on the S6 rating decision (`docs/security-audit.md`).
+Source-quality note per the pass-6 discipline: the two 2026 ASO pieces
+are a studio guide and a stats collection respectively (directions
+agree across all of them; treat magnitudes as illustrative, and keep
+the local logger as the only honest number, exactly as pass 4 did).
+
+- **The production listing is the first deliverable, and it is fully
+  CLI-drivable** — the research side: Play search is ~58% of installs
+  (Digital Applied 2026, AppTweak/Sensor Tower); Play has **no keyword
+  field** — the long description is fully indexed (that is the keyword
+  surface), title is 30 chars, short description 80; the first two
+  screenshots do most of the conversion work (54% of winning screenshot
+  tests won on the first screenshot; median winning-test lift 11.8%);
+  Play median tap-through-to-install is 27.7% with the Games category
+  at 34–41% — so a title-only listing with zero screenshots sits
+  structurally under the category floor. The work: an en-US short/full
+  description that uses the indexed long-description space, a
+  screenshot set leading with the core loop (the equation + the mine —
+  the game's hook — in the first two frames), and a ≤30 s video with
+  real gameplay inside the first 3 s; plus the **es-ES listing** — the
+  in-app i18n is already en/es, and the research calls cross-
+  localization the most underused ASO lever (54% of apps lack it). The
+  CLI covers all of it today (`set-listing`, `upload-image`); the only
+  non-CLI step is the rating questionnaire (S6), which is a UI gate
+  before the first production release anyway. Pre-launch todo for when
+  the S6 decision lands; expect ~2 weeks of re-indexing after metadata
+  changes before rankings stabilize (Sensor Tower, via the same
+  collection).
+- **The review cold start is the launch-week metric, and the prompt is
+  a real API** — the research side: 4.5+ star apps install 1.7× the
+  rate of sub-4.0 apps, the most recent 90 days of ratings weight
+  heaviest, Games is the highest-velocity category (18 reviews/1k
+  installs vs 4.2 across categories), and apps using in-app review
+  prompts get 2.8× the review velocity of unprompted — prompting is
+  the lever, and on Play it is a first-party API (Play Core in-app
+  review: Android 5.0+, Play Store present, no Console setup). Google's
+  exact rules, which pin the UX: trigger only after meaningful
+  engagement, **no call-to-action button** (the dialog can be
+  suppressed by quota and a button would present a broken experience),
+  **no questions before or during** ("would you rate 5 stars?" is
+  explicitly called out), and no more than roughly monthly attempts
+  (sub-month quota enforced by the platform). `src/` has zero review
+  surface (verified — no Play Core / SKStoreReviewController anywhere).
+  Candidate shape: a small native bridge module fired from a genuine
+  success moment (first achievement / first prestige — the pass-3
+  earned-grant discipline, never at launch, never a button), at most
+  one attempt per month; web has no equivalent (a store-link in the web
+  footer is the honest version). Candidate, not planned. Pairs with the
+  item below: 47% of negative reviews name a specific bug or crash,
+  so pre-launch bug triage is half of this item.
+- **The honest-listing rule is also a quality gate** — Play's ranking
+  now weighs retention, engagement, uninstall velocity, and Android
+  Vitals (crash / ANR / **battery drain**) ahead of install volume, and
+  the research is explicit that a listing whose screenshots promise a
+  different experience than the game delivers demotes the ranking via
+  uninstall velocity. Our exposure: an idle game that animates forever
+  (the shared clock in `utils/graphics/animationClock.ts` runs for the
+  app's lifetime; the ambient loop in `hooks/useSounds.ts` runs while
+  foregrounded) is exactly the battery-drain profile Vitals penalizes —
+  and the crash-log hook (`hooks/useCrashLog.ts`) plus the pass-4 review
+  workflow is the detection path. Pre-launch checklist, not a feature:
+  triage the crash log from the dev builds, and check the Vitals
+  baseline on the internal track before production ships. No new code
+  unless the numbers say there is.
+- **Review replies have an API but no tooling** — the Play Developer
+  API v3 exposes `edits.reviews` (list / get / **reply**), and
+  `scripts/play/play.mjs` has no reviews command (verified against the
+  CLI surface) — this is the exact gap pass 4 named when it made the
+  review-themes-per-version workflow "manual until the CLI gains it".
+  A `reviews` / `reviews-reply` pair of commands is cheap to add and
+  turns the pass-4 workflow ("when a cohort drops, read the review
+  window of the release that shipped before it") into a script; it also
+  gives the negative-review triage above a machine-readable source.
+  Candidate, not planned.
+- **Listing experiments are a post-launch, UI-only lever** — Play
+  Store Listing Experiments (official page): free, A/B over listing
+  text + graphics (Google names icons, videos, screenshots as the
+  high-impact assets), reports **acquisition and 1-day retention per
+  variant**, minimum one week (weekday/weekend), localized variants
+  allowed, email on declared winner. There is **no API surface** (the
+  official page names none; Developer API v3 has no experiments
+  endpoint) — it is UI work, the same class as the S6 rating
+  questionnaire. The 2026 experiment-hygiene literature pins the shape
+  for when it runs: write the decision rule before making variants
+  (audience, one primary metric, minimum useful effect, invalidation
+  events), test one asset family at a time, never stop at first peek,
+  and keep an experiment ledger (hypothesis, dates, market, assets,
+  guardrails, decision — neutral and negative results included). The
+  traffic reality decides the sequence: a solo pre-launch app has no
+  search traffic to split, so the practical order is variant assets
+  pre-launch → observe launch week → run experiments once search volume
+  exists. Play-specific caveat: a declared winner ships to ~85% and the
+  rest keeps re-randomizing, so lift attribution is noisier than on
+  Apple's product-page optimization.
+- **Canon pins (confirmed correct, not gaps):** (1) the **retention-
+  first ranking** — D1/D7/D30, engagement, uninstall velocity, and
+  Vitals ahead of install volume — is exactly what guardrail 5's
+  instrumentation (first ad view / IAP / D1 / D7 in
+  `analytics.ts`) measures; the local logger and the ranking
+  algorithm are watching the same numbers, so there is nothing to
+  build and no reason to game the listing. (2) the **honest-listing
+  rule** — "a misleading listing actively hurts ASO" (uninstall
+  velocity) is guardrail 4 at the store level: screenshot promises
+  must match the shipped game, and the no-dark-patterns guardrail
+  extends naturally to store assets. (3) the **audience-segmentation
+  surfaces** (Play's up-to-50 custom listings per app, Apple's CPPs)
+  and all paid-UA creative are gated by guardrail 5 — no UA spend
+  before the measurement lands — so they are deliberately absent,
+  not gaps.
+
 ### Monetization benchmarks (pass 6 — revenue-side targets for guardrail 5)
 
 The GameGrowthAdvisor F2P-monetization comparison (2026, rebuilt against
@@ -907,5 +1034,8 @@ the first amendment since 2013 and reshapes the S6 age-rating decision
 - Interstitials / native display ads — banned permanently (rewarded-only).
 - Fake scarcity / fake timers — banned (no dark patterns).
 - Pay-to-win gates — all content is free-path reachable (`freePath.ts`).
+  Paid-UA creative and audience-segmented store pages — gated by
+  guardrail 5 (measure before scaling); see the pass-10 canon pins in
+  "Store presence & the pre-install layer".
   These show up on genre checklists and are listed here so future passes
   don't "discover" them as missing.
