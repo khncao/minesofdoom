@@ -80,7 +80,20 @@ gap), the SimpleLocalize pseudo-localization guide (methodology +
 text-expansion estimates), and MDN on the Intl locale seams
 (`Intl.NumberFormat` compact notation, `Intl.Locale.getWeekInfo` — Hermes
 support flagged, not asserted). Items adopted from that list move into
-`docs/todo.md`.
+`docs/todo.md`;
+2026-09 pass 15: the math / difficulty layer — what the player is actually
+solving; the only layer passes 3–14 never audited (everything the player
+does, sees, types, and reads was audited; the content being typed was not).
+Tokac, Novak & Thompson "Effects of game-based learning on students'
+mathematics achievement: A meta-analysis" (J. Computer Assisted Learning
+35(3) 2019, peer-reviewed, 24 studies), the gamedesign.gg flow-theory
+reference (Jenova Chen's 2006 USC MFA thesis on the wider flow channel,
+DDA, player-directed difficulty — same source family as passes 8 and 13),
+Bardy, Holzäpfel & Leuders "Adaptive Tasks as a Differentiation Strategy in
+the Mathematics Classroom" (METED 23(3) 2021, open, full text read), and
+the Rocket Math automaticity FAQ (the standard accuracy → fluency →
+automaticity definition). Items adopted from that list move into
+`docs/todo.md`).
 
 ## 1. Core gameplay
 
@@ -1372,6 +1385,159 @@ seams — Hermes support flagged as unverified, not asserted.
 ladder stands; `i18n:formatters` is its locale-aware successor) and pass
 10's full store-listing audit (this pass only adds the es-ES listing
 candidate on top).
+
+### The math / difficulty layer (pass 15 — what the player is actually solving)
+
+Passes 3–14 audited everything the player does, sees, types, and reads;
+the layer none of them touched is the content being typed — the equations
+themselves. Live audit (2026-09-15, `src/utils/math/equations.ts`,
+`hooks/useEquations.ts`, `mines_of_doom/dailyEquation.ts`,
+`components/EquationDisplay.tsx`, `game.ts`): the generator is a
+guarantees-first machine — 7 toggleable shapes (×, +, −, ÷, %, ², ?) over a
+player-set `[min, max)` range (default: × only, [0, 12)), with integer,
+non-negative, exact answers by construction (subtraction swaps so a ≥ b;
+division picks a = b·k; percent bases are multiples of 100/p with p ∈
+{10, 25, 50}; ? is add/× only, whole answer ≥ 1; percent/²/? are
+soft-mode-only). The difficulty levers are exactly three, all
+player-directed and static: the range, the shape mix, and hard mode (3
+terms left-to-right, the classic four ops only, sub clamped, exact
+division at both steps). Nothing adapts to performance — and speed is
+deliberately unmeasured (the timed/streak modes were removed; the
+`useEquations.ts` comment says so), so difficulty here means shape
+complexity, never speed. The pay stack names difficulty explicitly: the
+engine pays **answer × op-premium × click power × combo × click-boost ×
+depth bonus × prestige** (`useGameEngine.ts: applyAnswerReward` — use
+"minerals"), with the op-premium ladder ÷ ×10, ² ×4, % ×3, ? ×3, − ×2, ×/+ ×1
+× hard-mode ×2 — so the range lever already has pay-for-difficulty built
+in (wider range → bigger answers → more minerals per solve). Two audit
+findings. (1) **The pending-gain readout understates the real payout by a
+factor of the answer's value.** `EquationDisplay` shows `correct: +{gain}`
+with gain = click-power × combo × op-premium only; the engine pays
+answer × that (and the floating "+N" on solve does include the answer). The
+`equation.pending` i18n copy carries no "per answer value" hint, and the
+display *has* the equation object, so the exact gain is computable — the
+understatement is an omission, not a constraint. (2) **The default range
+makes zero a legal operand:** with min = 0, ~16 % of the default × pool
+(1 − (11/12)², "0 · n" / "n · 0") plus 1/12 of the ² pool ("0²") degenerate
+to zero-answer equations that pay the `Math.max(1, …)` floor — trivially
+easy, trivially rewarded. Division is immune by construction (a = b·k, k ≥ 1).
+
+The research (four sources; quality notes at the end):
+
+- **What the meta-analysis actually says.** Tokac, Novak & Thompson
+  (JCAL 35(3) 2019, 24 studies, ~360 citations) find a "small but
+  marginally significant" overall effect of learning video games vs.
+  traditional instruction, with heterogeneity "in magnitude and direction"
+  — "a slightly effective instructional strategy." The honest consequence:
+  the math verb is an engagement/flavor choice, not a defensible learning
+  claim. Store copy and any future marketing should stay
+  entertainment-framed — which is also the posture the S6 13+ decision
+  implies (`docs/security-audit.md`). The research's value to this game is
+  what it says to optimize *for*: flow, not pedagogy.
+- **Flow / challenge calibration.** The flow channel sits between anxiety
+  (challenge above skill — the review voice "unfair") and boredom (challenge
+  below skill — "bored players don't complain. They just leave."). The cited
+  primary is Jenova Chen's 2006 USC MFA thesis: most games author ONE fixed
+  difficulty path while players arrive at different skills and learn at
+  different rates; the fix is a *wider* flow channel (multiple or adaptive
+  paths). The two canonical implementations are DDA (Resident Evil 4's
+  invisible performance score) and player-directed difficulty (Celeste's
+  Assist Mode). The audit implication: this game already ships the
+  player-directed version of the fix — range + shape mix + hard mode *is*
+  the player's own challenge menu — and it ships no DDA. The silent failure
+  mode here is boredom: an idle game's audience is by construction already
+  good at its active verb, so a player who is automatic at 2-term × in
+  [0, 12) sits in the boredom zone for the rest of the session unless they
+  move the levers themselves — which, per pass 4's retention data, most
+  casual players won't do unprompted. The pay stack (finding above) already
+  rewards moving the range lever; nothing tells the player the lever exists
+  in a way tied to their own performance.
+- **Automaticity.** The standard definition (Rocket Math FAQ, standard
+  across the practice-app literature): automatic = fast, accurate, without
+  conscious attention — the third stage after accuracy and fluency; its
+  function is freeing attention for higher-order work (a student without
+  fact automaticity can't run the fact *and* the procedure at once). The
+  design implication is a ladder this game already contains but never
+  narrates: 2-term facts (the accuracy → automaticity stage) → missing-number
+  (working the op backwards) → 3-term (hard mode is exactly the
+  higher-order stage automaticity exists to free you for). No in-game
+  surface tells the player the ladder exists or that they're ready for the
+  next rung.
+- **Differentiation by task feature.** Bardy, Holzäpfel & Leuders (METED
+  23(3) 2021, full text read): in practice-phase work the right unit of
+  "adaptive" is the task's features — 22 validated categories from operand
+  range to representation shape — and a task with *differentiation
+  potential* is done by heterogeneous learners at different levels at the
+  same time. This is the research anchor for pass 4's per-type mastery
+  tiers: not a different game, the same seven shapes at stepped ranges.
+
+- **`math:pending-gain`** — make the readout honest: `EquationDisplay`
+  already receives the full equation, so show the exact pending gain
+  (answer × premium × effective click-power × combo) or label the base as
+  such. Pure display change; the engine is untouched. Audit finding (1).
+  Candidate, not planned.
+- **`math:zero-operand`** — stop generating degenerate zero equations:
+  exclude 0 from multiplicative operands (and the ² operand) in
+  `generateTermsEquation`, or floor the *default* range at 1 for new saves
+  (existing saves keep their stored range — no migration). Pure generator
+  change, unit-testable. Audit finding (2). Candidate, not planned.
+- **`math:mastery`** — a per-type fact-table view: rolling accuracy on the
+  last N answers per enabled type (the records seam, `records.ts` tracks
+  lifetime answers, not per-type yet — that delta is the cost) plus a
+  suggested next step ("× in [0, 12) is at 95 %+ — try + or widen the
+  range"). Presentation + suggestion only; the actual step stays with the
+  player (the Celeste-Assist shape the flow research endorses). The cheap
+  half of pass 4's adaptive item. Candidate, not planned.
+- **`math:adaptive`** — pass 4's per-type mastery tiers, now anchored by
+  Chen's wider-channel argument and Bardy's feature-level differentiation:
+  auto-step a type's range/shape up on mastery, the player-set range as
+  the ceiling, a tier-up marker as the visible reward. Up-steps only,
+  never down (the rejected-DDA reason below), player setting as the
+  escape hatch. Bigger than `math:mastery`: it changes what the player
+  *gets*, not just what they see. The pass-4 hard caveat carries over:
+  it must challenge, never replace, hand-solved math. Candidate, not
+  planned.
+- **`math:ladder`** — narrate the automaticity ladder the research
+  describes: an opt-in suggested sequence (2-term facts → missing-number →
+  3-term) in sawtooth shape (the flow research's ramp-to-peak, drop,
+  ramp-higher). Heavier design lift than the other three and overlaps
+  `math:adaptive` — adopt at most one of adaptive/ladder, whichever the
+  free-path benchmark (guardrail 1) can verify stays viable. Candidate,
+  not planned.
+
+**Rejected, with reasons** (so they aren't re-litigated): (1) *reviving
+timed / speed modes* — the automaticity axis is speed, and the timed modes
+were deliberately removed (`useEquations.ts`); a timer turns the active
+loop into a speed drill, which for a 13+ casual audience is the flow
+research's anxiety corner (challenge above skill reads as "unfair" in
+reviews). The sanctioned difficulty axes are shape and range, player
+controlled. (2) *"improves arithmetic" marketing claims* — Tokac's
+small, marginally-significant, heterogeneous effect doesn't support an
+educational claim, and the S6 13+ entertainment posture is the
+compliance-safe one; the math verb stays engagement and flavor. (3)
+*personalizing the daily equation's difficulty* — the day-key seed making
+the equation identical for everyone is the fairness/identity property the
+daily-challenge leaderboard idea (below) builds on; per-player difficulty
+breaks it. (4) *auto-stepping down on misses (aggressive DDA)* — the flow
+research's DDA precedent (RE4) is tuned to hours of continuous play; for
+an idle's single active verb, a difficulty that steps down on a miss
+punishes the one mistake that is already a combo reset. If `math:adaptive`
+lands, it steps up only, with the player as the fallback — the
+Celeste-Assist shape.
+
+Source quality per the pass-6 discipline: #1 is peer-reviewed (JCAL; the
+effect-size *value* itself wasn't re-verifiable here — the abstract's
+"small but marginally significant" is quoted, the numeric d is not stated);
+# 2 is a vendor design reference (same family as passes 8/13, qualitative —
+Chen's 2006 USC MFA thesis is the academic primary, cited through it);
+# 3 is a vendor FAQ (the standard accuracy → fluency → automaticity
+definition, qualitative); #4 is peer-reviewed, open, full text read.
+
+**Not re-audited here:** pass 4's adaptive-difficulty item (this pass
+anchors it; the candidates above are its concrete shapes), the op-premium
+and answer-value pay *balance* (an economy matter — the ÷ ×10 "top scorer"
+is deliberate per the `game.ts` comment), and the FTUE equation-setup step
+(pass 7).
 
 ### Monetization benchmarks (pass 6 — revenue-side targets for guardrail 5)
 

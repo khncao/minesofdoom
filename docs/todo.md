@@ -26,6 +26,37 @@ Completed items are removed from this file (see git history); only remaining wor
     formatting (pass 8's `num:notation` successor, Hermes Intl smoke test
     first). All not planned — trigger-gated on es-market signal per the
     pass-11/12 discipline.
+  - Pass 15 done 2026-09-15 (the math / difficulty layer — what the player
+    is actually solving; the layer passes 3–14 never audited; all in
+    `docs/features.md`). Live audit findings: the pending-gain readout
+    (`EquationDisplay`) understates the real payout by a factor of the
+    answer's value (the engine pays answer × op-premium × …; the display
+    shows the answer-independent base with no copy hint), and the default
+    `[0, 12)` range makes zero a legal operand (~16 % of the default × pool
+    is answer-0 equations paying the ×1 floor; division is immune by
+    construction). Candidates documented, **not implemented**:
+    `math:pending-gain` (honest readout — the display already receives the
+    full equation, so the exact gain is computable), `math:zero-operand`
+    (generator fix; floor the default range, no migration), `math:mastery`
+    (per-type fact-table view + suggested next step — the cheap half of the
+    pass-4 adaptive item), `math:adaptive` (the pass-4 per-type mastery
+    tiers, now anchored by Chen 2006's wider-flow-channel thesis + Bardy
+    2021's feature-level differentiation — up-steps only, player range as
+    ceiling), and `math:ladder` (narrate the 2-term → missing → 3-term
+    automaticity ladder; overlaps `math:adaptive` — adopt at most one,
+    whichever the free-path benchmark can verify). Rejected, with reasons:
+    reviving timed/speed modes (deliberately removed; a timer is the
+    flow-anxiety corner for a 13+ casual audience), "improves arithmetic"
+    marketing claims (Tokac 2019 JCAL meta-analysis: small, marginally
+    significant, heterogeneous — the math verb stays engagement, not
+    pedagogy; consistent with the S6 13+ entertainment posture),
+    personalizing the daily equation's difficulty (breaks the fairness /
+    identity property), and down-stepping DDA (punishes the combo-reset
+    miss). All candidates trigger-gated, per the pass-11/12 discipline.
+    Pass 15 completes the layer sweep — passes 3–15 now cover input, locale,
+    session, platform, stability, and the math layer; the next pass (if
+    the task continues) would audit a new axis, e.g. the cosmetic / skin
+    economy (never audit-passed as a system) or the offline/absence math.
 
 - [o] Stripe (web IAP) — **configured in test mode (2026-09-08)**: the 26
   products + one-time USD prices synced to the Stripe test account via
