@@ -1982,15 +1982,22 @@ migration-v11 field + tests; it does not make the clock trustworthy
   (source #3's point), it only removes the free 8 h farm. Candidate, not
   planned — and explicitly low priority per the same sources: severity is
   low for a non-competitive single-player.
-- **`offline:streak-grace`** — finding (5), the habit-literature fix:
-  one grace day per rolling 30 days on the daily streak — a missed day
-  does not reset the streak; the *next* missed day within the window
-does. Pure `dailyBonus.ts` change (`computeDailyClaim` gains the
-  grace-day check against `lastClaimDay` + one new persisted field, same
-  state-isolation pattern), fully unit-testable, no UX surface beyond
-  the existing streak readout (which already shows the honest number).
-  The shield/freeze *item* variant is rejected (below); the free grace
-  day is the whole candidate. Candidate, not planned.
+- ~~**`offline:streak-grace`**~~ — **DONE 2026-09** (iteration 14,
+  autonomous no-signal pick; finding (5), the habit-literature fix): the
+  daily streak no longer hard-resets on a single missed local day —
+  `computeDailyClaim` now bridges a one-day gap (`isTwoDaysAgoLocal` +
+  `graceAvailable`), the streak continues at its previous count + 1
+  (the skipped day neither counts nor breaks the run), and the grace is
+  at most one per rolling `STREAK_GRACE_WINDOW_DAYS` (30) measured off a
+  new optional `lastGraceDay` field on `DailyBonusState` — absent until
+  first use, so old persisted state needs no migration (the field lives
+  in the isolated `dailyBonus` AsyncStorage key, not the save). The grace
+  is automatic and free (guardrail 1), the counter is real and bounded
+  (guardrail 3), and there is no UX surface: a bridged claim shows the
+  existing streak toast, a failed bridge (two+ missed days, or a used-up
+  window) resets to day 1 exactly as before. The shield/freeze *item*
+  variant remains rejected (below); the free grace day was the whole
+  candidate. Tests in `dailyBonus.test.ts` (streak-grace describe).
 
 **Rejected, with reasons** (so they aren't re-litigated): (1) *reduced-rate
 offline mode* (the common 50 % offline convention) — a pure nerf to
