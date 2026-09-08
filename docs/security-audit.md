@@ -88,6 +88,7 @@ hex chars), so it is a drop-in for the existing call sites (session token
 behavior — strictly an improvement, never a regression.
 
 Verified: `pb_hooks/__test__/secureRandom.test.js` (CSPRNG path + fallback path
+
 - shape/length + non-constant across calls), and the handler test mock now
 mirrors the real `$security`. Full suite: 801 tests green.
 
@@ -186,8 +187,8 @@ key-pinned to the English by `content.test.ts`). The published store-listing
 copies are generated, not hand-maintained: `legalDocs.test.ts` renders the same
 modules into `public/privacy-policy.html` + `public/terms-of-use.html` on every
 `npm test`, so the URLs
-(`…/minesofdoom/privacy-policy.html` and `…/terms-of-use.html`, served by the
-static web export) can never drift from the in-app text. **Remaining external
+(`https://minesofdoom.pages.dev/privacy-policy.html` and
+`…/terms-of-use.html`, served by the static web export at the site root) can never drift from the in-app text. **Remaining external
 step:** paste those two URLs into the Play Console / App Store privacy fields
 (check `docs/store-integration.md` §2.6 / §3). This is a content task, not a code task, but it gates ship.
 

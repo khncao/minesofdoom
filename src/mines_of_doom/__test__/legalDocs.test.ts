@@ -7,7 +7,7 @@
  * This test is the codegen: it renders src/mines_of_doom/legal.ts into
  * public/privacy-policy.html and public/terms-of-use.html (the static web
  * export serves public/ at the site root, so the published URLs are
- * https://khncao.github.io/minesofdoom/privacy-policy.html and .../
+ * https://minesofdoom.pages.dev/privacy-policy.html and .../
  * terms-of-use.html). Running `npm test` after editing legal.ts therefore
  * regenerates the published copies — legal.ts stays the single source of
  * truth, and a mismatch can never ship.

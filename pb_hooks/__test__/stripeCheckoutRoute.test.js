@@ -27,7 +27,7 @@ const PRICE_MAP = JSON.stringify({
   packGold: "price_packGold",
   premium: "price_premium",
 });
-const WEB_BASE = "https://khncao.github.io/minesofdoom";
+const WEB_BASE = "https://minesofdoom.pages.dev"; // matches the deployed MDOOM_WEB_BASE_URL
 const ENV = {
   STRIPE_SECRET_KEY: "sk_test_123",
   MDOOM_STRIPE_PRICE_MAP: PRICE_MAP,
@@ -355,7 +355,7 @@ describe("POST /stripe/checkout (route)", () => {
 
 // -- CORS (the browser calls /stripe/checkout cross-origin) -------------------
 
-const WEB_ORIGIN = "https://khncao.github.io"; // origin of WEB_BASE
+const WEB_ORIGIN = "https://minesofdoom.pages.dev"; // origin of WEB_BASE
 
 describe("POST /stripe/checkout (CORS)", () => {
   it("answers the preflight OPTIONS with 204 + the allow-origin header", async () => {

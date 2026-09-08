@@ -333,9 +333,9 @@ of Pressable so rapid tapping doesn't double-render).
 
 ## 6. Platform & engineering
 
-- **Platforms** — Android (Play live, 1.0.x), web (static export,
-  GitHub Pages → Caddy → Pocketbase sidecar), iOS (code complete;
-  console-side items in `docs/backlog.md`).
+- **Platforms** — Android (Play live, 1.0.x), web (static export on
+  Cloudflare Pages; Caddy → Pocketbase sidecar for the server legs), iOS
+  (code complete; console-side items in `docs/backlog.md`).
 - **i18n** — English (source of truth) + Spanish, auto-detected or
   player-picked (`utils/i18n/`).
 - **Observability** — local lightweight analytics events (guardrail 5),
@@ -1070,9 +1070,10 @@ platform dimension none of them touched is the **web build, which is already
 live** — and this iteration's Stripe work made web a first-class
 monetization surface, not just a static export. Live audit (2026-09-08,
 `app.config.ts` + `src/`): web is a **static export** (`output: "static"`)
-served from the GitHub Pages subpath `https://khncao.github.io/minesofdoom`
-(the subpath is pinned by `experiments.baseUrl: "/minesofdoom"` — without it
-the export emits asset URLs at the domain root and the page renders blank),
+served from the Cloudflare Pages site root `https://minesofdoom.pages.dev`
+(post-migration — the pre-migration GitHub Pages subpath is gone with
+`experiments.baseUrl`, so the static export emits asset URLs relative to
+`"/"`; without that root deploy the page would render blank),
 with **no service worker, no PWA manifest, no offline capability** — every
 launch fetches the JS bundle + assets over the network. Web IAP is the only
 web-specific monetization path (Stripe; native is the stores, §4), web ads
@@ -1112,14 +1113,14 @@ sprites/audio — a static pixel-art canvas with no remote content),
 build, with a static fallback page for the cache-miss class. Consequence if
 built: the web build installs to the phone home screen and plays fully
 offline — and an idle game is the ideal offline-first shape (progress is
-local, nothing is real-time). Cost/risks: a service worker over the GitHub
-Pages **subpath** is fiddly (SW scope + cache keys must honor
-`baseUrl: "/minesofdoom"`), static-export + SW versioning needs a deliberate
-cache-bust strategy, and it adds a second delivery path to test on every
-release. **Candidate, not planned** — the trigger is a real install/offline
+local, nothing is real-time). Cost/risks: a service worker needs a deliberate
+versioned cache-bust strategy for the static-export bundle (post-migration
+the SW scope is the site root on Cloudflare Pages, so no subpath
+fiddliness), and it adds a second delivery path to test on every release.
+**Candidate, not planned** — the trigger is a real install/offline
 demand signal (a web-cohort D1 dip attributable to reconnect cost, or a
 player ask), not FOMO. Today the absence is low-blast-radius: it's a page
-served from CDN-cached GitHub Pages, so a refresh on a flaky network
+served from CDN-cached static export, so a refresh on a flaky network
 re-fetches the bundle and then plays; nothing is lost.
 - **Web storage posture is right and the quota is not a constraint** —
 MDN's storage-quotas page: best-effort storage (`localStorage`) persists
@@ -1127,7 +1128,8 @@ while the origin is under quota **and** the device has room, and the
 per-origin `localStorage` budget is ~5 MB in browsers (IndexedDB is far
 larger, device-dependent). Our save is a single small JSON blob (the
 save-code format, `saveCode.ts`) — orders of magnitude under the 5 MB
-budget, on our own origin (the GH Pages subpath), so capacity and eviction
+budget, on our own origin (the Cloudflare Pages site root), so capacity and
+eviction
 under normal use are a non-issue. The real web-storage risk is **eviction,
 not capacity** (browsers may reclaim best-effort storage under device
 pressure), and the mitigation already exists in the right shape: a
@@ -1150,11 +1152,11 @@ deep-link CTA.
 expand** — the AdSense Ad Placement API rewarded parity (rewarded-only, no
 banners/interstitials — guardrails 2–3, hard per-day caps in pure code,
 §4) is already live and mirrors the native posture. No ad work here.
-- **Canon pins (confirmed correct, not gaps):** (1) the **static export on a
-subpath is right for a first-party idle game** — the subpath `baseUrl` fix is
-load-bearing (without it the export renders blank at the domain root), and
-delivery is a CDN-cached static bundle behind GitHub Pages → Caddy →
-Pocketbase, so there is no SSR to get wrong. (2) the **web surface is
+- **Canon pins (confirmed correct, not gaps):** (1) the **static export is
+right for a first-party idle game** — post-migration it deploys at the Cloudflare
+Pages site root (no `baseUrl`), and delivery is a CDN-cached static bundle
+(Play/Pocketbase traffic rides Caddy on the VPS domain), so there is no SSR
+to get wrong. (2) the **web surface is
 deliberately small** — web exists as a monetization surface (Stripe) and an
 ad-parity surface (AdSense), not as a full second app; the features we are
 *not* doing (PWA/offline, deep-link install funnel, web push) are
