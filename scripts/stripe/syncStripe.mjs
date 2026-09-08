@@ -77,10 +77,15 @@ function readEnvFile() {
 }
 
 async function promptSecret() {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stderr,
+  });
   process.stderr.write("Stripe secret key (input hidden): ");
   if (rl.output) rl.output.mute = true;
-  const value = await new Promise((resolve) => rl.question("", (a) => resolve(a)));
+  const value = await new Promise((resolve) =>
+    rl.question("", (a) => resolve(a)),
+  );
   rl.close();
   process.stderr.write("\n");
   return value.trim();
@@ -106,18 +111,24 @@ async function stripe(apiKey, method, urlPath, params = {}) {
   );
   // GET params go in the query string (a body on GET is dropped); everything
   // else is a form-encoded POST body (fetch serializes URLSearchParams).
-  const url = API_BASE + urlPath + (form.toString() && !urlPath.includes("?") ? "?" + form.toString() : "");
+  const url =
+    API_BASE +
+    urlPath +
+    (form.toString() && !urlPath.includes("?") ? "?" + form.toString() : "");
   const res = await fetch(url, {
     method,
     headers: {
       Authorization: "Bearer " + apiKey,
-      ...(method !== "GET" ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
+      ...(method !== "GET"
+        ? { "Content-Type": "application/x-www-form-urlencoded" }
+        : {}),
     },
     body: method === "GET" ? undefined : form,
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const msg = (data && data.error && data.error.message) || JSON.stringify(data);
+    const msg =
+      (data && data.error && data.error.message) || JSON.stringify(data);
     throw new Error(`stripe ${method} ${urlPath} → ${res.status}: ${msg}`);
   }
   return data;
@@ -132,16 +143,18 @@ async function stripe(apiKey, method, urlPath, params = {}) {
  */
 async function listMdoomProducts(apiKey) {
   const byId = new Map();
-  let start, page = {
-    data: [],
-  };
+  let start,
+    page = {
+      data: [],
+    };
   do {
     page = await stripe(apiKey, "GET", "/products", {
       limit: 100,
       ...(start ? { starting_after: start } : {}),
     });
     for (const p of page.data) {
-      if (p.metadata && p.metadata.mdoomProductId) byId.set(p.metadata.mdoomProductId, p);
+      if (p.metadata && p.metadata.mdoomProductId)
+        byId.set(p.metadata.mdoomProductId, p);
     }
     start = page.has_more ? page.data[page.data.length - 1].id : undefined;
   } while (start);
@@ -156,7 +169,11 @@ async function listMdoomProducts(apiKey) {
 async function accountSnapshot(apiKey) {
   const snapshot = new Map();
   for (const [productId, product] of await listMdoomProducts(apiKey)) {
-    const prices = await stripe(apiKey, "GET", `/prices?product=${encodeURIComponent(product.id)}&currency=usd&limit=100`);
+    const prices = await stripe(
+      apiKey,
+      "GET",
+      `/prices?product=${encodeURIComponent(product.id)}&currency=usd&limit=100`,
+    );
     const price = (prices.data || []).find((p) => p.active);
     snapshot.set(productId, {
       product: product.id,
@@ -204,7 +221,9 @@ export function verifyCatalog(catalog, snapshot, repo, keyEnv) {
   }
   for (const id of repoIds) {
     if (!catalogIds.has(id)) {
-      findings.push(`repo: unknown price-map key "${id}" (not in catalog.json)`);
+      findings.push(
+        `repo: unknown price-map key "${id}" (not in catalog.json)`,
+      );
     }
   }
   const pkEnv = /^pk_live_/.test(repo.publishableKey)
@@ -222,7 +241,9 @@ export function verifyCatalog(catalog, snapshot, repo, keyEnv) {
   for (const e of catalog) {
     const row = snapshot.get(e.id);
     if (!row) {
-      findings.push(`account: product "${e.id}" missing (run the products sync)`);
+      findings.push(
+        `account: product "${e.id}" missing (run the products sync)`,
+      );
       continue;
     }
     if (!row.active) {
@@ -243,7 +264,9 @@ export function verifyCatalog(catalog, snapshot, repo, keyEnv) {
   }
   for (const id of snapshot.keys()) {
     if (!catalogIds.has(id)) {
-      findings.push(`account: unknown mdoom product "${id}" (not in catalog.json)`);
+      findings.push(
+        `account: unknown mdoom product "${id}" (not in catalog.json)`,
+      );
     }
   }
   return findings;
@@ -265,7 +288,11 @@ async function ensureProducts(apiKey) {
       });
       console.error(`created  ${e.id}  ${product.id}  ${product.name}`);
     }
-    const prices = await stripe(apiKey, "GET", `/prices?product=${encodeURIComponent(product.id)}&currency=usd&limit=100`);
+    const prices = await stripe(
+      apiKey,
+      "GET",
+      `/prices?product=${encodeURIComponent(product.id)}&currency=usd&limit=100`,
+    );
     let price = (prices.data || []).find((p) => p.active);
     if (!price) {
       // prices_data on product create is rejected by the API — the price is
@@ -278,7 +305,9 @@ async function ensureProducts(apiKey) {
         lookup_key: e.id,
       });
     }
-    console.error(`found ${e.id.padEnd(16)} ${price.id}  $${(price.unit_amount / 100).toFixed(2)}`);
+    console.error(
+      `found ${e.id.padEnd(16)} ${price.id}  $${(price.unit_amount / 100).toFixed(2)}`,
+    );
     result.push({ id: e.id, price: price.id });
   }
   return result;
@@ -323,7 +352,9 @@ async function main() {
   }
   const apiKey = (await loadSecret()).trim();
   if (!/^sk_(test|live)_[A-Za-z0-9]+$/.test(apiKey)) {
-    console.error("that does not look like a Stripe secret key (sk_test_/sk_live_)");
+    console.error(
+      "that does not look like a Stripe secret key (sk_test_/sk_live_)",
+    );
     return 1;
   }
   if (apiKey.startsWith("sk_live_") && !flags.includes("--live")) {
@@ -335,7 +366,9 @@ async function main() {
   }
   if (cmd === "products") {
     const result = await ensureProducts(apiKey);
-    console.log("\nPaste into src/mines_of_doom/storeConfig.ts (stripe.prices):");
+    console.log(
+      "\nPaste into src/mines_of_doom/storeConfig.ts (stripe.prices):",
+    );
     console.log("  prices: {");
     for (const r of result) console.log(`    ${r.id}: "${r.price}",`);
     console.log("  },");
@@ -348,7 +381,9 @@ async function main() {
     const keyEnv = apiKey.startsWith("sk_live_") ? "live" : "test";
     const findings = verifyCatalog(CATALOG, snapshot, repo, keyEnv);
     if (findings.length > 0) {
-      console.error(`DRIFT — ${findings.length} finding(s):\n  ` + findings.join("\n  "));
+      console.error(
+        `DRIFT — ${findings.length} finding(s):\n  ` + findings.join("\n  "),
+      );
       return 1;
     }
     console.log(
@@ -364,9 +399,13 @@ async function main() {
       );
       return 0;
     }
-    console.log("\nSidecar env lines (VPS ~/docker/pocketbase, then reload the sidecar):");
+    console.log(
+      "\nSidecar env lines (VPS ~/docker/pocketbase, then reload the sidecar):",
+    );
     console.log("  STRIPE_WEBHOOK_SECRET=" + ep.secret);
-    console.log("  STRIPE_SECRET_KEY=<your sk_ key — already held by this script>");
+    console.log(
+      "  STRIPE_SECRET_KEY=<your sk_ key — already held by this script>",
+    );
     console.log(
       "\nVerify: sidecar /healthz → configured.web: true + stripeWebhook:\n" +
         "  { signature: true, pocketbase: true } (MDOOM_PB_URL must also be set).",

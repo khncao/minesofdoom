@@ -24,10 +24,16 @@ interface CatalogEntry {
 const REPO_ROOT = path.resolve(__dirname, "..", "..", "..");
 const SCRIPT = path.join(REPO_ROOT, "scripts", "stripe", "syncStripe.mjs");
 const CATALOG = JSON.parse(
-  fs.readFileSync(path.join(REPO_ROOT, "scripts", "stripe", "catalog.json"), "utf8"),
+  fs.readFileSync(
+    path.join(REPO_ROOT, "scripts", "stripe", "catalog.json"),
+    "utf8",
+  ),
 ) as CatalogEntry[];
 
-function parseRepo(): { publishableKey: string; prices: Record<string, string> } {
+function parseRepo(): {
+  publishableKey: string;
+  prices: Record<string, string>;
+} {
   const source = fs.readFileSync(
     path.join(REPO_ROOT, "src", "mines_of_doom", "storeConfig.ts"),
     "utf8",
@@ -100,7 +106,9 @@ function startMock(overrides: MockOpts = {}): Promise<{
       });
     }
     res.writeHead(404, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: { message: "mock: no route " + u.pathname } }));
+    res.end(
+      JSON.stringify({ error: { message: "mock: no route " + u.pathname } }),
+    );
   });
   return new Promise((resolvePromise) => {
     server.listen(0, "127.0.0.1", () => {
@@ -108,8 +116,7 @@ function startMock(overrides: MockOpts = {}): Promise<{
       const port = typeof addr === "object" && addr ? addr.port : 0;
       resolvePromise({
         url: `http://127.0.0.1:${port}`,
-        close: () =>
-          new Promise<void>((r) => server.close(() => r())),
+        close: () => new Promise<void>((r) => server.close(() => r())),
       });
     });
   });
@@ -159,7 +166,9 @@ test("verify passes when the account matches catalog.json + storeConfig.ts", asy
   mock = await startMock();
   const r = await runVerify(mock.url, "sk_test_fixture000");
   expect(r.status).toBe(0);
-  expect(r.stdout).toContain(`${CATALOG.length}/${CATALOG.length} products match`);
+  expect(r.stdout).toContain(
+    `${CATALOG.length}/${CATALOG.length} products match`,
+  );
   expect(r.stderr).not.toContain("DRIFT");
 });
 
