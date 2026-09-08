@@ -229,6 +229,7 @@ Play Console **billing permissions** ("Manage orders and subscriptions" +
    §2.5 — Play refuses product creation until then): one
    `create-product` per row of the §2.1 table (exact `sku` + price from
    that table), then diff the live catalog against `iaps.ts`:
+
    ```sh
    npm run play -- create-product --sku=pack_gold --title="Golden Pickaxe" \
      --desc="Unlocks the Golden Pickaxe (also earnable in-game for 25 💎)." \
@@ -236,6 +237,7 @@ Play Console **billing permissions** ("Manage orders and subscriptions" +
    # …repeat for every §2.1 row…
    npm run play -- products-check
    ```
+
    `--auto-convert-prices` localizes the tier to every targeted region the
    same way the console does; sanity-check one with
    `npm run play -- products --sku=pack_gold`. If a price state comes back
@@ -336,9 +338,11 @@ payment, `finishTransaction`, verify, entitlement) on a debug APK:
 2. **License key**: Play Console → app → Monetize → License testing →
    **API key**. Install it on the device (the Play Store app must be
    signed in):
+
    ```sh
    adb shell am start -a com.android.vending.BILLING -e key <LICENSE_KEY>
    ```
+
    This is what lets a **debug-signed** APK talk to Play Billing; a
    release build signed with the upload key does not need it.
 3. **Build the APK** (`npm run android` against Metro, or the prebuilt
@@ -389,20 +393,26 @@ never be uploaded by mistake — Play rejects debug-signed AABs.
    - `my-upload-key.keystore` (the downloaded `.jks`/`.keystore`)
    - `keystore.properties` (no `storeFile` — the path is hard-coded in
      `android/app/build.gradle`):
+
      ```properties
      storePassword=<from the App signing page>
      keyAlias=<key alias>
      keyPassword=<key password, usually the keystore password>
      ```
+
    Verify with:
+
    ```sh
    keytool -list -keystore my-upload-key.keystore -storepass <password>
    ```
+
    (prints the key alias).
 3. **Build** (repo root; the Android SDK must be on the machine):
+
    ```sh
    cd android && gradlew.bat bundleRelease
    ```
+
    Output: `android/app/build/outputs/bundle/release/app-release.aab`
    (the JS bundle is embedded by the RN gradle plugin — no Metro
    needed). On non-Windows: `./gradlew bundleRelease`.
@@ -432,6 +442,7 @@ role the Play/Apple service credentials play for native).
 
 **Two independent, idempotent mint paths** (both gate on the sidecar
 asking Stripe, so a client can never self-grant):
+
 1. **Return-visit verify (primary).** `purchase()` redirects to hosted
    Checkout with `successUrl` = `/?iap=success&iap_product=…&iap_sid=
    {CHECKOUT_SESSION_ID}`. On the web-only on-mount effect
@@ -497,6 +508,7 @@ started") from ever being mistaken for a confirmed payment.
    `STRIPE_SECRET_KEY`, the gitignored root `stripe-secret.env`, or a
    hidden prompt — never the repo; a `sk_live_` key needs `--live`.
    Doing it in the console instead:
+
 1. **Stripe dashboard → Products:** create a one-time **Price** per row
    of the §2.1 table (same display names, same tiers). Note each
    `price_…` id. (No subscriptions — the catalog is one-time packs.)

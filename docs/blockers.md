@@ -66,6 +66,7 @@ credential gap. Note the v0.40 hooks API is a major
 rewrite from v0.2x (pooled handler VMs, sync-only, self-contained
 handlers) — see the "v0.40 hook model" section in `pb_hooks/README.md`
 before editing that folder.
+
 - **Store-verification sidecar (the signing-gap decision, in-repo):**
   `pb_hooks/sidecar/` — zero-dependency Node ≥18 process that signs the
   RS256/ES256 JWTs the goja runtime can't and makes the two store
@@ -182,7 +183,7 @@ web-bundle grep half of §4 is done (clean).
 
 **Research note (2026-09-04):** the §4 pass does NOT require a
 physical Android phone. Google's billing-test doc
-(https://developer.android.com/google/play/billing/test) has no
+(<https://developer.android.com/google/play/billing/test>) has no
 emulator exclusion: a **license tester** account (Play Console →
 Users and permissions → Testers) gets test cards that never charge
 real money, test accounts may run on emulators, and license testers
@@ -279,7 +280,7 @@ session token lives in `window.localStorage` (`localTokenStore`, key
 degradation for the SSR/prerender pass and private-browsing throws; it
 deliberately does NOT go through AsyncStorage. Web Google goes through
 Google Identity Services (`mintGoogleIdTokenWeb`: lazy gsi/client script
-+ the openid-scope token client — the JWT in `resp.access_token` IS the
+- the openid-scope token client — the JWT in `resp.access_token` IS the
 idToken; `popup_closed_by_user` → `SignInCancelledError`), web Apple does
 not exist yet (needs a domain-verified service id — `docs/backlog.md`).
 The OTHER store integrations (cloud save, leaderboard) remain web no-ops
@@ -299,7 +300,6 @@ doesn't exist yet — needs a domain-verified service id, `docs/backlog.md`)
 still need a manual look, but the deployed server half that was in doubt
 now answers the full round-trip.
 
-
 **Server hardening — OS-level items remain (todo "harden pocketbase..."):**
 the container/service level of that todo is done (2026-09-06), but three
 OS-level items on `kelvin@100.109.48.41` (Debian 12, docker as systemd
@@ -308,6 +308,7 @@ sudo is disabled (re-confirmed 2026-09-06: `sudo -ln` needs a password,
 `/usr/sbin/ufw status` refuses non-root, fail2ban not installed, and
 `apt list --upgradable` shows the 5 docker packages at 29.7.2 → 29.8.0).
 They need a human at the terminal. Run once:
+
 1. `sudo apt update && sudo apt upgrade` — 5 docker packages carried
    security updates (unattended-upgrades is not installed; this is the
    only patching path).

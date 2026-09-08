@@ -262,7 +262,9 @@ try {
   // The hosted page renders the email field as type="text" (autocomplete
   // "email") — match all three shapes or it silently goes unfilled.
   const email = page
-    .locator('input[type="email"], input[autocomplete="email"], input[id="email"]')
+    .locator(
+      'input[type="email"], input[autocomplete="email"], input[id="email"]',
+    )
     .first();
   if (await email.isVisible().catch(() => false)) {
     await email.fill("mines.step6@example.com");
@@ -308,7 +310,9 @@ try {
     await page.waitForTimeout(5000);
   }
   if (!page.url().includes("iap=success"))
-    throw new Error("no return navigation within 120s (last url: " + page.url() + ")");
+    throw new Error(
+      "no return navigation within 120s (last url: " + page.url() + ")",
+    );
   landed = page.url();
 } catch (err) {
   // Forensics before failing: what was the hosted page actually showing?
