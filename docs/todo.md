@@ -14,20 +14,18 @@ Completed items are removed from this file (see git history); only remaining wor
     the shipped web build, and an alternative-input pin (Playdate: adapt
     the verb vocabulary, not the hardware). All not planned — trigger-gated
     on player signals per the pass-11/12 discipline.
-
-- [o] Cloudflare Pages web build — **broken 2026-09-08, fix pending push**:
-  `expo export -p web` crashes with `TypeError: configs.toReversed is not a
-  function` because Expo SDK 57's metro-config needs Node ≥ 21 but the build
-  ran on the legacy image (Node 18.17.1, EOL). Two contributing findings:
-  (1) the root `wrangler.toml` carrying `image = "node-22"` is NOT a valid
-  Pages build config — the builder rejected it (missing `pages_build_output_dir`)
-  and skipped it, so the pin never applied; (2) with no pnpm pin, the build
-  detected pnpm 8.7.1 from the environment, which cannot read our
-  `lockfileVersion: 9.0` lockfile (`Ignoring not compatible lockfile` —
-  install runs unlocked). Fix: pin the Node 22 + pnpm ≥ 9 build environment
-  where the builder actually reads it (dashboard env vars / supported pin
-  file, not the root wrangler.toml — remove or repurpose that file), then
-  push to main to re-trigger the deploy and confirm a green Pages build.
+  - Pass 14 done 2026-09-13 (the localization / i18n layer — every word
+    the player reads; the machinery is built, key-parity-tested, and
+    deliberately disabled since commit 62ff419). Candidates documented,
+    nothing implemented: an es-ES store listing (no app code — the first
+    slice; Play CLI already supports `set-listing --lang`), re-enabling the
+    language picker behind a four-item checklist (share-badge pixel font
+    has no accented glyphs — es names would render as spaces; legal doc
+    bodies are English-only; pseudo-locale CI pass for text overflow; the
+    picker + one persisted preference), and locale-aware number/duration
+    formatting (pass 8's `num:notation` successor, Hermes Intl smoke test
+    first). All not planned — trigger-gated on es-market signal per the
+    pass-11/12 discipline.
 
 - [o] Stripe (web IAP) — **configured in test mode (2026-09-08)**: the 26
   products + one-time USD prices synced to the Stripe test account via

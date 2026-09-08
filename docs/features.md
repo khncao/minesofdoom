@@ -72,7 +72,15 @@ target-size-minimum criteria (2.5.5 / 2.5.8), the simplified.media Gamepad
 API guide (polling model, standard mapping, the handheld / TV-browser
 surfaces), the Android / ChromeOS input-compatibility docs, and Rizzo et
 al. "Playdate" (IJHCI 2016) on input methods for players with motor
-impairments. Items adopted from that list move into `docs/todo.md`.
+impairments;
+2026-09 pass 14: the localization / i18n layer — the CLDR Plural Rules
+spec (cldr.unicode.org, primary/standards), AppDrift ASO statistics 2026
+(vendor-aggregated listing-localization lifts and the top-10-market
+gap), the SimpleLocalize pseudo-localization guide (methodology +
+text-expansion estimates), and MDN on the Intl locale seams
+(`Intl.NumberFormat` compact notation, `Intl.Locale.getWeekInfo` — Hermes
+support flagged, not asserted). Items adopted from that list move into
+`docs/todo.md`.
 
 ## 1. Core gameplay
 
@@ -1241,6 +1249,129 @@ guarantees. Ours — hold, digit, confirm — is already the study's
 adaptable shape; this step is what makes that true from a keyboard. The
 gamepad item above also routes through this seam. Candidate (verification
 first), not planned.
+
+### The localization / i18n layer (pass 14 — every word the player reads)
+
+Passes 3–13 audited everything the player does; the layer none of them
+touched is what the player *reads* — UI chrome, data-driven names, toasts,
+a11y labels, the share badge, the web `<head>`, the legal docs, and the
+store listing. Live audit (2026-09-13, `src/utils/i18n/`,
+`src/utils/format.ts`, `weeklyChallenge.ts`, `shareBadge.ts`,
+`+html.tsx`): the localization machinery is **built, key-parity-tested,
+and deliberately switched off**. Commit `62ff419` ("feat(i18n): disable
+localization, English only") pinned the live locale store to `"en"` —
+`src/hooks/useI18n.ts` says it plainly: no persisted preference, no
+settings picker, "re-enabling is a settings-UI + useI18n change; the i18n
+core stays intact" — and the Spanish side stayed live in the meantime:
+`en.ts` (516 lines, source of truth) and `es.ts` (515 — same key set, a
+`Locale = "en" | "es"` union that makes a missing key a *type error*, plus
+a placeholder-parity test pinning `{name}`-style tokens across languages),
+a second data-driven namespace (`content.ts` / `content-es.ts`, 438 lines)
+resolving miner / pickaxe / achievement / cave / legal-doc names at the
+`t()` call sites, and full a11y coverage in both tables (including the
+canvas caption). The honest state: the translation work is essentially
+done and CI-protected; what's missing is one picker, one persisted
+boolean, and four landmines.
+
+- **Landmine 1 — the share-badge pixel font has no accented glyphs.**
+`shareBadge.ts` renders the achievement name with a hand-authored 5×7
+bitmap font (`PIXEL_FONT`) covering A–Z, 0–9, and a handful of
+punctuation — and any unknown glyph becomes a *space* (`PIXEL_FONT[rawCh]
+?? PIXEL_FONT[" "]`). English content names are safe; the Spanish content
+names (ñ/á/é/í/ó/ú in `content-es.ts` achievement and miner names) would
+render as *blank runs* in the badge image. Re-enabling Spanish without
+extending the font (or giving the badge an en-name fallback) ships a
+broken-looking share image — the single most concrete re-enablement
+prerequisite in the audit.
+- **Landmine 2 — legal docs: a Spanish title over an English body.**
+`legal.ts` carries English-only document *bodies*; the es tables cover
+only the doc *titles* (`content-es.ts` has `legalDoc:privacy` /
+`legalDoc:terms`). A Spanish player would get a Spanish-titled,
+English-bodied legal page — legally fine, visually broken.
+- **Landmine 3 — the safety net pins keys, not length.** The parity tests
+pin key sets and placeholders, which is the right guard — but nothing
+exercises *length*. Research (#3 below) puts the typical es inflation of
+English UI strings at ~25 % (de ~30 %), and the standard practice is a
+pseudo-locale pass in CI. The cheap analogue here: a test-only locale
+that inflates `en.ts` values and asserts the rendering components don't
+overflow. Belongs in the re-enablement checklist, not a standalone
+feature.
+- **Numbers and time are locale-blind, correctly, while English-only.**
+`format.ts` is a fixed k/M/B/T/Qa/Qi suffix ladder (no `Intl`, no locale
+digit grouping) and `formatDuration` uses English unit labels — pass 8
+already owns that notation decision, so this pass only names the seam: a
+locale-aware `Intl.NumberFormat` compact formatter is its honest
+successor when a second locale lands (Hermes `Intl` support must be
+smoke-tested first — it has historically lagged web engines). Calendar
+boundaries are fixed the same way: the weekly window hardcodes a Monday
+start (`weeklyChallenge.ts: (d.getDay() + 6) % 7`, device-local timezone)
+and daily bonus/caps roll at device-local midnight. All correct today; the
+`Intl.Locale.getWeekInfo()` seam (UTS 35 week data: `firstDay` /
+`weekend` / `minimalDays`) exists for a future locale with a different
+week start, and is rejected for now for the reason below.
+- **The web `<head>` is static-English by construction.** `+html.tsx`
+hardcodes `lang="en"` and an English `<title>`/`<meta description>`, and
+the static Cloudflare export can only serve one document per build — so
+in-app locale switching is fine (JS-only) but the HTML metadata stays
+`en` no matter what. Acceptable for a web presence that is secondary to
+the store; one line in any re-enablement note.
+- **`i18n:listing-es` — the slice that ships without touching the app.**
+Pass 10 audited the Play listing as en-US-only with no es-ES, and the
+Play CLI already supports per-language listings (`set-listing --lang`).
+Research (#2) is the strongest quantitative case yet for listing
+localization as the first slice: an average **+30 % download lift from
+localizing a listing into 10+ languages**, **+128 % for apps localized
+into the top-10 markets**, **72 % of users prefer an app in their native
+language** (56 % say it matters more than price), and the gap stat that
+motivates the whole layer — **only 13 % of apps are fully localized for
+the top-10 markets** (45 % support 5+ languages). The current screenshots
+are mostly canvas art with little text overlay, so a localized listing is
+near-free (English text overlays in a foreign listing are the known
+anti-pattern; we barely have any). **Candidate, not planned** — trigger:
+sustained organic installs from es-market in Play Console traffic, or a
+Play Console listing-localization suggestion that survives a re-check.
+- **`i18n:language` — re-enable the picker, behind a four-item checklist.**
+The machinery (tables, `navigator.language` detection, format/translate,
+a11y coverage) exists and is tested; the delta is (1) the share-badge font
+fix or en-name fallback (landmine 1), (2) the two legal doc bodies
+(landmine 2), (3) the pseudo-locale CI pass (landmine 3), and (4) the
+settings picker + one persisted preference, with the existing detection
+as fallback. **Candidate, not planned** — same trigger as the listing,
+but it *follows* the listing: the app should catch up to a localized
+listing, not lead it. No RTL language is in scope — the layout is built
+LTR and RTL support is a project, not a feature.
+- **`i18n:formatters` — locale-aware numbers/durations, the pass-8
+successor.** Replace the fixed ladder with `Intl.NumberFormat` compact
+notation ("1,2 M" in es vs "1.2M" in en) and route `formatDuration`'s
+unit labels through the i18n tables. **Candidate, not planned** —
+trigger: re-enablement, or any locale with a non-Latin digit script (then
+the ladder is not a style choice, it's wrong). The Hermes
+`Intl.NumberFormat` smoke test is a build prerequisite, not a note.
+- **Rejected, with reasons** (so they aren't re-litigated): (1) *locale
+week start* — keeping Monday is right while English-only and matches
+es-ES; a locale-aware start would make "weekly" mean different things to
+different players for zero visible benefit; revisit only if a
+Sunday-start locale (e.g. `ar-XX`) becomes a candidate. (2) *a CLDR
+plural-rule engine* — English and Spanish are both 2-category languages
+(one/other), and the table strings keep numbers as bare tokens with
+invariant nouns ("×{bonus}", "{activeDays} días activos"), sidestepping
+count-adjacent grammar entirely; a plural engine becomes necessary only
+when a >2-category language (ru, ar, pl) enters the candidate set — and
+CLDR's own rules shift between versions (CLDR 24 added fractional-value
+handling and merged categories for Russian), which is itself an argument
+against pinning plural logic into the app before a language forces it.
+
+Source quality per the pass-6 discipline: #1 is the standards body
+(CLDR — exact); #2 is a vendor ASO-statistics aggregator (direction
+consistent with pass 10's Digital Applied numbers, magnitudes
+illustrative); #3 is a vendor technical guide (standard methodology,
+expansion percentages illustrative); #4 is a reference (MDN) for the Intl
+seams — Hermes support flagged as unverified, not asserted.
+
+**Not re-audited here:** pass 8's numeric-notation decision (the fixed
+ladder stands; `i18n:formatters` is its locale-aware successor) and pass
+10's full store-listing audit (this pass only adds the es-ES listing
+candidate on top).
 
 ### Monetization benchmarks (pass 6 — revenue-side targets for guardrail 5)
 
