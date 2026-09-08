@@ -176,15 +176,23 @@ Items adopted from that list move into `docs/todo.md`.
   server-side (Pocketbase → sidecar store round-trip), restore re-derives
   entitlements from the **store record** (`reconcileStore`), and a local
   re-verify queue means a flaky network never loses a completed purchase.
-- **Rewarded ads** (AdMob, native; web has no ad SDKs) — four opt-in
-  kinds: gem rolls, offline double, offline top-up, combo save; hard
-  per-day reward caps enforced in pure code as the fraud cap
-  (`ads.ts`, `adProvider.ts`, `hooks/useAdRewards.ts`,
-  `components/AdRewardsPanel.tsx`).
-- **AdSense banner** (web shop sheet only) — config-gated until the
-  AdSense account + unit id land (`AdSenseBanner.web.tsx`).
-- **Guardrails enforced by design** — rewarded-only on native, no
-  interstitials/banners, cosmetics earnable, free-path CI floor
+- **Rewarded ads** — four opt-in kinds on BOTH platforms: gem rolls,
+  offline double, offline top-up, combo save; hard per-day reward caps
+  enforced in pure code as the fraud cap (`ads.ts`,
+  `hooks/useAdRewards.ts`, `components/AdRewardsPanel.tsx`). Native runs
+  the AdMob SDK (`adProvider.ts`); web runs the AdSense "Ad Placement
+  API" (H5 Games Ads) as parity (2026-09-07, replacing the removed
+  shop-sheet banner) — a two-phase flow where `primeReward` pushes a
+  `type: "reward"` placement onto `window.adsbygoogle` (panel open /
+  combo-save pill mount / after every settled ad) and the "watch" tap
+  invokes the stashed show function SYNCHRONOUSLY; only `adViewed`
+  entitles the reward, early dismiss → `closed`, no fill / 60 s
+  watchdog → `error` (`adSenseProvider.web.ts`, loader script in
+  `app/+html.tsx`, gated on the `storeConfig.adsense` client). The
+  AdMob SDK itself never enters the web bundle (`adProvider.web.ts` is
+  the no-op swap).
+- **Guardrails enforced by design** — rewarded-only on both platforms,
+  no interstitials/banners, cosmetics earnable, free-path CI floor
   (AGENTS.md; `freePath.ts`, `docs/security-audit.md`).
 
 ## 5. Account & cloud (Pocketbase backend)

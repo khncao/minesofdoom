@@ -1,9 +1,9 @@
 /**
  * Web variant of `./adProvider` — Metro resolves this file (`.web`
  * extension) for the web target, so `react-native-google-mobile-ads` is
- * never bundled into the web build (web banner ads live in a separate
- * `AdSenseBanner.web.tsx` component, not here; this no-op keeps the AdMob
- * SDK out of the web bundle). It
+ * never bundled into the web build (web rewarded ads run on the AdSense
+ * Ad Placement API in `adSenseProvider.web.ts`, a separate swap; this
+ * no-op keeps the AdMob SDK out of the web bundle). It
  * mirrors the native module's shape exactly, so
  * `ads.ts` and its tests are platform-agnostic: on web the pair is by
  * construction "not configured" and the no-op provider is selected.
