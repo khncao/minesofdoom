@@ -9,8 +9,11 @@ checklists (ClickerHeroes idle-game roundup, ENEBA best-idle list, G2A
 incremental-guide, Edu.com / Reflex math-engagement research, 2026-09;
 2026-09 pass 3: GameGrowthAdvisor mobile-retention 2026 benchmark piece,
 Mind Studios idle-clicker design/monetization guide, Various Cloud +
-GameNeAI mobile-accessibility playbooks). Items adopted from that list
-move into `docs/todo.md`.
+GameNeAI mobile-accessibility playbooks;
+2026 pass 4: Duolingo streak-system teardown (deconstructoroffun),
+PlayIO D1/D7/D30 retention benchmarks 2026, GameAnalytics 2025 retention
+report (11,600 games / 1.48B MAU), math-app gamification roundups). Items
+adopted from that list move into `docs/todo.md`.
 
 ## 1. Core gameplay
 
@@ -280,6 +283,21 @@ genre-impact; anything picked up goes into `docs/todo.md`.
   fix is a day-7 reward worth *more than days 1–6 combined* — a single
   shape change in `getDailyBonus` (pure function, unit-tested), so this
   is a near-free candidate if it's ever picked up.
+- **Streak protection (freezes / repair)** — pass 4. The streak has no
+  safety net: miss a day and it resets to zero (and a lost streak never
+  costs progress, but nothing protects it either). The Duolingo teardown
+  (2026) makes protection the *core* of the streak, not a bolt-on:
+  **freezes** (capped, ~2 free; consumed silently and automatically when
+  a day is missed, surfaced retroactively — no popup drama) and a
+  **repair** backstop (a small amount of play within a short window
+  after a break restores the streak once freezes run dry). Milestone
+  days (7/30/100/365) are where ceremony goes — Duolingo's milestone
+  animations are rare by design and one milestone redesign alone moved
+  D7 retention +1.7 %. Cheap version here: N freezes earned passively
+  (cap 2–3, like the rewarded-ad caps) + a 24 h repair window, all
+  pure logic in `dailyBonus.ts`; freezes must stay earnable free
+  (guardrail 1) and the counters real (guardrail 3). Candidate, not
+  planned. Pairs with the day-7 spike item above.
 - **Narrative / character layer** — the idle-genre design guide (Mind
   Studios) lists narrative as a first-class retention lever: a story
   that unfolds as levels unlock, characters with goals we'd want to
@@ -309,6 +327,18 @@ genre-impact; anything picked up goes into `docs/todo.md`.
   in-game events"): the gem pocket — a rare tap-to-collect bonus node in
   the cave (`gemPocket.ts`, `hooks/useGemPocket.ts`, rendered in
   `components/MiningCanvas.tsx`). See §2 "Gem pocket".
+- **Adaptive difficulty / mastery tiers** — pass 4. The equation
+  difficulty is static per player setting: a number range + optional
+  hard mode, chosen once in settings and unchanged by performance.
+  The math-engagement research line (spaced-repetition / mastery apps)
+  frames difficulty as *per-skill and adaptive*: track performance
+  per equation type and step the range/shape up as a type is mastered,
+  with a mastery marker (tier up) as the visible reward. `equations.ts`
+  is pure and already shapes equations per type, so tiers per type
+  (e.g. correct-answer rate on the last N) slot in without touching the
+  active loop — hard caveat from the automation item: this must
+  challenge, never replace, hand-solved math; the player-set range
+  stays the ceiling. Candidate, not planned.
 - **Cosmetic compendium / collection** — top mobile idlers lean on
   collection completeness (Roblox/social idlers' pets-and-creatures
   pattern, in the 2026 roundups): a single view of all outfits /
@@ -348,6 +378,26 @@ low-effort/high-impact first tier, so this section is in that order.
   largely from the node's look on the canvas). Playbook baseline: never
   convey meaning by color alone; we'd audit the canvas cues and add a
   contrast step to the same settings row as text size.
+
+### Benchmarks (pass 4 — the guardrail-5 instrumentation gets targets)
+
+Cross-genre retention medians to benchmark against (guardrail 5 already
+mandates first-time-ad-view / IAP / D1 / D7 logging before UA spend;
+these are the numbers to compare that data to):
+
+- **D1 median ≈ 22 %** (GameAnalytics 2025 report, 11,600 games /
+  1.48 B MAU); top quartile 25–27 % Android, 31–33 % iOS. A 2026
+  cross-genre piece (PlayIO) puts D1 ~26 %, **D7 ~10 %**,
+  **D30 ~3–4 %** medians; top quartile D7 20 %+.
+- The same piece frames the stages: **D7 is a habit problem** (does the
+  daily-goal/reward cycle give a reason to come back — we already carry
+  the daily bonus, weekly contract, and daily equation in exactly that
+  slot) and **D30 is a depth + LiveOps problem** (meta-gameplay that
+  doesn't run out; a live-ops calendar to come back *for* — the
+  seasonal-events and battle-pass items above are the D30 answers).
+  Arcade fades fast; puzzle/board/idle "frequently match or beat
+  RPG-level numbers at D7 and D30" — the most favorable genre fit for
+  a math-idle.
 
 ### Player-facing surfaces
 
@@ -391,6 +441,11 @@ low-effort/high-impact first tier, so this section is in that order.
 
 - **Friends / social leaderboard** — global top-10 exists; no
   Game Center / Play Games friend feeds, no friend-list leaderboard.
+  Pass 4 adds the friend-*streak* data point from the Duolingo teardown:
+  users with ≥1 friend streak are **22 % more likely to complete their
+  daily lesson** (up to 5 parallel friend streaks, both parties must
+  play the same day) — the cheapest social mechanic that survives a
+  small player base, alongside the community-milestone idea below.
 - **Daily-challenge leaderboard** — the daily equation is identical for
   every player (day-key seed), so a first-solve speed or bonus-claimed
   ranking is trivially fair without an anti-cheat model beyond the

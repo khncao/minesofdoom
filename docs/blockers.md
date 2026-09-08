@@ -18,13 +18,21 @@ on fresh installs.
 
 ## IAP (on-device purchase leg) — `todo.md` "IAP — on-device purchase leg (license tester)"
 
-**Blocked on (external):** two store-side items — (1) the
-iOS `APPLE_*` App Store Connect API key for the sidecar
-(`docs/backlog.md`, iOS section), and (2) the **web Stripe + AdSense
-console side** (Stripe account → the `price_…` catalog + a
-`checkout.session.completed` webhook at `https://minesofdoom.minus4kelvin.com/stripe/webhook` — that URL is **routed live** to the sidecar since 2026-09-06 (Caddy `@stripe_webhook` matcher, before the Pocketbase catchall; fail-closed 400 `webhook not configured` until the sidecar's `STRIPE_WEBHOOK_SECRET` lands, alongside `STRIPE_SECRET_KEY` and `MDOOM_PB_URL`); AdSense approval → the `ca-pub-` client + a banner slot) —
-all code is built and config-gated, none of it runs until those land.
-The §4 purchase leg is **no longer blocked** (license tester registered
+**Remaining external items:** (1) the iOS `APPLE_*` App Store Connect
+API key for the sidecar (`docs/backlog.md`, iOS section), and (2) the
+Stripe **step-6 test-card purchase** (`todo.md` — one 4242… hosted-
+Checkout purchase confirming the redirect grant + the webhook's
+idempotent backup mint, then the `sk_live` flip at launch). The web
+Stripe + AdSense console side that used to sit here has LANDED: Stripe
+test mode is fully configured (`syncStripe.mjs products` + `webhook`,
+sidecar `/healthz` → `configured.web: true` +
+`stripeWebhook: {signature: true, pocketbase: true}`, 2026-09-08) and the
+AdSense client is in `storeConfig.ts` (`ca-pub-…`) — the banner slot
+shipped as the rewarded "Ad Placement API" instead of a banner (the
+`checkout.session.completed` webhook at
+`https://minesofdoom.minus4kelvin.com/stripe/webhook` is routed live to
+the sidecar since 2026-09-06, Caddy `@stripe_webhook` matcher). The §4
+purchase leg is **no longer blocked** (license tester registered
 2026-09-06, purchase confirmed on the dev build). The 26 Play products are live and
 ACTIVE (`products-check` clean), the Android Play credentials are on the
 sidecar (`/healthz` → `configured.android: true`), and a release AAB
@@ -85,13 +93,27 @@ fail-closed until those credentials exist. `storeConfig.pocketbaseUrl` is
 set and pinned by `storeConfig.test.ts`; the `iaps.test.ts` live pin now
 expects the store provider.
 
-**Unblocks when:** the remaining legs pass — the iOS key lands (sidecar
-`/healthz` → `configured.ios: true`) and the web Stripe/AdSense console
-items above. The Android purchase leg itself is DONE (below).
+**Unblocks when:** the iOS key lands (sidecar `/healthz` →
+`configured.ios: true`) and the Stripe step-6 test-card purchase passes.
+The Android purchase leg itself is DONE (below) — INCLUDING the wipe leg
+(resolved 2026-09-08, first progress note below).
+
+**RESOLVED 2026-09-08 — the wipe leg PASSES.** The transient billing-
+egress condition cleared on its own (no host-egress change was needed —
+consistent with the "transient Google-edge anomaly" diagnosis below). On
+`mines-play-35` with the 1.0.8 (c04e03b) debug APK: `pm clear` →
+`maestro test maestro/adhoc/iap-wipe-verify.yaml` → the FULL leg is green:
+cold start after the wipe, the production bundle (the two optional
+"Real store billing" toggle steps WARN by design — the element is absent
+in `__DEV__=false` builds), the store provider's launch `reconcileStore`
+re-derives the entitlement **from the store record alone** (no local
+rows survived the wipe), and the catalog scan finds the owned Gold
+Pickaxe row ("Equip" button) within the 120 s window. The `todo.md`
+on-device-verification item is now removed (done) — see git history.
 
 **Progress (2026-09-06, PM, emulator billing network):** the purchase-leg
-re-run for the wipe leg is currently blocked by the emulator's network
-state, not the app: from ~15:30 on, `queryProductDetailsAsync` →
+re-run for the wipe leg was then blocked by the emulator's network
+state, not the app (resolved 2026-09-08 — see above): from ~15:30 on, `queryProductDetailsAsync` →
 `Response code: 6` (SERVICE_UNAVAILABLE) and Finsky's monetization gRPC
 logs `net::ERR_CONNECTION_REFUSED` — survived device reboot, wifi
 toggle, and a full emulator restart (`-no-snapshot`), while plain
@@ -115,7 +137,9 @@ state is ruled out too. Remaining solutions, in order: (1) change host
 egress IP — mobile hotspot or VPN (WSABuilds fix guide: Play-
 connectivity failure on emulators resolved by routing through a VPN;
 inverse applies if a VPN is currently ON — disable it), (2) wait hours
-and retry, (3) Windows stack reset (`ipconfig /flushdns`,
+and retry — **this is what actually happened: the condition cleared by
+itself and the full flow passed on 2026-09-08 without any host-egress
+change**, (3) Windows stack reset (`ipconfig /flushdns`,
 `netsh winsock reset` + reboot) if hotspot/VPN don't help, (4) physical
 phone with the license tester (no extra setup). Also confirmed while investigating: launching via
 `npx expo run:android` (Metro up) serves the **dev bundle**
@@ -262,8 +286,17 @@ by construction: a web session is real (sign in / sign out / account
 delete all work against the same server) but tags nothing cloud-side until
 those land. (Web IAP is now the REAL Stripe path, not a no-op — see the
 IAP section and docs/store-integration.md §2.6; it reuses this same web
-session token when present.) Not yet verified in a real browser (emulator
-pass above is native-only).
+session token when present.) Server path live-verified against the
+deployed Pocketbase (2026-09-08 probe, the exact fetch shape the web
+client uses — `auth.ts` store provider): register → 200 + token +
+account{email,providers}, login → 200, `/me` → 200, GDPR delete with
+the session token → `{ok:true, deletedAccount:true}`, and a re-login
+after the delete is refused 401 (probe account created AND deleted —
+nothing lingers). The emulator pass above is native-only, and the
+IN-BROWSER legs (the GIS Google button in a real browser; web Apple
+doesn't exist yet — needs a domain-verified service id, `docs/backlog.md`)
+still need a manual look, but the deployed server half that was in doubt
+now answers the full round-trip.
 
 
 **Server hardening — OS-level items remain (todo "harden pocketbase..."):**
