@@ -1,6 +1,7 @@
 import {
   DAILY_BASE_BONUS,
   DAILY_STREAK_CAP,
+  DAILY_MILESTONE_BONUS,
   STREAK_GRACE_WINDOW_DAYS,
   DailyBonusState,
   applyDailyClaim,
@@ -22,13 +23,20 @@ describe("getDailyBonus", () => {
     expect(getDailyBonus(3)).toBe(DAILY_BASE_BONUS * 3);
   });
 
-  it("caps at DAILY_STREAK_CAP", () => {
-    expect(getDailyBonus(DAILY_STREAK_CAP)).toBe(
-      DAILY_BASE_BONUS * DAILY_STREAK_CAP,
+  it("pays the day-7 milestone at and beyond DAILY_STREAK_CAP", () => {
+    // The linear ladder stops at day 6…
+    expect(getDailyBonus(DAILY_STREAK_CAP - 1)).toBe(
+      DAILY_BASE_BONUS * (DAILY_STREAK_CAP - 1),
     );
-    expect(getDailyBonus(DAILY_STREAK_CAP + 10)).toBe(
-      DAILY_BASE_BONUS * DAILY_STREAK_CAP,
-    );
+    // …and days 7+ all pay the flat milestone.
+    expect(getDailyBonus(DAILY_STREAK_CAP)).toBe(DAILY_MILESTONE_BONUS);
+    expect(getDailyBonus(DAILY_STREAK_CAP + 10)).toBe(DAILY_MILESTONE_BONUS);
+  });
+
+  it("day-7 milestone is worth more than days 1–6 combined (§7 spike invariant)", () => {
+    const firstSix = [1, 2, 3, 4, 5, 6].reduce((s, d) => s + getDailyBonus(d), 0);
+    expect(firstSix).toBe(DAILY_BASE_BONUS * 21);
+    expect(DAILY_MILESTONE_BONUS).toBeGreaterThan(firstSix);
   });
 
   it("treats non-positive streaks as day 1", () => {
@@ -101,14 +109,14 @@ describe("computeDailyClaim", () => {
     });
   });
 
-  it("caps the bonus at the streak cap", () => {
+  it("keeps paying the milestone past the streak cap", () => {
     const state: DailyBonusState = {
       lastClaimDay: getLocalDayKey(day(10)),
       streak: DAILY_STREAK_CAP,
     };
     const info = computeDailyClaim(state, day(11));
     expect(info.nextStreak).toBe(DAILY_STREAK_CAP + 1);
-    expect(info.bonus).toBe(DAILY_BASE_BONUS * DAILY_STREAK_CAP);
+    expect(info.bonus).toBe(DAILY_MILESTONE_BONUS);
   });
 });
 

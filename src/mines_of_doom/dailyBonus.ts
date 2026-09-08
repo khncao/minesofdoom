@@ -7,10 +7,14 @@
  * settings): a lost streak must never take the player's progress down with
  * it, and sharing a save code shouldn't leak the sender's streak.
  *
- * Balance: DAILY_BASE_BONUS × min(streak, DAILY_STREAK_CAP). 10k/day is a
- * gentle onboarding boost early (≈ 5s of early-game active play) and stays
- * non-determining late, where passive income dwarfs it — the retention
- * hook is the streak, not the minerals.
+ * Balance: DAILY_BASE_BONUS × streak through day 6, then a flat
+ * DAILY_MILESTONE_BONUS from day 7 on — the day-7 milestone (features.md
+ * §7 "Day-7 reward spike") is worth MORE than days 1–6 combined (210k <
+ * 250k), the retention research's "cost to skip" anchor that a flat/linear
+ * ladder lacks. 10k/day is a gentle onboarding boost early (≈ 5s of
+ * early-game active play) and the milestone stays non-determining late,
+ * where passive income dwarfs it — the retention hook is the streak, not
+ * the minerals.
  *
  * Streak grace (features.md pass 17, finding 5): a single missed local day
  * no longer hard-resets the streak — the next claim within 2 days bridges
@@ -37,16 +41,26 @@ export type DailyBonusState = {
 
 /** Mineral grant on a 1-day streak. */
 export const DAILY_BASE_BONUS = 10_000;
-/** Streak days at which the bonus stops growing (70k is the max grant). */
+/** Streak day at which the day-7 milestone kicks in (days 1–6 pay the
+ *  linear ladder). */
 export const DAILY_STREAK_CAP = 7;
+/** The day-7 milestone grant, paid on streaks 7 and up. Pinned by test to
+ *  be worth more than days 1–6 combined (10k+20k+…+60k = 210k < 250k) —
+ *  losing a streak now costs 250k/day, not a 70k rung. */
+export const DAILY_MILESTONE_BONUS = 250_000;
 /** Rolling window (local days) in which the streak grace may be used once. */
 export const STREAK_GRACE_WINDOW_DAYS = 30;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Mineral grant for claiming on a streak of `streak` (capped at 7). */
+/** Mineral grant for claiming on a streak of `streak`: the linear ladder
+ *  up to day 6, then the flat day-7 milestone for 7+ (it never grows past
+ *  the milestone). */
 export function getDailyBonus(streak: number): number {
-  return DAILY_BASE_BONUS * Math.min(Math.max(1, Math.floor(streak)), DAILY_STREAK_CAP);
+  const days = Math.max(1, Math.floor(streak));
+  return days >= DAILY_STREAK_CAP
+    ? DAILY_MILESTONE_BONUS
+    : DAILY_BASE_BONUS * days;
 }
 
 /** Local `yyyy-MM-dd` key for a timestamp. Local day: a "daily" login game

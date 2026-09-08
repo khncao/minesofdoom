@@ -168,8 +168,9 @@ of Pressable so rapid tapping doesn't double-render).
 - **Achievements** — independent one-off badges with a small one-time
   mineral bonus; completion derived from lifetime stats
   (`achievements.ts` — 21 of them).
-- **Daily bonus / streak** — 10k base × streak (capped) for returning each
-  local day; stored separately from the save so a lost streak never costs
+- **Daily bonus / streak** — 10k base × streak through day 6, then a
+  250k day-7 milestone (worth more than days 1–6 combined) for streaks
+  7+; stored separately from the save so a lost streak never costs
   progress (`dailyBonus.ts`, `components/DailyBonusButton.tsx`).
 - **Weekly contract** — a recurring contract on a longer cadence than the
   daily bonus: 3 goals that are DELTAS on the save's monotonic lifetime
@@ -388,13 +389,19 @@ genre-impact; anything picked up goes into `docs/todo.md`.
   "content cadence as the retention plan" — a 2–4-week update rhythm
   players can anticipate, planned during soft launch, not retrofitted
   when the day-30 cohort hits the content wall. Candidate, not planned.
-- **Day-7 reward spike** — the daily-streak ladder
-  (`dailyBonus.ts`: `DAILY_BASE_BONUS × min(streak, 7)`, linear to the
-  cap) is the shape the retention research calls out as weak: a flat
-  or linear ladder has no "cost to skipping" anchor. The genre-standard
-  fix is a day-7 reward worth *more than days 1–6 combined* — a single
-  shape change in `getDailyBonus` (pure function, unit-tested), so this
-  is a near-free candidate if it's ever picked up.
+- ~~**Day-7 reward spike**~~ — **DONE 2026-09** (iteration 15,
+  autonomous no-signal pick; the retention research's cost-to-skip
+  anchor): `getDailyBonus` keeps the linear ladder through day 6 and
+  pays the flat `DAILY_MILESTONE_BONUS` (250k) on streaks 7+ — pinned by
+  test to be worth *more than days 1–6 combined* (210k < 250k). The cap's
+  meaning flips from "bonus stops growing" to "milestone kicks in": a
+  lapsed streak now costs 250k/day, not a 70k rung, which is the anchor
+  the linear ladder lacked. Days 1–6 are unchanged, and the free-path /
+  cosmetic benchmarks consume `getDailyBonus` unchanged with lower-bound
+  assertions (their sim's day-7+ income only grows). Pairs with the pass-
+  17 streak grace (iteration 14): the grace is the mechanic that lets a
+  streak *reach* day 7; the spike is the prize that makes keeping it
+  worth it.
 - **Streak protection (freezes / repair)** — pass 4. The streak has no
   safety net: miss a day and it resets to zero (and a lost streak never
   costs progress, but nothing protects it either). The Duolingo teardown
