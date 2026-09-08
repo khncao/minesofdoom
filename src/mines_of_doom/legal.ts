@@ -19,9 +19,9 @@
  *    (debug)" show + clear them);
  *  - accounts + cloud: auth.ts, cloudSave.ts, leaderboard.ts (single
  *    developer server, Pocketbase — see pb_hooks/README.md);
- *  - ads: ads.ts, adProvider*.ts (native: AdMob rewarded only; web: the
- *    labeled AdSenseBanner in the shop sheet — update the ad paragraph
- *    if that changes);
+ *  - ads: ads.ts, adProvider*.ts + adSenseProvider*.ts (native: AdMob
+ *    rewarded only; web: AdSense Ad Placement API rewarded ads — update
+ *    the ad paragraph if that changes);
  *  - purchases: iaps.ts + iapProvider*.ts (native: store IAP; web:
  *    Stripe Checkout — card data never reaches this app);
  *  - the published HTML versions (public/privacy-policy.html,
@@ -51,7 +51,7 @@ const PRIVACY_POLICY: LegalDoc = {
     {
       heading: "Short version",
       body:
-        "Mines of Idle Doomath is a free idle game. By default, your progress lives only on your device — no account is required. If you choose to create an account, your progress is backed up to the developer's server so you can restore it on another device, and you can (optionally, under a display name you choose) post scores to the leaderboard. Advertising is minimal by design: on mobile, only full-screen videos that you start yourself (rewarded), and on the web, a single clearly labeled banner in the shop. We do not build advertising profiles from your game data, we do not share your data with anyone, and we do not sell it.",
+        "Mines of Idle Doomath is a free idle game. By default, your progress lives only on your device — no account is required. If you choose to create an account, your progress is backed up to the developer's server so you can restore it on another device, and you can (optionally, under a display name you choose) post scores to the leaderboard. Advertising is minimal by design: on both mobile and the web, only full-screen ads that you start yourself (rewarded) — you tap “watch”, you finish the ad, you get the in-game reward. We do not build advertising profiles from your game data, we do not share your data with anyone, and we do not sell it.",
     },
     {
       heading: "What we store on your device",
@@ -76,7 +76,7 @@ const PRIVACY_POLICY: LegalDoc = {
     {
       heading: "Advertising",
       body:
-        "Mobile: strictly optional, player-initiated rewarded video ads (Google AdMob). You tap “watch” yourself, and you only receive the in-game reward if you finish the video; there are no interstitials and no banners. The rewarded ad rewards an in-game item (minerals), never a real-world product.\n\nWeb: a single banner in the shop (Google AdSense), labeled as advertising. It is the only advertisement on the web version.\n\nIf a rewarded ad provider is active, it may process the data its own privacy policy describes in order to serve those ads; we do not pass it any personal information about you, and no ad ever affects gameplay outside the reward you explicitly asked for. Ad settings and opt-out are handled through the store/platform ad controls, and simply not tapping “watch” disables mobile ads entirely. We are an independent developer and are not affiliated with Google, Apple, or any ad network.",
+        "Mobile: strictly optional, player-initiated rewarded video ads (Google AdMob). You tap “watch” yourself, and you only receive the in-game reward if you finish the video; there are no interstitials and no banners. The rewarded ad rewards an in-game item (minerals), never a real-world product.\n\nWeb: likewise strictly optional, player-initiated rewarded ads (Google AdSense) — you tap “watch” yourself, and you only receive the in-game reward if you finish the ad. There are no interstitials and no banners anywhere.\n\nIf a rewarded ad provider is active, it may process the data its own privacy policy describes in order to serve those ads; we do not pass it any personal information about you, and no ad ever affects gameplay outside the reward you explicitly asked for. Ad settings and opt-out are handled through the store/platform ad controls, and simply not tapping “watch” disables mobile ads entirely. We are an independent developer and are not affiliated with Google, Apple, or any ad network.",
     },
     {
       heading: "Children",

@@ -6,9 +6,10 @@
  *  - Rewarded ads only, strictly opt-in: a reward is granted ONLY after the
  *    provider reports a completed ad ("rewarded"). No interstitials, no
  *    banners, nothing in the equation flow.
- *  - Web is 100% free with no ad SDKs: the production provider here is a
- *    no-op whose entry points are hidden (`noopAdProvider`), and a real SDK
- *    provider plugs in behind the same interface when it ships.
+ *  - Providers plug in behind one interface: native runs the AdMob SDK
+ *    (adProvider.ts), web runs the AdSense Ad Placement API
+ *    (adSenseProvider.web.ts). Unconfigured builds get `noopAdProvider`,
+ *    whose entry points are hidden end to end.
  *  - Fraud caps (plan §5.1 "track impressions/rewards in-app to detect
  *    fraud"): rewards are metered per local day (≤ AD_MAX_REWARDS_PER_DAY),
  *    gem rolls have their own tighter daily allowance. The caps are enforced
@@ -18,6 +19,8 @@
 import { Platform } from "react-native";
 import { getLocalDayKey } from "./dailyBonus";
 import { adMobAdProvider, hasAdMobConfig } from "./adProvider";
+import { adSenseAdProvider } from "./adSenseProvider";
+import { isAdSenseConfigured } from "./storeConfig";
 
 /** The kinds of rewards a completed ad can grant. */
 export type AdKind = "gemRolls" | "offlineDouble" | "offlineTopUp" | "comboSave";
@@ -39,6 +42,14 @@ export interface AdProvider {
   readonly id: string;
   /** Whether a rewarded ad can be shown on this platform right now. */
   isAvailable(): boolean;
+  /**
+   * Optional pre-tap probe. The web Ad Placement API is two-phase: the
+   * show function only exists after a placement has been probed, and it
+   * may only be invoked from the user's tap itself — so the UI calls this
+   * whenever a "watch" entry point becomes visible, then taps through
+   * `showRewarded`. AdMob (and the no-ops) ignore it.
+   */
+  primeReward?(kind: AdKind): void;
   /**
    * Show a rewarded ad. Resolves to "rewarded" only if the player finished
    * it; resolves (never rejects, callers shouldn't need a catch for the
@@ -83,25 +94,31 @@ export type AdProviderSelection = {
    *  watch → reward → daily caps flow stays exercisable without an ad
    *  account (production builds never grant simulated rewards). */
   dev: boolean;
-  /** Web target: no web ad integration exists yet — `adProvider.web.ts`
-   *  is a no-op and the native SDK never enters the web bundle. */
+  /** Web target: the native SDK never enters the web bundle; web rewarded
+   *  ads run on the AdSense Ad Placement API instead (that branch of the
+   *  rule below). */
   web: boolean;
-  /** Whether this platform's storeConfig.adMob pair is set (runbook §1). */
+  /** Whether this platform's storeConfig.adMob pair is set (runbook §1).
+   *  Only read on the non-web branch. */
   adMobConfigured: boolean;
+  /** Whether storeConfig.adsense is set (only read on the web branch). */
+  adSenseConfigured: boolean;
 };
 
 /**
  * The pure selection rule (the ONE SWAP POINT, mirrors
  * `selectIapProvider` in iaps.ts). dev always wins (labeled simulation);
- * web and "native without configured ids" stay on the no-op so entry
- * points never appear where no ad can be shown; only a configured
- * production native build gets the real AdMob provider. Every reward rule
- * below this file's rules is untouched by that swap.
+ * unconfigured builds stay on the no-op so entry points never appear where
+ * no ad can be shown; a configured production build gets the real provider
+ * for its platform (AdMob on native, the AdSense Ad Placement API on web).
+ * Every reward rule in this file is untouched by that swap.
  */
 export function pickAdProvider(sel: AdProviderSelection): AdProvider {
   if (sel.dev) return devSimAdProvider;
-  if (sel.web || !sel.adMobConfigured) return noopAdProvider;
-  return adMobAdProvider;
+  if (sel.web) {
+    return sel.adSenseConfigured ? adSenseAdProvider : noopAdProvider;
+  }
+  return sel.adMobConfigured ? adMobAdProvider : noopAdProvider;
 }
 
 /** The one call site-facing selector (MinesOfDoom.tsx): reads the live
@@ -111,6 +128,7 @@ export function selectAdProvider(dev: boolean): AdProvider {
     dev,
     web: Platform.OS === "web",
     adMobConfigured: hasAdMobConfig(),
+    adSenseConfigured: isAdSenseConfigured(),
   });
 }
 

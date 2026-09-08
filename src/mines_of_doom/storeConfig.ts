@@ -91,21 +91,24 @@ export const storeConfig = {
    * "pickaxeGoldPack", … — iaps.ts IAP_PRODUCT_LIST).
    */
   stripe: {
-    publishableKey: "",
+    publishableKey:
+      "pk_test_51UDFSrDPxWoXhXF89ljfKfug4SEnW89VOEfHZd49ymBwMZ5CkBrpbDplb9hBdTvFAoqb5tf5QWzMKWSR946fV2mn00MUoKKYIH",
     prices: {} as Record<string, string>,
   },
   /**
-   * AdSense (web banner ads, docs/todo.md #2) — `client` is the publisher
-   * id (ca-pub-…) from the AdSense dashboard, `slot` the display unit's
-   * slot id. BOTH must be non-empty to enable the banner; anything less
-   * leaves the feature off end to end (the loader script in +html.tsx and
-   * the banner in the shop sheet simply don't render). The banner renders
-   * in the shop/settings sheet only — never over the game canvas (kid-safe
-   * guardrail: ads must not overlap the play area).
+   * AdSense (web rewarded ads, docs/todo.md #2) — the web parity path for
+   * the AdMob rewarded placements, via the AdSense "Ad Placement API"
+   * (H5 Games Ads): `client` is the publisher id (ca-pub-…) from the
+   * AdSense dashboard. The Ad Placement API needs no per-unit slot id —
+   * each rewarded placement (one per AdKind, see adSenseProvider.web.ts)
+   * is a fresh `type: "reward"` adBreak on this client. While the client
+   * is empty the feature is off end to end (the loader script in +html.tsx
+   * simply isn't emitted and the provider reports unavailable). Rewarded
+   * ads only, player-tapped (guardrail 2) — the old shop-sheet banner was
+   * removed when web moved to rewarded-only (2026-09-07).
    */
   adsense: {
     client: "ca-pub-2101316086878618",
-    slot: "5884000571",
   },
 };
 
@@ -142,17 +145,17 @@ export function isPocketbaseConfigured(): boolean {
 }
 
 /**
- * AdSense is usable only when BOTH the publisher client and the banner
- * slot are filled (docs/todo.md #2). The client id is validated against
- * the ca-pub- prefix so a typo can't silently load someone else's account
- * script. Empty → the web banner feature is off end to end (no script
- * tag, no banner, no network).
+ * AdSense is usable only when the publisher client is filled
+ * (docs/todo.md #2). The client id is validated against the ca-pub-
+ * prefix so a typo can't silently load someone else's account script.
+ * Empty → the web ad feature is off end to end (no script tag, no
+ * placements, no network) — the Ad Placement API needs nothing but the
+ * client id, so no second value to half-fill.
  */
 export function isAdSenseConfigured(
   client: string = storeConfig.adsense.client,
-  slot: string = storeConfig.adsense.slot,
 ): boolean {
-  return /^ca-pub-\d+$/.test(client) && slot.length > 0;
+  return /^ca-pub-\d+$/.test(client);
 }
 
 /**

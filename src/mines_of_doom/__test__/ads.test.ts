@@ -15,6 +15,7 @@ import {
 } from "../ads";
 import { getLocalDayKey } from "../dailyBonus";
 import { adMobAdProvider, hasAdMobConfig } from "../adProvider";
+import { adSenseAdProvider } from "../adSenseProvider";
 
 /** Local noon on a calendar day — same convention as the daily-bonus
  *  tests: noon±24h stays on the expected day in the DST regimes we test. */
@@ -197,28 +198,72 @@ describe("provider selection (the swap point)", () => {
   // live config.
   it("dev builds always select the labeled simulation", () => {
     expect(
-      pickAdProvider({ dev: true, web: false, adMobConfigured: false }),
+      pickAdProvider({
+        dev: true,
+        web: false,
+        adMobConfigured: false,
+        adSenseConfigured: false,
+      }),
     ).toBe(devSimAdProvider);
     expect(
-      pickAdProvider({ dev: true, web: true, adMobConfigured: true }),
+      pickAdProvider({
+        dev: true,
+        web: true,
+        adMobConfigured: true,
+        adSenseConfigured: true,
+      }),
     ).toBe(devSimAdProvider);
   });
 
-  it("web production stays on the no-op (no web ad integration yet, even if configured)", () => {
+  it("unconfigured web production stays on the no-op (hidden entry points)", () => {
     expect(
-      pickAdProvider({ dev: false, web: true, adMobConfigured: true }),
+      pickAdProvider({
+        dev: false,
+        web: true,
+        adMobConfigured: true,
+        adSenseConfigured: false,
+      }),
     ).toBe(noopAdProvider);
+  });
+
+  it("configured web production selects the AdSense provider (the web branch never reads the AdMob flag)", () => {
+    expect(
+      pickAdProvider({
+        dev: false,
+        web: true,
+        adMobConfigured: false,
+        adSenseConfigured: true,
+      }),
+    ).toBe(adSenseAdProvider);
+    expect(
+      pickAdProvider({
+        dev: false,
+        web: true,
+        adMobConfigured: true,
+        adSenseConfigured: true,
+      }),
+    ).toBe(adSenseAdProvider);
   });
 
   it("unconfigured native production stays on the no-op (hidden entry points)", () => {
     expect(
-      pickAdProvider({ dev: false, web: false, adMobConfigured: false }),
+      pickAdProvider({
+        dev: false,
+        web: false,
+        adMobConfigured: false,
+        adSenseConfigured: true,
+      }),
     ).toBe(noopAdProvider);
   });
 
   it("configured native production selects the AdMob provider", () => {
     expect(
-      pickAdProvider({ dev: false, web: false, adMobConfigured: true }),
+      pickAdProvider({
+        dev: false,
+        web: false,
+        adMobConfigured: true,
+        adSenseConfigured: false,
+      }),
     ).toBe(adMobAdProvider);
   });
 
