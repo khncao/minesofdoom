@@ -34,7 +34,13 @@ revelation, minimum viable rule set);
 gamedesign.gg "Idle and Incremental Game Design" (idle canon: Pecorella
 GDC 2016 talk + idle-math blog, Eyal's habit loop, Schell's
 anticipation lens, Lantz's decision layers, Alter's stopping cues),
-Tideward offline-progression design note (alpha-tested offline UX). Items
+Tideward offline-progression design note (alpha-tested offline UX);
+2026-09 pass 9: win-back & the reactivation layer — Helpshift
+"Re-Engagement Campaigns for Mobile Games" (2026 playbook: lapse windows,
+moment-of-return, reactivation measurement), XtremePush "Gamification
+for dormant player reactivation" (Apr 2026: dormancy tiers, comeback
+mechanics, cross-channel frequency caps), Pushwoosh game retention case
+studies (justDice / Bladestorm / Beach Bum). Items
 adopted from that list move into `docs/todo.md`.
 
 ## 1. Core gameplay
@@ -610,6 +616,129 @@ canon below, not gaps); the rest are candidates.
   (the input becomes tedium — for us the combo/tap axis flattening
   out, where the pass-4 adaptive-difficulty item is the cure once it
   lands).
+
+### Win-back & the reactivation layer (pass 9 — the funnel segment after D30)
+
+Passes 3–8 documented the funnel from install to D30 and the return
+moment between sessions; none looked at the player who churned and the
+layer that wins them back. This is that audit. Source-quality note up
+front, per the pass-6 discipline: the CTR / opt-in numbers below are
+vendor case studies (single-studio anecdotes, no dataset named) — the
+DIRECTION (event-triggered and localized push massively out-earns
+generic "we miss you"; value-selling at the permission prompt) is
+consistent across all three sources, but treat the magnitudes as
+illustrative, and keep guardrail 5's local logging as the only honest
+number, exactly as pass 4 did for retention.
+
+- **The offline cap quietly kills the long-lapsed return haul** — the
+  strongest win-back asset this game already has is the offline haul
+  (the mine kept working while you were away). The 8 h cap
+  (`game.ts: maxOfflineTicks`) makes a 3-day-lapsed return *no better
+  than a 20-hour one*: both land the same capped lump, so the lapsed
+  player has no windfall to arrive at and no new reason to be here.
+  The genre's offline design (the Tideward offline-progression note
+  pass 8 read: real offline rewards, no ad-gates) treats the haul as a
+  designed return experience. The cheap fix is NOT a bigger cap (that
+  would change free-path pacing `freePath.ts` polices) but an explicit
+  **welcome-back state**: when absence exceeds N days, the load screen
+  shows away time, the capped haul, the next purchasable upgrade, and
+  frames the cap as the reason-to-be-back ("your miners hit the cap
+  while you were gone") rather than a ceiling. The rewarded
+  double/top-up offers already live at exactly this moment (canon,
+  pinned in pass 8); this is the base ceremony for the long-absence
+  case the pass-8 "while you were away" card doesn't cover (that item
+  is the sub-8 h case). Candidate, not planned. Extends the pass-8
+  item.
+- **The streak reset is a demotion at the return moment** — the
+  reactivation research names tier degradation as a top re-churn
+  driver ("a player who left at Gold returning to Bronze loses
+  motivation before they place a single bet"). Ours is the same shape:
+  after any break the daily streak is day 1 again (`dailyBonus.ts` — a
+  lost streak "never costs progress", but the return screen shows a
+  SMALLER daily bonus than the one they had), and it is the first
+  number a returning player reads. The streak-protection item above
+  (freezes / repair, Engagement section) is the mechanic-side fix; this
+  is the reactivation-side framing of the same item — a streak that can
+  survive or be repaired is itself a return hook, and the day-7 spike
+  is the return *prize*. Three items, one root cause: the return state
+  reads as a downgrade. Candidate, not planned.
+- **Re-engagement is three-layer and we have zero of the layers** —
+  the 2026 playbook splits re-engagement into the **channel layer**
+  (push / email / retargeting), the **moment-of-return layer** (the
+  designed first 90 seconds: progress recap, what's new since the last
+  session, optional re-onboarding, friction removed), and the
+  **retention layer** (return rewards, returning-player missions, the
+  re-established habit). Ours: channel — absent (no
+  `expo-notifications` anywhere; the home-screen-widget item in
+  "Player-facing surfaces" is the blocker, and its pass-3 permission
+  reality — an earned grant after a success moment, never at launch —
+  still applies); moment of return — absent (the lapsed player gets
+  the same home screen as a 3-minute player; the pass-8 card item is
+  the start of this layer); retention — partially by construction (the
+  weekly contract still owes this week's delta goals IF the return is
+  inside the same real week — a genuine in-game stake; the daily
+  equation has rotated; the goal tiers advance). The playbook's
+  ordering for a solo-scale game: moment of return first (no
+  permission, no channel, pure in-app), channels last.
+- **Lapse segmentation can ride on state we already have** — the
+  research is emphatic: segment by behavior, not days-since-last
+  (short-term dormant 7–30 d → low-friction hook; mid-term 30–90 d →
+  re-onboarding with easy wins; long-term 90+ d → treat as near-new,
+  lead with what CHANGED, not continuity; reward scales with
+  dormancy length). The named leading signals all precede inactivity
+  (session-depth decline, progression stall, missed cadence) and ours
+  are all derivable from existing state: `analytics.ts` events,
+  lifetime stats, the weekly contract's claim state, the depth-tier
+  last-changed time. The missing piece is a *server-side* view —
+  guardrail-5 events are local by design, so behavior-based targeting
+  needs a Pocketbase cohort endpoint. The honest solo-scale alternative
+  is a deliberate decision, not a gap: keep re-engagement
+  device-local — the device IS the cohort, and the welcome-back state
+  computes on load from the save with zero new infrastructure (the
+  first item above is exactly that shape).
+- **Push design is pre-decided for when the widget item lands** — the
+  numbers that justify waiting for it to be good (vendor case
+  studies, direction per the source note): mobile-game push CTR median
+  0.46–1.05 % vs 14.14 % on event-triggered pushes (a bonus actually
+  became available) and up to 28.21 % on localized offer pushes; the
+  iOS opt-in benchmark is ≤74.7 % and the 97.9 % case sold VALUE at
+  the prompt, not offers. What that pins for the widget/push item when
+  it's picked up: the pass-3 value push (the offline-haul cap "your
+  miners hit the cap") is the canonical example — a real reason to
+  return; a win-back push names a STAKE, not an absence ("your weekly
+  contract still has X to go this week" beats "we miss you");
+  frequency-capped across all channels in one window; and the
+  justDice early-churn pattern (a nudge within *minutes* for a
+  day-1 player who quit before their first solve — their -26 % early
+  churn) pairs with the FTUE pass's funnel item. None of it is a
+  feature today — design debt for the widget item, per guardrail 3 all
+  timers in it stay real.
+- **Measure reactivation, not sends** — the playbook's operational
+  distinction: re-engagement is the campaign, **reactivation** is the
+  outcome; the KPI is D7 retention on reactivated players (named
+  definition, per the pass-4 discipline), not impressions/clicks. For
+  this game the measurement is nearly free and fully on-device: a
+  return event at load (away time, streak state, weekly-claim state,
+  cap-hit-or-not) plus a D7 flag gives a reactivation funnel per
+  dormancy tier inside the existing guardrail-5 local logger. Same
+  piece: read the store-review window of the lapsed cohort
+  (pass-4 churn workflow) before designing the long-term offer —
+  churn reason is in the reviews, not in the inactivity timestamp.
+- **Canon pins (confirmed correct, not gaps):** (1) the **zero-cost
+  return** — autosave + offline haul means leaving costs nothing,
+  which is the precondition that makes any "come collect" push honest
+  (guardrail 3); (2) the **in-game stakes exist already** — the weekly
+  contract, daily equation, and goal tiers advance while the player
+  is away, so a re-engagement message has a real stake to name (the
+  playbook's "stake, not absence") without any new mechanic; (3) the
+  **rewarded offers at the return moment** (offline double / top-up)
+  are the genre-standard shape. The two long-game failure modes this
+  research names and this game is specifically exposed to: the
+  **content wall** (D30+ churn = nothing new; the seasonal-events and
+  battle-pass items above are the answer, and a 90+ d win-back must
+  lead with "what changed", so those items' landing order matters for
+  win-back copy) and the **empty return** (capped haul + reset streak —
+  the first two items of this pass).
 
 ### Monetization benchmarks (pass 6 — revenue-side targets for guardrail 5)
 
