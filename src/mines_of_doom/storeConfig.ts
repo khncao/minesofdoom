@@ -62,9 +62,12 @@ export const storeConfig = {
       // stays hidden with an empty App ID).
       comboSave: "ca-app-pub-2101316086878618/9285949727",
     },
-    // Guardrail 6 (kid safety): TAG_FOR_CHILD_DIRECTED_TREATMENT. Flip to
-    // true once the final age rating is known; applied via
-    // MobileAds().setRequestConfiguration in adProvider.ts.
+    // Guardrail 6 (kid safety): TAG_FOR_CHILD_DIRECTED_TREATMENT.
+    // DECIDED 2026-09-08 (docs/security-audit.md S6): the app is positioned
+    // teen+ (13+), NOT child-directed, so the flag stays false — applied
+    // via MobileAds().setRequestConfiguration in adProvider.ts. Only flip to
+    // true if the stance ever becomes kid-directed (that also makes the
+    // COPPA-2025 parental-consent gate a launch requirement, see S6).
     tagForChildDirectedTreatment: false,
   },
   // Self-hosted Pocketbase base URL — ONE deployment serves receipt

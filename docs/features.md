@@ -1396,12 +1396,15 @@ the first amendment since 2013 and reshapes the S6 age-rating decision
   leaderboard already proves the endpoint pattern). That is the
   cheaper first step toward this item, and it can be ranked against
   it: a community milestone is a guild-lite.
-- **Kids mode / parent screen** — guardrail 6 (kid-safe age rating) is
-  planned but there is no in-app parent area (time limits, ad consent
-  surface). Becomes mandatory-looking once an age rating is chosen.
-  Pass 6 pins the stakes: the COPPA 2025 final rule is in full effect,
-  so a kid-directed rating makes a verifiable-parental-consent gate (and
-  the separate third-party-ad consent) a launch requirement — see the
+- **Kids mode / parent screen** — **NOT a launch requirement:** the S6
+  decision (2026-09-08, `docs/security-audit.md`) chose option (b) —
+  teen+ (13+) positioning, not child-directed — so no
+  verifiable-parental-consent gate is needed at launch. This item is
+  the landing spot if the stance ever flips to kid-directed (the
+  revisit trigger: post-launch data showing heavy under-13 usage —
+  COPPA 2025's "directed to children" test weighs user composition).
+  A voluntary, non-COPPA parent area (time limits, ad opt-out surface)
+  can still be built for goodwill at any time. See the
   "Compliance (pass 6)" section above.
 
 ### Deliberately absent (guardrails, not gaps)

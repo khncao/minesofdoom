@@ -54,15 +54,18 @@ Completed items are removed from this file (see git history); only remaining wor
     session token → `{ok, deletedAccount:true}`, post-delete re-login
     refused 401 — probe account deleted, nothing lingers); the in-browser
     GIS/Apple legs remain manual (`docs/blockers.md`).
-    Only open follow-up: S6 (kid-safety/age rating). **External store check
-done 2026-09-08 (iteration 8):** the app has NO production release
-(internal track 1.0.8 only; the public Play Store page 404s), so no
-age rating is published to verify yet — the rating is set via the Play
-Console "App content rating" questionnaire (UI; Play Developer API v3
-no longer exposes content ratings — the old top-level app endpoint 404s
-and `edits.details` carries none) BEFORE the first production release.
-The remaining work is the rating DECISION + `TAG_FOR_CHILD_DIRECTED_TREATMENT` setting for it — the COPPA 2025
-final rule (compliance deadline 2026-04-22, now in full effect) is the
-decision input: docs/features.md §7 "Compliance (pass 6)" and the S6
-section in docs/security-audit.md.
+    **S6 DECIDED 2026-09-08 (iteration 9): teen+ (13+) positioning, not
+child-directed** — `TAG_FOR_CHILD_DIRECTED_TREATMENT` stays `false`
+(already the shipped value; `storeConfig.test.ts` pins it, decision
+recorded in the `storeConfig.ts` comment). Rationale + the remaining
+MANUAL pre-production steps (Play Console questionnaire + listing
+minimum-age 13+ + no families opt-in; App Store equivalent; AdMob
+console "Not child-directed") and the post-launch revisit trigger
+(heavy under-13 usage ⇒ COPPA option (a) becomes mandatory) are all in
+the S6 section of docs/security-audit.md and docs/features.md §7
+"Compliance (pass 6)". Store-side check context: no production release
+yet (internal track 1.0.8 only), so nothing published to verify; Play
+Developer API v3 no longer exposes content ratings (top-level app
+endpoint 404s, `edits.details` carries none) — the questionnaire is a
+Play Console UI step BEFORE the first production release.
 

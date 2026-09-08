@@ -28,7 +28,7 @@ S6 kid-safety) items.
 | S3 | Low | Email/password hashed with single-iteration SHA-256 (no KDF) | **Fixed** (this iteration) |
 | S4 | Compliance | No discoverable privacy policy (GDPR / store listing) | **Fixed** (this iteration — listing links are the external step) |
 | S5 | Info | Device-scope GDPR delete intentionally keeps entitlements | Accepted trade-off |
-| S6 | Compliance | Kid-safety / age-rating check for the rewarded-ads model | **Store check done 2026-09-08** — no production release yet, so nothing published to verify; the rating is a Play Console questionnaire set pre-production (API v3 no longer exposes it). Open: rating decision (COPPA 2025 in full effect) + ad settings |
+| S6 | Compliance | Kid-safety / age-rating check for the rewarded-ads model | **DECIDED 2026-09-08: teen+ (13+) positioning, not child-directed** — `tagForChildDirectedTreatment` stays `false` (consistent, storeConfig.test.ts pins it). Remaining: the manual Play/App Store questionnaire steps at pre-production (listing minimum-age 13+, no "designed for families" opt-in, marketing kept off under-13s) |
 
 ---
 
@@ -228,6 +228,53 @@ See `docs/features.md` §7 "Compliance (pass 6)" for the two viable
 paths (kid-directed + consent gate vs teen rating + the device-scoped
 anonymous model).
 
+**DECISION (2026-09-08, iteration 9): option (b) — teen+ (13+) positioning.**
+The app is positioned as **not child-directed**: `tagForChildDirectedTreatment`
+**stays `false`** (already the shipped value; `storeConfig.test.ts` pins it,
+and the `storeConfig.ts` comment now records the decision). Rationale:
+
+- **Cost asymmetry.** Under COPPA 2025 (in full effect), option (a)
+  (kid-directed) makes a **launch** requirement of a verifiable-parental-
+  consent gate *before data collection*, a **separate** third-party-ad
+  consent, and a **scheduled-retention** clause in the privacy notice
+  (v2.0 is GDPR-shaped: deletion on request, no retention schedule).
+  None of that exists; building it before a first release is a large, no
+  production-player feedback loop.
+- **Architecture fit.** Option (b) is the device-scoped anonymous model —
+  local save by default, opt-in account, local-only analytics, rewarded-
+  only ads with player-initiated "watch" taps — which is exactly what the
+  app already does. The compliance posture costs zero new surfaces.
+- **Content fit.** The math idle loop is age-neutral; the "Doom"
+  branding is cartoonish. 13+ is a defensible floor without claiming a
+  child audience we do not market to.
+
+**Remaining (manual, pre-production — the rating decision above does NOT
+remove these steps):**
+
+1. Play Console, before the first production release: complete the
+   "App content rating" questionnaire **honestly** (it is a content
+   descriptor → IARC rating mapping; a clean-content app lands low, and
+   that is the *content* rating — it is not the target-audience stance).
+   The teen+ stance is carried by the listing's **minimum-age setting
+   (13+)**, by **not** opting into any "designed for families" program,
+   and by keeping all marketing away from under-13 audiences (COPPA
+   2025's "directed to children" test explicitly weighs marketing and
+   representations).
+2. App Store (when iOS ships): the age-rating questionnaire likewise,
+   minimum age 12+/13+ per App Store's scale, same no-families opt-in
+   rule.
+3. AdMob console: the **Ad Settings / child-directed** toggle per app —
+   leave "Not child-directed" (consistent with the in-app flag; the two
+   must agree, and Google reconciles the SDK flag against the console
+   setting).
+4. **Revisit trigger:** math idle skews young. COPPA 2025's "directed to
+   children" test includes the age composition of users on similar sites.
+   If first post-launch data (guardrail 5 event logging) shows heavy
+   under-13 usage or a marketing channel skews under-13, option (a)
+   becomes the honest posture and the parental-consent gate + retention
+   schedule become required — the "Kids mode / parent screen" item in
+   `docs/features.md` is where that work would land.
+
 ---
 
 ## Follow-up checklist
@@ -236,5 +283,5 @@ anonymous model).
 - [x] S4 — Privacy policy v2.0 + terms v2.0 in-app (legal.ts, ES i18n synced) + generated published HTML. **Remaining: link the two URLs from the Play/App Store listings (external).**
 - [x] S2 — Stripe delivery moves to the sidecar's `/stripe/webhook` (Stripe-Signature over the raw body) + the Pocketbase route is gated on the shared key.
 - [x] S3 — Password hashing upgraded to a 100k-round iterated-SHA-256 KDF (transparent on-login upgrade of legacy rows). Done + tested.
-- [ ] S6 — Confirm age rating + `TAG_FOR_CHILD_DIRECTED_TREATMENT` for the rewarded-ads model. (2026-09-08 store check: no production release yet — nothing published to verify; the rating is the Play Console questionnaire set pre-production; COPPA 2025 is in full effect — decision input in `docs/features.md` §7 "Compliance (pass 6)".)
+- [o] S6 — **Decided 2026-09-08: teen+ (13+) positioning, not child-directed**; `TAG_FOR_CHILD_DIRECTED_TREATMENT` = `false` (shipped value, test-pinned, decision recorded in `storeConfig.ts`). Remaining manual pre-production steps (Play Console questionnaire + listing minimum-age 13+ + no families opt-in, App Store equivalent, AdMob console "Not child-directed") are listed in the S6 section above; revisit trigger if under-13 usage skews high post-launch.
 - [ ] S5 — None (accepted).
