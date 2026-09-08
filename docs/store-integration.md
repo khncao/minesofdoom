@@ -284,10 +284,14 @@ and is pinned against `IAP_STORE_IDS` by `pb_hooks/__test__/logic.test.js`.
 A valid receipt for a product NOT in the allow-list never mints an
 entitlement.
 
-`Restore purchases` re-runs the store round-trip
-(`IapProvider.restore()` → `/api/app/restore`) and merges
-additively into the local entitlement record (a restore can only ADD,
-never revoke).
+Entitlements re-derive **silently on every launch** — there is no
+manual restore button: `useIap` runs `reconcileStore()` once per start
+(expo-iap `getAvailablePurchases` → re-grant + re-ack + re-verify each
+token, so the server row re-mints under the device's CURRENT id) and
+`IapProvider.restore()` (`/api/app/restore`) merges additively into the
+local entitlement record (a restore can only ADD, never revoke). This
+is what makes an entitlement survive a full local wipe: the store's own
+record is the source of truth, not the device's.
 
 ### 2.4 Testing real billing on a debug APK
 

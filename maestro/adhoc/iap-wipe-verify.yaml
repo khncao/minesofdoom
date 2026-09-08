@@ -1,41 +1,82 @@
-# Ad-hoc (on-device, debug APK with the embedded PRODUCTION bundle from
-# HEAD, which includes reconcileStore, a50aea0): the wipe leg of the
-# "iap not persisting" fix. Run AFTER
+# Ad-hoc (on-device, debug APK from c04e03b = the IAP code of HEAD): the
+# wipe leg of the "iap not persisting" fix (a50aea0). Run AFTER
 # `adb shell pm clear com.minus4kelvin.minesofdoom`.
 #
 # The wiped app has no local entitlement rows, but the license tester's
-# purchase persists in the STORE record (the purchase leg was confirmed
-# on this AVD). reconcileStore() runs once, silently, at launch and must
-# re-derive the entitlement from the store record, so the panel should
-# settle back to "Owned" — not stay "Buy". Needs the Play billing
-# network (queryProductDetails + getAvailablePurchases).
+# purchase persists in the STORE record. reconcileStore() must re-derive
+# the entitlement, so the shop panel must settle back to OWNED — the
+# owned indicators in the unified panel (post c565bb7) are the "Equip" /
+# "✓ Equipped" button on the row and " ✓" appended to the title.
+# (The old "One-time purchases" section header and "Owned" label no
+# longer exist in the UI.)
+#
+# DEBUG-APK NUANCE (why v3 taps the toggle): the real-store opt-in flag
+# (`iapRealStore` localStorage) is itself wiped by `pm clear`, so a
+# wiped DEBUG app boots on the dev-sim provider, which has no
+# reconcileStore. Tapping "Real store billing" flips the provider to the
+# store one, which re-runs the launch effect — and that is what fires
+# reconcileStore (initConnection → getAvailablePurchases → re-grant).
+# A RELEASE build has no toggle: it always runs the store provider, so
+# the reconcile fires at plain launch.
+#
+# v3 (2026-09-07): after the toggle flip the panel is re-rendered by the
+# store provider; give it 30 s to connect + query + merge, normalize the
+# scroll to the top (regex "Gold Pickaxe" also matches the owned
+# "Gold Pickaxe ✓" title node), then scan the whole catalog for the
+# owned-state button ("Equip" matches both "Equip" and "✓ Equipped").
 appId: com.minus4kelvin.minesofdoom
 ---
+# Maestro 2.x notes: assertions retry on their own for a default ~20 s,
+# but an assert against a still-loading tree fails FAST, so the cold
+# start after the wipe gets an explicit warm-up sleep first.
+# `runScript` in 2.x EVALUATES the file as JavaScript (no shell, no
+# top-level await) — see the busy-loop sleeps in sleep-5.js /
+# sleep-30.js.
 - launchApp: com.minus4kelvin.minesofdoom
 
+# Cold start after the wipe: give the embedded bundle time to render the
+# tree before anything asserts on it.
+- runScript: 'sleep-5.js'
 - assertVisible:
     id: onboarding-skip
     optional: true
 - tapOn:
     id: onboarding-skip
     optional: true
-
 - assertVisible:
     id: equation-display
 
-# Open the IAP panel: the catalog must render...
+# Open the shop panel.
 - tapOn:
     text: "🛍️"
-- assertVisible:
-    text: "One-time purchases"
 
-# ...and after reconcileStore replays the store record, ownership must
-# be re-derived (async — give it a generous window; this is the whole
-# point of the fix).
+# Re-arm the real-store opt-in (the flag lives in the same storage that
+# `pm clear` wiped — see the header). This flips the provider dev-sim →
+# store, which triggers the launch reconcile effect.
+# Maestro 2.x matches element text as a FULL regex, so every matcher is
+# anchored with .*/.* around the distinctive substring.
+- tapOn:
+    text: ".*Real store billing.*"
 - assertVisible:
-    text: "Owned"
-    retryIntervalMilliseconds: 3000
-    timeoutMilliseconds: 90000
+    text: ".*REAL store billing active.*"
+
+# initConnection + getAvailablePurchases + merge + re-render.
+- runScript: 'sleep-30.js'
+
+# Normalize to the top of the catalog, then scan the ENTIRE list for the
+# owned-state button. Fails after 120 s if no row is owned anywhere.
+- scrollUntilVisible:
+    element:
+      text: ".*Gold Pickaxe.*"
+    direction: UP
+    timeout: 30000
+    speed: 80
+- scrollUntilVisible:
+    element:
+      text: ".*Equip.*"
+    direction: DOWN
+    timeout: 120000
+    speed: 80
 
 - takeScreenshot:
     path: iap-wipe-recovered.png

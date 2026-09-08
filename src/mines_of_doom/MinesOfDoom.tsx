@@ -1174,15 +1174,10 @@ export default function MinesOfDoom() {
     adClaim(kind);
   }, [adClaim]);
   const iapPurchase = iap.purchase;
-  const iapRestore = iap.restore;
   const handleIapPurchase = useCallback((id: IapProductId) => {
     noteCrashEvent(`iap purchase: ${id}`);
     iapPurchase(id);
   }, [iapPurchase]);
-  const handleIapRestore = useCallback(() => {
-    noteCrashEvent("iap restore");
-    iapRestore();
-  }, [iapRestore]);
   // Unified-shop gem buy (todo: "move gem shop cosmetics to one time
   // purchase shop"): the pack's grant decides the engine action; both are
   // idempotent no-ops when unaffordable / already owned. Stable callbacks
@@ -1334,7 +1329,6 @@ export default function MinesOfDoom() {
             selectedPickaxe={gameState.selectedPickaxe}
             selectedCaveTheme={gameState.selectedCaveTheme}
             purchasing={iap.purchasing}
-            restoring={iap.restoring}
             entitlements={iap.entitlements}
             saveOwnedCosmeticIds={saveOwnedCosmeticIds}
             themesLocked={
@@ -1344,7 +1338,6 @@ export default function MinesOfDoom() {
             onPurchase={handleIapPurchase}
             onSelect={handleShopSelect}
             onReroll={rerollPlayerSeed}
-            onRestore={handleIapRestore}
           />
         </View>
         <DepthBanner

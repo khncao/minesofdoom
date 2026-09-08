@@ -488,10 +488,6 @@ export const es: Record<TranslationKey, string> = {
   "iap.groupThemes": "Temas de cueva",
   "iap.equip": "Equipar",
   "iap.equipped": "✓ Equipado",
-  "iap.restore": "📦 Restaurar compras",
-  "iap.restoreDetail":
-    "Vuelve a aplicar las compras anteriores de la tienda en este dispositivo.",
-  "iap.restoreButton": "Restaurar",
   "iap.adLabel": "Publicidad",
 
   // --- UI compartida ------------------------------------------------------------

@@ -1,7 +1,30 @@
+# Ad-hoc probe: open the shop, tap the cheapest cash button, and let the
+# Play billing sheet appear (license-tester purchase). The sheet is a
+# separate com.android.vending window — inspect via the screenshot and a
+# fresh uiautomator dump after the run.
 appId: com.minus4kelvin.minesofdoom
 ---
-- tapOn:
-    text: "Buy"
+- launchApp: com.minus4kelvin.minesofdoom
+- runScript: 'sleep-5.js'
 - assertVisible:
-    text: "…"
+    id: onboarding-skip
     optional: true
+- tapOn:
+    id: onboarding-skip
+    optional: true
+- assertVisible:
+    id: equation-display
+- tapOn:
+    text: "🛍️"
+- scrollUntilVisible:
+    element:
+      text: "Amethyst Cavern Theme"
+    direction: DOWN
+    timeout: 30000
+    speed: 80
+- tapOn:
+    text: "\\$0\\.99"
+- runScript: 'sleep-5.js'
+- runScript: 'sleep-5.js'
+- takeScreenshot:
+    path: buy-sheet.png

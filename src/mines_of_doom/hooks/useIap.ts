@@ -66,8 +66,8 @@ export function useIap({
   // non-consumable purchases for the life of the store account, so a
   // completed purchase re-derives on the next launch even if this
   // device's local record (entitlements AND the device id the server
-  // rows are keyed by) was wiped. Silent — no toast; the manual Restore
-  // button is the announcing path.
+  // rows are keyed by) was wiped. Silent — no toast, no button: the
+  // panel has no manual restore, this launch pass is the sync.
   const reconciledRef = useRef(false);
   // The pending flag starts false, flips true when the initial storage
   // load begins (same commit as our first effect run), and flips back

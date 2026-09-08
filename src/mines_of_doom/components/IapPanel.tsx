@@ -38,8 +38,10 @@ import { styles } from "../styles";
  * here too (the look preview row), and owned rows equip on tap.
  *
  * The panel renders ALWAYS (gem path is universal); the cash extras
- * (cash buttons, restore row, dev-store banner) are gated on
- * `cashAvailable` = provider.isAvailable(). Copy states plainly that
+ * (cash buttons, dev-store banner) are gated on `cashAvailable` =
+ * provider.isAvailable(). There is no manual restore button: the useIap
+ * launch-reconcile silently re-derives every completed purchase from the
+ * store's own record on each launch. Copy states plainly that
  * everything is optional and the game stays fully free (guardrails 1 & 4):
  * no urgency language, no default-checked options, no misleading icons.
  */
@@ -95,7 +97,6 @@ function IapPanel({
   selectedPickaxe,
   selectedCaveTheme,
   purchasing,
-  restoring,
   entitlements,
   saveOwnedCosmeticIds,
   themesLocked,
@@ -103,7 +104,6 @@ function IapPanel({
   onPurchase,
   onSelect,
   onReroll,
-  onRestore,
 }: {
   /** Provider is the dev simulation (dev builds only). */
   isDevSim: boolean;
@@ -114,9 +114,9 @@ function IapPanel({
   /** Present on native dev builds (web has no store billing): flips the
    *  real-store opt-in. Absent → the toggle row is not rendered. */
   onRealStoreChange?: (value: boolean) => void;
-  /** `provider.isAvailable()` — the cash buy option, the restore row and
-   *  the dev-store banner render only while a store can complete a
-   *  purchase (the gem buy is always available). */
+  /** `provider.isAvailable()` — the cash buy option and the dev-store
+   *  banner render only while a store can complete a purchase (the gem
+   *  buy is always available). */
   cashAvailable: boolean;
   /** The gem wallet — sizes the gem buttons' disabled state. */
   gems: number;
@@ -127,7 +127,6 @@ function IapPanel({
   selectedPickaxe: string;
   selectedCaveTheme: string;
   purchasing: IapProductId | null;
-  restoring: boolean;
   /** This device's store entitlements (the cash-buy record). */
   entitlements: IapEntitlements;
   /** Cosmetic/theme ids the current save already owns (any source). */
@@ -145,7 +144,6 @@ function IapPanel({
   onSelect: (id: IapProductId) => void;
   /** The seeded "reroll look" randomizer. */
   onReroll: () => void;
-  onRestore: () => void;
 }) {
   const { t } = useI18n();
   const content = useContent();
@@ -299,22 +297,9 @@ function IapPanel({
           </View>
         ))}
 
-        {cashAvailable && (
-          <View style={styles.flexCenteredRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.text}>{t("iap.restore")}</Text>
-              <Text style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}>
-                {t("iap.restoreDetail")}
-              </Text>
-            </View>
-            <Button
-              tone="gem"
-              disabled={restoring}
-              title={restoring ? "…" : t("iap.restoreButton")}
-              onPress={onRestore}
-            />
-          </View>
-        )}
+        {/* Store purchases sync automatically on launch (the useIap
+            launch-reconcile): no manual restore button — the store's
+            record re-derives every completed purchase on this device. */}
 
         {/* Web monetization slot (docs/todo.md #2): inside the player-
             invoked shop sheet only — never over the game canvas. The

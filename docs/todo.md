@@ -4,125 +4,7 @@ Legend: [ ] not started, [o] in progress
 Completed items are removed from this file (see git history); only remaining work is tracked here.
 
 - [ ] continuous task: document features then explore and document missing
-  features — pass 1 DONE 2026-09: `docs/features.md` v1 (full implemented-
-  feature catalog, file-anchored) + researched gap list (§7, genre /
-  math-game checklists, verified absent from src/). Pass 2 DONE 2026-09:
-  gap candidates promoted into the active todos below (weekly challenges,
-  share images), and the in-app idle reminder implemented (see below).
-  Pass 3 DONE 2026-09: the gem pocket implemented (todo "random
-  in-game events" below). Next passes: keep §6-style catalog entries
-  current on feature commits, and keep promoting §7 gap items into
-  active todos. Pass 4 DONE 2026-09: §7's "Music / ambient loop" promoted
-  and implemented (item below), catalog entries kept current on the way.
-  (Earlier gap items: haptics
-  DONE 2026-09 — `haptics.ts` / `useHaptics.ts` + settings toggle, see
-  features.md §3; daily equation DONE 2026-09-07 — seeded
-  `getSeededEquation` + `dailyEquation.ts`, see features.md §2.)
-
-- [x] idle reminder (features.md §7 gap candidate, in-app half) — DONE:
-  `idleReminder.ts` (pure show/hidden decision: 60s idle threshold, once
-  per session, settings-gated) + `hooks/useIdleReminder.ts` (5s poll, toast
-  via the message overlay) wired to cave taps + answer submits in
-  MinesOfDoom; settings toggle `idleReminder` (default on, en/es copy in
-  SettingsPanel) and unit tests (`__test__/idleReminder.test.ts`). Deliberately
-  reward-free and timer-free (no dark patterns). The OS home-screen widget
-  half stays open in features.md §7.
-- [x] weekly challenges — DONE: the "weekly contract" (features.md §2
-  "Weekly contract" / §7 candidate): `weeklyChallenge.ts` (pure
-  derived-state: week-start baseline snapshot on the save's monotonic
-  lifetime metrics, progress = current − baseline clamped at 0, one claim
-  per real local week) + `hooks/useWeeklyChallenge.ts` (60s week-rollover
-  tick, rollover persist, double-claim-gated via stateRef — mirrors
-  `useDailyBonus`) + `components/WeeklyContractButton.tsx` (📜 in the top
-  menu row next to the daily bonus) + en/es copy + unit tests
-  (`__test__/weeklyChallenge.test.ts`). 3 goals (75 answers / 500k minerals
-  / 2 more miners) → flat 150k bonus. Guardrails held: real weekly window
-  only (no fake scarcity), reward earnable free.
-
-- [x] statistics detail — DONE (2026-09, iteration 9): the records view
-  gained a lifetime “Time in the mine” row and a per-session block
-  (minerals, answers, active time since the app was last opened). Save:
-  `playSeconds: number` on `SaveData` (save v10→v11; old saves start at
-  0 — no clock to recover, and away time is never counted as play time;
-  `pb_hooks` MAX_SAVE_VERSION bumped to 11). Clock: the engine's tick
-  loop (1 s cadence, existing `elapsed` clamp) advances a
-  `playSecondsRef` — foreground/active time only — flushed into state at
-  save time (absolute set, not a delta) and serialized on every save
-  path; reset/import restore re-sync the ref. Pure layer:
-  `session.ts` (launch baseline + current−baseline, clamped at zero so a
-  mid-session reset/import can't render negatives) and `formatDuration`
-  in `utils/format.ts` (“3d 4h”/“12m 30s”/“42s”). UI: new `playtime`
-  record row (`records.ts`, content-es parity) + a “This session” block
-  in `RecordsPanel` fed by `MinesOfDoom` (baseline snapshotted once at
-  load) through `MenuPanel` — labels via `t()`, so no content-namespace
-  coupling. F2P-neutral display stat; never gates anything. Tests:
-  `__test__/session.test.ts`, `format.test.ts`, migration/clamp cases in
-  `game.test.ts`.
-- [x] share images — DONE: the achievement share now renders a 320x180
-  PNG badge instead of plain text (features.md §2 "Share badges" / §7
-  candidate). Pure-TS render: 5x7 pixel font + RGBA layout + pako-based
-  PNG encoder (`shareBadge.ts`, `utils/png.ts`, `pako` dep) — no canvas
-  dependency, identical pixels on every platform. Platform hand-off
-  follows the provider pattern: native writes the PNG to the cache and
-  shares it via `expo-sharing` (`shareImage.ts`), web draws the pixel
-  buffer onto an offscreen canvas and shares a File via the Web Share
-  API (`shareImage.web.ts`). Every failure degrades to the pre-baseline
-  plain-text share (`share.ts`), so a share tap always does something
-  honest; a dismissed sheet is a no-op, not a re-opened one. Wired into
-  `components/GoalsPanel.tsx`; unit tests (`__test__/shareBadge.test.ts`,
-  `__test__/shareImage.test.ts`, `__test__/shareImage.web.test.ts`,
-  `utils/png.test.ts`).
-- [x] random in-game events — DONE: the "gem pocket" (features.md §2
-  "Gem pocket" / §7 candidate): `gemPocket.ts` (pure: per-1s-check
-  1/120 spawn roll behind a real 30 s lifetime + 5 min cooldown, bonus =
-  8× effective click power floored at 20 and Number-capped, deterministic
-  HUD-safe position from the seed — injectable rng for tests) +
-  `hooks/useGemPocket.ts` (1 s check loop, collect-once ref guard
-  mirroring `useDailyBonus`, expiry honest across backgrounded time,
-  gated while the onboarding overlay is up) + the node rendered in
-  `components/MiningCanvas.tsx` with its own responder (a pocket tap
-  never falls through to hold-to-mine), a quick-tap collect, a
-  reduce-motion-respecting pulse, gem sprite / emoji fallback, en/es
-  copy + unit tests (`__test__/gemPocket.test.ts`). Guardrails held:
-  the window is real (no fake urgency), missing it costs nothing, the
-  bonus flows through `addTapGain` (lifetime stats stay exact), odds
-  are identical for every player, not persisted.
-- [x] sound volume controls (features.md §7 gap candidate, promoted this
-  iteration) — DONE: SFX volume 0–100% (default 100) as a new
-  `SettingsData.soundVolume` field, a − / % / + stepped row (10% steps,
-  immediate-apply, like the haptics switch) in the settings panel, and
-  `clampSoundVolume` in `game.ts` so parsed/hand-edited values can't NaN
-  the audio layer. `useSounds` takes the volume and sets
-  `AudioPlayer.volume` on every live player (created once, updated in
-  place on change — no player re-creation); the menu mute toggle still
-  wins. Old settings saves get the 100 default via the existing
-  `{ ...defaultSettingsData, ...parsed }` merge (no migration needed).
-  en/es copy + unit tests (`game.test.ts` — default + clamp matrix).
-
-- [x] music / ambient loop (features.md §7 gap candidate, promoted this
-  iteration) — DONE: the cave-ambience bed (features.md §3 "Sound").
-  `scripts/generate-ambient-loop.mjs` synthesizes a 20 s exactly-periodic
-  looping WAV in-repo (pad partials at integer multiples of 1/20 Hz,
-  integer-cycle amplitude LFOs, a circular — period-preserving —
-  low-passed noise bed, five seeded drip blips with two cave echoes
-  confined to the loop interior, plus a 0.35 s head/tail fade as redundant
-  seam insurance) → `public/assets/audio/cave-ambient.wav` (640 KB, 16-bit
-  mono 16 kHz). Playback: `useSounds` gains a 4th `settings.music` arg (new
-  `SettingsData.music`, default ON; old saves get it via the existing
-  `{ ...defaultSettingsData, ...parsed }` merge — no migration). A
-  dedicated looping player created once, paused until decided: the menu's
-  mute toggle still wins, and the bed ALSO pauses while the app is
-  backgrounded (AppState — a looping clip must not keep playing behind
-  the app). Level law: `musicLevel` = soundVolume × 0.5
-  (`MUSIC_VOLUME_RATIO` in `game.ts`, pure, unit-tested) so the bed stays a
-  bed when the volume is maxed. Settings row: a "Cave ambience" switch next
-  to the sound-volume row (en/es copy + tooltip). Tests:
-  `scripts/__test__/ambientLoop.test.ts` (generator determinism, the
-  committed asset byte-pinned to the generator's output, WAV sanity,
-  headroom, and seam-continuity nets) + default/`musicLevel` matrix in
-  `game.test.ts`. Guardrails held: default-on but a quiet half-level bed
-  with a plain opt-out, and the menu mute still silences everything — no
-  surprise, no dark pattern.
+  features--do not implement until approved
 
 - [o] Add stripe payment provider for web one time products — **code done**
   (hosted Checkout provider + sidecar Stripe-API confirm + the
@@ -135,9 +17,7 @@ Completed items are removed from this file (see git history); only remaining wor
   so the Stripe console's webhook endpoint can point at it as-is.
 
 - [o] Add adsense for web ads — **code done** (the shop-sheet banner,
-  `AdSenseBanner.web.tsx` + the `+html.tsx` loader; §1.1). Remaining is
-  external: AdSense approval + the `ca-pub-` client + a banner slot, then
-  fill `storeConfig.adsense`.
+  `AdSenseBanner.web.tsx` + the `+html.tsx` loader; §1.1). Follow https://support.google.com/admanager/answer/9116812?hl=en to implement rewarded ads on web for parity with mobile instead of banner.
 
 - [o] audit project security and compliance — **reviewed + `docs/security-audit.md`**
     (fail-closed verify, device-scoped private collections, no secrets in
@@ -180,8 +60,9 @@ Completed items are removed from this file (see git history); only remaining wor
 - [x] IAP — entitlements re-derive from the store's own record after a local
     data loss ("iap not persisting on android" fix): the store provider now
     implements `reconcileStore()` (expo-iap `getAvailablePurchases`), called
-    once on launch (silent, after the entitlement storage load lands) and by
-    the manual Restore button alongside the server restore. It re-grants
+    once on launch (silent, after the entitlement storage load lands) — the
+    panel has NO manual Restore button: the launch reconcile IS the sync.
+    It re-grants
     owned products, re-acks leftover un-acked records, and re-verifies each
     token so the server row re-mints under the device's CURRENT id — the
     only restore path that works for anonymous players after a wipe (their

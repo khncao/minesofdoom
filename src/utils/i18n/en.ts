@@ -483,10 +483,6 @@ export const en = {
   "iap.groupThemes": "Cave themes",
   "iap.equip": "Equip",
   "iap.equipped": "✓ Equipped",
-  "iap.restore": "📦 Restore purchases",
-  "iap.restoreDetail":
-    "Re-apply the past store purchases on this device.",
-  "iap.restoreButton": "Restore",
   "iap.adLabel": "Advertisement",
 
   // --- Shared UI ---------------------------------------------------------------
