@@ -92,8 +92,20 @@ DDA, player-directed difficulty — same source family as passes 8 and 13),
 Bardy, Holzäpfel & Leuders "Adaptive Tasks as a Differentiation Strategy in
 the Mathematics Classroom" (METED 23(3) 2021, open, full text read), and
 the Rocket Math automaticity FAQ (the standard accuracy → fluency →
-automaticity definition). Items adopted from that list move into
-`docs/todo.md`).
+automaticity definition);
+2026-09 pass 16: the cosmetics / skin economy layer — the one axis passes
+1–15 never audited as a system (the only gem sink with no payback). Sam
+Novak "Idle game economy design: don't ask what a sink gives, ask what it
+eats" (dev.to / itembase.dev — sinks as converters, the status-vs-reset
+prestige split), the gamedesign.gg "cosmetic monetization" glossary
+(the visibility thesis, the clarity budget, scarcity management), Xsolla
+"Vanity sells: how self-expression drives game revenue" (outward vs inward
+vanity, decorative-environment customization, bundle shape),
+GameGrowthAdvisor "Game economy design & virtual currency balancing"
+(2026-07-14: sink-first design, pinch points, the 5-question audit, the
+prestige-sink inflation lever), and Steinnes & Reich "Cosmetics as social
+currency" (Procedia Computer Science 2025, peer-reviewed, abstract only).
+Items adopted from that list move into `docs/todo.md`).
 
 ## 1. Core gameplay
 
@@ -1628,6 +1640,185 @@ the first amendment since 2013 and reshapes the S6 age-rating decision
   not paid randomized containers), which keeps us clear of the
   odds-disclosure regime (platform policy since 2017–2019; statutory in
   CN/TA/KR).
+
+### The cosmetics / skin economy layer (pass 16 — the one gem sink that pays nothing back)
+
+Passes 3–15 audited everything the player taps, reads, types, and buys for
+*power*; the one axis never audited as a system is what the player buys for
+how it *looks*. Live audit (2026-09-15, `cosmetics.ts`, `iaps.ts`,
+`game.ts`, `freePath.ts`, `ads.ts`, `useGameEngine.ts`, `IapPanel.tsx`,
+`MiningCanvas.tsx`, `shareBadge.ts`, `achievements.ts`, `analytics.ts`):
+the catalog is 28 items in 3 lines — 14 outfits (free default + 13 paid,
+15–85 💎), 4 pickaxes (free + 3 paid, 25–90 💎, each with its own swing
+`soundFile` and `feel` — swingMs/bounceDepth, feedback not power), 10 cave
+themes (free + 9 paid, 25–170 💎, background recolors). The full paid
+collection is **1,675 💎** (675 outfits + 160 pickaxes + 840 themes). Gem
+income for scale (`freePath.ts` sim, the same one the balance test runs):
+the first prestige run takes ~4.7 days and grosses 208 💎 (164 drops + 44
+mints); a 30-day free run grosses 1,946 💎. Gem sources are the per-answer
+drop (5 % base + 1 %/level, `gemChance`), the 100 k minerals → 1 gem mint
+faucet (`gemMineralCost`), and the ad roll (5 💎, 3×/day, `ads.ts`). Gem
+*sinks* are the three miner lines, gem chance, click boost, and combo
+resistance — all functional, all paying back in minerals — plus cosmetics,
+**the only sink with no payback**. The store is 25 packs, one per paid
+cosmetic, with the USD tier pinned to the gem-cost band (≤30→$0.99 …
+>100→$3.99, `packPriceLabel`); each pack grants the same item (idempotent
+grant into the owned lists) and the row prints "also earnable in-game"
+(guardrails 1 & 4) — convenience, not access. Identity is two-dimensional:
+purchased palette × a free unlimited seed reroll (`rerollPlayerSeed`), and
+the whole roster inherits the look (`rosterSeed`), so the selected outfit
+wears on the player *and every roster miner on the canvas* — the game's
+highest-visibility cosmetic surface.
+
+Five structural findings. (1) **The status sink is capped by the balance
+test's own horizon:** the catalog is static — no rarity, no rotation, no
+collection-progress UI, no completion achievement (`achievements.ts` has
+no cosmetic metric; all 19 are miner/depth/answer/combo/gems-minted) — so
+"top end runs out of things to signal" (research #1 below) lands at ~day
+30, exactly the horizon the balance test uses. (2) **Zero inter-player
+sightlines:** the share badge draws a hardcoded generic gold pickaxe
+sprite (not the owned pickaxe, no outfit) and the leaderboard row carries
+no avatar. The only audience for a purchased look is the player's own
+roster — the game sells outward-facing status items with no audience. (3)
+**The affordability test doesn't measure competition:** the invariant
+compares the collection against *gross* 30-day gem earnings; a free player
+who spends gems on cosmetics while still funding the functional sinks has
+no benchmark at all (and the persona never buys cosmetics — all its gems
+hit functional sinks — so the guardrail-1 sim is silent on the exact
+choice a human faces). (4) **Analytics can't attribute:** `analytics.ts`
+carries only the `iapPurchases` count + `firstIapPurchaseDay` — no
+line/item/path (gems vs pack) granularity, so guardrail 5 can't say which
+cosmetics carry revenue. (5) **Doc-drift footnote:** the Stripe sync
+script and the `docs/store-integration.md` §2 header say "26 products" but
+the catalog table — and the code — is 25 packs, one per paid cosmetic; a
+stale count, harmless, but §2 is the SKU source of truth so the number
+should match it.
+
+The research (five sources; quality notes at the end):
+
+- **Sinks are converters, not containers — and "prestige" is two sinks.**
+  Novak's sink framework (itembase / dev.to): every sink is a
+  `resource_in → resource_out` conversion, and the usual "prestige" box
+  hides two different sinks — the **status sink** (pay money, receive
+  visibility/ego; "its only value is that others can see it") and the
+  **reset sink** (pay your whole run, receive a multiplier). This game
+  has both, cleanly separated: prestige (sink a new shaft) is the reset
+  sink, cosmetics are the status sink — and the status sink's named
+  failure mode is that "the top end runs out of things to signal".
+  Finding (1) above is that failure mode pre-loaded: the reset sink
+  can't run out; the status sink runs out by construction at 25 items.
+- **Cosmetic revenue scales with visibility.** The gamedesign.gg
+  "cosmetic monetization" glossary: what players buy is "identity and
+  status" — player expression and social currency at once — and cosmetic
+  revenue "scales with visibility"; the model "thrives where other players
+  can see you" (lobbies, kill cams, third-person views), with the
+  canonical example being designing the product *around the sightline*
+  (Valorant's first-person gun skins). The same entry carries two craft
+  notes: a **clarity budget** (cosmetic effect must not erode play
+  readability) and **scarcity management** ("rarity is much of the
+  value"; re-releasing vaulted items devalues the exclusivity players
+  paid for). The academic anchor: Steinnes & Reich (2025, peer-reviewed)
+  find young players use skins "to express individuality, attain social
+  visibility, and navigate in-group and out-group dynamics" — signaling
+  "competence, economic investment and time spent in the game". Findings
+  (2) and (3) are both consequences: the signaling function needs an
+  audience, and this game's only audience is the player's own roster.
+- **Vanity splits in two, and the game ships mostly one of them.**
+  Xsolla's "Vanity sells" separates outward-facing vanity (showing
+  identity to *others* — skins, emotes, sprays) from inward-facing vanity
+  (embodiment, a personal mix-and-match aesthetic), and singles out
+  *decorative environment customization* (the Sims / Hay Day shape) as
+  the building-game variant — the cave-theme line is exactly that item,
+  and the reroll randomizer is a strong inward-facing mechanic. The
+  monetization side: the right *shape* of options matters more than the
+  count — for direct sale, curated bundles beat itemized listings, and
+  seasonal bundles as the end of a reward chain drive the engagement.
+- **The economy audit asks what the committed player spends in month
+  two.** GameGrowthAdvisor's economy-balancing guide (2026-07-14; same
+  author family as passes 3/6/10, and notably disciplined — it removed
+  two numbers it couldn't source) gives the 5-question audit (map every
+  source/sink, per-segment ratios, pinch points, **stress-test the late
+  game**: "what a committed player is spending on in month two, and
+  whether those sinks are aspirational or absent"). Its inflation-lever
+  table names "high-end prestige sinks — extremely expensive cosmetics or
+  status items" as the whale-friendly lever, i.e. the lever on a static
+  25-item catalog is raising the ceiling, not adding features. It is
+  also the source for the sink-first design discipline: sinks designed
+  before sources — which is exactly what the balance test encodes.
+
+Candidates (documented, trigger-gated — **none planned, none
+implemented**):
+
+- **`cosmetics:analytics`** — per-purchase event granularity on the
+  guardrail-5 event log: line, item id, path (gems vs pack), gem balance
+  at purchase. A pure `analytics.ts` addition on the existing buy/grant
+  paths; no UX. The cheapest candidate and the precondition for every
+  other trigger in this pass — which lines carry spend is currently
+  unanswerable. Candidate, not planned.
+- **`cosmetics:collection`** — a collection-progress surface: per-line
+  owned counts ("5/14 outfits"), the next-missing item highlighted, a
+  completion reward that stays earnable (a free-only cosmetic or a
+  minerals bonus — nothing pay-gated, guardrail 1). The aspiration ladder
+  the static catalog lacks; turns the 1,675 💎 ceiling into a visible
+  runway. The save already holds the owned lists; the surface is
+  IapPanel/settings UI + one achievement metric. Candidate, not planned.
+- **`cosmetics:visibility`** — give the cosmetics a sightline, cheapest
+  leg first: the share badge already has the pixel-sprite pipeline, so
+  draw the owned pickaxe sprite (palette-tinted) instead of the hardcoded
+  gold pickaxe, putting the player's look on the one surface the game
+  already shares. The leaderboard-avatar leg is the expensive one
+  (Pocketbase submit payload gains an outfit/pickaxe id pair) and lands
+  only if the badge leg shows demand. No new mechanics — the displayed
+  items already exist. Candidate, not planned.
+- **`cosmetics:ceiling`** — raise the status-sink ceiling per research
+  #4: a higher-cost cave-theme tier (the line with the most headroom —
+  recolors, no new art assets) or a *display-only* featured rotation
+  (what's highlighted in the panel rotates; nothing is removed and
+  nothing becomes exclusive — guardrail 3 bans fake scarcity, and the
+  scarcity note says a vault devalues exclusivity, so a rotation is
+  re-illumination, not a vault). Requires re-running the guardrail-1
+  benchmark (the collection-cost / 30-day-income invariants) and the
+  §2 SKU-table regeneration. Candidate, not planned.
+
+**Rejected, with reasons** (so they aren't re-litigated): (1) *gem packs
+/ direct currency IAP* — a currency pack turns the cosmetic packs from
+"convenience" into "speed up the whole gem economy", and the guardrail-1
+benchmark (collection vs free gem income) stops measuring what it should
+the moment gems become purchasable; that is a monetization-model change
+deserving its own pass + the SKU regeneration, not a candidate. (2)
+*gacha / lootbox cosmetics* — randomized access to earnable items is
+odds-disclosure territory (the pass-6 compliance section), a dark
+pattern (guardrail 3), and flatly against guardrail 4, which the
+one-product-one-item store is built on. (3) *cosmetics with mechanical
+effects* — the clarity note plus the F2P-viable promise: cosmetics stay
+zero-power; the pickaxe `feel` (swing timing/bounce) is the line the game
+already walks and stays feedback, never payout. (4) *paid rerolls* — the
+free unlimited reroll is what makes identity two-dimensional (palette ×
+seed); charging per roll turns self-expression into another grind, and
+paying for a random look is the dark pattern guardrail 3 exists to
+forbid.
+
+Source quality per the pass-6 discipline: #1 is a designer's blog / tool
+pitch (dev.to crosspost of itembase.dev; qualitative, framework-level —
+but the status-vs-reset distinction matches this game's code 1:1, which
+is why it leads); #2 is a vendor design reference (gamedesign.gg glossary
+— same source family as passes 8/13/15, qualitative) with its academic
+anchor peer-reviewed (Procedia Computer Science 2025; abstract only — the
+full text is paywalled from this machine, the quoted finding is from the
+abstract); #3 is a vendor sales reference (Xsolla monetization marketing;
+the outward/inward split is standard across the cosmetics literature, the
+bundle advice is self-interested to a web-shop vendor); #4 is a vendor
+design reference (GameGrowthAdvisor 2026-07-14 — same family as passes
+3/6/10; the article itself removed two numbers it couldn't source, which
+is why it's cited). No source in this pass carries a hard benchmark:
+cosmetics here are a gem sink, not an IAP funnel, and no published
+number constrains a 25-item catalog — so the pass output is structure +
+candidates, not targets.
+
+**Not re-audited here:** the IAP storefront / SKU / entitlement plumbing
+(`docs/store-integration.md`, the Stripe sidecar — a separate layer), the
+free-path persona design itself (guardrail-1 benchmark methodology), the
+sprite/theme art pipeline, and the sound feel (pass 13, inputs).
 
 ### Player-facing surfaces
 

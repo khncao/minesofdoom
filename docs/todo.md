@@ -1,7 +1,11 @@
 # Mines of Idle Doomath — UX, Improvements & New Features Plan
 
-Legend: [ ] not started, [o] in progress
+Legend: [ ] not started, [o] in progress, [-] blocked
 Completed items are removed from this file (see git history); only remaining work is tracked here.
+
+- [ ] fix error: `https://minesofdoom.minus4kelvin.com/stripe/checkout' from origin 'https://minesofdoom.pages.dev' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.`
+- [ ] fix failed to sign in error using oauth2 on web build
+- [ ] default custom numeric keypad to disabled for web
 
 - [ ] continuous task: document features then explore and document missing
   features--do not implement until approved
@@ -57,6 +61,37 @@ Completed items are removed from this file (see git history); only remaining wor
     session, platform, stability, and the math layer; the next pass (if
     the task continues) would audit a new axis, e.g. the cosmetic / skin
     economy (never audit-passed as a system) or the offline/absence math.
+  - Pass 16 done 2026-09-15 (the cosmetics / skin economy layer — the one
+    axis passes 1–15 never audited as a system; all in `docs/features.md`).
+    Live audit findings: cosmetics are the only gem sink with no payback
+    (every other gem sink pays back in minerals); the catalog is static —
+    25 paid items / 1,675 💎 total, no rarity, no rotation, no
+    collection-progress UI, no completion achievement (full collection is
+    ≤ a 30-day free run's 1,946 💎 gross, and the balance test pins only
+    gross-earnings affordability, not competition with the functional
+    sinks); zero inter-player sightlines (share badge draws a hardcoded
+    generic pickaxe, leaderboard rows have no avatar — the player's own
+    roster is the only audience); `analytics.ts` has no per-cosmetic
+    granularity (guardrail 5 can't attribute revenue to a line); stale
+    "26 products" count in the Stripe sync comment + store-integration §2
+    header (code + table are 25 packs). Candidates documented, **not
+    implemented**: `cosmetics:analytics` (per-purchase line/item/path
+    events — precondition for every other trigger), `cosmetics:collection`
+    (per-line owned counts + earnable completion reward),
+    `cosmetics:visibility` (owned pickaxe on the share badge first — the
+    sprite pipeline exists; leaderboard avatar only if the badge leg shows
+    demand), `cosmetics:ceiling` (higher-cost theme tier or display-only
+    featured rotation; re-run the guardrail-1 benchmark + §2 SKU
+    regeneration). Rejected, with reasons: gem packs / direct currency
+    IAP (breaks what the guardrail-1 benchmark measures; monetization-
+    model change, not a candidate), gacha/lootbox cosmetics (odds-disclosure
+    territory, dark pattern, against guardrail 4), cosmetics with
+    mechanical effects (stay zero-power; pickaxe `feel` is feedback, never
+    payout), and paid rerolls (self-expression is not a grind; paying for
+    a random look is the dark pattern guardrail 3 forbids). All candidates
+    trigger-gated, per the pass-11/12 discipline; the next pass (if the
+    task continues) would audit a new axis, e.g. the offline/absence math
+    (the other axis Pass 15 named).
 
 - [o] Stripe (web IAP) — **configured in test mode (2026-09-08)**: the 26
   products + one-time USD prices synced to the Stripe test account via
