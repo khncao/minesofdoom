@@ -111,15 +111,23 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
     });
   });
 
-  it("the AdSense client and Stripe key are pinned; prices stay empty until they land", () => {
+  it("the AdSense client and Stripe key are pinned; the price map covers the full catalog", () => {
     // Stripe web IAP: the publishable key is configured (pk_test — the
-    // PUBLIC key, safe in the bundle); the price map is still empty, so
-    // every product's price resolves "" and the per-product buy stays
-    // hidden until prices land (the all-or-nothing rule).
+    // PUBLIC key, safe in the bundle); the price map (synced by
+    // `node scripts/stripe/syncStripe.mjs products`) must cover the FULL
+    // catalog — a missing product would silently hide it from the web
+    // shop while native still sells it.
     expect(storeConfig.stripe.publishableKey).toMatch(
       /^pk_test_[A-Za-z0-9]+$/,
     );
-    expect(Object.keys(storeConfig.stripe.prices)).toEqual([]);
+    expect(new Set(Object.keys(storeConfig.stripe.prices))).toEqual(
+      new Set(IAP_PRODUCT_IDS),
+    );
+    for (const price of Object.values(storeConfig.stripe.prices)) {
+      expect(price).toMatch(/^price_[A-Za-z0-9]+$/);
+    }
+    // Live default is now configured (key + full price map).
+    expect(isStripeConfigured()).toBe(true);
     // The AdSense client is configured (docs/todo.md #2) — pinned so a
     // stray edit can't point the loader at the wrong account. (No slot id:
     // the Ad Placement API placements are per-kind adBreaks on the same
@@ -141,9 +149,8 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
     const full = Object.fromEntries(ids.map((id) => [id, "price_x"]));
     expect(isStripeConfigured("pk_test_abc", full, ids)).toBe(true);
     expect(isStripeConfigured("pk_live_abc", full, ids)).toBe(true);
-    // The live default (no args) is TRUE once the key lands: the price map
-    // is still empty (vacuous `every`), so the per-product "" prices are
-    // what keep the shop hidden until the prices land.
+    // The live default (no args) is TRUE: the key and the full price map
+    // are configured (test mode).
     expect(isStripeConfigured()).toBe(true);
   });
 

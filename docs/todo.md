@@ -6,32 +6,25 @@ Completed items are removed from this file (see git history); only remaining wor
 - [ ] continuous task: document features then explore and document missing
   features--do not implement until approved
 
-- [o] Add stripe payment provider for web one time products — **code done**
-  (hosted Checkout provider + sidecar Stripe-API confirm + the
-  `/api/app/stripe/webhook` backup mint; docs/store-integration.md §2.6).
-  Remaining is the external console side only: Stripe products/prices,
-  the `pk_`/`sk_` keys, the webhook endpoint + sidecar env, then flip
-  `storeConfig.stripe` (all-or-nothing, shop stays hidden until then).
-  The public `/stripe/webhook` URL is already routed to the sidecar
-  (Caddy, 2026-09-06, fail-closed until `STRIPE_WEBHOOK_SECRET` lands),
-  so the Stripe console's webhook endpoint can point at it as-is. Added publishable key to storeConfig. Give me a command to run on the server to add the secret key
-
-- [o] Add adsense for web ads — **rewarded code done (2026-09-07)**: the
-  banner path was REPLACED by the AdSense "Ad Placement API" (H5 Games
-  Ads) for parity with the native rewarded placements — the loader in
-  `+html.tsx` now feeds `adSenseProvider.web.ts`, which pushes
-  `type: "reward"` placements (one per AdKind) onto `window.adsbygoogle`
-  in the two-phase flow: prime on probe (panel open / pill mount),
-  `showFn` called synchronously on the player's "watch" tap. `slot` is
-  gone from the config (per-kind placements, same client); the
-  `AdSenseBanner*` files, `react-native-web.d.ts`, and the `iap.adLabel`
-  i18n key are deleted; privacy policy v2.0 + Spanish content updated
-  (the published HTML regenerates via `legalDocs.test.ts`). External
-  console side only: confirm the account is approved for H5 Games Ads /
-  Ad Placement API and the rewarded placements serve for the deployed
-  domain (test with the AdSense "ad fill" preview tools, then the
-  deployed site), then flip nothing — the client is already in
-  `storeConfig.adsense` and the loader ships in the export.
+- [o] Stripe (web IAP) — **configured in test mode (2026-09-08)**: the 26
+  products + one-time USD prices synced to the Stripe test account via
+  `node scripts/stripe/syncStripe.mjs products` (console-free; idempotent
+  via the mdoomProductId metadata marker), `storeConfig.stripe.prices`
+  filled (web shop un-hidden, all-or-nothing gate green), the webhook
+  endpoint created at the public `/stripe/webhook` URL
+  (`...mjs webhook`) and the sidecar env landed on the VPS
+  (`STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/`MDOOM_PB_URL` in
+  ~/docker/pocketbase, compose sidecar block, backups kept). Verified
+  end to end: sidecar `/healthz` → `configured.web: true` +
+  `stripeWebhook: {signature: true, pocketbase: true}`; a properly-signed
+  synthetic event mints nothing for an unknown session (fail closed) and
+  a bad signature is refused at the sidecar. **Remaining:** step 6 of
+  docs/store-integration.md §2.6 — one test-card purchase through hosted
+  Checkout (4242… card, test mode) confirming the redirect grant AND the
+  webhook's idempotent backup mint for the same (device, product) row;
+  then the sk_live flip at launch (re-run both sync commands with a
+  `sk_live_` key + `--live`, re-paste the price map, re-sync the webhook
+  secret — the endpoint URL is the same, the secret changes per key).
 
 - [o] audit project security and compliance — **reviewed + `docs/security-audit.md`**
     (fail-closed verify, device-scoped private collections, no secrets in
@@ -47,8 +40,6 @@ Completed items are removed from this file (see git history); only remaining wor
     `terms-of-use.html` **generated from the same modules** by
     `legalDocs.test.ts`) both **fixed this iteration** and tested.
     Only open follow-up: S6 (kid-safety/age rating — external store check).
-
-- [ ] harden pocketbase
 
 - [x] IAP — entitlements re-derive from the store's own record after a local
     data loss ("iap not persisting on android" fix): the store provider now

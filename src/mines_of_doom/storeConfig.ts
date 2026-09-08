@@ -93,7 +93,36 @@ export const storeConfig = {
   stripe: {
     publishableKey:
       "pk_test_51UDFSrDPxWoXhXF89ljfKfug4SEnW89VOEfHZd49ymBwMZ5CkBrpbDplb9hBdTvFAoqb5tf5QWzMKWSR946fV2mn00MUoKKYIH",
-    prices: {} as Record<string, string>,
+    // Test-mode prices (sk_test/sk_ account, synced by
+    // `node scripts/stripe/syncStripe.mjs products`). The sk_live flip at
+    // launch re-syncs the live ids over these (§2.6 step 6).
+    prices: {
+      packGold: "price_1UDH4LDPxWoXhXF862vfpf9W",
+      packFrost: "price_1UDH5rDPxWoXhXF8KJSAjz0T",
+      packShadow: "price_1UDH5rDPxWoXhXF8ZuJ1wQ8m",
+      packNight: "price_1UDH5sDPxWoXhXF87A385cST",
+      packGoldrush: "price_1UDH5sDPxWoXhXF85ddJqYJH",
+      packCrystal: "price_1UDH5sDPxWoXhXF84KSohM56",
+      packMagma: "price_1UDH5tDPxWoXhXF8QWD3Qtjj",
+      packBlocky: "price_1UDH5tDPxWoXhXF8W28ok0BR",
+      packSurface: "price_1UDH5tDPxWoXhXF8kYLGVloe",
+      packKnight: "price_1UDH5uDPxWoXhXF8SalbCGuz",
+      packHunter: "price_1UDH5uDPxWoXhXF8poynRols",
+      packOni: "price_1UDH5uDPxWoXhXF8KeFubu8x",
+      packMarmot: "price_1UDH5vDPxWoXhXF8XyKxdXhX",
+      packFox: "price_1UDH5vDPxWoXhXF8wHG4Rhy8",
+      packOtter: "price_1UDH5vDPxWoXhXF8x50CwKAc",
+      packDamsel: "price_1UDH5wDPxWoXhXF8faIhyQxB",
+      packAmethyst: "price_1UDH5wDPxWoXhXF8AIJZWawT",
+      packVerdant: "price_1UDH5wDPxWoXhXF8zbLMB18l",
+      packSolar: "price_1UDH5xDPxWoXhXF85E1hyVZL",
+      packVoid: "price_1UDH5xDPxWoXhXF8SP1RkTGC",
+      packVoxel: "price_1UDH5xDPxWoXhXF8M00cO66B",
+      packWilds: "price_1UDH5yDPxWoXhXF8OxW6QCxA",
+      packAshen: "price_1UDH5yDPxWoXhXF8k89wYQou",
+      packGothic: "price_1UDH5yDPxWoXhXF8vT8zd0Jk",
+      packCherry: "price_1UDH5zDPxWoXhXF873VrwPjR",
+    },
   },
   /**
    * AdSense (web rewarded ads, docs/todo.md #2) — the web parity path for

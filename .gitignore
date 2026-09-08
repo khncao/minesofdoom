@@ -177,4 +177,7 @@ vendor/
 
 # Google OAuth client JSON (downloaded from the console, NEVER commit)
 /google_oauth_web.json
+
+# Stripe secret key for scripts/stripe/syncStripe.mjs (NEVER commit)
+/stripe-secret.env
 .pi/

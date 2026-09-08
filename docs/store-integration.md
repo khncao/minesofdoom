@@ -464,6 +464,25 @@ is what keeps the hosted-redirect "purchased" (really: "redirect
 started") from ever being mistaken for a confirmed payment.
 
 **Setup (console + config + server):**
+
+   **Status (2026-09-08, test mode):** steps 1–4 are DONE — products/
+   prices and the webhook endpoint were created programmatically (the
+   commands below), `storeConfig.stripe` is filled with the test-mode
+   `pk_`/`price_` ids, and the sidecar env (`STRIPE_SECRET_KEY`,
+   `STRIPE_WEBHOOK_SECRET`, `MDOOM_PB_URL`) landed on the VPS with the
+   sidecar `/healthz` reporting `configured.web: true` +
+   `stripeWebhook: {signature: true, pocketbase: true}`. Remaining: step
+   6 (test-card purchase) and the sk_live flip at launch.
+
+   **Steps 1–2 are scriptable** — `node scripts/stripe/syncStripe.mjs
+   products` (idempotent, creates the 26 products + prices from
+   `scripts/stripe/catalog.json` — the table jest-pins against `iaps.ts`
+   — and prints the `storeConfig.stripe.prices` snippet) and
+   `node scripts/stripe/syncStripe.mjs webhook` (idempotent by URL,
+   prints the `STRIPE_WEBHOOK_SECRET`). The `sk_` key comes from env
+   `STRIPE_SECRET_KEY`, the gitignored root `stripe-secret.env`, or a
+   hidden prompt — never the repo; a `sk_live_` key needs `--live`.
+   Doing it in the console instead:
 1. **Stripe dashboard → Products:** create a one-time **Price** per row
    of the §2.1 table (same display names, same tiers). Note each
    `price_…` id. (No subscriptions — the catalog is one-time packs.)

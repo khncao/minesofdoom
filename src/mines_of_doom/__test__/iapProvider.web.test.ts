@@ -56,6 +56,12 @@ function configureStripe(storeConfig: ConfigShape, ids: readonly string[]) {
   );
 }
 
+/** Empty the price map — the "unconfigured" state the gating tests need
+ *  (the shipped config is now fully priced, so unconfigure explicitly). */
+function unconfigureStripe(storeConfig: ConfigShape) {
+  storeConfig.stripe.prices = {};
+}
+
 /** Yield to the microtask queue a few times (storage + provider). */
 async function settle() {
   for (let i = 0; i < 12; i++) {
@@ -134,16 +140,15 @@ afterEach(() => {
 });
 
 describe("web provider: gating", () => {
-  it("is unavailable while the stripe block is empty (shipped state)", () => {
-    const { storeConfig, web } = loadWeb();
-    expect(web.storeIapProvider.isAvailable()).toBe(false);
-    void storeConfig;
+  it("is available in the shipped state (key + full price map configured)", () => {
+    const { web } = loadWeb();
+    expect(web.storeIapProvider.isAvailable()).toBe(true);
   });
 
-  it("is available once the pocketbaseUrl AND the full stripe block land", () => {
-    const { storeConfig, web, freshIds } = loadWeb();
-    configureStripe(storeConfig, freshIds);
-    expect(web.storeIapProvider.isAvailable()).toBe(true);
+  it("is unavailable when the price map is emptied", () => {
+    const { storeConfig, web } = loadWeb();
+    unconfigureStripe(storeConfig);
+    expect(web.storeIapProvider.isAvailable()).toBe(false);
   });
 
   it("stays unavailable when ONE catalog price is missing", () => {
@@ -154,7 +159,8 @@ describe("web provider: gating", () => {
   });
 
   it("purchase resolves 'error' (never rejects) while unconfigured", async () => {
-    const { web } = loadWeb();
+    const { storeConfig, web } = loadWeb();
+    unconfigureStripe(storeConfig);
     await expect(web.storeIapProvider.purchase("packGold")).resolves.toBe(
       "error",
     );
@@ -162,7 +168,8 @@ describe("web provider: gating", () => {
   });
 
   it("restore resolves {} while unconfigured", async () => {
-    const { web } = loadWeb();
+    const { storeConfig, web } = loadWeb();
+    unconfigureStripe(storeConfig);
     await expect(web.storeIapProvider.restore()).resolves.toEqual({});
   });
 
