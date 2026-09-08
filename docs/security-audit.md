@@ -28,7 +28,7 @@ S6 kid-safety) items.
 | S3 | Low | Email/password hashed with single-iteration SHA-256 (no KDF) | **Fixed** (this iteration) |
 | S4 | Compliance | No discoverable privacy policy (GDPR / store listing) | **Fixed** (this iteration — listing links are the external step) |
 | S5 | Info | Device-scope GDPR delete intentionally keeps entitlements | Accepted trade-off |
-| S6 | Compliance | Kid-safety / age-rating check for the rewarded-ads model | Open — verify rating + ad settings |
+| S6 | Compliance | Kid-safety / age-rating check for the rewarded-ads model | **Store check done 2026-09-08** — no production release yet, so nothing published to verify; the rating is a Play Console questionnaire set pre-production (API v3 no longer exposes it). Open: rating decision (COPPA 2025 in full effect) + ad settings |
 
 ---
 
@@ -213,6 +213,21 @@ math idle game skews young, confirm for the chosen age rating:
 This is a configuration/verification step against the live store setup, not a
 code change.
 
+**2026-09-08 store check (iteration 8):** the app has no production
+release (internal track 1.0.8 only — the public Play Store page 404s),
+so there is no published age rating to verify yet. Play Developer API v3
+no longer exposes content ratings (the top-level app endpoint returns
+404 and `edits.details` carries no rating field), so setting the rating
+remains a Play Console UI step — the "App content rating" questionnaire,
+done before the first production release. The rating choice itself is now
+a COPPA question: the FTC's 2025 final rule (compliance deadline
+2026-04-22) is in full effect — kid-directed rating ⇒ verifiable
+parental consent before data collection + a separate consent for
+third-party ads + a scheduled retention policy in the privacy notice.
+See `docs/features.md` §7 "Compliance (pass 6)" for the two viable
+paths (kid-directed + consent gate vs teen rating + the device-scoped
+anonymous model).
+
 ---
 
 ## Follow-up checklist
@@ -221,5 +236,5 @@ code change.
 - [x] S4 — Privacy policy v2.0 + terms v2.0 in-app (legal.ts, ES i18n synced) + generated published HTML. **Remaining: link the two URLs from the Play/App Store listings (external).**
 - [x] S2 — Stripe delivery moves to the sidecar's `/stripe/webhook` (Stripe-Signature over the raw body) + the Pocketbase route is gated on the shared key.
 - [x] S3 — Password hashing upgraded to a 100k-round iterated-SHA-256 KDF (transparent on-login upgrade of legacy rows). Done + tested.
-- [ ] S6 — Confirm age rating + `TAG_FOR_CHILD_DIRECTED_TREATMENT` for the rewarded-ads model.
+- [ ] S6 — Confirm age rating + `TAG_FOR_CHILD_DIRECTED_TREATMENT` for the rewarded-ads model. (2026-09-08 store check: no production release yet — nothing published to verify; the rating is the Play Console questionnaire set pre-production; COPPA 2025 is in full effect — decision input in `docs/features.md` §7 "Compliance (pass 6)".)
 - [ ] S5 — None (accepted).

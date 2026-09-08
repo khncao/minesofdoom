@@ -16,7 +16,14 @@ report (11,600 games / 1.48B MAU), math-app gamification roundups;
 2026-09 pass 5: the idle-game prestige canon — Pecorella "The Math of
 Idle Games, Part III" (Game Developer) via a 2026-07 prestige-math/
 progression-pacing canon report, MissionsSanx prestige-layer guide,
-AppFollow 2026 retention/review-signal workflow). Items
+AppFollow 2026 retention/review-signal workflow;
+2026-09 pass 6: monetization benchmarks — GameGrowthAdvisor
+F2P-monetization-models comparison 2026 (rebuilt on named datasets:
+AppsFlyer 2025–26 monetization analysis, TopOn H1-2025 ad-format data,
+Sensor Tower IAP totals, Lancaric hybrid-casual App Store analysis,
+Liftoff casual ROAS) and the FTC COPPA 2025 final rule (Federal
+Register 2025-04-22, now in full effect) as the S6 kid-safety decision
+input). Items
 adopted from that list move into `docs/todo.md`.
 
 ## 1. Core gameplay
@@ -438,6 +445,96 @@ these are the numbers to compare that data to):
   release that shipped before it (`npm run play` covers listings,
   not reviews — that leg is manual until the CLI gains it).
 
+### Monetization benchmarks (pass 6 — revenue-side targets for guardrail 5)
+
+The GameGrowthAdvisor F2P-monetization comparison (2026, rebuilt against
+named primary datasets — AppsFlyer's 2025–26 monetization analysis from
+≈$900M verified purchases / 9,600 apps, TopOn H1-2025 ad-format data,
+Sensor Tower, Lancaric, Liftoff) is worth citing *because it states which
+numbers do NOT exist*:
+
+- **Model mix.** Midcore ≈ 90% and casino ≈ 83% of revenue from IAP
+  (AppsFlyer); in three-stream games the split is ≈ 35% IAP / 56% ads /
+  7% subscription (subscription up from 4% a year earlier). Hybrid
+  (IAP + ads) is present in under 30% of games overall (casual 33%,
+  hypercasual 32%, midcore 15%, AppsFlyer) — TopOn's "72% of developers"
+  figure only counts games already on its ad platform. A math-idle with
+  one-time IAP + rewarded ads sits in the casual-hybrid slot.
+- **Ad-format economics (TopOn H1 2025, casual):** rewarded video is
+  39.35% of casual ad revenue from 21.25% of impressions, interstitial
+  44.25%, and banner earns 6.50% of revenue from 37.01% of impressions —
+  the format math confirming the rewarded-only ban (guardrail 2) costs
+  little: rewarded out-earns its impression share, banner massively
+  under-earns. In midcore rewarded leads at 51.77%.
+- **eCPM trend (casual Android):** rewarded $3.60 (H1 2023) → $3.02
+  (H1 2025), -7% YoY; interstitial -11%. The regional spread is the real
+  story: rewarded eCPM $8.90 Android / $12.24 iOS in EU/NA vs low single
+  digits in SEA/LATAM. The plan-against number is the formula
+  `rewarded impressions/DAU × eCPM / 1000` on OUR OWN cohorts — no
+  published impressions-per-DAU exists ("3–5/day" is a design
+  recommendation, not a measurement).
+- **ARPDAU bands to plan against:** ads-only casual $0.01–0.05,
+  hypercasual blended $0.03–0.08, hybrid-casual blended $0.15–0.50
+  (Lancaric: hybrid-casual is 40–50% IAP-driven; segment net revenue
+  ≈$174.8M/mo App Store March 2025, ~3× early-2024). IAP-only and
+  subscription-only ARPDAU have NO primary benchmark — derive from own
+  payer share × order value.
+- **UA arithmetic (Liftoff 2024 data, 2025 casual report):** casual D30
+  ROAS 47% iOS vs 15% Android; US Android casual/puzzle CPI $1.50–3.50,
+  iOS 3–4× Android. Ads-only economics rarely close a Tier-1 Android CPI
+  gap — another argument the hybrid (rewarded + entry-priced IAP) shape
+  is right for this game.
+- **The famous "1.8% of players pay" has no primary source.** Closest
+  Tier-A: AppsFlyer Q1-2022 install→purchase 2.6% within 30 days,
+  install→subscription 0.2% (both stale). Guardrail 5's IAP-purchase
+  logging is the only honest number; don't back-fill from folklore.
+- **Sequencing precedent:** rewarded first → entry-priced IAP →
+  seasonal pass at month 2 → light subscription at month 3; interstitial
+  suppression for recent payers (moot — banned here); store refund
+  windows (Apple 90-day, Play 48-hour) belong in revenue recognition.
+  Battle passes appear in ~60% of top-grossing titles (GameRefinery
+  2022 — stale; pairs with the battle-pass item in §1 above).
+
+### Compliance (pass 6 — COPPA 2025 final rule, the S6 decision input)
+
+The FTC's COPPA 2025 final rule (Federal Register 2025-04-22; effective
+2025-06-23; compliance deadline 2026-04-22 — **in full effect now**) is
+the first amendment since 2013 and reshapes the S6 age-rating decision
+(`docs/security-audit.md`):
+
+- **Two-tier consent for ads:** verifiable parental consent is now
+  required *separately* to disclose children's data to third-party
+  advertisers — third-party/behavioral ads are off by default unless a
+  parent opts in. For a child-directed app, the AdMob/AdSense rewarded
+  legs need that consent **on top of**
+  `TAG_FOR_CHILD_DIRECTED_TREATMENT`, not instead of it.
+- **Data minimization + retention:** no indefinite retention of
+  children's personal information; a written retention schedule (business
+  need + deletion timeframe) must be described in the privacy notice.
+  Our v2.0 policy (`legal.ts`) describes deletion *on request* (GDPR
+  shape), not a scheduled retention window — a child-directed path needs
+  policy copy regardless.
+- **Broader "directed to children" test:** marketing, representations
+  to third parties, reviews, and the age composition of users on similar
+  sites are explicit evidence. A 3+ math game aimed at kids is
+  child-directed; a teen (12+) rating is the way to keep COPPA out of
+  the consent path, at the cost of part of the math audience.
+- **What it means for this game:** the age-rating decision gates either
+  (a) a launch parental-consent gate (verifiable consent before data
+  collection, plus the third-party-ad consent) if we stay kid-directed,
+  or (b) a teen rating with the device-scoped anonymous model (no
+  account by default, minimal collection) doing the compliance work.
+  Option (b) is the cheaper path and matches the current architecture
+  (local save default, opt-in account, local-only analytics); the
+  kid-mode/parent-screen item below is where option (a) would land.
+- **Monetization-side minor protections** (the pass-6 monetization
+  piece): parental consent for IAP targeting under-13s, minors
+  segmented out of whale-optimization. Our IAP is direct purchases with
+  no loot-box odds to disclose (gem *drops* are free gameplay rewards,
+  not paid randomized containers), which keeps us clear of the
+  odds-disclosure regime (platform policy since 2017–2019; statutory in
+  CN/TA/KR).
+
 ### Player-facing surfaces
 
 - **Home-screen widget** — ~~+ idle reminders~~ (the in-app idle reminder
@@ -505,6 +602,10 @@ these are the numbers to compare that data to):
 - **Kids mode / parent screen** — guardrail 6 (kid-safe age rating) is
   planned but there is no in-app parent area (time limits, ad consent
   surface). Becomes mandatory-looking once an age rating is chosen.
+  Pass 6 pins the stakes: the COPPA 2025 final rule is in full effect,
+  so a kid-directed rating makes a verifiable-parental-consent gate (and
+  the separate third-party-ad consent) a launch requirement — see the
+  "Compliance (pass 6)" section above.
 
 ### Deliberately absent (guardrails, not gaps)
 
