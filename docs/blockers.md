@@ -1,8 +1,8 @@
 # Blockers
 
 Work that cannot proceed in this repo without a decision or an external
-action. Items here map 1:1 to the remaining `docs/todo.md` items; when one
-unblocks, delete its section and re-scope the todo.
+action. The `docs/todo.md` in-repo queue is now empty (2026-09-08), so the
+sections below are standalone — when one unblocks, delete its section.
 
 ## e2e: `mining` flow's minerals assert fails on the emulator — **RESOLVED 2026-09-04, no app bug**
 
