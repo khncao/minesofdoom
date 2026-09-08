@@ -28,7 +28,13 @@ input;
 Decides Your D1" (FTUE funnel metrics → D1), LoadoutLore "Skip to
 Play" (the tutorial-skip generation, 2026), NastyRodent "Onboarding
 and FTUE Design: The AAA Production Playbook" (push vs pull
-revelation, minimum viable rule set). Items
+revelation, minimum viable rule set);
+2026-09 pass 8: session structure & the return loop — Vectra Play
+"Session Length: Designing for How People Actually Play" (Aug 2026),
+gamedesign.gg "Idle and Incremental Game Design" (idle canon: Pecorella
+GDC 2016 talk + idle-math blog, Eyal's habit loop, Schell's
+anticipation lens, Lantz's decision layers, Alter's stopping cues),
+Tideward offline-progression design note (alpha-tested offline UX). Items
 adopted from that list move into `docs/todo.md`.
 
 ## 1. Core gameplay
@@ -516,6 +522,94 @@ the fix is teaching woven into early play, not a better tour.
   the bridge (pairs with the home-screen widget item). Likely
   sufficient on paper; the funnel item is what confirms it. Not a
   candidate by itself.
+
+### Session structure & the return loop (pass 8 — the unit players actually play)
+
+Passes 3–7 audited content, onboarding, revenue, and compliance; none
+looked at the unit the player actually experiences: the session, and the
+moment of return between sessions. Two of the 2026 session/idle
+literature's prescriptions turn out to be met by construction (pinned as
+canon below, not gaps); the rest are candidates.
+
+- **The offline return is applied silently, not designed** — the 8 h
+  offline cap (`game.ts`: 8 h max + 2 h rewarded top-up,
+  `computeOfflineMinerals` / `computeOfflineTopUpMinerals`) pays the
+  lump straight into `minerals` on load; the only return-moment
+  surfaces that exist are the two rewarded-ad offers (double the haul /
+  +2 h top-up when the cap was hit). The genre guide is explicit about
+  the missing piece: "treat the return screen as designed content, not
+  a receipt" — show the elapsed time, show the lump earned in a
+  satisfying tick-up, and **immediately point the player at what that
+  windfall can now buy**; that handoff ("here is what accumulated" →
+  "here is the next thing you can afford") is what converts a check-in
+  into a session. The ad-offer placement at the return moment is
+  canon-correct (the cap creating the scarcity the ad relieves is the
+  genre's standard shape), but the base windfall has zero ceremony. The
+  cheap version: a one-tap "while you were away" card — away time, the
+  haul, and one line naming the next purchasable upgrade; every number
+  is already computed at load. Real counters only, never inflated
+  (guardrail 3). Candidate, not planned. Pairs with the FTUE pass's
+  session 1→2 conversion metric — this card would be the day-2 opening
+  beat.
+- **Session length is an accident, not a decision** — the 2026
+  session-design piece: most mobile sessions last a few minutes
+  squeezed into queues and commutes; the session length is a decision
+  "that half the design flows from" and should be recorded in the
+  design doc, checked by three questions: how long is a session in
+  this design and why does that fit the player; what happens when the
+  app is killed mid-play; where are the natural stopping points and
+  what pulls the player back tomorrow. Ours answers two of the three by
+  construction (autosave + the offline haul make a mid-play kill
+  free; the daily bonus, weekly contract, and daily equation are
+  ready-made stopping points and return hooks — the exact "tidy
+  stopping point + a reason to come back" heartbeat) but the first
+  answer, a session length with a rationale, exists nowhere in the
+  docs. The FTUE pass's first-session-length metric generalizes to the
+  full session-length distribution in `analytics.ts`; that number is
+  what validates the recorded decision. Candidate: a one-paragraph
+  session-design note in this doc + the session-length measurement.
+  Discipline, not a feature.
+- **The "time to next purchase" invariant is unmeasured** — canon
+  (Pecorella's idle math, the pass-5 prestige report's source):
+  tune production against cost so the *interval* to the next
+  meaningful purchase stays roughly constant even as the numbers
+  explode — "players feel the interval, not the magnitude." Production
+  outrunning cost makes everything buyable at once (anticipation
+  collapses); cost outrunning production is the wall. Our
+  cost-scaled upgrades are the interval the whole game runs on, and
+  the pass-4 D30 "depth" problem is most likely an interval that has
+  stretched past the comfortable band at depth. Cheap measurement (the
+  pass-5 instrumentation discipline): from a few sample saves at
+  different depths, log time-to-next-affordable-upgrade over a few
+  days; the pass-4 churn workflow (review themes per version) gets a
+  concrete pacing signal to match complaints against. Candidate, not
+  planned.
+- **The number notation is a fixed ladder** — `utils/format.ts`
+  formats everything (HUD counters, share badges) with one fixed suffix
+  ladder ("", k, M, B, T, Qa, Qi); there is no player-facing choice.
+  The genre guide: suffix notation feels warm and human, scientific
+  notation scales without limit, and **many titles let the player
+  choose, because the same number feels cozy or clinical depending on
+  how it is written** — "when your reward is literally 'the number got
+  bigger,' the typography of that number is core game feel." Cheap
+  version: a settings row (compact suffix vs. plain full numbers) into
+  the existing formatter, persisted with the rest of the settings —
+  the i18n table stays key-pinned as always. Guardrail 4: it is a
+  plain preference toggle, nothing to hide. Candidate, not planned.
+- **Canon pin (confirmed correct, not gaps):** (1) the automation arc
+  — the genre's shape is click → generator → auto-collection → pure
+  optimization, and our deliberate inversion (equations stay
+  hand-solved forever; miners automate only the minerals) is the seam
+  the pass-4/5 "deeper automation layers" item already guards; (2) the
+  rewarded offline cap — "watch for the +2 h top-up once the 8 h cap
+  is hit" is the genre's standard return-moment offer, already
+  shipped per plan §5.1. Same sources name the two long-game failure
+  modes to watch: the **progression wall** (cost outruns income,
+  hours with nothing meaningful — the time-to-next-purchase
+  measurement above is its early warning) and **clicker fatigue**
+  (the input becomes tedium — for us the combo/tap axis flattening
+  out, where the pass-4 adaptive-difficulty item is the cure once it
+  lands).
 
 ### Monetization benchmarks (pass 6 — revenue-side targets for guardrail 5)
 
