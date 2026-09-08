@@ -5,7 +5,7 @@
  * Zero dependencies, Node >= 18 (global fetch). Two commands:
  *
  *   node scripts/stripe/syncStripe.mjs products
- *     Ensures the 26 catalog products + one-time USD prices exist in the
+ *     Ensures the 25 catalog products + one-time USD prices exist in the
  *     account (idempotent: products are looked up by the
  *     metadata mdoomProductId marker, so re-runs never duplicate).
  *     Prints a paste-ready snippet for src/mines_of_doom/storeConfig.ts
@@ -17,6 +17,15 @@
  *     enabled, and prints the STRIPE_WEBHOOK_SECRET line for the sidecar
  *     env (VPS, ~/docker/pocketbase — never in the repo).
  *
+ *   node scripts/stripe/syncStripe.mjs verify
+ *     READ-ONLY drift check (no create/update): the account's mdoom-
+ *     marked products + prices vs scripts/stripe/catalog.json vs the
+ *     storeConfig.ts stripe block (price ids + publishable-key mode).
+ *     Catches the half-flips the sk_live step is prone to (stale pasted
+ *     price map, pk_test_/pk_live_ mismatch, amount drift). Exit 0
+ *     clean, 1 with the finding list. Run it after the flip.
+ * Test seam: STRIPE_API_BASE overrides https://api.stripe.com/v1
+ * (syncStripeVerify.test.ts drives a local mock Stripe API).
  * SECRET HANDLING (the sk_ key never touches the repo or the app bundle):
  *   1. env STRIPE_SECRET_KEY, else
  *   2. ./stripe-secret.env at the project root (KEY=VALUE lines,
@@ -33,13 +42,27 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import readline from "readline";
 
-const API_BASE = "https://api.stripe.com/v1";
+const API_BASE = process.env.STRIPE_API_BASE || "https://api.stripe.com/v1";
 const WEBHOOK_URL = "https://minesofdoom.minus4kelvin.com/stripe/webhook";
 const WEBHOOK_EVENTS = ["checkout.session.completed"];
 const APP_DIR = path.dirname(fileURLToPath(import.meta.url));
-const CATALOG = JSON.parse(
-  fs.readFileSync(path.join(APP_DIR, "catalog.json"), "utf8"),
+const STORE_CONFIG_PATH = path.resolve(
+  APP_DIR,
+  "..",
+  "..",
+  "src",
+  "mines_of_doom",
+  "storeConfig.ts",
 );
+let CATALOG;
+try {
+  CATALOG = JSON.parse(
+    fs.readFileSync(path.join(APP_DIR, "catalog.json"), "utf8"),
+  );
+} catch (err) {
+  console.error("cannot read scripts/stripe/catalog.json:", err.message);
+  process.exit(1);
+}
 
 // -- secret loading -----------------------------------------------------------
 
@@ -102,11 +125,12 @@ async function stripe(apiKey, method, urlPath, params = {}) {
 
 // -- commands ------------------------------------------------------------------
 
-/** Idempotent: metadata marker → find or create product + its one price. */
-async function ensureProducts(apiKey) {
-  // No server-side metadata filter on the products list (400 on the current
-  // API version) — page through the account's products once and match the
-  // mdoomProductId marker locally.
+/**
+ * No server-side metadata filter on the products list (400 on the current
+ * API version) — page through the account's products once and match the
+ * mdoomProductId marker locally.
+ */
+async function listMdoomProducts(apiKey) {
   const byId = new Map();
   let start, page = {
     data: [],
@@ -121,7 +145,113 @@ async function ensureProducts(apiKey) {
     }
     start = page.has_more ? page.data[page.data.length - 1].id : undefined;
   } while (start);
+  return byId;
+}
 
+/**
+ * Read-only snapshot: every mdoom-marker product → its active USD price
+ * ("" / active:false when the price is missing or inactive). Shared by
+ * the idempotent products sync and the verify drift check.
+ */
+async function accountSnapshot(apiKey) {
+  const snapshot = new Map();
+  for (const [productId, product] of await listMdoomProducts(apiKey)) {
+    const prices = await stripe(apiKey, "GET", `/prices?product=${encodeURIComponent(product.id)}&currency=usd&limit=100`);
+    const price = (prices.data || []).find((p) => p.active);
+    snapshot.set(productId, {
+      product: product.id,
+      price: price ? price.id : "",
+      unitAmount: price ? price.unit_amount : 0,
+      active: Boolean(price),
+    });
+  }
+  return snapshot;
+}
+
+/**
+ * The stripe block straight out of storeConfig.ts (regex over the known
+ * shape — the file is TS and this is a zero-dependency ops script; the
+ * shape is pinned by storeConfig.test.ts, so the regex can't silently
+ * read the wrong block).
+ */
+function parseStoreConfig(source = fs.readFileSync(STORE_CONFIG_PATH, "utf8")) {
+  const pkMatch = /publishableKey:\s*"([^"]*)"/.exec(source);
+  const blockMatch = /prices:\s*\{([^}]*)\}/.exec(source);
+  const prices = {};
+  if (blockMatch) {
+    for (const m of blockMatch[1].matchAll(/(\w+)\s*:\s*"([^"]*)"/g)) {
+      prices[m[1]] = m[2];
+    }
+  }
+  return {
+    publishableKey: pkMatch ? pkMatch[1] : "",
+    prices,
+  };
+}
+
+/**
+ * Pure drift check: catalog.json vs the account snapshot vs the repo
+ * price map. Returns the list of findings (empty = clean). Repo-side
+ * checks run even when the account side is empty (a half-flip must be
+ * visible offline, too).
+ */
+export function verifyCatalog(catalog, snapshot, repo, keyEnv) {
+  const findings = [];
+  const catalogIds = new Set(catalog.map((e) => e.id));
+  const repoIds = new Set(Object.keys(repo.prices));
+  for (const id of catalogIds) {
+    if (!repoIds.has(id)) findings.push(`repo: price map missing "${id}"`);
+  }
+  for (const id of repoIds) {
+    if (!catalogIds.has(id)) {
+      findings.push(`repo: unknown price-map key "${id}" (not in catalog.json)`);
+    }
+  }
+  const pkEnv = /^pk_live_/.test(repo.publishableKey)
+    ? "live"
+    : /^pk_test_/.test(repo.publishableKey)
+      ? "test"
+      : null;
+  if (pkEnv === null) {
+    findings.push("repo: publishableKey is not set (no pk_test_/pk_live_ key)");
+  } else if (pkEnv !== keyEnv) {
+    findings.push(
+      `repo: publishableKey is ${pkEnv}-mode but the secret key is ${keyEnv}-mode — half flip (re-paste the ${keyEnv}-mode snippet)`,
+    );
+  }
+  for (const e of catalog) {
+    const row = snapshot.get(e.id);
+    if (!row) {
+      findings.push(`account: product "${e.id}" missing (run the products sync)`);
+      continue;
+    }
+    if (!row.active) {
+      findings.push(`account: "${e.id}" has no active USD price`);
+      continue;
+    }
+    if (row.unitAmount !== e.amountUsd) {
+      findings.push(
+        `account: "${e.id}" amount drift — $${(row.unitAmount / 100).toFixed(2)} live vs $${(e.amountUsd / 100).toFixed(2)} catalog`,
+      );
+    }
+    const repoPrice = repo.prices[e.id];
+    if (repoPrice !== undefined && repoPrice !== row.price) {
+      findings.push(
+        `drift: "${e.id}" repo price id ${repoPrice} ≠ account ${row.price} (re-paste the sync snippet)`,
+      );
+    }
+  }
+  for (const id of snapshot.keys()) {
+    if (!catalogIds.has(id)) {
+      findings.push(`account: unknown mdoom product "${id}" (not in catalog.json)`);
+    }
+  }
+  return findings;
+}
+
+/** Idempotent: metadata marker → find or create product + its one price. */
+async function ensureProducts(apiKey) {
+  const byId = await listMdoomProducts(apiKey);
   const result = [];
   for (const e of CATALOG) {
     let product = byId.get(e.id);
@@ -184,9 +314,9 @@ async function ensureWebhook(apiKey) {
 const [cmd, ...flags] = process.argv.slice(2);
 
 async function main() {
-  if (cmd !== "products" && cmd !== "webhook") {
+  if (!["products", "webhook", "verify"].includes(cmd)) {
     console.error(
-      "usage: node scripts/stripe/syncStripe.mjs products | webhook\n" +
+      "usage: node scripts/stripe/syncStripe.mjs products | webhook | verify\n" +
         "       (--live allowed for a sk_live_ key; sandbox is the default)",
     );
     return 2;
@@ -211,6 +341,18 @@ async function main() {
     console.log("  },");
     console.log(
       "\nAll-or-nothing gate: the web shop appears only when every id in\nIAP_PRODUCT_IDS has a price (isStripeConfigured).",
+    );
+  } else if (cmd === "verify") {
+    const repo = parseStoreConfig();
+    const snapshot = await accountSnapshot(apiKey);
+    const keyEnv = apiKey.startsWith("sk_live_") ? "live" : "test";
+    const findings = verifyCatalog(CATALOG, snapshot, repo, keyEnv);
+    if (findings.length > 0) {
+      console.error(`DRIFT — ${findings.length} finding(s):\n  ` + findings.join("\n  "));
+      return 1;
+    }
+    console.log(
+      `ok — ${CATALOG.length}/${CATALOG.length} products match catalog.json + storeConfig.ts (${keyEnv} mode)`,
     );
   } else {
     const ep = await ensureWebhook(apiKey);
@@ -240,4 +382,7 @@ try {
   console.error("failed:", err && err.message ? err.message : err);
   code = 1;
 }
-process.exitCode = code;
+// Explicit exit (not just exitCode): the fetch keep-alive socket otherwise
+// holds the event loop and the CLI hangs after printing (syncStripeVerify
+// .test.ts relies on the child exiting).
+process.exit(code);

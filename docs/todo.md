@@ -48,7 +48,12 @@ Completed items are removed from this file (see git history); only remaining wor
   `cs_test_a1f0WT…`, device `mdoom-step6-mtstwwil`). **Remaining:** the
   sk_live flip at launch (re-run both sync commands with a `sk_live_`
   key + `--live`, re-paste the price map, re-sync the webhook secret —
-  the endpoint URL is the same, the secret changes per key).
+  the endpoint URL is the same, the secret changes per key — then
+  `node scripts/stripe/syncStripe.mjs verify --live`, the read-only
+  drift check that diffs the account vs `catalog.json` + the
+  `storeConfig.ts` price block and catches the half-flips: stale
+  pasted price ids, pk/sk mode mismatch, tier drift, missing/rogue
+  products; §2.6 step 6).
 
 - [o] audit project security and compliance — **reviewed + `docs/security-audit.md`**
     (fail-closed verify, device-scoped private collections, no secrets in

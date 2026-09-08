@@ -500,7 +500,7 @@ started") from ever being mistaken for a confirmed payment.
    only remaining step is the `sk_live` flip at launch.
 
    **Steps 1–2 are scriptable** — `node scripts/stripe/syncStripe.mjs
-   products` (idempotent, creates the 26 products + prices from
+   products` (idempotent, creates the 25 products + prices from
    `scripts/stripe/catalog.json` — the table jest-pins against `iaps.ts`
    — and prints the `storeConfig.stripe.prices` snippet) and
    `node scripts/stripe/syncStripe.mjs webhook` (idempotent by URL,
@@ -547,6 +547,17 @@ started") from ever being mistaken for a confirmed payment.
    `syncStripe.mjs` commands with a `sk_live_` key + `--live`, re-paste
    the price map into `storeConfig.ts`, and re-sync the webhook secret
    (the endpoint URL is the same; the `whsec_` secret changes per key).
+   **Confirm the flip with the third command**:
+   `node scripts/stripe/syncStripe.mjs verify --live` (read-only) — it
+   diffs the account's mdoom-marker products + prices against
+   `catalog.json` AND the `storeConfig.ts` stripe block, so it catches
+   exactly the manual-flip failure modes: a stale/half-pasted price map
+   (repo `price_…` ≠ the live id), a `pk_live_` key against a still-
+   test-mode price map (and vice versa), a price amount that drifted
+   from the catalog tier, and missing/rogue products. Exit 0 = the
+   account and the repo agree; exit 1 prints the finding list. Pinned
+   by `scripts/stripe/__test__/syncStripeVerify.test.ts` (subprocess
+   against a mock Stripe API via the script's `STRIPE_API_BASE` seam).
 
 **Why hosted Checkout and not Payment Element:** it keeps all
 PCI-scoped card fields on Stripe's page (lowest cardholder-data
