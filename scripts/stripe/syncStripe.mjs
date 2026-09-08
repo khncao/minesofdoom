@@ -159,12 +159,15 @@ async function ensureWebhook(apiKey) {
   const list = await stripe(apiKey, "GET", "/webhook_endpoints?limit=100");
   const existing = (list.data || []).find((e) => e.url === WEBHOOK_URL);
   if (existing) {
-    const withSecret = await stripe(
-      apiKey,
-      "GET",
-      `/webhook_endpoints/${existing.id}?expand[0]=secret`,
+    // The signing secret is only returned once, at creation — a re-run
+    // can't re-read it (the API 400s `expand[0]=secret`), so point at
+    // where it already lives.
+    console.error(
+      `found  webhook endpoint ${existing.id} — the whsec_ secret is ` +
+        `already in the sidecar env (STRIPE_WEBHOOK_SECRET). To rotate it, ` +
+        `delete the endpoint and re-run.`,
     );
-    return withSecret;
+    return existing;
   }
   const created = await stripe(apiKey, "POST", "/webhook_endpoints", {
     url: WEBHOOK_URL,
@@ -211,6 +214,14 @@ async function main() {
     );
   } else {
     const ep = await ensureWebhook(apiKey);
+    if (!ep.secret) {
+      console.log(
+        "\nThe endpoint already existed — nothing to create. Its whsec_\n" +
+          "secret is the STRIPE_WEBHOOK_SECRET line in the sidecar env\n" +
+          "(VPS ~/docker/pocketbase/.env).",
+      );
+      return 0;
+    }
     console.log("\nSidecar env lines (VPS ~/docker/pocketbase, then reload the sidecar):");
     console.log("  STRIPE_WEBHOOK_SECRET=" + ep.secret);
     console.log("  STRIPE_SECRET_KEY=<your sk_ key — already held by this script>");
