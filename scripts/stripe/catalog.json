@@ -1,0 +1,177 @@
+[
+  {
+    "id": "packGold",
+    "storeId": "pack_gold",
+    "name": "Mines of Doom: Gold Pickaxe",
+    "blurb": "One-time purchase. Unlocks the Gold pickaxe — its own swing sound and swing feel. Purely cosmetic.",
+    "amountUsd": 99
+  },
+  {
+    "id": "packFrost",
+    "storeId": "pack_frost",
+    "name": "Mines of Doom: Crystal Pickaxe",
+    "blurb": "One-time purchase. Unlocks the Crystal pickaxe — its own swing sound and swing feel. Purely cosmetic.",
+    "amountUsd": 199
+  },
+  {
+    "id": "packShadow",
+    "storeId": "pack_shadow",
+    "name": "Mines of Doom: Shadow Pickaxe",
+    "blurb": "One-time purchase. Unlocks the Shadow pickaxe — its own swing sound and swing feel. Purely cosmetic.",
+    "amountUsd": 299
+  },
+  {
+    "id": "packNight",
+    "storeId": "pack_night",
+    "name": "Mines of Doom: Night Shift Outfit",
+    "blurb": "One-time purchase. Unlocks the Night Shift outfit. Purely cosmetic.",
+    "amountUsd": 99
+  },
+  {
+    "id": "packGoldrush",
+    "storeId": "pack_goldrush",
+    "name": "Mines of Doom: Gold Rush Outfit",
+    "blurb": "One-time purchase. Unlocks the Gold Rush outfit. Purely cosmetic.",
+    "amountUsd": 99
+  },
+  {
+    "id": "packCrystal",
+    "storeId": "pack_crystal",
+    "name": "Mines of Doom: Crystal Miner Outfit",
+    "blurb": "One-time purchase. Unlocks the Crystal Miner outfit. Purely cosmetic.",
+    "amountUsd": 199
+  },
+  {
+    "id": "packMagma",
+    "storeId": "pack_magma",
+    "name": "Mines of Doom: Lava Worker Outfit",
+    "blurb": "One-time purchase. Unlocks the Lava Worker outfit. Purely cosmetic.",
+    "amountUsd": 199
+  },
+  {
+    "id": "packBlocky",
+    "storeId": "pack_blocky",
+    "name": "Mines of Doom: Blocky Adventurer Outfit",
+    "blurb": "One-time purchase. Unlocks the Blocky Adventurer outfit — a voxel-sandbox tribute. Purely cosmetic.",
+    "amountUsd": 99
+  },
+  {
+    "id": "packSurface",
+    "storeId": "pack_surface",
+    "name": "Mines of Doom: Frontier Explorer Outfit",
+    "blurb": "One-time purchase. Unlocks the Frontier Explorer outfit — a surface-to-underground sandbox tribute. Purely cosmetic.",
+    "amountUsd": 199
+  },
+  {
+    "id": "packKnight",
+    "storeId": "pack_knight",
+    "name": "Mines of Doom: Ashen Knight Outfit",
+    "blurb": "One-time purchase. Unlocks the Ashen Knight outfit — a dark-fantasy soulslike tribute. Purely cosmetic.",
+    "amountUsd": 199
+  },
+  {
+    "id": "packHunter",
+    "storeId": "pack_hunter",
+    "name": "Mines of Doom: Wandering Hunter Outfit",
+    "blurb": "One-time purchase. Unlocks the Wandering Hunter outfit — a gothic hunt tribute. Purely cosmetic.",
+    "amountUsd": 199
+  },
+  {
+    "id": "packOni",
+    "storeId": "pack_oni",
+    "name": "Mines of Doom: Crimson Oni Outfit",
+    "blurb": "One-time purchase. Unlocks the Crimson Oni outfit — a samurai-era vengeance tribute. Purely cosmetic.",
+    "amountUsd": 299
+  },
+  {
+    "id": "packMarmot",
+    "storeId": "pack_marmot",
+    "name": "Mines of Doom: Burrow Marmot Outfit",
+    "blurb": "One-time purchase. Unlocks the Burrow Marmot outfit — a pocket-sized rodent with a pickaxe bigger than it. Purely cosmetic.",
+    "amountUsd": 199
+  },
+  {
+    "id": "packFox",
+    "storeId": "pack_fox",
+    "name": "Mines of Doom: Fox of the Vein Outfit",
+    "blurb": "One-time purchase. Unlocks the Fox of the Vein outfit — all fire, no smoke — the crew's resident gambler. Purely cosmetic.",
+    "amountUsd": 299
+  },
+  {
+    "id": "packOtter",
+    "storeId": "pack_otter",
+    "name": "Mines of Doom: Otter of the River Outfit",
+    "blurb": "One-time purchase. Unlocks the Otter of the River outfit — rivers' finest — hoards shiny things in a nest of pebbles. Purely cosmetic.",
+    "amountUsd": 299
+  },
+  {
+    "id": "packDamsel",
+    "storeId": "pack_damsel",
+    "name": "Mines of Doom: Damsel of the Deep Outfit",
+    "blurb": "One-time purchase. Unlocks the Damsel of the Deep outfit — long hair, softer clothes, the same unshakeable nerve. Purely cosmetic.",
+    "amountUsd": 299
+  },
+  {
+    "id": "packAmethyst",
+    "storeId": "pack_amethyst",
+    "name": "Mines of Doom: Amethyst Cavern Theme",
+    "blurb": "One-time purchase. Unlocks the Amethyst Cavern cave theme. Purely cosmetic.",
+    "amountUsd": 99
+  },
+  {
+    "id": "packVerdant",
+    "storeId": "pack_verdant",
+    "name": "Mines of Doom: Verdant Hollow Theme",
+    "blurb": "One-time purchase. Unlocks the Verdant Hollow cave theme. Purely cosmetic.",
+    "amountUsd": 199
+  },
+  {
+    "id": "packSolar",
+    "storeId": "pack_solar",
+    "name": "Mines of Doom: Solar Vein Theme",
+    "blurb": "One-time purchase. Unlocks the Solar Vein cave theme. Purely cosmetic.",
+    "amountUsd": 199
+  },
+  {
+    "id": "packVoid",
+    "storeId": "pack_void",
+    "name": "Mines of Doom: Void Depths Theme",
+    "blurb": "One-time purchase. Unlocks the Void Depths cave theme. Purely cosmetic.",
+    "amountUsd": 299
+  },
+  {
+    "id": "packVoxel",
+    "storeId": "pack_voxel",
+    "name": "Mines of Doom: Blockfall Mines Theme",
+    "blurb": "One-time purchase. Unlocks the Blockfall Mines cave theme — dirt, grass & glowing ore — a voxel tribute. Purely cosmetic.",
+    "amountUsd": 299
+  },
+  {
+    "id": "packWilds",
+    "storeId": "pack_wilds",
+    "name": "Mines of Doom: Wilds Below Theme",
+    "blurb": "One-time purchase. Unlocks the Wilds Below cave theme — from the grassy surface to hellstone — a sandbox tribute. Purely cosmetic.",
+    "amountUsd": 399
+  },
+  {
+    "id": "packAshen",
+    "storeId": "pack_ashen",
+    "name": "Mines of Doom: Ashen Depths Theme",
+    "blurb": "One-time purchase. Unlocks the Ashen Depths cave theme — fog, grey stone & a single ember — a dark-fantasy tribute. Purely cosmetic.",
+    "amountUsd": 399
+  },
+  {
+    "id": "packGothic",
+    "storeId": "pack_gothic",
+    "name": "Mines of Doom: Fog & Lantern Theme",
+    "blurb": "One-time purchase. Unlocks the Fog & Lantern cave theme — moonlit fog, lantern glow, one drop of blood — a gothic hunt tribute. Purely cosmetic.",
+    "amountUsd": 399
+  },
+  {
+    "id": "packCherry",
+    "storeId": "pack_cherry",
+    "name": "Mines of Doom: Cherry & Indigo Theme",
+    "blurb": "One-time purchase. Unlocks the Cherry & Indigo cave theme — blossom over indigo night, gold at the bottom — a samurai-era tribute. Purely cosmetic.",
+    "amountUsd": 399
+  }
+]
