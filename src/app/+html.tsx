@@ -33,10 +33,12 @@ export default function Html({ children }: { children: React.ReactNode }) {
         />
         <meta name="theme-color" content="#2f2f2f" />
         {/* AdSense loader (docs/todo.md #2): emitted ONLY when the
-            publisher ids are configured (empty config = hidden no-op —
-            zero ad-network traffic until the ids land). The banner unit
-            itself renders in the shop sheet (AdSenseBanner.web.tsx),
-            never over the game canvas (kid-safe guardrail). */}
+            publisher client is configured (empty config = hidden no-op —
+            zero ad-network traffic until it lands). This single loader
+            also powers the Ad Placement API (H5 Games Ads): the rewarded
+            placements are pushed onto window.adsbygoogle at probe time
+            from adSenseProvider.web.ts, never rendered as a DOM unit —
+            rewarded full-screen ads only, player-tapped (guardrail 2). */}
         {isAdSenseConfigured() && (
           <script
             async

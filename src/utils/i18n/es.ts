@@ -488,7 +488,6 @@ export const es: Record<TranslationKey, string> = {
   "iap.groupThemes": "Temas de cueva",
   "iap.equip": "Equipar",
   "iap.equipped": "✓ Equipado",
-  "iap.adLabel": "Publicidad",
 
   // --- UI compartida ------------------------------------------------------------
   "ui.close": "Cerrar",

@@ -40,12 +40,14 @@ verification checklist, and the iOS/TestFlight half.
   billing (see §1 / §4).
 - ✅ **Web is built on the code side (2026-09)** — Stripe Checkout web
   IAP (`iapProvider.web.ts` + the sidecar's Stripe-API confirm + the
-  `/api/app/stripe/webhook` backup-mint route) and the AdSense shop
-  banner (`AdSenseBanner.web.tsx`). Both follow the repo's empty-config
-  = hidden rule: nothing renders or charges until `storeConfig.stripe`
-  / `storeConfig.adsense` are filled (§2.6 / §1.1). The web build is
-  the static export the player actually visits, so this is the only
-  monetization path that ever runs in a browser.
+  `/api/app/stripe/webhook` backup-mint route) and AdSense REWARDED
+  ads via the Ad Placement API (`adSenseProvider.web.ts` — the H5 Games
+  Ads two-phase flow; the earlier banner path was removed). Both follow
+  the repo's empty-config = hidden rule: nothing renders or charges
+  until `storeConfig.stripe` / `storeConfig.adsense` are filled
+  (§2.6 / §1.1). The web build is the static export the player actually
+  visits, so this is the only monetization path that ever runs in a
+  browser.
 - ⬜ **Apple store side remains** (backlog) — the App Store Connect
   products + the sidecar's `APPLE_*` credentials.
   Nothing in this doc can be skipped; the §4 checklist is the release
@@ -98,33 +100,62 @@ id in a production config** — the config test fails on a known test id
 in a non-dev export... (it doesn't have to; the human gate is: release
 config is reviewed).
 
-### 1.1 Web banner (AdSense)
+### 1.1 Web rewarded (AdSense Ad Placement API)
 
-The web app has exactly ONE banner placement — inside the shop/settings
-sheet, never over the game canvas (kid-safe guardrail: ads must not
-overlap the play area, and there are still no interstitials anywhere —
-guardrail 2 holds for web just like native). The banner is the repo's
-`.web` swap pattern: `AdSenseBanner.tsx` is a no-op that native bundles
-resolve, `AdSenseBanner.web.tsx` renders the real DOM slot through the
-`unstable_createElement` escape hatch, so react-native-web never
-enters a native bundle.
+The web app's ad parity path for the native rewarded placements, via
+the AdSense "Ad Placement API" (H5 Games Ads) — rewarded full-screen
+ads ONLY, player-tapped (guardrail 2 holds for web exactly like
+native: no interstitials, no banners anywhere; the ad runs in the
+ad network's full-screen overlay, never over the game canvas
+simultaneously with play). The earlier shop-sheet banner was removed
+when this landed (2026-09-07).
+
+The flow is two-phase, because AdSense probes fill BEFORE the user tap
+and the tap must synchronously run the stashed `showFn` (the network
+only shows the ad on a user gesture):
+
+1. **Prime** — when the ad panel sheet opens, when the combo-save pill
+   mounts, and again after every finished ad, `primeReward(kind)`
+   pushes a `{type: "reward", name: kind}` placement onto
+   `window.adsbygoogle`; the loader calls `beforeReward(showFn)` back
+   when a real ad is fillable (or never — no fill, like a native
+   no-fill: the button stays enabled, the reward is re-granted on the
+   next tap).
+2. **Show** — the player's "watch" tap calls the stashed `showFn`
+   SYNCHRONOUSLY inside the tap handler. `adViewed` → `"rewarded"`
+   (the reward applies), `adDismissed` without `adViewed` →
+   `"closed"` (no reward), a 60s watchdog → `"error"`. One ad in
+   flight at a time; a tap with no filled probe re-primes and
+   resolves `"error"`.
+
+Files: `adSenseProvider.web.ts` (the provider, the repo's `.web` swap
+pattern — `adSenseProvider.ts` is the native no-op so `ads.ts`
+imports one name everywhere), `+html.tsx` (the loader script, gated
+on `isAdSenseConfigured()`), `storeConfig.adsense` (`client` only —
+no slot: the placements are per-kind adBreaks on the same client).
 
 1. **AdSense account** (adsense.com): the site is the static web export
-   at the `pocketbaseUrl` origin. AdSense approval takes days; the
-   publisher id only lands after it.
-2. **Create a display unit** in the approved account and note the **slot**
-   id.
-3. **Fill `storeConfig.adsense`** (`client` = the `ca-pub-…` publisher
-   id, `slot` = the unit's slot id). The web document template
-   (`src/app/+html.tsx`) injects the loader script only when
-   `isAdSenseConfigured()` passes (it validates the `ca-pub-\d+` shape
-   so a typo can't load someone else's account), and the banner slot
-   renders only then too. Empty config = no script tag, no slot, no
-   network — the repo stays shippable while it's blank.
-4. **Verify in the web build** (`npx expo export -p web`): the loader
-   script is in the HTML only when configured; the slot fills in the
-   shop sheet; nothing overlaps the canvas. Until approval, the shop
-   sheet simply has no ad — the purchase UI is unaffected.
+   at the `pocketbaseUrl` origin. The account must be approved for
+   **H5 Games Ads / the Ad Placement API** (a separate capability from
+   plain display ads — the console flags eligibility; approval takes
+days).
+2. **No unit creation**: rewarded placements are declared at runtime by
+   the `name` field (`gemRolls`, `comboSave`, `offlineDouble`,
+   `offlineTopUp` — the four AdKinds) and group by that name in the
+   console; there is no slot id.
+3. **`storeConfig.adsense.client`** is the `ca-pub-…` publisher id
+   (already configured; `isAdSenseConfigured()` validates the
+   `ca-pub-\d+` shape so a typo can't load someone else's account).
+   Empty config = no loader script, no placements pushed, the hook
+   reports unavailable and every entry point hides — the repo stays
+   shippable while it's blank.
+4. **Verify** (`npx expo export -p web` + the deployed site): the
+   loader script is in the HTML only when configured; in the console,
+   the panel rows show the "Watch" flow, a completed video grants the
+   reward, an early close grants nothing, and the console's ad
+   placements report the four names. Until H5 Games Ads approval, the
+   rows simply no-fill (button re-enables, no toast) — the purchase UI
+   is unaffected.
 
 ---
 

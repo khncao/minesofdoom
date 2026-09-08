@@ -111,13 +111,20 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
     });
   });
 
-  it("the Stripe and AdSense blocks are empty until configured (hidden)", () => {
-    // Both web monetization features follow the empty-config = hidden
-    // rule: the shop / banner stay off end to end until the ids land.
-    expect(storeConfig.stripe.publishableKey).toBe("");
+  it("the AdSense client and Stripe key are pinned; prices stay empty until they land", () => {
+    // Stripe web IAP: the publishable key is configured (pk_test — the
+    // PUBLIC key, safe in the bundle); the price map is still empty, so
+    // every product's price resolves "" and the per-product buy stays
+    // hidden until prices land (the all-or-nothing rule).
+    expect(storeConfig.stripe.publishableKey).toMatch(
+      /^pk_test_[A-Za-z0-9]+$/,
+    );
     expect(Object.keys(storeConfig.stripe.prices)).toEqual([]);
-    expect(storeConfig.adsense.client).toBe("");
-    expect(storeConfig.adsense.slot).toBe("");
+    // The AdSense client is configured (docs/todo.md #2) — pinned so a
+    // stray edit can't point the loader at the wrong account. (No slot id:
+    // the Ad Placement API placements are per-kind adBreaks on the same
+    // client, see adSenseProvider.web.ts.)
+    expect(storeConfig.adsense.client).toBe("ca-pub-2101316086878618");
   });
 
   it("isStripeConfigured is all-or-nothing over the full catalog", () => {
@@ -134,8 +141,10 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
     const full = Object.fromEntries(ids.map((id) => [id, "price_x"]));
     expect(isStripeConfigured("pk_test_abc", full, ids)).toBe(true);
     expect(isStripeConfigured("pk_live_abc", full, ids)).toBe(true);
-    // The live default (no args) is false while the repo is unconfigured.
-    expect(isStripeConfigured()).toBe(false);
+    // The live default (no args) is TRUE once the key lands: the price map
+    // is still empty (vacuous `every`), so the per-product "" prices are
+    // what keep the shop hidden until the prices land.
+    expect(isStripeConfigured()).toBe(true);
   });
 
   it("the price map is keyed by every catalog product id once configured", () => {
@@ -155,14 +164,12 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
     expect(getStripePrice("packGold", { packGold: "price_1" })).toBe("price_1");
   });
 
-  it("isAdSenseConfigured requires a ca-pub- client AND a slot", () => {
-    expect(isAdSenseConfigured("", "")).toBe(false);
-    expect(isAdSenseConfigured("ca-pub-1234567890", "")).toBe(false);
-    expect(isAdSenseConfigured("", "123456789")).toBe(false);
+  it("isAdSenseConfigured requires a ca-pub- client", () => {
+    expect(isAdSenseConfigured("")).toBe(false);
     // A non-pub client id (typo) can't silently load another account.
-    expect(isAdSenseConfigured("not-a-pub-id", "123")).toBe(false);
-    expect(isAdSenseConfigured("ca-pub-1234567890", "123456789")).toBe(true);
-    // The live default is false while the repo is unconfigured.
-    expect(isAdSenseConfigured()).toBe(false);
+    expect(isAdSenseConfigured("not-a-pub-id")).toBe(false);
+    expect(isAdSenseConfigured("ca-pub-1234567890")).toBe(true);
+    // The live default is true: the client is configured (docs/todo.md #2).
+    expect(isAdSenseConfigured()).toBe(true);
   });
 });

@@ -483,7 +483,6 @@ export const en = {
   "iap.groupThemes": "Cave themes",
   "iap.equip": "Equip",
   "iap.equipped": "✓ Equipped",
-  "iap.adLabel": "Advertisement",
 
   // --- Shared UI ---------------------------------------------------------------
   "ui.close": "Close",

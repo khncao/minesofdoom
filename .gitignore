@@ -177,3 +177,4 @@ vendor/
 
 # Google OAuth client JSON (downloaded from the console, NEVER commit)
 /google_oauth_web.json
+.pi/

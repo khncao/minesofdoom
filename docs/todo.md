@@ -14,10 +14,24 @@ Completed items are removed from this file (see git history); only remaining wor
   `storeConfig.stripe` (all-or-nothing, shop stays hidden until then).
   The public `/stripe/webhook` URL is already routed to the sidecar
   (Caddy, 2026-09-06, fail-closed until `STRIPE_WEBHOOK_SECRET` lands),
-  so the Stripe console's webhook endpoint can point at it as-is.
+  so the Stripe console's webhook endpoint can point at it as-is. Added publishable key to storeConfig. Give me a command to run on the server to add the secret key
 
-- [o] Add adsense for web ads — **code done** (the shop-sheet banner,
-  `AdSenseBanner.web.tsx` + the `+html.tsx` loader; §1.1). Follow https://support.google.com/admanager/answer/9116812?hl=en to implement rewarded ads on web for parity with mobile instead of banner.
+- [o] Add adsense for web ads — **rewarded code done (2026-09-07)**: the
+  banner path was REPLACED by the AdSense "Ad Placement API" (H5 Games
+  Ads) for parity with the native rewarded placements — the loader in
+  `+html.tsx` now feeds `adSenseProvider.web.ts`, which pushes
+  `type: "reward"` placements (one per AdKind) onto `window.adsbygoogle`
+  in the two-phase flow: prime on probe (panel open / pill mount),
+  `showFn` called synchronously on the player's "watch" tap. `slot` is
+  gone from the config (per-kind placements, same client); the
+  `AdSenseBanner*` files, `react-native-web.d.ts`, and the `iap.adLabel`
+  i18n key are deleted; privacy policy v2.0 + Spanish content updated
+  (the published HTML regenerates via `legalDocs.test.ts`). External
+  console side only: confirm the account is approved for H5 Games Ads /
+  Ad Placement API and the rewarded placements serve for the deployed
+  domain (test with the AdSense "ad fill" preview tools, then the
+  deployed site), then flip nothing — the client is already in
+  `storeConfig.adsense` and the loader ships in the export.
 
 - [o] audit project security and compliance — **reviewed + `docs/security-audit.md`**
     (fail-closed verify, device-scoped private collections, no secrets in
@@ -34,28 +48,7 @@ Completed items are removed from this file (see git history); only remaining wor
     `legalDocs.test.ts`) both **fixed this iteration** and tested.
     Only open follow-up: S6 (kid-safety/age rating — external store check).
 
-- [ ] harden pocketbase and the server it's running on following industry
-    standards — container/service level DONE 2026-09-06 (see
-    docs/blockers.md for the remaining OS-level items): the deployed
-    `pb_hooks/` was swapped to the security-fixed repo copy (S1 CSPRNG,
-    S2 webhook gate, S3 iterated-SHA-256 KDF — the live copy predates
-    those commits), PocketBase bumped 0.40.2 → 0.40.3 (bug fixes + Go
-    dependency security bumps), the sidecar image rebuilt from the repo
-    sources, and the shared sidecar↔PocketBase key generated into
-    `.env` (chmod 600) on the server — the `/api/app/stripe/webhook`
-    gate is enforced live (403 without the `x-mdoom-key` header, which
-    the sidecar sends on its own round-trips). Caddy: security headers
-    (HSTS/nosniff/X-Frame/referrer/-Server), 1 MB request-body cap, and
-    its default per-client throttle stays on (sustained rate limiting is
-    the pb_hooks layer's job per-device — the Caddyfile `rate_limit`
-    directive is an experimental v2 module, not in the stock image). Compose:
-    `cap_drop [ALL]` + `no-new-privileges` + `read_only` + tmpfs + mem caps
-    + healthchecks on pocketbase and sidecar (caddy gets mem cap only — its
-    gosu entrypoint conflicts with no-new-privileges). IP spoofing probed:
-    Caddy trusts the Cloudflare edge (auto-detected) and ignores forwarded
-    headers from any direct peer, and Cloudflare itself rejects client
-    requests carrying forged `CF-Connecting-IP`. **Open:** the three
-    OS-level items need an interactive sudo password (docs/blockers.md).
+- [ ] harden pocketbase
 
 - [x] IAP — entitlements re-derive from the store's own record after a local
     data loss ("iap not persisting on android" fix): the store provider now

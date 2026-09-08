@@ -18,6 +18,7 @@ const ComboSaveIndicator = memo(function ComboSaveIndicator({
   until,
   claiming,
   onClaim,
+  onPrime,
 }: {
   /** The pre-loss combo value being offered back. */
   combo: number;
@@ -27,8 +28,16 @@ const ComboSaveIndicator = memo(function ComboSaveIndicator({
   claiming: boolean;
   /** The claim — the same handler the ad panel's row uses. */
   onClaim: () => void;
+  /** Pre-tap probe (no-op outside the web Ad Placement provider). */
+  onPrime: () => void;
 }) {
   const t = useT();
+  // Prime the "comboSave" placement on mount: the pill only renders while
+  // a save is actually claimable, so the web Ad Placement probe lands
+  // before the player can tap it (no-op for other providers).
+  useEffect(() => {
+    onPrime();
+  }, [onPrime]);
   // The window is at most 60s, so a 1s tick is the right cadence (same
   // pattern as AdRewardsPanel's countdown) — and the interval only exists
   // while the pill is mounted.

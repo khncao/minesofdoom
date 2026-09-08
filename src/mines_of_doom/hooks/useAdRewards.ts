@@ -170,6 +170,20 @@ export function useAdRewards({
     ],
   );
 
+  /**
+   * Pre-tap probe for the two-phase web Ad Placement API (see
+   * AdProvider.primeReward): the UI calls this whenever a "watch" entry
+   * point becomes visible, so the show function exists by tap time.
+   * AdMob (and the no-op providers) have no `primeReward` — this is a
+   * no-op for them.
+   */
+  const prime = useCallback(
+    (kind: AdKind) => {
+      provider.primeReward?.(kind);
+    },
+    [provider],
+  );
+
   return {
     /** Whether "watch" entry points should be shown at all. */
     available,
@@ -199,5 +213,6 @@ export function useAdRewards({
       comboSavesLeft > 0 &&
       dailyCapLeft > 0,
     claim,
+    prime,
   };
 }

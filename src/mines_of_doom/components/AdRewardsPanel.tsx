@@ -19,6 +19,19 @@ function formatCountdown(totalSeconds: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+/** All four placements (mirrors the AdKind union) — primed together every
+ *  time a "watch" entry point becomes visible. The web Ad Placement API is
+ *  two-phase: the show function only exists after a placement has been
+ *  probed, and it may only be invoked from the tap itself, so the probe
+ *  must precede the tap (see adSenseProvider.web.ts). Other providers
+ *  ignore priming. */
+const ALL_AD_KINDS: readonly AdKind[] = [
+  "gemRolls",
+  "comboSave",
+  "offlineDouble",
+  "offlineTopUp",
+] as const;
+
 /**
  * Rewarded-ads panel (plan §5.1): the single opt-in entry point for ad
  * rewards. Lives in the footer next to the daily bonus, behind a 🎬
@@ -41,6 +54,7 @@ function AdRewardsPanel({
   offlineTopUp,
   claiming,
   onClaim,
+  onPrime,
 }: {
   /** Provider is the dev simulation (dev builds only). */
   isDevSim: boolean;
@@ -55,8 +69,17 @@ function AdRewardsPanel({
   offlineTopUp: bigint | null;
   claiming: AdKind | null;
   onClaim: (kind: AdKind) => void;
+  /** Pre-tap probe (no-op outside the web Ad Placement provider). */
+  onPrime: (kind: AdKind) => void;
 }) {
   const { t } = useI18n();
+  // Prime every placement while this panel is mounted (the panel only
+  // renders when a provider is available). Covers the case where the
+  // loader script booted after the last onToggle prime; harmless no-op
+  // for providers without a primeReward.
+  useEffect(() => {
+    ALL_AD_KINDS.forEach(onPrime);
+  }, [onPrime]);
   // 1s tick while a save is pending so the window countdown stays honest.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -73,6 +96,12 @@ function AdRewardsPanel({
       pressable={<Text style={{ fontSize: 30 }}>🎬</Text>}
       accessibilityLabel={t("ads.a11y")}
       scrollable
+      onToggle={(open) => {
+        // A fresh probe each time the sheet opens: the docs want a FRESH
+        // placement per opportunity to show, so an expired probe from an
+        // earlier visit is replaced before any tap can happen.
+        if (open) ALL_AD_KINDS.forEach(onPrime);
+      }}
     >
       <View style={{ gap: 8, padding: 4 }}>
         <Text style={styles.text}>{t("ads.title")}</Text>

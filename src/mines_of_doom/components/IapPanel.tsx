@@ -1,6 +1,5 @@
 import { memo, useMemo } from "react";
 import { Image, Pressable, Text, View } from "react-native";
-import AdSenseBanner from "./AdSenseBanner";
 import BottomModal from "src/components/BottomModal";
 import Button from "src/components/Button";
 import { useContent, useI18n } from "src/hooks/useI18n";
@@ -300,12 +299,6 @@ function IapPanel({
         {/* Store purchases sync automatically on launch (the useIap
             launch-reconcile): no manual restore button — the store's
             record re-derives every completed purchase on this device. */}
-
-        {/* Web monetization slot (docs/todo.md #2): inside the player-
-            invoked shop sheet only — never over the game canvas. The
-            component no-ops on native and while the AdSense config is
-            empty (hidden-no-op pattern). */}
-        <AdSenseBanner />
       </View>
     </BottomModal>
   );

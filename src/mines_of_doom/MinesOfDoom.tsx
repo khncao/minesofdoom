@@ -1308,6 +1308,7 @@ export default function MinesOfDoom() {
               offlineTopUp={offlineTopUp}
               claiming={adRewards.claiming}
               onClaim={handleAdClaim}
+              onPrime={adRewards.prime}
             />
           )}
           {/* The unified shop (todo: "move gem shop cosmetics to one
@@ -1386,6 +1387,7 @@ export default function MinesOfDoom() {
               until={comboSave.until}
               claiming={comboSaveClaiming}
               onClaim={() => handleAdClaim("comboSave")}
+              onPrime={() => adRewards.prime("comboSave")}
             />
           )}
         {/* The cave keeps the whole mid-screen: the upgrades drawer
