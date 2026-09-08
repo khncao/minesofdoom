@@ -266,6 +266,21 @@ genre-impact; anything picked up goes into `docs/todo.md`.
   driver (real-time events, event cosmetics). Note: real limited windows
   only — the no-fake-scarcity guardrail forbids fake timers, and the
   F2P-viability guardrail means event rewards must be earnable free.
+- **Battle pass / season pass** — the 2026 idle roundups list battle
+  passes alongside events as a top retention driver. Heavier than the
+  events item above: it is a *structured* season (fixed real window,
+  tiered rewards, a free track — a paid-only track would break the
+  F2P-viability guardrail) on top of the weekly contract cadence, and
+  the current IAP catalogue is strictly one-time products (no
+  recurring/season product type exists yet). Candidate, not planned.
+- **Deeper automation layers** — the genre's core loop is "check
+  progress → spend → unlock automation → hit a wall → reset"; our
+  miners automate minerals but every equation is still solved by hand.
+  An automation layer that changes HOW the game plays (not just rate)
+  is the genre-standard next step — with a hard caveat: auto-solving
+  equations would hollow out the active math loop the whole game is
+  built on, so any candidate has to automate around the equations
+  (e.g. goal-directed resource routing), not replace them.
 - **Multi-layer prestige / ascension** — single multiplier bank (6 levels);
   big idle games add a second meta-axis (ascension points → new tree).
   Bigger design lift than the single-shaft reset.
@@ -273,6 +288,13 @@ genre-impact; anything picked up goes into `docs/todo.md`.
   in-game events"): the gem pocket — a rare tap-to-collect bonus node in
   the cave (`gemPocket.ts`, `hooks/useGemPocket.ts`, rendered in
   `components/MiningCanvas.tsx`). See §2 "Gem pocket".
+- **Cosmetic compendium / collection** — top mobile idlers lean on
+  collection completeness (Roblox/social idlers' pets-and-creatures
+  pattern, in the 2026 roundups): a single view of all outfits /
+  pickaxes / cave themes / achievement badges with owned vs.
+  not-yet, turning the cosmetic shop into a long-term goal. We already
+  own all the data (`cosmetics.ts`, `achievements.ts`); this is a pure
+  presentation surface. Cheap candidate.
 - ~~**Statistics detail**~~ — **DONE 2026-09** (todo “statistics detail”):
   the records panel now carries a lifetime “Time in the mine” row and a
   per-session block (minerals, answers, active time since launch) —
@@ -314,6 +336,13 @@ genre-impact; anything picked up goes into `docs/todo.md`.
 
 - **Friends / social leaderboard** — global top-10 exists; no
   Game Center / Play Games friend feeds, no friend-list leaderboard.
+- **Daily-challenge leaderboard** — the daily equation is identical for
+  every player (day-key seed), so a first-solve speed or bonus-claimed
+  ranking is trivially fair without an anti-cheat model beyond the
+  honest-casual caps the existing leaderboard already uses
+  (`leaderboard.ts`). The math-game version of the genre's daily
+  reward loop; reuses the live Pocketbase leaderboard endpoint. Good
+  candidate for the "real social loop" the genre roundups call out.
 - **Guilds / community goals** — genre-common in bigger idle games;
   requires backend work on the existing Pocketbase deployment.
 - **Kids mode / parent screen** — guardrail 6 (kid-safe age rating) is
