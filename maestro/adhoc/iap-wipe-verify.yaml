@@ -10,14 +10,20 @@
 # (The old "One-time purchases" section header and "Owned" label no
 # longer exist in the UI.)
 #
-# DEBUG-APK NUANCE (why v3 taps the toggle): the real-store opt-in flag
-# (`iapRealStore` localStorage) is itself wiped by `pm clear`, so a
-# wiped DEBUG app boots on the dev-sim provider, which has no
-# reconcileStore. Tapping "Real store billing" flips the provider to the
-# store one, which re-runs the launch effect — and that is what fires
-# reconcileStore (initConnection → getAvailablePurchases → re-grant).
-# A RELEASE build has no toggle: it always runs the store provider, so
-# the reconcile fires at plain launch.
+# PROVIDER NUANCE (why v4 makes the toggle optional):
+# - The standalone debug APK embeds the PRODUCTION bundle
+#   (__DEV__=false): there is NO "Real store billing" toggle in the UI
+#   and the store provider runs at plain launch — reconcileStore fires
+#   on its own (confirmed on-device 2026-09-08: the step-9 a11y tree of
+#   a wiped launch already showed "Gold Pickaxe ✓" + "Equip" and no
+#   toggle text anywhere).
+# - A DEV bundle (Metro) has the toggle and boots on the dev-sim
+#   provider after the wipe (the `iapRealStore` flag is wiped with the
+#   rest of localStorage); tapping it flips the provider to the store
+#   one, which re-runs the launch effect and fires reconcileStore.
+# The toggle tap is therefore OPTIONAL: it is a no-op skip on the
+# production bundle (element absent) and a required-for-success action
+# on a dev bundle (without it the owned scan below fails).
 #
 # v3 (2026-09-07): after the toggle flip the panel is re-rendered by the
 # store provider; give it 30 s to connect + query + merge, normalize the
@@ -50,17 +56,20 @@ appId: com.minus4kelvin.minesofdoom
 - tapOn:
     text: "🛍️"
 
-# Re-arm the real-store opt-in (the flag lives in the same storage that
-# `pm clear` wiped — see the header). This flips the provider dev-sim →
-# store, which triggers the launch reconcile effect.
+# Re-arm the real-store opt-in IF the UI has the toggle (dev bundle only
+# — see the provider nuance in the header). On the production bundle the
+# element is absent and this step is skipped.
 # Maestro 2.x matches element text as a FULL regex, so every matcher is
 # anchored with .*/.* around the distinctive substring.
 - tapOn:
     text: ".*Real store billing.*"
+    optional: true
 - assertVisible:
     text: ".*REAL store billing active.*"
+    optional: true
 
-# initConnection + getAvailablePurchases + merge + re-render.
+# initConnection + getAvailablePurchases + merge + re-render (store
+# provider, both bundle flavors once the launch has settled).
 - runScript: 'sleep-30.js'
 
 # Normalize to the top of the catalog, then scan the ENTIRE list for the
