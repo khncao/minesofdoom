@@ -39,6 +39,12 @@ Completed items are removed from this file (see git history); only remaining wor
     i18n table stays key-pinned — + the published `privacy-policy.html` /
     `terms-of-use.html` **generated from the same modules** by
     `legalDocs.test.ts`) both **fixed this iteration** and tested.
+    S3's web-sign-in server path is now live-verified against the deployed
+    Pocketbase (2026-09-08, the exact fetch shape of the web client:
+    register → 200+token, login → 200, `/me` → 200, GDPR delete with
+    session token → `{ok, deletedAccount:true}`, post-delete re-login
+    refused 401 — probe account deleted, nothing lingers); the in-browser
+    GIS/Apple legs remain manual (`docs/blockers.md`).
     Only open follow-up: S6 (kid-safety/age rating — external store check).
 
 - [x] IAP — entitlements re-derive from the store's own record after a local
@@ -52,18 +58,13 @@ Completed items are removed from this file (see git history); only remaining wor
     only restore path that works for anonymous players after a wipe (their
     server rows are keyed by the old device id). Unit-tested in
     iapProvider.test.ts + useIap.test.ts (863 tests green).
-- [ ] IAP — on-device verification of the above: purchase (DONE 2026-09-06 —
-    purchase leg confirmed working on the dev build, mines-play-35, license
-    tester) → wipe local key (pm clear) → relaunch → entitlement re-derived
-    from the store record. **Build leg DONE 2026-09-06 PM:** a debug APK
-    from HEAD (c04e03b, supersedes a50aea0 — the embedded-bundle variant,
-    boots standalone with the real store provider) is installed on
-    mines-play-35 (versionName 1.0.8, boot-smoke clean); the wipe flow
-    (`maestro/adhoc/iap-wipe-verify.yaml`) now asserts the FULL leg: pm
-    clear → relaunch → panel settles back to **Owned** once reconcileStore
-    re-derives it from the store record (90 s window). What remains is the
-    billing network (see below) → `maestro test maestro/adhoc/iap-wipe-verify.yaml`. 2026-09-06 PM: the purchase-leg re-run is blocked by the
-    emulator billing network (billing gRPC ERR_CONNECTION_REFUSED — worked
-    earlier the same day; `docs/blockers.md`), and "works via
-    expo run:android" is the labeled dev-sim provider (dev bundle,
-    `__DEV__=true`), not real Play Billing
+- [x] IAP — on-device verification of the above: **DONE 2026-09-08** —
+    the transient emulator billing-egress condition cleared on its own and
+    the FULL wipe leg passed on mines-play-35 (1.0.8 / c04e03b debug APK):
+    `pm clear` → `maestro test maestro/adhoc/iap-wipe-verify.yaml` →
+    reconcileStore re-derived the owned Gold Pickaxe from the store record
+    alone (production bundle, no dev toggle — the optional toggle steps
+    WARN by design). Purchase leg (2026-09-06) + build leg + wipe leg all
+    green; see the "RESOLVED 2026-09-08" note in `docs/blockers.md`.
+    (Completed items are removed next cleanup pass — kept one pass as the
+    unblock record.)
