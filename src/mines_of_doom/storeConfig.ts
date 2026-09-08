@@ -104,8 +104,8 @@ export const storeConfig = {
    * guardrail: ads must not overlap the play area).
    */
   adsense: {
-    client: "",
-    slot: "",
+    client: "ca-pub-2101316086878618",
+    slot: "5884000571",
   },
 };
 

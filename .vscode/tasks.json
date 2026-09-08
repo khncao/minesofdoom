@@ -24,40 +24,66 @@
             "command": "npx expo run:android -d mines-play-35"
         },
         {
+            "label": "build web static",
+            "type": "shell",
+            "command": "npx expo export -p web"
+        },
+        {
             // Boots the phone AVD headless (if not already running), waits for
             // boot, then `npm run android -- -d <serial>`.
             "label": "Android: run on phone (mines-play-35)",
             "detail": "scripts/run-android-avd.mjs — boot AVD + expo run:android on it",
             "type": "process",
             "command": "node",
-            "args": ["scripts/run-android-avd.mjs", "mines-play-35"],
+            "args": [
+                "scripts/run-android-avd.mjs",
+                "mines-play-35"
+            ],
             "problemMatcher": [],
-            "presentation": { "reveal": "always", "panel": "dedicated" }
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
         },
         {
             "label": "Android: run on 7in tablet (MinesTablet7)",
             "detail": "scripts/run-android-avd.mjs — boot AVD + expo run:android on it",
             "type": "process",
             "command": "node",
-            "args": ["scripts/run-android-avd.mjs", "MinesTablet7"],
+            "args": [
+                "scripts/run-android-avd.mjs",
+                "MinesTablet7"
+            ],
             "problemMatcher": [],
-            "presentation": { "reveal": "always", "panel": "dedicated" }
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
         },
         {
             "label": "Android: run on 10in tablet (MinesTablet10)",
             "detail": "scripts/run-android-avd.mjs — boot AVD + expo run:android on it",
             "type": "process",
             "command": "node",
-            "args": ["scripts/run-android-avd.mjs", "MinesTablet10"],
+            "args": [
+                "scripts/run-android-avd.mjs",
+                "MinesTablet10"
+            ],
             "problemMatcher": [],
-            "presentation": { "reveal": "always", "panel": "dedicated" }
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
         },
         {
             "label": "Android: stop all emulators",
             "detail": "scripts/run-android-avd.mjs --stop",
             "type": "process",
             "command": "node",
-            "args": ["scripts/run-android-avd.mjs", "--stop"],
+            "args": [
+                "scripts/run-android-avd.mjs",
+                "--stop"
+            ],
             "problemMatcher": []
         }
     ]
