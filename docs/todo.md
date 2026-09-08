@@ -25,7 +25,7 @@ Completed items are removed from this file (see git history); only remaining wor
   demand signal (→ the pass-16 `cosmetics:visibility` / `collection`
   candidates). Per-pass detail: git history ("docs(features): pass N") +
   `docs/features.md` §7.
-- [o] Stripe (web IAP) — **configured in test mode (2026-09-08)**: the 26
+- [x] Stripe (web IAP) — **test-mode setup DONE + verified end to end (2026-09-08)**: the 26
   products + one-time USD prices synced to the Stripe test account via
   `node scripts/stripe/syncStripe.mjs products` (console-free; idempotent
   via the mdoomProductId metadata marker), `storeConfig.stripe.prices`
@@ -55,7 +55,7 @@ Completed items are removed from this file (see git history); only remaining wor
   pasted price ids, pk/sk mode mismatch, tier drift, missing/rogue
   products; §2.6 step 6).
 
-- [o] audit project security and compliance — **reviewed + `docs/security-audit.md`**
+- [x] audit project security and compliance — **DONE 2026-09-08 (reviewed + `docs/security-audit.md`)**
     (fail-closed verify, device-scoped private collections, no secrets in
     bundle, no XSS sinks — all sound). S1 (session tokens/salts/account ids
     were `Math.random`, not a CSPRNG) and S3 (password hashing was
@@ -87,4 +87,10 @@ the S6 section of docs/security-audit.md and docs/features.md §7
 yet (internal track 1.0.8 only), so nothing published to verify; Play
 Developer API v3 no longer exposes content ratings (top-level app
 endpoint 404s, `edits.details` carries none) — the questionnaire is a
-Play Console UI step BEFORE the first production release.
+Play Console UI step BEFORE the first production release. **All S-items
+closed:** S1/S3 fixed + tested, S2/S4 fixed + tested (S4's only
+remainder is linking the privacy/terms URLs from the store listings —
+external), S5 accepted, S6 decided — so the in-repo half of the audit is
+done; everything left is the manual pre-production console steps listed
+in the `docs/security-audit.md` follow-up checklist (S4 link + S6 steps
+1–3 + the post-launch S6 revisit trigger).
