@@ -46,7 +46,16 @@ GameGrowthAdvisor ASO-for-mobile-games guide (Apr 2026, a 50+ launch
 studio; qualitative + case studies), Digital Applied ASO-statistics 2026
 (collection consolidating AppTweak / Sensor Tower / AppFollow numbers),
 the Play Console store-listing-experiments page (official), and the
-Play Core in-app-review guide (official). Items
+Play Core in-app-review guide (official);
+2026-09 pass 11: stability & the device-quality layer — the
+Android vitals docs (user-perceived crash / ANR / excessive battery /
+excessive partial wake locks / memory thresholds, official), the Android
+developers blog "Battery Technical Quality Enforcement is Here"
+(2026-03: wake-lock treatments live) and "Leveling Guide for your
+Performance Journey" (2025-11: core-vitals tour, ApplicationExitInfo),
+and Bugspulse "Crash Rate Benchmarks by Industry 2026" (consolidates
+Crashlytics / Instabug / Embrace numbers; treat magnitudes as
+illustrative, as passes 4 and 6 did). Items
 adopted from that list move into `docs/todo.md`.
 
 ## 1. Core gameplay
@@ -866,6 +875,124 @@ the local logger as the only honest number, exactly as pass 4 did).
   and all paid-UA creative are gated by guardrail 5 — no UA spend
   before the measurement lands — so they are deliberately absent,
   not gaps.
+
+### Stability & the device-quality layer (pass 11 — the floor under the funnel)
+
+Passes 7–10 audited funnel segments; pass 10 left a pre-launch vitals
+checklist with the discipline "no new code unless the numbers say there
+is". This pass audits the layer that keeps the app from being demoted or
+warned — crashes, ANRs, battery/wake locks, memory — and checks what is
+buildable at all from a JS codebase. Live audit (2026-09-08, `src/`):
+the stability stack is local-only — a persisted crash ring buffer
+(`crashLog.ts`, 5 entries, each with a session-trail + state snapshot
+from `crashContext.ts`), a React `ErrorBoundary` (render layer) plus
+`ErrorUtils` global capture (`crashLogging.ts` / `useGlobalCrashCapture.ts`,
+no-op on web), and local-only analytics (`analytics.ts`). Zero background
+work: offline progression computes on load, the ambient bed pauses on
+backgrounding (AppState listener in `useSounds.ts`), and there is no
+wake lock, foreground service, scheduled work, or push anywhere in our
+code. The only third-party SDKs with a wake-lock surface are
+`react-native-google-mobile-ads`, `expo-iap`, and
+`@react-native-google-signin/google-signin` — all Google-owned.
+
+- **User-perceived crash rate is a core vital, and the local stack
+captures exactly the right class of event** — Play's user-perceived
+crash rate counts DAUs who had ≥1 crash *while actively using the app*
+(any activity displayed or foreground service executing). Bad-behavior
+thresholds: **1.09 % overall**, **8 % on a single device model** (a
+per-device breach is what earns a store-listing warning); assessed on a
+28-day window with "emerging issues" flagged after 7 days, leaving ~21
+days to remediate. Consequence is reduced discoverability + a listing
+warning — not delisting. The local ring buffer exists precisely to catch
+the user-perceived class (the Android Hermes white-screen class that
+motivated it); the gap is *aggregation* — nothing rolls crashes up
+across devices. Candidate: a **crash-code export** — the ring buffer is
+already save-code-sized JSON, so rendering it as a shareable code in
+Settings → "Local stats (debug)" next to the analytics summary reuses
+the existing share-badge/share-text degradation path (PNG → plain text).
+No SDK, no network, nothing new to delete (it is a `removeItem` of the
+same record, same as the analytics clear). Candidate, not planned; the
+trigger is the first non-zero vitals crash signal on the internal track,
+not FOMO.
+- **ANR is the blind spot JS cannot see — and the risk profile says
+wait for vitals** — user-perceived ANR is the second core vital
+(0.47 % overall / 8 % per-device), and an ANR is an OS-level event:
+neither of our two JS error layers fires, the local crash log never
+sees it, and the only first-party view is Play's ANR dashboard (with
+stack traces). Our exposure is structurally small — single-screen app,
+pure-TS compute, the roster bobs off ONE shared native-driver clock
+(`utils/graphics/animationClock.ts`); the JS-burst candidates are save
+parse, the offline-progress computation on load, and canvas repaints on
+long rosters. If vitals ever names an ANR, the diagnosis path is
+`ApplicationExitInfo` (API 30: why the process died — native crash, ANR,
+OOM kill — with `getTraceInputStream` for the trace) plus Perfetto
+traces; neither is reachable from JS today (a native module would be
+required). No code now; the pass-10 discipline generalizes:
+numbers first.
+- **The 2026 wake-lock enforcement is the one vital our architecture
+sits on the right side of — verify, don't build** — from 2026-03-01
+Google is *enforcing* "excessive partial wake locks": a core vital
+where cumulative non-exempt partial wake-lock usage averages ≥2 h
+screen-off in **>5 % of user sessions** (28-day window) draws tangible
+treatments — a store-listing warning **and exclusion from discovery
+surfaces** (rolling out, per the 2026-03 blog). It is the newest vital
+and the only one with live treatment rather than demotion risk. Our
+surface: zero wake locks in our code (no background work at all; the
+ambient bed pauses on backgrounding — verified in `useSounds.ts`), and
+audio playback is itself a system-exempted category. The only possible
+offenders are the three Google SDKs above, for which the blog's
+workflow is: read the offending lock's name from the Excessive Partial
+Wake Locks dashboard, cross-reference the identify-wls table of known
+system APIs/Jetpack libraries, and configure/replace only if it is
+ours. The pass-10 pre-launch checklist item is now concrete; no code
+unless a name surfaces.
+- **Crash-free targets: 98.5–99.2 % for a casual game, with the
+purchase path instrumented separately** — the 2026 benchmark
+consolidation (Bugspulse, over Crashlytics / Instabug / Embrace
+aggregates — directions agree, magnitudes illustrative, per the pass-6
+discipline): casual/hyper-casual games target 98.5–99.2 % crash-free,
+on a maturity curve of 95 %+ pre-launch → 98 % at 3 months → 99 % at
+12 months → 99.5 %+ mature, and ~42 % of users leave a negative review
+after a single crash — which plugs into the pass-10 review cold start:
+stability is half of review hygiene, as pass 10 already pinned when it
+made pre-launch bug triage half of the review item. The same source
+targets 99.9 % on *purchase paths*: our purchase paths are `expo-iap`
+(native) and Stripe hosted Checkout (web), where a crash is revenue
+plus trust. Candidate: fold the crash ring buffer into the local
+analytics summary (crashes-per-N-sessions computed on-device, same
+local-only posture) so a crash-free number exists before it is ever
+needed in a report. Candidate, not planned — same trigger as the export
+item above; the two collapse into one settings-row feature.
+- **Memory vitals give the games category headroom — there is nothing
+to do** — the vitals memory thresholds are tiered by device RAM and app
+state, and games get higher limits than apps at every tier (at 8 GB
+RAM, foreground: 2.25 GB apps vs 3.50 GB games; bitmap foreground cap
+200 MB), and our surface is a static cave canvas plus interpolation-
+only bobbing off one shared driver — no bitmap churn (pixel-art canvas;
+the share-badge PNG is generated on demand and released). New
+Architecture is already on (SDK 57), and FlashList is the canonical
+countermeasure for list growth — but the roster row is fixed layout,
+not a scrolling list. No code.
+- **Canon pins (confirmed correct, not gaps):** (1) the **local-only
+crash posture is right under guardrail 5** — the 2026 crash-tooling
+literature itself flags that third-party SDKs capture device IDs / IPs
+when "all you need is the stack trace", which is the reason the
+benchmark articles exist; the privacy-consistent aggregation path is
+opt-in sharing of the on-device record, and Play vitals is the free
+first-party aggregator above it — so there is no SDK-shaped gap to
+fill. (2) the **pass-10 "no code unless the numbers say there is"
+discipline generalizes to the whole layer**: vitals (crash / ANR /
+battery / wake / memory) is free, first-party, and pre-decision — every
+build candidate in this pass is trigger-based on a vitals reading, not
+checklist FOMO. (3) the **white-screen class is covered as far as a JS
+codebase can cover it** — release builds have no red box, but the
+ErrorBoundary + context snapshot covers the render tree, the global
+`ErrorUtils` capture covers outside-render JS (the suspected class of
+the original `describe` crash), the `debuggableVariants` embedded bundle
+(AGENTS.md gotcha) keeps dev/debug boots alive without Metro, and the
+remaining class (native process death) is exactly what
+ApplicationExitInfo + vitals see *from outside* — so the gap is
+aggregation, not detection.
 
 ### Monetization benchmarks (pass 6 — revenue-side targets for guardrail 5)
 
