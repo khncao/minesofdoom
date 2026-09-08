@@ -6,8 +6,11 @@ file-anchored so they stay verifiable. Section 7 ("Missing features,
 explored") is the research output of the same task: genre-standard features
 that do NOT exist yet, cross-referenced against idle/clicker and math-game
 checklists (ClickerHeroes idle-game roundup, ENEBA best-idle list, G2A
-incremental-guide, Edu.com / Reflex math-engagement research, 2026-09).
-Items adopted from that list move into `docs/todo.md`.
+incremental-guide, Edu.com / Reflex math-engagement research, 2026-09;
+2026-09 pass 3: GameGrowthAdvisor mobile-retention 2026 benchmark piece,
+Mind Studios idle-clicker design/monetization guide, Various Cloud +
+GameNeAI mobile-accessibility playbooks). Items adopted from that list
+move into `docs/todo.md`.
 
 ## 1. Core gameplay
 
@@ -266,6 +269,24 @@ genre-impact; anything picked up goes into `docs/todo.md`.
   driver (real-time events, event cosmetics). Note: real limited windows
   only — the no-fake-scarcity guardrail forbids fake timers, and the
   F2P-viability guardrail means event rewards must be earnable free.
+  Pass 3 adds the *cadence* angle: the 2026 retention piece treats
+  "content cadence as the retention plan" — a 2–4-week update rhythm
+  players can anticipate, planned during soft launch, not retrofitted
+  when the day-30 cohort hits the content wall. Candidate, not planned.
+- **Day-7 reward spike** — the daily-streak ladder
+  (`dailyBonus.ts`: `DAILY_BASE_BONUS × min(streak, 7)`, linear to the
+  cap) is the shape the retention research calls out as weak: a flat
+  or linear ladder has no "cost to skipping" anchor. The genre-standard
+  fix is a day-7 reward worth *more than days 1–6 combined* — a single
+  shape change in `getDailyBonus` (pure function, unit-tested), so this
+  is a near-free candidate if it's ever picked up.
+- **Narrative / character layer** — the idle-genre design guide (Mind
+  Studios) lists narrative as a first-class retention lever: a story
+  that unfolds as levels unlock, characters with goals we'd want to
+  check back for. We already have the scaffold (depth tiers, cave
+  themes, miner characters, outfits) with no story on top of it — a
+  lightweight "cave lore" flavor layer (per-depth flavor text /
+  encounters) would be the cheap version. Candidate, not planned.
 - **Battle pass / season pass** — the 2026 idle roundups list battle
   passes alongside events as a top retention driver. Heavier than the
   events item above: it is a *structured* season (fixed real window,
@@ -300,13 +321,47 @@ genre-impact; anything picked up goes into `docs/todo.md`.
   per-session block (minerals, answers, active time since launch) —
   see §2 “Local records”. (No export; that was never the ask.)
 
+### Accessibility (2026-09, pass 3)
+
+None of these exist today except where noted; the 2026 accessibility
+playbooks rank text scaling and separate audio channels as the
+low-effort/high-impact first tier, so this section is in that order.
+
+- **Text size / UI scaling** — `styles.ts` hard-codes `fontSize: 11–12`
+  everywhere; nothing scales with the OS font setting. The cheapest
+  high-impact item in the playbooks: a settings row with ~3 scale
+  steps applied as a multiplier at the style layer.
+- **Independent music volume** — the cave-ambience bed is locked to
+  half the SFX level by the `musicLevel` law (`game.ts`), so there is
+  no way to hear the music without the SFX (or vice versa). The
+  audio-channel guideline is separate sliders; the cheap version is a
+  music-volume settings row parallel to the existing SFX row, relaxing
+  the half-level law.
+- **Native reduce-motion** — `useAccessibilityReduceMotion.ts` already
+  respects `prefers-reduced-motion` **on web only** (RN has no API for
+  the iOS/Android OS setting yet, per the file's own comment; native
+  returns false). A settings "reduce effects" toggle (decorative debris
+  / combo juice off) would cover native and give everyone a manual
+  kill-switch. The hook is the natural seam.
+- **High-contrast / color-independence** — no high-contrast mode, and
+  a few states are color-leaning (vein/gem-pocket discovery reads
+  largely from the node's look on the canvas). Playbook baseline: never
+  convey meaning by color alone; we'd audit the canvas cues and add a
+  contrast step to the same settings row as text size.
+
 ### Player-facing surfaces
 
 - **Home-screen widget** — ~~+ idle reminders~~ (the in-app idle reminder
   is DONE 2026-09 — `idleReminder.ts` / `useIdleReminder.ts` + settings
   toggle, see §2). No `expo-notifications` / widget anywhere in `src/`:
   the OS-level "come collect" push remains; must stay a simple reminder
-  (no dark patterns).
+  (no dark patterns). Pass 3 adds the permission reality (2026): push is
+  an earned grant on both platforms (Android 13+ `POST_NOTIFICATIONS`
+  runtime prompt), so the work is the UX around it — ask after a
+  success moment, never at launch, single-shot; track grant rate as a
+  first-class metric; always send value (the offline-haul cap
+  "your miners hit the cap" is the natural one), cap frequency, and
+  never an empty "come back" ping (those buy opt-outs).
 - ~~**Sound volume controls**~~ — **DONE 2026-09** (todo "sound volume
   controls"): the SFX volume — 0–100% (default 100%), a settings row
   stepped in 10% units, `clampSoundVolume` in `game.ts` keeping parsed or
@@ -344,7 +399,15 @@ genre-impact; anything picked up goes into `docs/todo.md`.
   reward loop; reuses the live Pocketbase leaderboard endpoint. Good
   candidate for the "real social loop" the genre roundups call out.
 - **Guilds / community goals** — genre-common in bigger idle games;
-  requires backend work on the existing Pocketbase deployment.
+  requires backend work on the existing Pocketbase deployment. The
+  pass-3 research refines *which* social mechanic survives a small
+  player base: the solo-player-safe ones — asynchronous goals where
+  solo players benefit from other people's activity without anyone
+  being online (a shared community-milestone bar toward a collective
+  reward, backed by the existing Pocketbase aggregation; the
+  leaderboard already proves the endpoint pattern). That is the
+  cheaper first step toward this item, and it can be ranked against
+  it: a community milestone is a guild-lite.
 - **Kids mode / parent screen** — guardrail 6 (kid-safe age rating) is
   planned but there is no in-app parent area (time limits, ad consent
   surface). Becomes mandatory-looking once an age rating is chosen.
