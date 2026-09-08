@@ -15,6 +15,20 @@ Completed items are removed from this file (see git history); only remaining wor
     the verb vocabulary, not the hardware). All not planned — trigger-gated
     on player signals per the pass-11/12 discipline.
 
+- [o] Cloudflare Pages web build — **broken 2026-09-08, fix pending push**:
+  `expo export -p web` crashes with `TypeError: configs.toReversed is not a
+  function` because Expo SDK 57's metro-config needs Node ≥ 21 but the build
+  ran on the legacy image (Node 18.17.1, EOL). Two contributing findings:
+  (1) the root `wrangler.toml` carrying `image = "node-22"` is NOT a valid
+  Pages build config — the builder rejected it (missing `pages_build_output_dir`)
+  and skipped it, so the pin never applied; (2) with no pnpm pin, the build
+  detected pnpm 8.7.1 from the environment, which cannot read our
+  `lockfileVersion: 9.0` lockfile (`Ignoring not compatible lockfile` —
+  install runs unlocked). Fix: pin the Node 22 + pnpm ≥ 9 build environment
+  where the builder actually reads it (dashboard env vars / supported pin
+  file, not the root wrangler.toml — remove or repurpose that file), then
+  push to main to re-trigger the deploy and confirm a green Pages build.
+
 - [o] Stripe (web IAP) — **configured in test mode (2026-09-08)**: the 26
   products + one-time USD prices synced to the Stripe test account via
   `node scripts/stripe/syncStripe.mjs products` (console-free; idempotent
