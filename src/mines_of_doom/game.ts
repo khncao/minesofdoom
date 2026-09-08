@@ -535,6 +535,35 @@ export const maxOfflineTicks = 8 * 60 * 60;
  * maxOfflineTicks; beyond that the top-up itself caps at these 2h.
  */
 export const offlineTopUpTicks = 2 * 60 * 60;
+/**
+ * Ticks of ACTIVE play time a single tick-loop fire may book into
+ * SaveData.playSeconds. The tick loop reports the REAL elapsed time since
+ * the previous fire: in the foreground that is ~1 tick (0 or 2 with timer
+ * jitter), but the first fire after a background gap reports the whole
+ * absence at once (up to maxOfflineTicks). Paying that mineral catch-up is
+ * the feature; booking it as active play time would inflate playSeconds
+ * (documented as foreground/active time only — offline earnings and away
+ * time never count). The mineral path keeps using the full elapsed; the
+ * play-time path is capped here instead.
+ */
+export const LIVE_PLAY_TICK_CAP = 2;
+/**
+ * How many seconds of active play time one tick-loop fire contributes:
+ * zero while the app is not active (backgrounded app / hidden tab),
+ * otherwise the whole-tick elapsed clamped to LIVE_PLAY_TICK_CAP so a
+ * catch-up fire never books away time as play time.
+ */
+export function activePlaySeconds(
+  elapsedTicks: number,
+  isActive: boolean,
+): number {
+  if (!isActive) return 0;
+  const whole =
+    typeof elapsedTicks === "number" && Number.isFinite(elapsedTicks)
+      ? Math.max(0, Math.floor(elapsedTicks))
+      : 0;
+  return Math.min(whole, LIVE_PLAY_TICK_CAP);
+}
 // Minerals per depth meter
 export const mineralsPerDepth = 500;
 

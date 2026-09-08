@@ -1493,11 +1493,14 @@ The research (four sources; quality notes at the end):
   (answer × premium × effective click-power × combo) or label the base as
   such. Pure display change; the engine is untouched. Audit finding (1).
   Candidate, not planned.
-- **`math:zero-operand`** — stop generating degenerate zero equations:
-  exclude 0 from multiplicative operands (and the ² operand) in
-  `generateTermsEquation`, or floor the *default* range at 1 for new saves
-  (existing saves keep their stored range — no migration). Pure generator
-  change, unit-testable. Audit finding (2). Candidate, not planned.
+- ~~**`math:zero-operand`**~~ — **DONE 2026-09-12** (iteration 13,
+  autonomous pick alongside the pass-17 active-clock fix; audit finding
+  (2)): `generateTermsEquation` now floors multiplicative operands (× and
+  ²) at 1 even when `minNumber` is 0 — "0 · n" / "n · 0" / "0²" no longer
+  generate, so no zero-answer equation pays the `Math.max(1, …)` floor.
+  +/− keep 0 legal ("0 + n = n" is easy, not degenerate); existing saves
+  keep their stored range — no migration. Tests in `equations.test.ts`
+  (zero-operand exclusion describe).
 - **`math:mastery`** — a per-type fact-table view: rolling accuracy on the
   last N answers per enabled type (the records seam, `records.ts` tracks
   lifetime answers, not per-type yet — that delta is the cost) plus a
@@ -1956,17 +1959,18 @@ anxiety is the failure mode guardrail 3 (no dark patterns) cares about.
 Candidates (documented, trigger-gated — **none planned, none
 implemented**):
 
-- **`offline:active-clock`** — fix finding (1), the only bug-class item in
-  this pass: in the tick loop, split live ticks from caught-up ticks for
-  the play-time clock — `playSecondsRef` should advance only for ticks
-  that actually fired while foregrounded (e.g. cap the per-fire
-  `playSeconds` contribution at the interval period, or track an
-  AppState/visibility `active` flag and only advance the clock inside
-  it). The mineral catch-up payment stays exactly as-is (that is the
-  feature); only the honest clock changes. Engine-local + unit-testable
-  (`game.ts`/`useGameEngine.ts`), no UX, no migration (the stat is a
-  display-only record — already-credited inflation is not worth
-  migrating down). Candidate, not planned.
+- ~~**`offline:active-clock`**~~ — **DONE 2026-09-12** (iteration 13,
+  autonomous pick as the pass's only bug-class item): in the tick loop,
+  split live ticks from caught-up ticks for the play-time clock —
+  `playSecondsRef` now advances only by `activePlaySeconds(elapsed,
+  activeRef)`: zero while the app is not active (AppState on native,
+  AppState + `visibilitychange` on web), and capped at `LIVE_PLAY_TICK_CAP`
+  (2 ticks) while active, so the first fire after a background gap pays
+  the full mineral catch-up but books at most two seconds of play time.
+  Pure helper + constant in `game.ts` (`activePlaySeconds` / `LIVE_PLAY_
+  TICK_CAP`), tests in `game.test.ts`; the mineral catch-up payment stays
+  exactly as-is. No UX, no migration (the stat is a display-only record
+  — already-credited inflation was not worth migrating down).
 - **`offline:clock-hwm`** — mitigation for finding (3), the standard
   client-side bookkeeping the forum sources describe: a monotonic
   `timeHighWater` timestamp in the save, advanced on every tick/save;

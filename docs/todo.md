@@ -15,7 +15,11 @@ outside this file:
   console "Not child-directed" setting, the post-launch S6 revisit trigger).
 - `docs/backlog.md` — the intentionally deferred iOS track (AdMob iOS entry,
   App Store IAP products + credentials, iOS on-device verification passes).
-- `docs/features.md` §7 — trigger-gated candidates; none planned, none
-  implemented. Reopen on the signals recorded there (first production release +
-  the guardrail-5 signal batch, endgame-lifetime content pass, es-market,
-  share-badge/cosmetics demand).
+- `docs/features.md` §7 — trigger-gated candidates. Two no-signal picks were
+  done out-of-queue on 2026-09-12 (iteration 13): the pass-17
+  `offline:active-clock` bug fix (background catch-up no longer inflates the
+  active play-time clock) and the pass-15 `math:zero-operand` generator fix
+  (no more "0 · n" / "0²" zero-answer equations at the default range). The
+  rest stays trigger-gated. Reopen on the signals recorded there (first
+  production release + the guardrail-5 signal batch, endgame-lifetime content
+  pass, es-market, share-badge/cosmetics demand).

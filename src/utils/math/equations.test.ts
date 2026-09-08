@@ -156,6 +156,61 @@ describe("getRandomEquation", () => {
   });
 });
 
+describe("zero-operand exclusion (todo: math:zero-operand)", () => {
+  test("multiply operands are never 0, even when minNumber is 0", () => {
+    const prefs: EquationSettings = { ...ONLY, multiply: true };
+    for (let i = 0; i < 2000; i++) {
+      const eq = getRandomEquation(prefs);
+      expect(eq.op).toBe(Ops.mult);
+      expect(eq.a).toBeGreaterThanOrEqual(1);
+      expect(eq.b).toBeGreaterThanOrEqual(1);
+      expect(eq.a).toBeLessThan(12);
+      expect(eq.b).toBeLessThan(12);
+      // No more degenerate zero answers paying the Math.max(1, …) floor.
+      expect(eq.answer).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  test("square operand is never 0, even when minNumber is 0", () => {
+    const prefs: EquationSettings = { ...ONLY, square: true };
+    for (let i = 0; i < 500; i++) {
+      const eq = getRandomEquation(prefs);
+      expect(eq.op).toBe(Ops.sq);
+      expect(eq.a).toBeGreaterThanOrEqual(1);
+      expect(eq.b).toBe(eq.a);
+      expect(eq.answer).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  test("addition/subtraction keep 0 legal (0 + n = n is not degenerate)", () => {
+    const prefs: EquationSettings = {
+      ...ONLY,
+      add: true,
+      subtract: true,
+    };
+    // minNumber is 0: add/sub must still be able to sample 0 operands.
+    // (Statistical over many rolls: 0 in [0,12) is 1/12 per draw, so over
+    // 3000 equations of two operands each, a 0 must show up.)
+    let sawZero = false;
+    for (let i = 0; i < 3000 && !sawZero; i++) {
+      const eq = getRandomEquation(prefs);
+      if (eq.op === Ops.add || eq.op === Ops.sub) {
+        if (eq.a === 0 || eq.b === 0) sawZero = true;
+      }
+    }
+    expect(sawZero).toBe(true);
+  });
+
+  test("a minNumber >= 1 is still the floor for multiply/square", () => {
+    const prefs: EquationSettings = { ...ONLY, multiply: true, minNumber: 5 };
+    for (let i = 0; i < 500; i++) {
+      const eq = getRandomEquation(prefs);
+      expect(eq.a).toBeGreaterThanOrEqual(5);
+      expect(eq.b).toBeGreaterThanOrEqual(5);
+    }
+  });
+});
+
 describe("soft-mode-only equation types (iteration 11, all ages)", () => {
   test("percent: friendly %, exact integer answer, in-range base", () => {
     const prefs: EquationSettings = { ...ONLY, percent: true };

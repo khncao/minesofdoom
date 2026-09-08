@@ -28,6 +28,7 @@ import {
   getLegendaryMinerCost,
   getGemChanceCost,
   getMineralsPerSec,
+  activePlaySeconds,
   getMinerPowerUpgradeCost,
   getMinerUpgradeCost,
   getPrestigeLevel,
@@ -70,12 +71,24 @@ export function useGameEngine(
   const lastSaveTickRef = useRef(0);
   // Lifetime ACTIVE play-time clock, whole seconds (todo: statistics
   // detail). Authoritative copy of SaveData.playSeconds while the app
-  // runs: the tick loop advances it once per fired interval (so it only
-  // counts time the engine was actually ticking — foreground/active time,
-  // never offline earnings), and saveGame flushes it into state + the
-  // serialized save. Kept out of state between saves so a no-miner idle
-  // session doesn't re-render the tree once a second.
+  // runs: the tick loop advances it once per fired interval while the app
+  // is active, and only for live ticks (activePlaySeconds) — a catch-up
+  // fire after a background gap pays the mineral catch-up but never books
+  // away time as play time (docs/features.md pass 17, offline:active-
+  // clock). saveGame flushes it into state + the serialized save. Kept
+  // out of state between saves so a no-miner idle session doesn't re-
+  // render the tree once a second.
   const playSecondsRef = useRef(0);
+  // Whether the app is foregrounded/visible RIGHT NOW: gates the play-time
+  // clock (above) so backgrounded-app / hidden-tab ticks book zero. The
+  // interval keeps firing in both cases (mineral catch-up still banks), so
+  // the clock needs its own liveness signal. Lazy init: on web a tab can
+  // mount hidden (restored tab group), on native cold start is active.
+  const activeRef = useRef(
+    Platform.OS === "web" && typeof document !== "undefined"
+      ? document.visibilityState === "visible"
+      : true,
+  );
   // Stale-save flag (plan §2.1 "save affordance"): true whenever state
   // has changed since the last successful write. This is accurate, not
   // aspirational — with miners running the state changes every tick, so
@@ -263,6 +276,29 @@ export function useGameEngine(
     return () => subscription.remove();
   }, []);
 
+  // Track app activity for the play-time clock (activeRef): AppState covers
+  // native; web gets a direct visibilitychange listener as belt-and-braces
+  // (expo's AppState maps it too, but not every web environment fires it
+  // for tab switching).
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (status) => {
+      activeRef.current = status === "active";
+    });
+    let onVisibility: (() => void) | null = null;
+    if (Platform.OS === "web") {
+      onVisibility = () => {
+        activeRef.current = document.visibilityState === "visible";
+      };
+      document.addEventListener("visibilitychange", onVisibility);
+    }
+    return () => {
+      subscription.remove();
+      if (onVisibility != null) {
+        document.removeEventListener("visibilitychange", onVisibility);
+      }
+    };
+  }, []);
+
   // On web, closing the tab may not fire AppState "backgrounded"; pagehide
   // (and pagehide-with-persistence for bfcache) is the reliable signal.
   useEffect(() => {
@@ -291,8 +327,13 @@ export function useGameEngine(
         return;
       }
       tickCountRef.current += elapsed;
-      // elapsed is whole ticks (msPerTick = 1s) of actual engine uptime.
-      playSecondsRef.current += elapsed;
+      // Active play time only: a catch-up fire after a background gap
+      // reports the whole absence as `elapsed`, so the clock takes the
+      // capped live-tick contribution, never the raw elapsed.
+      playSecondsRef.current += activePlaySeconds(
+        elapsed,
+        activeRef.current,
+      );
       if (
         gameStateRef.current.miners > 0 ||
         gameStateRef.current.fastMiners > 0 ||

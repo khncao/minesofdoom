@@ -139,8 +139,17 @@ function generateTermsEquation(
   maxNumber: number,
   rng: () => number = Math.random,
 ): Equation | null {
-  let a = getRandomIntInRange(minNumber, maxNumber, rng);
-  let b = getRandomIntInRange(minNumber, maxNumber, rng);
+  // Multiplicative operands floor at 1 even when minNumber is 0 (todo:
+  // "math:zero-operand"): with the default range [0, 12) about 16 % of
+  // the × pool ("0 · n" / "n · 0") and 1/12 of the ² pool ("0²") were
+  // zero-answer equations — trivially solvable and trivially rewarded
+  // (the payout floors at Math.max(1, …)). Raising only the 0 to 1
+  // keeps the player-set range the ceiling; the floor just skips 0.
+  const lo = (op: string) =>
+    op === Ops.mult || op === Ops.sq ? Math.max(1, minNumber) : minNumber;
+
+  let a = getRandomIntInRange(lo(op), maxNumber, rng);
+  let b = getRandomIntInRange(lo(op), maxNumber, rng);
 
   switch (op) {
     case Ops.sub: {
@@ -160,7 +169,8 @@ function generateTermsEquation(
       break;
     }
     case Ops.sq: {
-      // "a²": unary in spirit — b mirrors a so the shape stays a/b.
+      // "a²": unary in spirit — b mirrors a so the shape stays a/b
+      // (a was already floored at 1 above, so 0² never appears).
       b = a;
       break;
     }

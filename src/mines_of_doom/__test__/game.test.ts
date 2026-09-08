@@ -2,6 +2,8 @@ import {
   CLICK_BOOST_MAX_LEVELS,
   COMBO_RESIST_MAX_LEVELS,
   COMBO_TIER_SIZE,
+  LIVE_PLAY_TICK_CAP,
+  activePlaySeconds,
   DEPTH_TIERS,
   GEM_CHANCE_MAX_LEVELS,
   computeBuyAll,
@@ -1570,6 +1572,33 @@ describe("computeBuyAll (buy-all plans)", () => {
     expect(BigInt(Math.floor(plan.totalCost))).toBeLessThanOrEqual(
       s.minerals,
     );
+  });
+});
+
+describe("activePlaySeconds (todo: statistics detail — active clock honesty)", () => {
+  test("counts live foreground ticks one-for-one up to the cap", () => {
+    expect(activePlaySeconds(1, true)).toBe(1);
+    expect(activePlaySeconds(2, true)).toBe(2);
+    expect(activePlaySeconds(0, true)).toBe(0);
+  });
+
+  test("a background catch-up fire books only the live-tick cap, not the absence", () => {
+    // The first fire after an 8h absence reports maxOfflineTicks at once:
+    // the mineral path pays them all, the play-time path must not.
+    expect(activePlaySeconds(maxOfflineTicks, true)).toBe(LIVE_PLAY_TICK_CAP);
+    expect(activePlaySeconds(60, true)).toBe(LIVE_PLAY_TICK_CAP);
+  });
+
+  test("books zero while the app is not active, live tick or catch-up", () => {
+    expect(activePlaySeconds(1, false)).toBe(0);
+    expect(activePlaySeconds(maxOfflineTicks, false)).toBe(0);
+  });
+
+  test("junk inputs book zero and never negative", () => {
+    expect(activePlaySeconds(-5, true)).toBe(0);
+    expect(activePlaySeconds(1.7, true)).toBe(1);
+    expect(activePlaySeconds(Number.NaN, true)).toBe(0);
+    expect(activePlaySeconds(Number.POSITIVE_INFINITY, true)).toBe(0);
   });
 });
 
