@@ -1,0 +1,5 @@
+# Cloudflare Pages build environment.
+# Expo SDK 57's metro-config uses `Array.prototype.toReversed` (Node 21+), so the
+# default/legacy Pages build image (Node 18) crashes during `expo export -p web`
+# with "TypeError: configs.toReversed is not a function". Pin the Node 22 image.
+image = "node-22"
