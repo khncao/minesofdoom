@@ -168,6 +168,10 @@ function MenuPanel({
       pressable={<Text style={{ fontSize: 30 }}>☰</Text>}
       accessibilityLabel={t("main.a11yMenu")}
       scrollable
+      // The six views are a few screens tall each — a 90% bottom sheet
+      // wastes the top of the screen, so the menu fills it (todo:
+      // "menu modal takes up whole screen").
+      fullscreen
       testID="menu-button"
       sheetTestID="menu-sheet"
     >

@@ -28,6 +28,7 @@ half is not the suspect: the deployed Pocketbase answers CORS with
 server-side `auth/google` path was live-verified 2026-09-08.
 
 **Manual step (the only one left):**
+
 1. Google Cloud Console → project **minesofdoom** → APIs & Services →
    Credentials → the **Web application** OAuth client (client id above —
    the one in `google_oauth_web.json`'s project, NOT the installed-type
@@ -348,6 +349,7 @@ session token lives in `window.localStorage` (`localTokenStore`, key
 degradation for the SSR/prerender pass and private-browsing throws; it
 deliberately does NOT go through AsyncStorage. Web Google goes through
 Google Identity Services (`mintGoogleIdTokenWeb`: lazy gsi/client script
+
 - the openid-scope token client — the JWT in `resp.access_token` IS the
 idToken; `popup_closed_by_user` → `SignInCancelledError`), web Apple does
 not exist yet (needs a domain-verified service id — `docs/backlog.md`).

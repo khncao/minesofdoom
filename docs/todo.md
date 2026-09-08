@@ -6,8 +6,6 @@ Completed items are removed from this file (see git history); only remaining wor
 - [-] fix failed to sign in error using oauth2 on web build — root cause = GSI **Authorized JavaScript origins** missing the post-migration origin `https://minesofdoom.pages.dev` (client `94426274846-7vsqc2…`, Web-application type). The authorized-origins list is a Google Cloud Console-only change (no API/CLI) — exact click-path + verification in `docs/blockers.md` → "Web Google sign-in (GSI) fails on the deployed web build". The in-repo half of the same migration fallout (the `/stripe/checkout` CORS error above) is FIXED + verified 2026-09-08: the sidecar's `MDOOM_WEB_BASE_URL` VPS env still held the pre-migration `https://khncao.github.io/minesofdoom` origin, so its CORS allow-origin never matched `https://minesofdoom.pages.dev`; env updated + `docker compose up -d sidecar` (restart doesn't re-read env). Verified live: preflight 204 + `access-control-allow-origin: https://minesofdoom.pages.dev` (old origins still refused), a real POST carries the headers into the route, and `scripts/stripe/checkoutTest.mjs` (no-cost order, blank-card policy) PASSED end to end — session `cs_test_a1c3gZvf…`, device `mdoom-step6-mtt2frc5`: the return navigation landed on `https://minesofdoom.pages.dev/?iap=success…` AND the page asserted as the app (its persistent "hold to mine" canvas caption — `document.title` is unusable, the RN-Web runtime clears it after the static load), the session reached `complete`/`paid`, and the webhook + redirect legs granted one idempotent row. The probe itself had a pre-migration blind spot (success/cancel URLs pointed at the Pocketbase domain, so its "return navigation" never landed on the app; it now uses `WEB_BASE` = the app origin, asserts the app by that caption, and closes page-then-browser so a still-loading return navigation can't crash node with exit 1 after the PASS printout).
 
   (Third 2026-09-08 todo — custom numeric keypad default for web — is FIXED in code: the `onScreenKeypad` `useLocalStorage` default is now `Platform.OS !== "web"` (web users start on the OS keyboard, no numpad strip; native keeps the numpad; the user's saved setting still wins) + the input-layer doc updated in `docs/features.md` §1 (the Equations bullet now states the per-platform first-launch default).)
-- [ ] have the menu modal (settings/save/account/etc.) take up whole screen
-
 - [ ] continuous task: document features then explore and document missing
   features--do not implement until approved
   - Pass 13 done 2026-09-13 (input & control layer — the hand on the
@@ -93,6 +91,40 @@ Completed items are removed from this file (see git history); only remaining wor
     trigger-gated, per the pass-11/12 discipline; the next pass (if the
     task continues) would audit a new axis, e.g. the offline/absence math
     (the other axis Pass 15 named).
+  - Pass 17 done 2026-09-08 (the offline / absence math layer — the axis
+    Pass 15 named; all in `docs/features.md`). Live audit findings: away
+    time is paid through two mechanisms with different side effects —
+    the load path (restart: full passive rate × up to the 8 h cap, +
+    `offlineDouble`/`offlineTopUp` ad offers, + welcome-back toast, never
+    credits play time) vs. the tick loop's background catch-up (no
+    restart: same full-rate payment but NO ad offers, no toast, and the
+    whole caught-up `elapsed` is added to `playSecondsRef` — violating the
+    documented "active time only" honest-clock contract that the load
+    path honors); the 8 h cap is per-continuous-absence, not per-day
+    (chunked backgrounding pays >8 h in a day and never triggers the
+    top-up gate); device-clock forward jumps farm the full 8 h per
+    restart (no high-water mark; community-standard-tolerated per the
+    audit's forum sources); full-rate offline is the generous end of the
+    genre norm but safe by construction (gems stay offline-immune — the
+    load-bearing choice); the daily streak hard-resets on one missed day
+    (the habit literature's #1 burnout trigger). Candidates documented,
+    **not implemented**: `offline:active-clock` (bug-class: stop the
+    catch-up from booking away time as play time), `offline:clock-hwm`
+    (monotonic high-water timestamp; forward jumps beyond tolerance pay 0),
+    `offline:streak-grace` (one grace day per rolling 30 days on the
+    daily streak). Rejected, with reasons: reduced-rate offline mode
+    (pure nerf; the cap, not the rate, is the control), offline gem income
+    (invalidates the pass-16 gem-income benchmark; removes the active-play
+    gate on the premium currency), server-side absence accounting (the
+    clock is player-controllable either way; the device is the source of
+    truth by design), win-back push on absence (pass 9's layer, own
+    triggers), and purchasable streak shields (selling back the streak the
+    game just broke — guardrail-3 shape). All candidates trigger-gated,
+    per the pass-11/12 discipline. Passes 3–17 now cover input, locale,
+    session, platform, stability, math, cosmetics, and the offline/absence
+    layer — the full layer sweep; a next pass (if the task continues)
+    would either revisit a trigger-gated candidate with player signals or
+    audit a genuinely new axis (e.g. the prestige/reset math as a system).
 
 - [o] Stripe (web IAP) — **configured in test mode (2026-09-08)**: the 26
   products + one-time USD prices synced to the Stripe test account via

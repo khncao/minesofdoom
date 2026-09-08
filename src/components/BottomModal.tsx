@@ -22,9 +22,9 @@ type AvoidingRootProps = {
   style?: ViewStyle;
   behavior?: "height" | "padding";
 };
-const AvoidingRoot = (Platform.OS === "web"
-  ? View
-  : KeyboardAvoidingView) as React.ComponentType<AvoidingRootProps>;
+const AvoidingRoot = (
+  Platform.OS === "web" ? View : KeyboardAvoidingView
+) as React.ComponentType<AvoidingRootProps>;
 
 export interface BottomModalProps {
   pressable?: React.ReactNode;
@@ -37,6 +37,15 @@ export interface BottomModalProps {
    * with no way to reach the bottom.
    */
   scrollable?: boolean;
+  /**
+   * Fill the whole screen instead of a bottom-anchored sheet: the panel
+   * covers the viewport edge-to-edge (no rounded top corners, no dimmed
+   * backdrop visible behind it) and reserves the top safe-area inset so
+   * the ✕ clear of the status bar. For long multi-view menus where a 90%
+   * sheet wastes the top of the screen (todo: "menu modal takes up whole
+   * screen").
+   */
+  fullscreen?: boolean;
   /** testID forwarded to the toggle button (e2e anchors). */
   testID?: string;
   /** testID forwarded to the sheet itself (e2e anchors). */
@@ -63,6 +72,7 @@ export interface BottomModalProps {
  */
 function BottomModal({
   scrollable = false,
+  fullscreen = false,
   testID,
   sheetTestID,
   onToggle,
@@ -141,7 +151,11 @@ function BottomModal({
               // edge needs no inset: the scrollable clamp (90%) and the
               // content-sized sheets already stay out of the status bar,
               // and a bottom-anchored sheet ignores margin-top anyway.)
+              fullscreen && styles.fullscreenSheet,
               { paddingBottom: Math.max(20, insets.bottom + 12) },
+              // Fullscreen covers the status bar, so the ✕ row needs the
+              // top inset reserved (zero on web, as before).
+              fullscreen && { paddingTop: Math.max(12, insets.top + 8) },
             ]}
           >
             <Pressable
@@ -205,6 +219,14 @@ const styles = StyleSheet.create({
     // overflowing; the ScrollView inside then has a bounded height to
     // flex into.
     maxHeight: "90%",
+  },
+  // Fullscreen variant: edge-to-edge panel, no sheet corners; placed after
+  // scrollableSheet in the style array so its maxHeight wins.
+  fullscreenSheet: {
+    top: 0,
+    maxHeight: "100%",
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
   },
   scrollContent: {
     flex: 1,

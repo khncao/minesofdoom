@@ -1827,6 +1827,220 @@ candidates, not targets.
 free-path persona design itself (guardrail-1 benchmark methodology), the
 sprite/theme art pipeline, and the sound feel (pass 13, inputs).
 
+### The offline / absence math layer (pass 17 — what the mine does when the player isn't there)
+
+Passes 3–16 audited everything that happens *while the player is looking at
+the screen*; the one axis never audited as a system is the layer that runs
+when they aren't — the offline/absence math (pass 15 named it as the next
+axis; pass 16 took cosmetics instead). Live audit (2026-09-08,
+`game.ts`, `useGameEngine.ts`, `useAdRewards.ts`, `dailyBonus.ts`,
+`weeklyChallenge.ts`, `session.ts`, `ads.ts`): away time is paid through
+**two different mechanisms** depending on whether the process restarted.
+
+- **Load path** (app/tab restarted, or fresh launch): on load,
+  `computeOfflineMinerals` pays `miners × minerPower per tick` × elapsed
+  seconds since the last save, at the **full passive rate** (prestige
+  multiplier included), capped at `maxOfflineTicks` = **8 h** — plus two
+  ad offers the haul earns: `offlineDouble` (watch an ad → the whole haul
+  again) and, only when the 8 h cap was actually hit, `offlineTopUp`
+  (watch → +2 h of extra haul, `offlineTopUpTicks`). A welcome-back toast
+  shows the number. Load-offline never credits `playSeconds` and never
+  mints gems (gems stay tap/answer- and faucet-gated, `gemChance` applies
+  only to live answers — the gem economy is deliberately untouched by
+  absence).
+- **Background path** (app backgrounded / tab hidden, no restart): the JS
+  event loop freezes, so the tick loop's next fire computes
+  `elapsed = now − last` (real elapsed, capped at the same 8 h) and pays it
+  out as ordinary passive income — **full rate, no ad offers, no toast**,
+  and — the key asymmetry — the whole caught-up `elapsed` is added to
+  `playSecondsRef` (`useGameEngine.ts`, the tick loop's `playSecondsRef.
+  current += elapsed` is unconditional; there is no visibility/AppState
+  handler that resets the loop's `last` baseline on resume).
+
+Five structural findings. (1) **The honest-clock violation:**
+  `SaveData.playSeconds` is documented as "lifetime ACTIVE time …
+  foreground/active time only — offline earnings and away time never count"
+  (`game.ts`, and `session.ts` repeats "ACTIVE time only"), and the load
+  path honors that — but the background path pays away time *and* books it
+  as play time, so a player who backgrounds the app for 8 h a day inflates
+  the records panel's play-time stat by up to 8 h/day while an equivalent
+  player who quits the app books 0. Same absence, different accounting,
+purely by which process boundary the player crossed. (2) **The 8 h cap is
+per-continuous-absence, not per-day:** backgrounding in <8 h chunks (or
+keeping the app backgrounded on Android overnight) pays each chunk in full,
+so a 24 h away-time spread over several foreground touches is paid ~24 h of
+passive income, while the same 24 h as one closed-app gap is paid 8 h + 2 h
+ad-top-up — the cap and the top-up's "only meaningful when the away time
+exceeded `maxOfflineTicks`" premise are both bypassable by chunking, and
+the top-up's gate (`elapsedTicks <= maxOfflineTicks → 0`) never even
+triggers on a chunked absence. (3) **Clock jumps are unhandled but
+community-standard-tolerated:** `now − saveTime` with no high-water mark
+means a +24 h device-clock jump + restart farms the full 8 h haul (repeat
+per restart); a backward jump is safe by construction (`now ≤ saveTime`
+→ 0). The indie-forum consensus (the two forum sources below) is that the
+system clock is player-controllable with no robust offline-only counter,
+and that for a non-competitive single-player idle the severity is low —
+consistent with this codebase's overall cheat posture (derived-state goals,
+no server as time oracle). (4) **Full-rate offline is the generous end of
+the genre norm:** offline pays 100 % of the passive rate, where the
+reference design (source #1) describes offline as "usually calculated" at
+close-to-current rate but *typically earning at a slower effective rate
+than active play" — which this game still achieves indirectly, because the
+active session also carries tap, equation and combo income that absence
+cannot. Note, not bug: the rate is the selling point, and gems staying
+offline-immune is the load-bearing choice that keeps it safe. (5) **The
+absence-retention surface is thin where the habit literature says it
+bites:** the daily streak (`dailyBonus.ts`) hard-resets on any missed local
+day — no grace day, no shield — while the streak-design literature (sources
+# 4/#5) names the one-missed-day hard reset as the #1 burnout trigger and
+the grace-day/freeze as the standard anti-burnout pattern; the weekly
+contract at least re-snapshots baselines on a missed week without penalty,
+which is the correct absence posture. The ad pair (`offlineDouble` /
+`offlineTopUp`) is a good return-time reward surface; the missing piece is
+the *next-session* one (the streak), where a single travel day kills a 7-day
+run for a game whose core audience (pass 15: 13+ casual) has exactly
+travel-day absences.
+
+The research (five sources; quality notes at the end):
+
+- **The cap is the genre contract, and the cap is normally an upgrade
+target.** HustleTycoon's own design doc (source #1): offline earnings
+credit "your income rate at the moment you close the game … up to some
+maximum limit", "almost every idle game limits how much offline time it
+will credit, often expressed as a maximum number of hours" — because
+uncapped away-time "would undermine the point of playing at all" — and
+"most games let you raise the cap through permanent upgrades, purchased
+with a prestige or premium currency". It also names the gate this game
+already mirrors: only *automated* producers earn offline (here: only
+miners — taps and equations are active-only, correct by construction). The
+one lever this game doesn't expose is the upgrade-able cap; its +2 h ad
+top-up is the partial substitute (ad-gated, not currency-gated).
+- **Offline progress is a delta-time illusion, tuned for 30-min–2-h
+rhythms.** GeekExtreme's idle-math overview (source #2): offline
+progression is "an illusion powered by mathematical delta-time calculations
+that fast-forward your state upon login, not a continuously running
+background server" — which is exactly this engine's shape (the tick loop's
+catch-up *is* the delta-time fast-forward) — and that the most engaging
+ids optimize for "30m to 2h rhythmic check-in sessions". That rhythm
+confirms the 8 h cap sits well above the natural session cadence (a
+deliberately generous cap), and confirms finding (2) is about player
+*behavior* (chunking), not about the cap value being wrong.
+- **Clock-cheating: no offline-only counter, low severity outside
+competitions.** Two indie-forum threads (sources #3/#6): the GDevelop
+"[SOLVED] checking time offline without player abuse" thread concludes
+"any offline time checks … will require the system clock, which will always
+be player controllable" and settles on not stressing about it absent
+"a heavy multiplayer, online game"; the GameMaker "how to prevent players
+from time-cheating" thread is the canonical "+8 hours" scenario (the
+player's clock is pushed forward, the game pays the idle window) — the
+exact unhandled path in finding (3). The standard cheap mitigations named
+across both threads are all client-side bookkeeping (monotonic
+high-water marks, treating large forward jumps as zero), none of them
+server-side — and none of them fool a determined player, which for a
+single-player idle with no economy crossing between players (the
+leaderboard is submit-and-merge, pass 5) is the right trade.
+- **Streaks die on the one missed day; the fix is the grace day, not the
+shield economy.** Yu-kai-chou's streak-design analysis (source #4): the
+missed-day reset is "the moment users feel the system is against them",
+and the design rules that keep streaks past day 30 are small forgiveness
+mechanics — and the habit-tracker literature (source #5) quantifies the
+pattern: "one grace day per 30 days — a single miss doesn't reset
+anything" prevents "the most common failure mode" (a 30-day habit streak
+wiped by one travel day). This is the evidence base for the
+`offline:streak-grace` candidate; note the literature's warning that
+streaks without forgiveness "build habits or breed anxiety" — the
+anxiety is the failure mode guardrail 3 (no dark patterns) cares about.
+
+Candidates (documented, trigger-gated — **none planned, none
+implemented**):
+
+- **`offline:active-clock`** — fix finding (1), the only bug-class item in
+  this pass: in the tick loop, split live ticks from caught-up ticks for
+  the play-time clock — `playSecondsRef` should advance only for ticks
+  that actually fired while foregrounded (e.g. cap the per-fire
+  `playSeconds` contribution at the interval period, or track an
+  AppState/visibility `active` flag and only advance the clock inside
+  it). The mineral catch-up payment stays exactly as-is (that is the
+  feature); only the honest clock changes. Engine-local + unit-testable
+  (`game.ts`/`useGameEngine.ts`), no UX, no migration (the stat is a
+  display-only record — already-credited inflation is not worth
+  migrating down). Candidate, not planned.
+- **`offline:clock-hwm`** — mitigation for finding (3), the standard
+  client-side bookkeeping the forum sources describe: a monotonic
+  `timeHighWater` timestamp in the save, advanced on every tick/save;
+  a forward jump of the device clock beyond a small tolerance (e.g. a
+  few minutes of observed drift) is treated as manipulation and pays 0
+  for that jump (the jump is *not* trusted as away time), while backward
+  jumps already pay 0 by construction. Small `game.ts` addition +
+migration-v11 field + tests; it does not make the clock trustworthy
+  (source #3's point), it only removes the free 8 h farm. Candidate, not
+  planned — and explicitly low priority per the same sources: severity is
+  low for a non-competitive single-player.
+- **`offline:streak-grace`** — finding (5), the habit-literature fix:
+  one grace day per rolling 30 days on the daily streak — a missed day
+  does not reset the streak; the *next* missed day within the window
+does. Pure `dailyBonus.ts` change (`computeDailyClaim` gains the
+  grace-day check against `lastClaimDay` + one new persisted field, same
+  state-isolation pattern), fully unit-testable, no UX surface beyond
+  the existing streak readout (which already shows the honest number).
+  The shield/freeze *item* variant is rejected (below); the free grace
+  day is the whole candidate. Candidate, not planned.
+
+**Rejected, with reasons** (so they aren't re-litigated): (1) *reduced-rate
+offline mode* (the common 50 % offline convention) — a pure nerf to
+existing players for no retention gain; the genre's "slower effective
+rate" (source #1) is already satisfied structurally because absence earns
+none of the tap/equation/combo income, and the cap, not the rate, is the
+control that keeps offline from replacing active play. (2) *offline gem
+income* — it would turn the gem economy into a time function (gems per
+hour away), invalidating the pass-16 gem-income benchmark the
+affordability invariants are pinned to, and it removes the only
+active-play gate on the premium currency the cosmetic lines are paid in;
+the load path's gems-immunity is deliberate and load-bearing. (3) *
+server-side absence accounting* (Pocketbase as the time oracle) — source
+# 3's conclusion applies: the system clock is player-controllable either
+way, the device is the source of truth by design (cloud save is an LWW
+*copy*, pass 5), and adding a server round-trip to the earn path buys
+none of the security a competitive game needs — it buys latency and a new
+failure mode for an idle game. (4) *win-back / return-timer push
+mechanics on absence* — the reward surface for absence must exist at
+return time (an absent player can't tap "watch"), and the two ad offers
+already occupy that slot; scheduled push is pass 9's win-back layer with
+its own triggers, not this pass's. (5) *streak shields as a purchasable
+item/upgrade* — the grace day (candidate 3) is the forgiveness the
+literature prescribes; a second, purchasable forgiveness tier is
+monetization scope-creep on a retention stat and edges toward selling the
+player back the streak the game just broke (the guardrail-3 shape), with
+no benchmark to tell us it's wanted.
+
+Source quality per the pass-6 discipline: #1 is a vendor design reference
+(HustleTycoon's own in-genre design doc — self-interested to a game
+vendor, but describing its own shipping mechanics, which is exactly the
+comparative data this pass needs; the cap-as-upgrade and
+automated-only-offline claims are the load-bearing ones); #2 is a
+vendor/SEO math reference (GeekExtreme — the delta-time framing is
+textbook and matches this engine's code 1:1, which is why it's cited
+rather than its marketing sections); #3 and #6 are community forum
+threads (GDevelop "[SOLVED]" + GameMaker — anecdotal and
+day-to-day, but they are *the* canonical discussion of this exact
+problem class, the SOLVED marker on #3, and their consensus — "no offline
+counter, low severity, cheap client-side bookkeeping" — is the
+anti-over-engineering guard for finding (3)); #4 is a practitioner
+analysis (Yu-kai-chou, the gamification reference behind the
+`yu-kai-chou` model — design-pattern level, no benchmarks, but the
+missed-day-reset finding is consistent across #4 and #5); #5 is a
+vendor blog (Keelify habit-tracker marketing — the one-grace-day-per-30
+figure is a design choice, not a benchmark, and is cited as the
+pattern, not as a number to copy). No source carries a hard benchmark:
+offline math is a genre convention, not a measurable market rate, so the
+pass output is structure + candidates, not targets (same as passes 13/16).
+
+**Not re-audited here:** the rewarded-ad reward implementation itself
+(`ads.ts` / `useAdRewards.ts` internals — pass 6 monetization), the
+in-session idle reminder (`useIdleReminder` — a foreground UX surface),
+cloud-save LWW merge and leaderboard submit (pass 5), and the OS-level
+push/deep-link return path (pass 9 win-back / pass 10 store presence).
+
 ### Player-facing surfaces
 
 - **Home-screen widget** — ~~+ idle reminders~~ (the in-app idle reminder
