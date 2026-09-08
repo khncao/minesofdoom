@@ -71,10 +71,7 @@ try {
   const overlayGone = (timeout) =>
     page
       .waitForFunction(
-        () =>
-          !document.querySelector(
-            '[data-testid="onboarding-overlay"]',
-          ),
+        () => !document.querySelector('[data-testid="onboarding-overlay"]'),
         { timeout },
       )
       .catch(() => false);
@@ -93,9 +90,7 @@ try {
   }
 
   console.log("→ opening menu → account tab");
-  await page
-    .locator('[data-testid="menu-button"]')
-    .click({ timeout: 20_000 });
+  await page.locator('[data-testid="menu-button"]').click({ timeout: 20_000 });
   await page
     .locator('[data-testid="menu-tab-account"]')
     .click({ timeout: 20_000 });
@@ -105,8 +100,13 @@ try {
     verdict.reason =
       "account-google button not found (provider list may be hidden — check availableProviderKinds on web)";
   } else {
-    console.log("→ clicking the Google sign-in button (watching for a GSI popup)");
-    const [popup] = await Promise.all([popupPromise, googleBtn.click({ timeout: 10_000 })]);
+    console.log(
+      "→ clicking the Google sign-in button (watching for a GSI popup)",
+    );
+    const [popup] = await Promise.all([
+      popupPromise,
+      googleBtn.click({ timeout: 10_000 }),
+    ]);
     if (popup) {
       await popup.waitForLoadState("commit").catch(() => {});
       const url = popup.url();
@@ -122,9 +122,7 @@ try {
       await page.waitForTimeout(3_000);
       const section = page.locator('[data-testid="account-section"]');
       const text = (await section.innerText().catch(() => "")) || "";
-      const errorLine = text
-        .split("\n")
-        .find((l) => /failed|error/i.test(l));
+      const errorLine = text.split("\n").find((l) => /failed|error/i.test(l));
       verdict.reason = errorLine
         ? `no popup; inline error in account section: ${errorLine.trim()}`
         : "no popup, no visible inline error";
@@ -143,22 +141,28 @@ try {
 const v = results[0].verdict;
 console.log("");
 if (v.authorized) {
-  console.log("VERDICT: AUTHORIZED — https://minesofdoom.pages.dev is in the OAuth client's Authorized JavaScript origins.");
+  console.log(
+    "VERDICT: AUTHORIZED — https://minesofdoom.pages.dev is in the OAuth client's Authorized JavaScript origins.",
+  );
   console.log(`  (popup: ${v.popupUrl})`);
   process.exit(0);
 } else if (v.reason.startsWith("no popup")) {
-  console.log("VERDICT: NOT AUTHORIZED — GSI produced no popup; the origin is still missing from the OAuth client's Authorized JavaScript origins.");
+  console.log(
+    "VERDICT: NOT AUTHORIZED — GSI produced no popup; the origin is still missing from the OAuth client's Authorized JavaScript origins.",
+  );
   console.log(`  ${v.reason}`);
   if (results[0].consoleErrors.length) {
     console.log("  console errors:");
-    for (const e of results[0].consoleErrors) console.log(`    - ${e.slice(0, 300)}`);
+    for (const e of results[0].consoleErrors)
+      console.log(`    - ${e.slice(0, 300)}`);
   }
   process.exit(1);
 } else {
   console.log(`VERDICT: INCONCLUSIVE — ${v.reason}`);
   if (results[0].consoleErrors.length) {
     console.log("  console errors:");
-    for (const e of results[0].consoleErrors) console.log(`    - ${e.slice(0, 300)}`);
+    for (const e of results[0].consoleErrors)
+      console.log(`    - ${e.slice(0, 300)}`);
   }
   process.exit(2);
 }
