@@ -119,16 +119,19 @@ export default function MinesOfDoom() {
   const insets = useSafeAreaInsets();
 
   // On-screen keypad (todo: "Reimplement custom numeric keypad"): the
-  // stored preference decides how answers are typed. On (default): no
-  // TextInput is mounted at all, so the native keypad is fully overridden
-  // — the NumericKeypad numpad renders in its own strip below the canvas
-  // (the core-loop input, always reachable; the upgrades menu lives in
-  // the side drawer over the canvas instead). Off: the OS keyboard path
-  // in AnswerInput. Like `mute`, it's a plain display preference
-  // persisted in AsyncStorage and applies immediately.
+  // stored preference decides how answers are typed. On (the native
+  // default): no TextInput is mounted at all, so the native keypad is
+  // fully overridden — the NumericKeypad numpad renders in its own strip
+  // below the canvas (the core-loop input, always reachable; the upgrades
+  // menu lives in the side drawer over the canvas instead). Off: the OS
+  // keyboard path in AnswerInput. The default is OFF on web (a web player
+  // has a real keyboard; the numpad strip just eats vertical space) and ON
+  // on native. Like `mute`, it's a plain display preference persisted in
+  // AsyncStorage and applies immediately (the default only shapes first
+  // launch — a stored preference, once set, wins on every platform).
   const [onScreenKeypad, setOnScreenKeypad] = useLocalStorage<boolean>(
     "onScreenKeypad",
-    true,
+    Platform.OS !== "web",
   );
 
   // The upgrades side drawer (todo: "upgrades menu as a side hidden

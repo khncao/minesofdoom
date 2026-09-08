@@ -325,10 +325,11 @@ export const en = {
     "button is shown at all times, locked or not.",
   "settings.onScreenKeypad": "On-screen keypad: ",
   "settings.onScreenKeypadHelp":
-    "On (default): the answer box never opens the OS keyboard — a " +
-    "numpad-style keypad appears as a tab next to the upgrades list below " +
-    "the cave, and answers are typed there. Off: the answer is typed with " +
-    "the OS keyboard. Takes effect immediately, no Save tap needed.",
+    "On: the answer box never opens the OS keyboard — a numpad-style " +
+    "keypad appears as a tab next to the upgrades list below the cave, and " +
+    "answers are typed there. Off: the answer is typed with the OS " +
+    "keyboard. First-launch default: on in the app, off on the web; this " +
+    "switch wins afterwards. Takes effect immediately, no Save tap needed.",
   "settings.saveCode": "Save code (backup / share)",
   "settings.export": "Export code",
   "settings.import": "Import code",

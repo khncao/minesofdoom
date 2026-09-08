@@ -321,11 +321,13 @@ export const es: Record<TranslationKey, string> = {
     "ven. Activado: se ven todos los botones siempre, bloqueados o no.",
   "settings.onScreenKeypad": "Teclado en pantalla: ",
   "settings.onScreenKeypadHelp":
-    "Desactivado (por defecto): la respuesta se escribe con el teclado del " +
-    "sistema. Activado: la casilla de respuesta nunca abre el teclado del " +
-    "sistema — aparece un teclado de 3 columnas como pestaña junto a la " +
-    "lista de mejoras, debajo de la cueva, y las respuestas se escriben " +
-    "allí. Se aplica de inmediato, sin necesidad de guardar.",
+    "Activado: la casilla de respuesta nunca abre el teclado del sistema — " +
+    "aparece un teclado de 3 columnas como pestaña junto a la lista de " +
+    "mejoras, debajo de la cueva, y las respuestas se escriben allí. " +
+    "Desactivado: la respuesta se escribe con el teclado del sistema. " +
+    "Valor en el primer arranque: activado en la app, desactivado en la " +
+    "web; después manda este interruptor. Se aplica de inmediato, sin " +
+    "necesidad de guardar.",
   "settings.saveCode": "Código de guardado (copia / compartir)",
   "settings.export": "Exportar código",
   "settings.import": "Importar código",

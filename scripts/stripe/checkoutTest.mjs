@@ -62,6 +62,13 @@ import { fileURLToPath } from "url";
 
 const API_BASE = "https://api.stripe.com/v1";
 const PB_BASE = "https://minesofdoom.minus4kelvin.com";
+// The deployed web app origin (Cloudflare Pages, root path) — where the
+// player's return navigation must land. NOT PB_BASE: the success/cancel
+// URLs are app routes, and pointing them at the Pocketbase public domain
+// made the probe's return leg navigate to PB's JSON 404s instead of the
+// app (a pre-migration leftover; the sidecar's own URLs come from its
+// MDOOM_WEB_BASE_URL env, which this constant mirrors).
+const WEB_BASE = "https://minesofdoom.pages.dev";
 const APP_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PRODUCT_ID = "packGold"; // storeId "pack_gold"
 
@@ -145,7 +152,7 @@ console.log("product :", PRODUCT_ID, "(store id pack_gold)");
 
 // -- 1. Create the hosted Checkout session -------------------------------
 let sessionId;
-let successUrl = `${PB_BASE}/?iap=success&iap_product=${PRODUCT_ID}&iap_sid={CHECKOUT_SESSION_ID}`;
+let successUrl = `${WEB_BASE}/?iap=success&iap_product=${PRODUCT_ID}&iap_sid={CHECKOUT_SESSION_ID}`;
 if (reuseSessionId) {
   // Reuse an existing session from an earlier run (forensics / re-drive).
   sessionId = reuseSessionId;
@@ -189,7 +196,7 @@ if (reuseSessionId) {
     "line_items[0][price]": PRICE_ID,
     "line_items[0][quantity]": "1",
     success_url: successUrl,
-    cancel_url: `${PB_BASE}/?iap=cancel`,
+    cancel_url: `${WEB_BASE}/?iap=cancel`,
     "metadata[mdoomDeviceId]": deviceId,
     "metadata[mdoomProductId]": PRODUCT_ID,
   });
@@ -212,7 +219,7 @@ if (reuseSessionId) {
       "Mines of Doom — step 6 no-cost probe",
     "line_items[0][quantity]": "1",
     success_url: successUrl,
-    cancel_url: `${PB_BASE}/?iap=cancel`,
+    cancel_url: `${WEB_BASE}/?iap=cancel`,
     "metadata[mdoomDeviceId]": deviceId,
     "metadata[mdoomProductId]": PRODUCT_ID,
   });
@@ -314,6 +321,25 @@ try {
       "no return navigation within 120s (last url: " + page.url() + ")",
     );
   landed = page.url();
+  // The return URL alone proves nothing about the APP — the migration to
+  // Cloudflare Pages made that distinction matter (the old probe pointed
+  // the success URL at the Pocketbase domain and still "passed"). Assert
+  // the returned document IS the deployed app: the canvas's persistent
+  // "hold to mine" caption (features.md §1). document.title is NOT a
+  // usable marker — the RN-Web runtime clears it after the static
+  // index.html loads (verified live 2026-09-08; the title in +html.tsx
+  // is for the tab, not the runtime).
+  let isApp = false;
+  for (let i = 0; i < 10 && !isApp; i++) {
+    isApp =
+      (await page.getByText("hold to mine").count()) > 0;
+    if (!isApp) await page.waitForTimeout(1000);
+  }
+  if (!isApp)
+    throw new Error(
+      "return URL carried iap=success but the page is not the app (no " +
+        "'hold to mine' canvas caption 10s after the navigation)",
+    );
 } catch (err) {
   // Forensics before failing: what was the hosted page actually showing?
   if (page) {
@@ -350,7 +376,11 @@ try {
   }
   throw err;
 } finally {
-  await browser.close();
+  // Close the page FIRST: destroying the browser while the return
+  // navigation is still loading leaves "Target closed" page-load promises
+  // unhandled, which crashes node with exit 1 AFTER the PASS printout.
+  await page?.close().catch(() => {});
+  await browser.close().catch(() => {});
 }
 console.log(
   "pay     : hosted page completed with a blank card; return navigation →",

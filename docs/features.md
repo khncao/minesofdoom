@@ -120,15 +120,18 @@ of Pressable so rapid tapping doesn't double-render).
   click power × combo multiplier. Seven toggleable types (multiply, add,
   subtract, division, percent, square, "missing"-operand), configurable
   number range, **hard mode** (3-term equations, 2× payout), and a
-  display-symbol preference (`*`/`×`, `/`/`÷`). Answer via the OS
-  keyboard (default — autofocused numeric field, Enter submits,
+  display-symbol preference (`*`/`×`, `/`/`÷`). Answer via the **on-screen
+  keypad** (default on native — a 3-column digit strip beside the
+  upgrades list: 56 px keys that flex-shrink to a 44 px floor on short
+  screens so a bottom row is never clipped off the edge, ⌫ held clears
+  the answer, 12-digit cap; the input is deliberately un-focusable while
+  the onboarding overlay is up, an e2e-discovered fix) or the OS
+  keyboard (default on web — autofocused numeric field, Enter submits,
   `KeyboardAvoidingView` on native, a plain read-only box on web where the
-  keyboard never shifts layout) or the settings-toggled **on-screen
-  keypad** (a 3-column digit strip beside the upgrades list: 56 px keys
-  that flex-shrink to a 44 px floor on short screens so a bottom row is
-  never clipped off the edge, ⌫ held clears the answer, 12-digit cap;
-  the input is deliberately un-focusable while the onboarding overlay is
-  up, an e2e-discovered fix) (`utils/math/equations.ts`,
+  keyboard never shifts layout); the two are settings-toggled, and the
+  per-platform default (`MinesOfDoom.tsx`: `Platform.OS !== "web"`) only
+  shapes first launch — a stored preference wins on every platform
+  (`utils/math/equations.ts`,
   `hooks/useEquations.ts`, `components/AnswerInput.tsx`,
   `components/NumericKeypad.tsx`).
 - **Combo** — streak multiplier in tier steps; wrong answer/mine tap zeroes
@@ -1540,9 +1543,13 @@ Celeste-Assist shape.
 Source quality per the pass-6 discipline: #1 is peer-reviewed (JCAL; the
 effect-size *value* itself wasn't re-verifiable here — the abstract's
 "small but marginally significant" is quoted, the numeric d is not stated);
+
 # 2 is a vendor design reference (same family as passes 8/13, qualitative —
+
 Chen's 2006 USC MFA thesis is the academic primary, cited through it);
+
 # 3 is a vendor FAQ (the standard accuracy → fluency → automaticity
+
 definition, qualitative); #4 is peer-reviewed, open, full text read.
 
 **Not re-audited here:** pass 4's adaptive-difficulty item (this pass
