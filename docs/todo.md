@@ -125,6 +125,39 @@ Completed items are removed from this file (see git history); only remaining wor
     layer — the full layer sweep; a next pass (if the task continues)
     would either revisit a trigger-gated candidate with player signals or
     audit a genuinely new axis (e.g. the prestige/reset math as a system).
+  - Pass 18 done 2026-09-15 (the prestige / reset math layer — “New Shaft”
+    as a system; the axis Pass 17 named last; all in `docs/features.md`).
+    Live audit findings: “New Shaft” is a **stepped, lifetime-keyed ×N
+    multiplier on a single-axis (soft) reset** — `sinkNewShaft` zeroes only
+    the minerals axis (minerals/miners/fastMiners/legendaryMiners/clickPower/
+    minerPower) and preserves the gem axis (balance + the three gem-line
+    levels), all cosmetics, and every lifetime stat (including the
+    `lifetimeMinerals` the multiplier is keyed to); the 6-row table tops out
+    at ×5 @ 5 B lifetime with a hard clamp (the one layer in the sweep with
+    a terminal state); the anti-spam is the step-gate (`available > banked`,
+    a pure function of an immutable stat — same-tier re-bank is impossible
+    by construction, stronger than the reference `earned > 0` guard); the ×N
+    multiplies only the three minerals earn sites (passive tick, load-path
+    offline catch-up, tap/answer gain) and never gem minting or costs — the
+    F2P invariant survives the reset by construction; the gate is triple
+    (tier-3 content → visibility at first bankable rung → enable at new
+    rung). No bug-class item. Candidates documented, **not implemented**:
+    `prestige:currency` (a source-#2-style prestige-token axis + run-start
+    upgrade shop — trigger: high tier-3 reach but low `totalPrestiges`
+    adoption in the free-path benchmark), `prestige:ceiling` (extend the
+    table past 5 B — trigger: content pushes the endgame lifetime above 5
+    B). Rejected, with reasons: converting to a continuous currency now
+    (the step-gate is already the stronger invariant; a token adds save +
+    UI + benchmark scope for a loop the design omits deliberately), a
+    prestige cooldown/timer (the step-gate already blocks what it would
+    guard; would add a clock surface, pass 17), a harder reset of
+    gems/cosmetics (destroys the loss-aversion cushion; pay-to-lose shape),
+    and purchasable/premium prestige (pay-to-win; guardrail 1). All
+    candidates trigger-gated, per the pass-11/12 discipline. The layer
+    sweep is now complete twice over — passes 3–18 cover input, locale,
+    session, platform, stability, math, cosmetics, offline/absence, and
+    prestige/reset; further passes revisit trigger-gated candidates with
+    player signals rather than new axes.
 
 - [o] Stripe (web IAP) — **configured in test mode (2026-09-08)**: the 26
   products + one-time USD prices synced to the Stripe test account via

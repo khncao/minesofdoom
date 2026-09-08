@@ -2041,6 +2041,175 @@ in-session idle reminder (`useIdleReminder` — a foreground UX surface),
 cloud-save LWW merge and leaderboard submit (pass 5), and the OS-level
 push/deep-link return path (pass 9 win-back / pass 10 store presence).
 
+### The prestige / reset math layer (pass 18 — what “New Shaft” actually is)
+
+Passes 3–17 audited every other layer; the prestige / reset system (“New
+Shaft”) had been touched only as a multiplier passed into the offline math
+(pass 17) and never as its own system. Live audit (2026-09-15, `game.ts`
+`PRESTIGE_LEVELS` / `getPrestigeLevel` / `getPrestigeMultiplier`,
+`useGameEngine.ts` `sinkNewShaft` + the three earn sites, `PurchaseButtons.tsx`,
+`goals.ts` `PRESTIGE_UNLOCK_TIER`): “New Shaft” is a **stepped, lifetime-keyed
+multiplier on a soft reset** — the gentlest reset in the genre, gated by the
+strongest anti-spam invariant this codebase has.
+
+- **The reset is single-axis (soft).** `sinkNewShaft` (the engine) zeroes only
+  the *minerals axis*: `minerals → 0`, `miners → 0`, `fastMiners → 0`,
+  `legendaryMiners → 0`, `clickPower → 1`, `minerPower → 1`. Everything else
+  is preserved: the *premium axis* (`gems` + the three gem-line levels
+  `gemChanceLevels` / `comboResistLevels` / `clickBoostLevels`), all cosmetics
+  (owned + equipped), all lifetime stats (including `lifetimeMinerals` itself,
+  which the multiplier is keyed to), `completedTiers` / achievements / goals,
+  and the run’s `startTime` / `playerSeed`. Depth is lifetime-mining based
+  (pass 15), so the depth-tier click bonus survives the reset untouched. The
+  one lifetime counter that *does* move is `totalPrestiges` (the record panel
+  reads it) — the reset leaves a scar on the record, not on the progression.
+- **The reward is a stepped multiplier, not a currency.** `PRESTIGE_LEVELS` is
+  a 6-row table keyed by *lifetime* minerals (a stat the reset never reduces):
+  ×1 @ 0, ×1.5 @ 5 M, ×2 @ 50 M, ×2.5 @ 250 M, ×3.5 @ 1 B, ×5 @ 5 B.
+  `getPrestigeLevel(lifetimeMinerals)` returns the highest rung the lifetime
+  total has met; `sinkNewShaft` banks it into `prestigeLevel` (which only ever
+  moves up toward it). There is no prestige token, no spend table, no
+  “meta-progression shop” — the ×N *is* the whole reward. It clamps to the
+  last row, so ×5 @ 5 B lifetime is a hard ceiling with no rung above it.
+- **The anti-spam is the step-gate, and it is the strongest invariant in the
+  engine.** `sinkNewShaft` is a no-op unless
+  `getPrestigeLevel(lifetimeMinerals) > prestigeLevel`. Because the reset never
+  reduces `lifetimeMinerals`, re-prestige is impossible until lifetime crosses
+  the next rung — eligibility is a *pure function of an immutable stat*. You
+  cannot re-bank the same tier or bank ahead; repeated resets are structurally
+  spammed-out, not merely gated. The button mirrors it (`canBank =
+  availableLevel > prestigeLevel`) and the indicator dot shares the same check
+  (`hasAffordablePurchase`’s prestige branch), so the affordance never appears
+  for a reset that would bank nothing.
+- **The ×N is scoped to the minerals axis and deliberately does not touch the
+  gem economy.** It multiplies the three minerals earn sites — the passive
+  tick (`useGameEngine.ts`’s `getMineralsPerSec × elapsed` through
+  `mulFloats`), the load-path offline catch-up (`computeOfflineMinerals` /
+  `computeOfflineTopUpMinerals` take it as an argument), and the tap/answer
+  mineral gain (`value × clickPower × combo × clickBoost × depthBonus ×
+  prestige`) — but it is *not* applied to gem minting (the answer handler’s
+  `gem` boolean is independent of the multiplier) or to any cost curve. So a
+  banked ×N makes the free resource strictly faster while leaving the premium
+  resource (gems) and the pass-16 gem-affordability benchmark untouched —
+  the guardrail-1 F2P invariant survives the reset by construction.
+- **The gate is triple-layered and consistent.** (1) *Content* —
+  `prestigeUnlocked = completedTiers.includes("t3")` (the Magma Frontier tier,
+  `goals.ts` `PRESTIGE_UNLOCK_TIER`); until tier 3 is complete the prestige
+  content doesn’t exist. (2) *Visibility* — the prestige purchase row shows
+  once `prestigeUnlocked` **or** `lifetimeMinerals ≥ PRESTIGE_LEVELS[1].at`
+  (5 M, the first bankable rung), so it never appears before it could be
+  meaningful. (3) *Enable* — the button is enabled only when a new rung is
+  actually bankable (`canBank`). Three independent gates, all pointing the
+  same direction: the affordance exists exactly when the reset is worth doing.
+- **Structural findings (this layer is healthy — no bug-class item).**
+  (1) The soft reset + preserved premium axis is the genre’s loss-aversion
+  cushion in its purest form: the only thing a player loses is the fastest to
+  re-earn (minerals, and the banked ×N makes it faster), while the expensive
+  and the cosmetic (gems, cosmetics, lifetime records) survive. (2) The
+  step-gate is a *stronger* anti-spam invariant than the reference designs
+  (source #2’s `earned > 0` guard only blocks a zero-currency reset; the
+  step-gate blocks any same-tier re-bank by construction). (3) The stepped
+  table is the *inverse incentive* of the reference continuous formula: the
+  source-#2 `floor(lifetime^exp × mult)` with exp 0.5–0.8 creates diminishing
+  returns that reward *frequent small cycles*; the stepped table pays nothing
+  between rungs and rewards *one bank per threshold crossing* — prestige here
+  is a milestone reward, not a cycle currency, and that is a deliberate
+  simplification for a small game (no token to manage, nothing to buy, the
+  guardrails stay intact by omission). (4) The 5 B / ×5 ceiling is the one
+  layer in the sweep with a hard terminal state (pass 17’s offline layer has
+  no such wall) — fine at the current content ceiling, dead UI past it.
+
+The research (two sources; quality notes at the end):
+
+- **Reset/keep is a spectrum, and this game sits at its gentlest end.**
+  HustleTycoon’s idle-prestige overview (source #1) names four reset shapes —
+  *soft* (only certain resources reset, core upgrades remain), *hard* (most
+  progress resets, permanent meta bonuses remain), *tiered* (sequential
+  layers, each resetting deeper portions for a stronger permanent multiplier),
+  and *currency-based* (earn a prestige currency proportional to power) — and
+  its load-bearing line is the psychological reframe: “players are conditioned
+  to avoid losing progress. Prestige systems reframe loss as investment. …
+  progress is no longer measured in current stats, but in long-term
+  efficiency.” The single-axis reset above is soft reset with a tiered
+  multiplier on top; the preserved gem + cosmetic axis is exactly the
+  “permanent bonuses remain” clause that makes the reframe hold.
+- **The anti-spam and the “when to offer it” floor are the reference design’s
+  two guards, both present in stronger form here.** The Godot incremental-game
+  guide (source #2) separates the *token* (prestige currency, earned per
+  reset) from the *effect* (the multiplier it buys), and guards the reset with
+  (a) a hard block `if earned <= 0 → “not enough progress for a meaningful
+  prestige”` and (b) a *suggestion* trigger that only fires at `preview >= 3`
+  tokens **and** `run_time > 1800 s` (≥3 tokens and ≥30 min in the current
+  run), checked every 60 s — i.e. “never offer a prestige that isn’t worth
+  something, and don’t nag for trivial gains.” `sinkNewShaft`’s step-gate is
+  the hard-block in its strongest form (a pure function of an immutable stat,
+  not a per-reset currency count), and the triple gate above is the
+  suggestion-floor: the affordance only exists when the bank is strictly
+  positive. The guide’s reset/keep split — “anything that represents player
+  skill and knowledge persists; anything that represents in-game resources
+  resets” (currency + prestige upgrades + achievements + cosmetics persist;
+  gold + items + skills reset) — is the exact principle the single-axis reset
+  applies to one resource axis.
+
+Candidates (documented, trigger-gated — **none planned, none
+implemented**):
+
+- **`prestige:currency`** — add a small prestige-*currency* axis on top of the
+  multiplier, if player signals show the pure ×N is underwhelming (trigger:
+  the guardrail-5 / free-path benchmark shows a large fraction of players
+  reaching the tier-3 content but a low `totalPrestiges` adoption — i.e. they
+  hit the wall but don’t bank). Source #2’s token shape:
+  `floor(lifetimeMinerals^0.6 × k)` earned per bank, spent on a small run-start
+  upgrade set (e.g. “start the new shaft with N miners”, a temporary
+  multiplier). This adds the “meta-progression shopping” loop the reference
+  designs have and gives the reset a second, spendable reason to exist beyond
+  the ×N. Larger scope: a new save field (migration), a cost table, a settings
+  UI, and interaction with the pass-16 gem-affordability benchmark. Candidate,
+  not planned.
+- **`prestige:ceiling`** — extend the table (a tier 6+ above 5 B) or attach a
+  continuous tail, only if content ever extends lifetime past 5 B and the ×5
+  wall stops being the deep endgame (trigger: a content pass pushes the
+  intended endgame lifetime above 5 B). Until then the table is correct and
+  `getPrestigeMultiplier`’s clamp is the honest representation of “this is the
+  top.” Candidate, not planned — and it is a *content*-gate, not a code bug.
+
+**Rejected, with reasons** (so they aren’t re-litigated): (1) *convert the
+stepped table to a continuous currency to match the reference formula* — the
+step-gate already achieves the anti-spam invariant more strongly (a pure
+function of an immutable stat), and there is no evidence the stepped shape is
+felt as coarse; a currency adds a save field + UI + benchmark interaction for
+a loop the current design deliberately omits (the same monetization-
+model-change-not-a-feature shape as pass 16’s gem-pack rejection). (2) *a
+prestige cooldown / timer gate* — the step-gate already makes same-tier
+re-prestige impossible; a timer would add state (and a clock surface, the exact
+cheat-prone axis pass 17 flagged) to prevent something that cannot happen.
+(3) *harder reset (reset gems / cosmetics too)* — destroys the loss-aversion
+cushion and the guardrail-1 invariant; a spenders’ cosmetics being wiped by a
+free-player’s reset is a pay-to-*lose* shape, and it inverts source #2’s
+“skill persists, resources reset” principle (the current soft reset *is* that
+principle). (4) *prestige as a purchasable / premium-speed path* — pay-to-win
+on the reset itself; guardrail 1 forbids it.
+
+Source quality per the pass-6 discipline: #1 is a vendor/SEO design
+reference (HustleTycoon’s idle-prestige guide — conceptual, names the four
+reset shapes and the loss-as-investment reframe but carries **no numbers**;
+cited for the classification vocabulary and the psychological framing, not
+for any threshold). #2 is a single-author community guide (a Godot
+incremental-game design doc — the prestige chapter is engine-agnostic and is
+the only source with concrete structure: the `floor(lifetime^exp × mult)`
+token formula with exp 0.5–0.8 and the “double the currency ⇒ 4× the XP at
+exp 0.5” consequence, the `earned > 0` hard block, the `preview >= 3 and
+run_time > 1800 s` suggestion floor, and the reset/keep lists; treated as the
+*shape* of a reference design, not a benchmark to copy). No source carries a
+hard market benchmark: prestige tuning is a content-ceiling question, not a
+measurable market rate, so the pass output is structure + candidates, not
+targets (same as passes 13/16/17).
+
+**Not re-audited here:** the gem economy and cosmetic lines (pass 16), the
+offline/absence math around the offline multiplier (pass 17), the depth-tier
+table and depth-lifetime coupling (pass 15), and the free-path / guardrail-1
+benchmark that the “×N doesn’t touch gems” finding depends on (pass 4/11).
+
 ### Player-facing surfaces
 
 - **Home-screen widget** — ~~+ idle reminders~~ (the in-app idle reminder
