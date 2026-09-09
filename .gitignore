@@ -181,3 +181,7 @@ vendor/
 # Stripe secret key for scripts/stripe/syncStripe.mjs (NEVER commit)
 /stripe-secret.env
 .pi/
+
+# playwright e2e artifacts (e2e/web)
+test-results/
+playwright-report/

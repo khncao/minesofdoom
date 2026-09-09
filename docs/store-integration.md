@@ -567,6 +567,51 @@ path mint (return-visit + webhook) instead of a single synchronous
 confirm — handled by making both paths idempotent and both gated on
 the sidecar.
 
+### 2.7 Web e2e — what the Playwright suite covers (and the ads "not
+
+flagged" setup)
+
+`pnpm run test:e2e:web` exports the static web build (`expo export -p
+web` → `dist/`) and drives it in Chromium from `e2e/web/` (config:
+`playwright.config.ts`). Three specs:
+
+| spec | what it proves |
+| --- | --- |
+| `boot.spec.ts` | the web build is *fully functional* for a free player: boots, onboarding skips, hold-to-mine works, the save round-trips through a reload — all with the ad domains and the Pocketbase sidecar ABORTED at the network layer (so it doubles as the offline-resilience check: the game works with zero backends). |
+| `ads.spec.ts` | the rewarded-ad pipeline (Ad Placement API), two layers — see below. |
+| `iap.spec.ts` | the full web IAP round-trip against STUBBED backends: shop → `POST /stripe/checkout` (stub session id) → `js.stripe.com` stub whose `redirectToCheckout` plays the completed hosted checkout (navigates to the `?iap=success…` return URL) → `POST /api/app/verify` (mints) → `POST /api/app/restore` (returns entitlements) → the pack shows owned (✓ + Equip) in the shop. Every other sidecar/Stripe request is aborted; the suite asserts none escapes. |
+
+**The ads "proper test setup" (todo: "so ads don't get flagged")** —
+two complementary layers, both safe to run repeatedly against the live
+AdSense client `ca-pub-…`:
+
+1. **Stubbed loader (zero Google network).** The `adsbygoogle.js`
+   RESPONSE is intercepted and served as a local script that implements
+   the exact push contract the provider relies on (`type:"reward"` →
+   `beforeReward(showFn)` → `beforeAd` → `adViewed` → `afterAd`). No
+   Google request is ever made; a guard route records (and the test
+   fails on) anything that would reach a live ad domain. This is the
+   deterministic, CI-safe layer.
+2. **Real loader in Google's documented TEST MODE.** Google's Ad
+   Placement API has an official test mode for exactly this: the
+   `data-adbreak-test="on"` attribute on the loader `<script>` tag
+   (<https://developers.google.com/ad-placement/docs/test>). It renders
+   **mock ads and makes no ad requests to Google's servers**, and
+   cycles the ad-loaded / ad-not-loaded scenarios (so the no-fill path
+   is exercised too). `e2e/web/server.mjs` injects that attribute into
+   the served `index.html` — **the export itself is unchanged**, the
+   injection lives in the e2e server only, so production builds never
+   carry the flag. `installLiveAdGuard` still aborts and fails the test
+   on any request that would become a real impression, so the account
+   can't be flagged even if Google's test mode ever leaked a live
+   request.
+
+**Not covered here (by design):** the LIVE Stripe↔sidecar↔VPS
+round-trip (real sessions, real `STRIPE_SECRET_KEY` mint) stays in
+`scripts/stripe/checkoutTest.mjs` (run it manually against the test
+account), and the live Google fill path (real ads, real impressions)
+is never exercised by CI — only the mock/test-mode surface above.
+
 ---
 
 ## 3. Cloud saves, leaderboards & achievements (Pocketbase)

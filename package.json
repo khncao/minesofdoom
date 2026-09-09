@@ -12,6 +12,7 @@
     "web": "expo start --web",
     "test": "jest",
     "test:e2e": "maestro test maestro/flows",
+    "test:e2e:web": "expo export -p web && playwright test --config playwright.config.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "play": "node scripts/play/play.mjs"
@@ -60,6 +61,7 @@
     "globals": "^15.0.0",
     "googleapis": "^178.0.0",
     "metro": "^0.84.4",
+    "playwright": "1.63.0",
     "react-test-renderer": "19.2.3",
     "typescript": "~6.0.3",
     "typescript-eslint": "^7.5.0"

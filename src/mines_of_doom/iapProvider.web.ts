@@ -216,10 +216,12 @@ async function postVerify(
 }
 
 /** The optional-login body field (same rule as the native provider). */
-function sessionFields(
-  sessionToken?: string | null,
-): { sessionToken?: string } {
-  return sessionToken === null || sessionToken === undefined || sessionToken === ""
+function sessionFields(sessionToken?: string | null): {
+  sessionToken?: string;
+} {
+  return sessionToken === null ||
+    sessionToken === undefined ||
+    sessionToken === ""
     ? {}
     : { sessionToken };
 }
@@ -256,10 +258,10 @@ async function restoreFromServer(
   deviceId: string,
   sessionToken?: string | null,
 ): Promise<Partial<Record<IapProductId, boolean>>> {
-  const res = await postJson(
-    `${storeConfig.pocketbaseUrl}/api/app/restore`,
-    { deviceId, ...sessionFields(sessionToken) },
-  );
+  const res = await postJson(`${storeConfig.pocketbaseUrl}/api/app/restore`, {
+    deviceId,
+    ...sessionFields(sessionToken),
+  });
   const raw = res?.entitlements;
   if (!Array.isArray(raw)) return {};
   // Allowlist: only store ids we own map to a product (mirrors the

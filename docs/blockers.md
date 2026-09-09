@@ -4,18 +4,6 @@ Work that cannot proceed in this repo without a decision or an external
 action. The `docs/todo.md` in-repo queue is now empty (2026-09-08), so the
 sections below are standalone — when one unblocks, delete its section.
 
-## e2e: `mining` flow's minerals assert fails on the emulator — **RESOLVED 2026-09-04, no app bug**
-
-Triaged with `--debug-output` against the release APK: the assertion
-compares the **displayed, rounded** counter (`mineral-count` shows e.g.
-"1.11M"), and the test device carried an inflated save — 5 hold-mines
-(+tens of minerals) never move a value at the 1.11M scale, so both reads
-came back "1.11M". Neither hypothesis (dead long-press, stale a11y text)
-was right; the long-presses mined fine. On a fresh install (the CI
-condition — "a fresh install is 0") the flow passes clean. The
-precondition is documented in `maestro/flows/mining.yaml`; keep the suite
-on fresh installs.
-
 ## IAP (on-device purchase leg) — `todo.md` "IAP — on-device purchase leg (license tester)"
 
 **Remaining external items:** (1) the iOS `APPLE_*` App Store Connect
@@ -300,20 +288,3 @@ IN-BROWSER legs (the GIS Google button in a real browser; web Apple
 doesn't exist yet — needs a domain-verified service id, `docs/backlog.md`)
 still need a manual look, but the deployed server half that was in doubt
 now answers the full round-trip.
-
-**Server hardening — OS-level items remain (todo "harden pocketbase..."):**
-the container/service level of that todo is done (2026-09-06), but three
-OS-level items on `kelvin@100.109.48.41` (Debian 12, docker as systemd
-services) are blocked on an INTERACTIVE sudo password — non-interactive
-sudo is disabled (re-confirmed 2026-09-06: `sudo -ln` needs a password,
-`/usr/sbin/ufw status` refuses non-root, fail2ban not installed, and
-`apt list --upgradable` shows the 5 docker packages at 29.7.2 → 29.8.0).
-They need a human at the terminal. Run once:
-
-1. `sudo apt update && sudo apt upgrade` — 5 docker packages carried
-   security updates (unattended-upgrades is not installed; this is the
-   only patching path).
-2. `sudo ufw status verbose` — confirm 22/tcp + 80/443/tcp ALLOW (the
-   rules were added earlier; just verifying they survived).
-3. OPTIONAL: `sudo apt install fail2ban` for sshd brute-force protection —
-   decide if wanted (tailscale + key-only ssh + ufw already shrink it).

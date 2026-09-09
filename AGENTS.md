@@ -20,6 +20,7 @@ All commands run from the repo root, using **pnpm** (no npm — the lockfile is
 | `pnpm run android` / `pnpm run ios` | Run native app |
 | `pnpm test` | Jest unit tests (`jest-expo` preset) |
 | `pnpm run test:e2e` | Maestro e2e flows (`maestro/flows/`) — needs a connected Android device/emulator (Maestro CLI on PATH) |
+| `pnpm run test:e2e:web` | Web e2e (Playwright): exports the static web build, then drives it headless — boot/free-path, rewarded-ads pipeline (stubbed loader + Google's documented `data-adbreak-test` test mode), and the full web IAP round-trip against stubbed Stripe/Pocketbase (`e2e/web/`, docs/store-integration.md §2.7). Hermetic: no live ad impressions, no live sidecar/Stripe traffic. |
 | `pnpm run typecheck` | `tsc --noEmit` |
 | `pnpm run lint` | ESLint (flat config, `eslint.config.mjs`) |
 | `pnpm run deploy` | Export static web build to `dist/` and deploy to Cloudflare Pages via `wrangler pages deploy` (`predeploy` runs `expo export -p web`) |
@@ -104,6 +105,14 @@ So test/source files import like `import ... from "src/mines_of_doom/game"` or
   — rename to `e2e-android.yml`); locally: `pnpm run test:e2e` with a device
   booted, flows one at a time (parallel mode on a single emulator is
   unreliable — see `docs/blockers.md`).
+  **Web e2e** (Playwright, `e2e/web/`, config `playwright.config.ts`):
+  `pnpm run test:e2e:web` exports the web build first, then serves `dist/`
+  from `e2e/web/server.mjs` (which injects Google's `data-adbreak-test="on"`
+  test-mode flag into the AdSense loader tag — mock ads, no live ad
+  requests) and runs `boot`/`ads`/`iap` specs. Ads and IAP are stubbed at
+  the network layer (`e2e/web/stubs.ts`) — never add a test that makes a
+  real ad impression or hits the live Stripe/Pocketbase; the live Stripe
+  round-trip stays in `scripts/stripe/checkoutTest.mjs` (manual).
 - **Lint:** flat ESLint config with typescript-eslint + react-hooks rules.
   Unused vars are *warn*, not error. Don't add new lint rules without discussion.
 - **No state library** — plain React Context + hooks. Don't introduce Redux/Zustand

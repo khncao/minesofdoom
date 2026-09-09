@@ -1141,6 +1141,12 @@ export default function MinesOfDoom() {
     const params = new URLSearchParams(loc.search);
     const flag = params.get("iap");
     if (flag !== "success" && flag !== "cancel") return;
+    // Read the payload BEFORE cleaning: clean() mutates this very
+    // URLSearchParams object (it deletes the iap_* keys), so anything
+    // read afterwards would come back empty and the verify queue would
+    // silently never fill — the purchase would never be confirmed.
+    const pidRaw = params.get("iap_product") ?? "";
+    const sid = params.get("iap_sid") ?? "";
     // Clean the URL first: the flags are one-shot. (replaceState keeps
     // the history entry — the player's back button shouldn't re-enter a
     // paid checkout state.)
@@ -1152,25 +1158,41 @@ export default function MinesOfDoom() {
       hist.replaceState(null, "", loc.pathname + (qs ? `?${qs}` : ""));
     };
     clean();
+    // expo-router's web URL sync re-writes the location from its route
+    // state shortly after mount, which would resurrect the one-shot
+    // flags we just stripped (and re-trigger the verify on refresh).
+    // Re-clean across the next couple of animation frames, after that
+    // sync settles — a bounded burst, once per load. (Idempotent:
+    // clean() just deletes the same keys again.)
+    let rafA = 0;
+    let rafB = 0;
+    rafA = requestAnimationFrame(() => {
+      clean();
+      rafB = requestAnimationFrame(clean);
+    });
+    const cancelReClean = () => {
+      cancelAnimationFrame(rafA);
+      cancelAnimationFrame(rafB);
+    };
     if (flag === "cancel") {
       // The player backed out on the hosted page: nothing to verify.
+      cancelReClean();
       return;
     }
     // Validate the URL product id against the catalog — the query string
     // is attacker-controllable, the catalog is the allowlist.
-    const pidRaw = params.get("iap_product") ?? "";
     const productId = pidRaw in IAP_PRODUCTS ? (pidRaw as IapProductId) : null;
-    const sid = params.get("iap_sid") ?? "";
-    if (productId === null || !sid) return;
+    if (productId === null || !sid) return cancelReClean;
     // The provider (web .web swap) exposes noteCheckoutSuccess to queue
     // the (productId, session-id) verify; native/noop providers don't.
     // The queue is persisted, so even a crash before the verify POST is
     // fine — the next restore replays it.
     const note = iapProviderRef.current.noteCheckoutSuccess;
-    if (!note) return;
+    if (!note) return cancelReClean;
     void Promise.resolve(note(productId, sid)).then(() => {
       void iapRestoreRef.current();
     });
+    return cancelReClean;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
