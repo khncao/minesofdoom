@@ -1328,6 +1328,7 @@ export default function MinesOfDoom() {
             claimable={dailyBonus.claimable}
             bonus={dailyBonus.bonus}
             streak={dailyBonus.streak}
+            freezes={dailyBonus.freezes}
             onClaim={handleDailyClaim}
           />
           <WeeklyContractButton

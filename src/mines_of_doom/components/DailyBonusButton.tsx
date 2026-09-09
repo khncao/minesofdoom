@@ -13,15 +13,19 @@ const DailyBonusButton = memo(function DailyBonusButton({
   claimable,
   bonus,
   streak,
+  freezes,
   onClaim,
 }: {
   claimable: boolean;
   bonus: number;
   streak: number;
+  /** Streak-freeze stock (pass 19) — a11y label detail only, like the
+   *  streak itself: the icon stays a single glyph. */
+  freezes: number;
   onClaim: () => void;
 }) {
   const t = useT();
-  const label = claimable
+  let label = claimable
     ? streak > 0
       ? t("a11y.dailyClaimableStreak", {
           bonus: formatNumber(bonus),
@@ -29,6 +33,9 @@ const DailyBonusButton = memo(function DailyBonusButton({
         })
       : t("a11y.dailyClaimable", { bonus: formatNumber(bonus) })
     : t("a11y.dailyClaimed");
+  if (freezes > 0) {
+    label += ` · ${t("a11y.streakFreezes", { count: freezes })}`;
+  }
   return (
     <Pressable
       accessibilityRole="button"

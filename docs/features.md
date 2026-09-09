@@ -406,21 +406,28 @@ genre-impact; anything picked up goes into `docs/todo.md`.
   17 streak grace (iteration 14): the grace is the mechanic that lets a
   streak *reach* day 7; the spike is the prize that makes keeping it
   worth it.
-- **Streak protection (freezes / repair)** — pass 4. The streak has no
-  safety net: miss a day and it resets to zero (and a lost streak never
-  costs progress, but nothing protects it either). The Duolingo teardown
-  (2026) makes protection the *core* of the streak, not a bolt-on:
-  **freezes** (capped, ~2 free; consumed silently and automatically when
-  a day is missed, surfaced retroactively — no popup drama) and a
-  **repair** backstop (a small amount of play within a short window
-  after a break restores the streak once freezes run dry). Milestone
-  days (7/30/100/365) are where ceremony goes — Duolingo's milestone
-  animations are rare by design and one milestone redesign alone moved
-  D7 retention +1.7 %. Cheap version here: N freezes earned passively
-  (cap 2–3, like the rewarded-ad caps) + a 24 h repair window, all
-  pure logic in `dailyBonus.ts`; freezes must stay earnable free
-  (guardrail 1) and the counters real (guardrail 3). Candidate, not
-  planned. Pairs with the day-7 spike item above.
+- ~~**Streak protection (freezes / repair)**~~ — **DONE 2026-09**
+  (iteration 19, autonomous no-signal pick; the Duolingo teardown's
+  core-of-the-streak safety nets): the streak grace (iteration 14) is
+  now the first of three nets in `dailyBonus.ts` — behind it, a stock
+  of up to `STREAK_FREEZE_CAP` (3) streak **freezes**, earned passively
+  one per `STREAK_FREEZE_EVERY_DAYS` (7) streak day (day 7, 14, 21…
+  claims — keeping the habit IS the earning, so they're free by
+  construction, guardrail 1) and consumed silently on a one-day gap,
+  surfaced retroactively in the claim toast (no popup drama, per the
+  finding). If both are spent the streak resets as before, but a reset
+  that lost `STREAK_REPAIR_MIN_DAYS` (3)+ records a snapshot and the
+  next local day's claim (the 24h window) can **repair** the streak to
+  lost+1, once per rolling `STREAK_REPAIR_COOLDOWN_DAYS` (30). All
+  counters are real and bounded (guardrail 3); every new state field is
+  optional, so no migration. `computeDailyClaim` now reports
+  `bridge: "grace" | "freeze" | "repair"` + `earnedFreeze`; the hook
+  picks the matching toast (`toast.dailyBonusGrace/Freeze/Repair`), the
+  button's a11y label carries the freeze count (`a11y.streakFreezes`),
+  no new pixels in the menu row. Tests: `dailyBonus.test.ts` (streak-
+  freezes + streak-repair describes, 33 total). Pairs with the day-7
+  spike above (the spike is now what a repair restores) — milestone-day
+  ceremony stays open as its own item.
 - **Narrative / character layer** — the idle-genre design guide (Mind
   Studios) lists narrative as a first-class retention lever: a story
   that unfolds as levels unlock, characters with goals we'd want to

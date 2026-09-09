@@ -63,6 +63,12 @@ export const es: Record<TranslationKey, string> = {
   "toast.dailyBonus": "Bonus diario: +{bonus} minerales",
   "toast.dailyBonusStreak":
     "Bonus diario: +{bonus} minerales (¡racha de {streak} días!)",
+  "toast.dailyBonusGrace":
+    "Bonus diario: +{bonus} minerales — un día perdido cubierto (¡racha de {streak} días!)",
+  "toast.dailyBonusFreeze":
+    "Bonus diario: +{bonus} minerales — una pausa de racha cubrió el día perdido (¡racha de {streak} días!)",
+  "toast.dailyBonusRepair":
+    "Reparación de racha: +{bonus} minerales (¡racha de {streak} días recuperada!)",
   "toast.dailyEquation": "¡Ecuación del día resuelta: +{bonus} de minerales!",
   "toast.dailyEquationStart":
     "Ecuación del día: resuélvela para +{bonus} minerales — los errores no cuestan nada",
@@ -138,6 +144,7 @@ export const es: Record<TranslationKey, string> = {
     "Reclamar bonus diario: +{bonus} minerales, inicia la racha del día {day}",
   "a11y.dailyClaimed":
     "Bonus diario reclamado hoy. Vuelve mañana para el siguiente bonus.",
+  "a11y.streakFreezes": "Pausas de racha: {count}",
   "a11y.dailyEquationPending":
     "Ecuación del día: sin resolver (+{bonus} minerales)",
   "a11y.dailyEquationSolved": "Ecuación del día: resuelta hoy",

@@ -67,15 +67,33 @@ export function useDailyBonus({
     // below re-sets the ref to the same value once the state lands.
     stateRef.current = next;
     setState(next);
+    // A safety-net claim is surfaced retroactively in the toast (the
+    // freeze is otherwise silent by design); a clean streak day keeps the
+    // plain streak toast (an earned freeze shows up in the counter instead
+    // of a popup — no drama, per the §7 design).
+    const bonus = formatNumber(claimInfo.bonus);
     displayMessage(
-      claimInfo.nextStreak > 1
-        ? t("toast.dailyBonusStreak", {
-            bonus: formatNumber(claimInfo.bonus),
+      claimInfo.bridge === "freeze"
+        ? t("toast.dailyBonusFreeze", {
+            bonus,
             streak: claimInfo.nextStreak,
           })
-        : t("toast.dailyBonus", {
-            bonus: formatNumber(claimInfo.bonus),
-          }),
+        : claimInfo.bridge === "repair"
+          ? t("toast.dailyBonusRepair", {
+              bonus,
+              streak: claimInfo.nextStreak,
+            })
+          : claimInfo.bridge === "grace"
+            ? t("toast.dailyBonusGrace", {
+                bonus,
+                streak: claimInfo.nextStreak,
+              })
+            : claimInfo.nextStreak > 1
+              ? t("toast.dailyBonusStreak", {
+                  bonus,
+                  streak: claimInfo.nextStreak,
+                })
+              : t("toast.dailyBonus", { bonus }),
       4000,
     );
   }, [grantMinerals, setState, displayMessage, t]);
@@ -84,6 +102,7 @@ export function useDailyBonus({
     claimable: info.claimable,
     bonus: info.bonus,
     streak: state?.streak ?? 0,
+    freezes: state?.freezes ?? 0,
     claim,
   };
 }

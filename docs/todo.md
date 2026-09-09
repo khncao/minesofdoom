@@ -39,7 +39,16 @@ outside this file:
   longer rides half the SFX level — `settings.musicVolume`, 0–100%, default
   50 = the old half-level default experience, its own 10%-step settings
   row; `clampMusicVolume` / `musicLevel(musicVolume)` in `game.ts`, the
-  menu mute toggle still wins). The rest stays
+  menu mute toggle still wins), and on 2026-09 (iteration 19) the
+  pass-4 `streak-protection` candidate (**streak freezes + repair**,
+  the Duolingo teardown's safety nets) in `dailyBonus.ts`: behind the
+  iteration-14 grace, up to 3 streak **freezes** (earned passively one
+  per 7-streak day, consumed silently on a one-day gap, surfaced
+  retroactively in the claim toast) and, once both are spent, a 24h
+  **repair** that restores a reset 3+ streak to lost+1 on the next
+  local day's claim (once per rolling 30 days); all counters real and
+  bounded, all new state fields optional (no migration), a11y-only
+  freeze counter on the bonus button. The rest stays
   trigger-gated (including `offline:clock-hwm`, deliberately low priority per
   its own sources). Reopen on the signals recorded there (first
   production release + the guardrail-5 signal batch, endgame-lifetime content

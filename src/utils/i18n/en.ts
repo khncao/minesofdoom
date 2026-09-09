@@ -75,6 +75,12 @@ export const en = {
   "toast.dailyBonus": "Daily bonus: +{bonus} minerals",
   "toast.dailyBonusStreak":
     "Daily bonus: +{bonus} minerals (day {streak} streak!)",
+  "toast.dailyBonusGrace":
+    "Daily bonus: +{bonus} minerals — a missed day was covered (day {streak} streak!)",
+  "toast.dailyBonusFreeze":
+    "Daily bonus: +{bonus} minerals — a streak freeze covered the missed day (day {streak} streak!)",
+  "toast.dailyBonusRepair":
+    "Streak repair: +{bonus} minerals (day {streak} streak restored!)",
   "toast.dailyEquation": "Equation of the Day solved: +{bonus} minerals!",
   "toast.dailyEquationStart":
     "Equation of the Day: solve it for +{bonus} minerals — wrong answers are free",
@@ -143,6 +149,7 @@ export const en = {
     "Claim daily bonus: +{bonus} minerals, starts day {day} streak",
   "a11y.dailyClaimed":
     "Daily bonus claimed today. Come back tomorrow for the next bonus.",
+  "a11y.streakFreezes": "Streak freezes: {count}",
   "a11y.dailyEquationPending":
     "Equation of the Day: unsolved (+{bonus} minerals)",
   "a11y.dailyEquationSolved": "Equation of the Day: solved today",
