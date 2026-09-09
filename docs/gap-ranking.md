@@ -3682,9 +3682,9 @@ Also confirmed still open this pass: pass 23's
 events) and F21.2 (save corruption / write failure emit no event —
 "the one failure class this game can least afford to be blind to … is the
 only one with no event"). (One line of doc drift found while auditing:
-`analytics.ts`'s module comment says the record holds "the raw session
+`analytics.ts`'s module comment said the record holds "the raw session
 signals [retention is] derived from" — the record holds one-shot day
-stamps and counters, no session signals.)
+stamps and counters, no session signals. Comment corrected, iteration 25.)
 
 **F26.6 (canon pin, not a gap) The crash-first posture is canon, and the
 local-only variant is its small-team form.** The 2026 canonical

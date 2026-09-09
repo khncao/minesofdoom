@@ -2,8 +2,9 @@
  * Lightweight local event logging (AGENTS.md guardrail 5, "measure before
  * scaling"): the handful of events the UA-spend decision needs — first
  * ad view, IAP purchases, D1/D7 retention, free-path progress (first
- * prestige + total prestige count) — plus the raw session signals
- * they're derived from.
+ * prestige + total prestige count). Stored as one-shot day stamps and
+ * counters, folded in as the game observes them (no per-event session
+ * stream).
  *
  * Deliberately minimal and privacy-friendly: no PII, no third-party SDK,
  * no network. Everything lives in ONE small AsyncStorage record, which
