@@ -120,7 +120,9 @@ So test/source files import like `import ... from "src/mines_of_doom/game"` or
 - **App config lives in `app.config.ts`** (not app.json): version/`versionCode`
   bumping, icons, router root, web static output. Bump `version` + `android.versionCode`
   together for new releases.
-- **Docs:** Update `docs/todo.md` when implementing
+- **Docs:** `README.md` is the docs entry point — it links to the files under
+  `docs/`; keep that link list in sync when adding/removing doc files.
+  Update `docs/todo.md` when implementing
   or deferring planned features (deferred / platform-parallel work —
   currently the iOS release items — goes to `docs/backlog.md` instead). Write to `docs/blockers.md` when anything needing a decision is blocking implementation
 - **Platform:** Web uses static export
