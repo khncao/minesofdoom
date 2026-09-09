@@ -16,7 +16,8 @@ Completed items are removed from this file (see git history); only remaining wor
 - `docs/features.md` — the feature map (what exists, per section).
 - `docs/gap-ranking.md` — every open gap, ranked by impact (the former
   features.md §7, moved 2026-09), with trigger-gated candidates
-  (including `offline:clock-hwm`, deliberately low priority per its own
-  sources). Reopen on the signals recorded there (first production release + the
-  guardrail-5 signal batch, endgame-lifetime content pass, es-market,
-  share-badge/cosmetics demand).
+(including `offline:clock-hwm`, deliberately low priority per its own
+sources, and `share:clipboard-opt-in`). Reopen on the signals
+recorded there (first production release + the guardrail-5 signal
+batch, endgame-lifetime content pass, es-market,
+share-badge/cosmetics demand).

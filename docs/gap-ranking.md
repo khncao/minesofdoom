@@ -233,6 +233,19 @@ repo is not equipped to make.
     from gem cost so store and shop can't drift. Note the structural
     ceiling that motivates it: one-time-only packs cap IAP revenue at
     $59.75 per player, so the mix is ad-weighted by design (F29.4).
+18. **`share:clipboard-opt-in`** (pass 30, F30.3) — the game's single
+    user-facing share surface (achievement badge share) is a silent
+    no-op in any browser without the Web Share API (Firefox desktop
+    lacks it; Chrome desktop routes through OS share targets): the
+    picker deliberately returns `none` (no silent clipboard write), and
+    the tap then does nothing with no visible affordance. Fix: an
+    explicit "Copy" action when the API is absent — a visible,
+    user-initiated clipboard write, which keeps it inside guardrail 4
+    (the rule is against *silent* writes). Cheap (one `pickShareTarget`
+    branch + a label string), web-only. Trigger-gated on the
+    share-badge/cosmetics demand signal already recorded in
+    `docs/todo.md` (or any web-growth bet that raises the desktop-web
+    share audience): no share demand signal, no copy button.
 
 **Context — closed since the passes ran** (so the ranking isn't
 re-derived from stale reads): streak grace (it.14), streak freezes +
@@ -528,6 +541,19 @@ Optimization 2026" (same 50+ launch-studio family as passes 6/10/
 cited). All directional, not Tier A; if the bundle candidate is
 ever greenlit, re-pull the price claims from a Tier A source.
 Exa still 429; DuckDuckGo per the re-pull convention.
+2026-09 pass 30: the platform-parity layer — cross-platform parity as
+a first-class axis (the first pass to enumerate the feature ×
+platform matrix; earlier passes audited axes *across* platforms but
+none enumerated parity itself). An internal audit by construction
+(the matrix is a property of this repo's provider seams, not
+sourceable externally), so every cell was verified against `src/` as
+of this commit; the one external anchor is the Web Share API support
+context behind F30.3 (MDN `Navigator.share` + the caniuse-lite
+`web-share` dataset, via DuckDuckGo after Exa's 429 — the MDN page's
+compat table did not render on fetch, so the browser matrix is
+context, not load-bearing). New candidate: `share:clipboard-opt-in`
+(F30.3) → Tier 1, item 18. Items adopted from that list move into
+`docs/todo.md`.
 
 ## The gap layers (formerly `docs/features.md` §7)
 
@@ -4323,3 +4349,112 @@ should be re-pulled from a Tier A source before design.
   price still band-derived from gem cost so the store can't drift from
   the shop. Until the data exists, this is a note, not a plan. Tier 1,
   item 17.
+
+### The platform-parity layer (pass 30 — what runs where, written 2026-09-09)
+
+Passes 7–29 each audited *some* axis across platforms, but none
+enumerated the feature × platform matrix itself — where a surface runs,
+which implementation it runs on, and what silently degrades. That is
+this pass. Every cell verified against `src/` as of this commit.
+
+**F30.1 — parity is maintained by four provider seams plus a handful
+of UI-level `Platform.OS` branches — by construction, not by test.**
+The seams: `adProvider(.web)` (AdMob ↔ AdSense H5),
+`iapProvider(.web)` (Play Billing / App Store ↔ Stripe hosted
+checkout), `shareImage(.web)` (expo-sharing sheet ↔ offscreen-canvas
+Web-Share-API file), and `secureToken` (Keychain ↔ localStorage).
+Everything upstream of a seam is platform-agnostic. The UI-level
+branches (~20 `Platform.OS` sites) cover: save-on-exit (web
+`pagehide` + AppState; native AppState backgrounding), play-time-clock
+liveness (web `visibilitychange`), keyboard avoidance (native
+`KeyboardAvoidingView` vs the web read-only answer box), reduce-motion
+OS setting (web `prefers-reduced-motion`; parity via the manual toggle
+on all platforms), the web-only "Reload page" on the error boundary,
+sign-in kinds per platform (`providerKindsForPlatform`), and the
+analytics `web` event flags. The matrix as of this commit:
+
+| Surface | Web | Android | iOS |
+| --- | --- | --- | --- |
+| Rewarded ads | AdSense H5 (client configured; live) | AdMob (App ID + 4 units; live) | code live, `iosAppId: ""` — dark until configured (backlog) |
+| IAP | Stripe checkout, 25 SKUs, server-side verification (live) | Play Billing (live) | expo-iap code live; store-side products unregistered (backlog) |
+| Sign-in | Google (GSI) | Google | Google + Sign in with Apple |
+| Token storage | localStorage | Keychain | Keychain |
+| Share (achievement → badge → text) | Web Share API; `none` when the API is absent | RN Share sheet | RN Share sheet |
+| Haptics | no-op (no vibration API) | `Vibration` | `Vibration` |
+| Reduce motion | OS setting + manual toggle | manual toggle | manual toggle |
+| Save on exit | `pagehide` + AppState | AppState backgrounding | AppState backgrounding |
+| Error surface | Try Again + Reload page | Try Again | Try Again |
+
+**F30.2 — the open parity holes are all already tracked elsewhere.**
+iOS AdMob App ID and iOS IAP registration (backlog; the iOS code is
+complete), Apple web sign-in (features.md §5 — pending a
+domain-verified service ID), the web ambient bed's silent-until-gesture
+(Tier 1 #3), and mouse-only keyboard operability (Tier 1 #4). The
+matrix check found no *new* hole in those categories, and the
+save-on-exit / liveness / token / error-surface cells are parity-
+complete (native saves on AppState backgrounding, so there is no
+web-`pagehide`-only gap).
+
+**F30.3 — on desktop web, the share button is a silent, complete
+no-op (new).** `pickShareTarget` returns the `none` target when
+`navigator.share` is absent — a deliberate choice (no silent clipboard
+write, guardrail 4) — but Web Share API support is uneven on desktop:
+absent in Firefox desktop, and Chrome desktop routes through OS share
+targets (caniuse: Windows 11+), so a meaningful slice of the
+desktop-web share audience sees the achievement share button as a dead
+button. The share button is the game's only user-facing share surface
+(the badge's plain-text fallback rides the same picker). It is also
+the only matrix cell that silently does nothing *without telling the
+player*: the haptics no-op is documented in features.md and merely
+harmless, but a share tap that does nothing reads as a bug, not a
+feature. The fix is cheap and honest — when the API is absent, offer
+an explicit "Copy" action instead of a dead tap: a visible,
+user-initiated clipboard write is not the silent write guardrail 4
+objects to.
+
+**F30.4 — parity is enforced by construction, not by test.** Two of
+the four seams have web-variant tests (`iapProvider.web`,
+`shareImage.web`) and the `pickShareTarget` picker is pure and pinned,
+but nothing enumerates the matrix: a `Platform.OS` branch added in one
+place and missed in another would sail through every gate. This is a
+quality observation (the same class as pass 20's "no perf CI"), not a
+feature gap — recorded here so a future parity regression starts from
+this section.
+
+**Source quality (pass 30).** Internal audit: the parity matrix is a
+property of this repo's seams, not sourceable externally, so the
+F30.1/F30.2 cells are live-code as of this commit, not sourced
+claims. The one external anchor is the Web Share API support context
+behind F30.3 (MDN `Navigator.share` + the caniuse-lite `web-share`
+dataset, DuckDuckGo after Exa's 429); the MDN page's browser-compat
+table did not render on fetch, so the browser matrix is context, not a
+load-bearing claim. The product claim — "the picker's `none` fallback
+covers real desktop browsers" — rests on the repo's own test-pinned
+`pickShareTarget` logic, which is the load-bearing part.
+
+**Research sources (pass 30, DuckDuckGo fallback):**
+
++ MDN, "Navigator: share()" (official) — API contract (transient
+  activation, Permissions Policy, `navigator.canShare()` detection);
+  the compat table itself did not render on fetch.
++ caniuse-lite `web-share` dataset (the source behind caniuse.com,
+  fetched as the lite JSON) — desktop support is the uneven part:
+  absent in Firefox desktop; Chrome desktop gated on OS share
+  targets (Windows 11+); Safari desktop / Edge fine. Treated as
+  context (dataset markers cross-checked against one vendor matrix
+  page) — not a load-bearing claim.
++ (fetched, not cited) webshareapi.com browser-support matrix —
+  consistent with the caniuse picture ("Firefox Desktop remains the
+  significant gap"); vendor/SEO site, used only as a cross-check.
+
+**Candidates (documented, not planned):**
+
++ `share:clipboard-opt-in` (pass 30, F30.3) — when `navigator.share`
+  is absent, replace the dead share tap with an explicit "Copy"
+  action (one `pickShareTarget` branch + a label string + the
+  GoalsPanel button; the clipboard write is user-initiated and
+  visible, so the no-silent-write rule holds). Cheap, web-only.
+  Trigger-gated on the share-badge/cosmetics demand signal already
+  recorded in `docs/todo.md`, or any web-growth bet (es-market
+  listing, PWA installability) that raises the desktop-web share
+  audience. Tier 1, item 18.
