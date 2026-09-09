@@ -226,7 +226,7 @@ a COPPA question: the FTC's 2025 final rule (compliance deadline
 2026-04-22) is in full effect — kid-directed rating ⇒ verifiable
 parental consent before data collection + a separate consent for
 third-party ads + a scheduled retention policy in the privacy notice.
-See `docs/features.md` §7 "Compliance (pass 6)" for the two viable
+See `docs/gap-ranking.md` "Compliance (pass 6)" for the two viable
 paths (kid-directed + consent gate vs teen rating + the device-scoped
 anonymous model).
 
@@ -275,7 +275,7 @@ remove these steps):**
    under-13 usage or a marketing channel skews under-13, option (a)
    becomes the honest posture and the parental-consent gate + retention
    schedule become required — the "Kids mode / parent screen" item in
-   `docs/features.md` is where that work would land.
+   `docs/gap-ranking.md` (the gap layers) is where that work would land.
 
 ---
 

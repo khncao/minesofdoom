@@ -13,8 +13,10 @@ Completed items are removed from this file (see git history); only remaining wor
   console "Not child-directed" setting, the post-launch S6 revisit trigger).
 - `docs/backlog.md` — the intentionally deferred iOS track (AdMob iOS entry,
   App Store IAP products + credentials, iOS on-device verification passes).
-- `docs/features.md` §7 — trigger-gated candidates (including
-  `offline:clock-hwm`, deliberately low priority per its own sources).
-  Reopen on the signals recorded there (first production release + the
+- `docs/features.md` — the feature map (what exists, per section).
+- `docs/gap-ranking.md` — every open gap, ranked by impact (the former
+  features.md §7, moved 2026-09), with trigger-gated candidates
+  (including `offline:clock-hwm`, deliberately low priority per its own
+  sources). Reopen on the signals recorded there (first production release + the
   guardrail-5 signal batch, endgame-lifetime content pass, es-market,
   share-badge/cosmetics demand).
