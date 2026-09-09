@@ -16,7 +16,7 @@ outside this file:
 - `docs/backlog.md` — the intentionally deferred iOS track (AdMob iOS entry,
   App Store IAP products + credentials, iOS on-device verification passes).
 - `docs/features.md` §7 — trigger-gated candidates. No-signal picks have
-  been done out-of-queue eight times: on 2026-07-16 (iteration 17) the
+  been done out-of-queue nine times: on 2026-07-16 (iteration 17) the
   pass-16 candidate `cosmetics:analytics` landed — per-purchase events
   (line, item id, gems-vs-pack path, gem balance at purchase) on the
   guardrail-5 log: `recordCosmeticPurchase`/`CosmeticPurchaseEvent` in
@@ -70,7 +70,39 @@ outside this file:
   solve digit-for-digit; `EquationDisplay` swapped its local product for
   the helper — pure display change, engine untouched, `equation.pending`
   copy unchanged (now literally true), tests in `game.test.ts` (premium
-  ladder, hard-mode leading-op keying, zero-answer floor). The rest stays
+  ladder, hard-mode leading-op keying, zero-answer floor), and on
+  2026-09-08 (iteration 22) the pass-3 `a11y:reduce-effects` item
+  (the "native reduce-motion" kill switch): `settings.reduceEffects`
+  (default **off** — it's a kill switch, so the effects stay on for
+  everyone by default) is OR'd into
+  `useAccessibilityReduceMotion` as the hook's new manual argument and
+  drives the same single boolean in `MinesOfDoom.tsx` that already gates
+  the debris, combo flash, gem-pocket pulse, miner bobbing and
+  save-pill pulse — so the web-only `prefers-reduced-motion` coverage now
+  extends to native (RN still has no reduce-motion API) and web players
+  get a manual off too; settings row beside the haptics row (the pass-13
+  note's "persisted boolean beside the reduce-effects row" it referenced
+  is now a real seam), `en`/`es` strings, no migration (the settings
+  merge supplies the default), tests in `game.test.ts` (default + merge)
+  and `useAccessibilityReduceMotion.test.ts` (toggle / OS / live-change
+  matrix), and on 2026-09 (iteration 23) the pass-16
+  **cosmetic-compendium / collection** item (the genre's
+  pets-and-creatures completeness surface, the item's own "cheap
+  candidate" shape): the menu sheet's new **Collection** view
+  (`menu-tab-collection`, between Records and About) shows every catalog
+  line owned vs. not-yet with per-group and total progress — pickaxes
+  (sprite thumbs), outfits (the shop's fixed-seed preview sprites),
+  cave themes (tint swatches), achievement badges (icon + bonus) —
+  `getCollection` in `collection.ts` derives everything from the save
+  (same derived-state spirit as `records.ts`; the IAP entitlement record
+  stays a purchase record, not an ownership source), the panel
+  (`components/CollectionPanel.tsx`) is a dumb read-only renderer (no
+  buys, no equipping — the shop keeps its single-surface contract),
+  `menu.collection` / `collection.*` strings in `en`/`es`, no migration
+  (nothing new is stored), tests in
+  `mines_of_doom/__test__/collection.test.ts` (group order/ids, fresh-
+  save defaults only, equipped marking, derived achievement completion,
+  foreign-id immunity). The rest stays
   trigger-gated (including `offline:clock-hwm`, deliberately low priority per
   its own sources). Reopen on the signals recorded there (first
   production release + the guardrail-5 signal batch, endgame-lifetime content

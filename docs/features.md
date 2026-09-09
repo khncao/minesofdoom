@@ -277,7 +277,11 @@ of Pressable so rapid tapping doesn't double-render).
   or backgrounded (AppState); asset nets in
   `scripts/__test__/ambientLoop.test.ts`.
 - **Accessibility & UX** — accessibility labels/roles throughout,
-  reduce-motion preference respected (`hooks/useAccessibilityReduceMotion.ts`),
+  reduce-motion preference respected (web, via the OS preference) **plus a
+  manual "reduce effects" settings toggle** (`settings.reduceEffects`,
+  off by default — effects stay on for everyone, the toggle is a kill
+  switch; the two signals OR together in
+  `hooks/useAccessibilityReduceMotion.ts`, pass-3 accessibility),
   keyboard-avoiding modal sheets, onboarding overlay with skip
   (`components/OnboardingOverlay.tsx`).
 
@@ -347,7 +351,8 @@ of Pressable so rapid tapping doesn't double-render).
   (`analytics.ts`, `crashLog.ts`, `crashContext.ts`,
   `components/ErrorBoundary.tsx`).
 - **Settings** — autosave cadence, show-all-purchases, emoji-art fallback,
-  haptics, cave-ambience music, sound volume, music volume, mute,
+  haptics, reduce effects (manual kill switch, pass-3 accessibility),
+  cave-ambience music, sound volume, music volume, mute,
   language,
   on-screen keypad, equation types / range / hard mode / symbols
   (`hooks/useSettings.ts`,
@@ -491,13 +496,25 @@ genre-impact; anything picked up goes into `docs/todo.md`.
   active loop — hard caveat from the automation item: this must
   challenge, never replace, hand-solved math; the player-set range
   stays the ceiling. Candidate, not planned.
-- **Cosmetic compendium / collection** — top mobile idlers lean on
-  collection completeness (Roblox/social idlers' pets-and-creatures
-  pattern, in the 2026 roundups): a single view of all outfits /
-  pickaxes / cave themes / achievement badges with owned vs.
-  not-yet, turning the cosmetic shop into a long-term goal. We already
-  own all the data (`cosmetics.ts`, `achievements.ts`); this is a pure
-  presentation surface. Cheap candidate.
+- ~~**Cosmetic compendium / collection**~~ — **DONE 2026-09**
+  (iteration 23, autonomous no-signal pick; the pets-and-creatures
+  pattern's completeness surface, the item's own "cheap candidate"
+  shape): the menu sheet's new **Collection** view shows every catalog
+  line with owned vs. not-yet and per-group/total progress — pickaxes
+  (sprite thumbs), outfits (the shop's fixed-seed preview sprites),
+  cave themes (tint swatches), and achievement badges (icon + bonus) —
+  owned ✓ / equipped ✓ / gem price for the rest. Pure derivation over
+  the save (`getCollection` in `collection.ts`, same spirit as
+  `records.ts`: the IAP entitlement record stays a purchase record, not
+  an ownership source; achievement "ownership" is the same
+  derived-from-lifetime-stats completion the Goals panel uses), the
+  panel (`components/CollectionPanel.tsx`) is a dumb read-only renderer
+  — no buys, no equipping (the shop keeps its single-surface contract),
+  so it can't drift and nothing migrates. Menu wiring: one more
+  `MenuNavButton` (`menu-tab-collection`), `menu.collection` / `en`+`es`
+  copy, tests in `__test__/collection.test.ts` (group order/ids, fresh-
+  save defaults only, equipped marking, derived achievement completion,
+  foreign-id immunity).
 - ~~**Statistics detail**~~ — **DONE 2026-09** (todo “statistics detail”):
   the records panel now carries a lifetime “Time in the mine” row and a
   per-session block (minerals, answers, active time since launch) —
@@ -525,12 +542,20 @@ low-effort/high-impact first tier, so this section is in that order.
   (no migration — the settings key is unversioned like soundVolume's
   precedent). Pinned by `game.test.ts` (clampMusicVolume + the new
   1:1 `musicLevel` semantics).
-- **Native reduce-motion** — `useAccessibilityReduceMotion.ts` already
-  respects `prefers-reduced-motion` **on web only** (RN has no API for
-  the iOS/Android OS setting yet, per the file's own comment; native
-  returns false). A settings "reduce effects" toggle (decorative debris
-  / combo juice off) would cover native and give everyone a manual
-  kill-switch. The hook is the natural seam.
+- ~~**Native reduce-motion / manual kill switch**~~ — **DONE 2026-09-08 (iteration 22, autonomous, no signal)**:
+  `settings.reduceEffects` (default **off** — it's a kill switch, so the
+  effects stay on for everyone by default) is OR'd into
+  `useAccessibilityReduceMotion` as the hook's new manual argument and
+  drives the same single boolean in `MinesOfDoom.tsx` that already gates
+  the debris, combo flash, gem-pocket pulse, miner bobbing and
+  save-pill pulse — so the web-only `prefers-reduced-motion` coverage now
+  extends to native (RN still has no reduce-motion API) AND web players
+  get a manual off. Settings row beside the haptics row (the pass-13
+  note's "persisted boolean beside the reduce-effects row" it referenced
+  is now a real seam), `en`/`es` strings, no migration (the settings
+  merge supplies the default). Tests: `game.test.ts` (default + merge)
+  and `useAccessibilityReduceMotion.test.ts` (toggle / OS / live-change
+  matrix).
 - **High-contrast / color-independence** — no high-contrast mode, and
   a few states are color-leaning (vein/gem-pocket discovery reads
   largely from the node's look on the canvas). Playbook baseline: never

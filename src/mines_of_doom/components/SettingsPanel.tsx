@@ -12,7 +12,12 @@ import {
   type OperatorKey,
   type MultiplySymbol,
 } from "src/utils/math/equations";
-import { SettingsData, clampSoundVolume, clampMusicVolume, clampNumberNotation } from "../game";
+import {
+  SettingsData,
+  clampSoundVolume,
+  clampMusicVolume,
+  clampNumberNotation,
+} from "../game";
 import { formatNumber } from "src/utils/format";
 import { styles } from "../styles";
 
@@ -22,7 +27,10 @@ import { styles } from "../styles";
  * subtraction ×2, +/* ×1). The tooltip text is a translation key
  * (settings.op.*).
  */
-const OPERATOR_HELP: Record<OperatorKey, { symbol: string; noteKey: TranslationKey }> = {
+const OPERATOR_HELP: Record<
+  OperatorKey,
+  { symbol: string; noteKey: TranslationKey }
+> = {
   multiply: { symbol: "*", noteKey: "settings.op.multiply" },
   add: { symbol: "+", noteKey: "settings.op.add" },
   subtract: {
@@ -116,37 +124,36 @@ const SettingsContent = memo(function SettingsContent({
         }}
       >
         {OPERATOR_KEYS.map((key) => (
-            <View
-              key={key}
-              style={{ flexDirection: "row", alignItems: "center", gap: 2 }}
-            >
-              {/* Plain name (todo) next to the glyph, so the row reads
+          <View
+            key={key}
+            style={{ flexDirection: "row", alignItems: "center", gap: 2 }}
+          >
+            {/* Plain name (todo) next to the glyph, so the row reads
                   "division /" instead of a lone symbol. */}
-              <Text style={styles.text}>{t(OP_NAME_KEYS[key])}</Text>
-              <Tooltip
-                label={t("settings.operatorEquations", {
-                  name: t(OP_NAME_KEYS[key]),
-                })}
-                content={`${t(OPERATOR_HELP[key].noteKey)} ${t("settings.gainFormula")}`}
-              >
-                <Text style={styles.text}>
-                  {key === "multiply"
-                    ? getOpDisplay(Ops.mult, equationSettings.multiplySymbol)
-                    : OPERATOR_HELP[key].symbol}
-                </Text>
-              </Tooltip>
-              <Switch
-                value={equationSettings[key]}
-                onValueChange={(newVal) => {
-                  onChangeEquationSettings({
-                    ...equationSettings,
-                    [key]: newVal,
-                  });
-                }}
-              />
-            </View>
-          ),
-        )}
+            <Text style={styles.text}>{t(OP_NAME_KEYS[key])}</Text>
+            <Tooltip
+              label={t("settings.operatorEquations", {
+                name: t(OP_NAME_KEYS[key]),
+              })}
+              content={`${t(OPERATOR_HELP[key].noteKey)} ${t("settings.gainFormula")}`}
+            >
+              <Text style={styles.text}>
+                {key === "multiply"
+                  ? getOpDisplay(Ops.mult, equationSettings.multiplySymbol)
+                  : OPERATOR_HELP[key].symbol}
+              </Text>
+            </Tooltip>
+            <Switch
+              value={equationSettings[key]}
+              onValueChange={(newVal) => {
+                onChangeEquationSettings({
+                  ...equationSettings,
+                  [key]: newVal,
+                });
+              }}
+            />
+          </View>
+        ))}
       </View>
       <View style={styles.flexCenteredRow}>
         <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
@@ -179,9 +186,7 @@ const SettingsContent = memo(function SettingsContent({
                 paddingVertical: 4,
                 borderRadius: 6,
                 backgroundColor:
-                  equationSettings.multiplySymbol === sym
-                    ? "#555"
-                    : "#2a2a2a",
+                  equationSettings.multiplySymbol === sym ? "#555" : "#2a2a2a",
               }}
             >
               <Text style={{ ...styles.text, fontSize: 11 }}>
@@ -191,7 +196,10 @@ const SettingsContent = memo(function SettingsContent({
           ))}
         </View>
       </View>
-      <Tooltip label={t("settings.tooltipHard")} content={t("settings.hardModeHelp")}>
+      <Tooltip
+        label={t("settings.tooltipHard")}
+        content={t("settings.hardModeHelp")}
+      >
         <View
           style={{
             flexDirection: "row",
@@ -226,7 +234,10 @@ const SettingsContent = memo(function SettingsContent({
           equation-solving tricks — rendered before the display switches
           so it sits with the equation settings it explains. */}
       <TipsSection />
-      <Tooltip label={t("settings.tooltipHaptics")} content={t("settings.hapticsHelp")}>
+      <Tooltip
+        label={t("settings.tooltipHaptics")}
+        content={t("settings.hapticsHelp")}
+      >
         <View
           style={{
             flexDirection: "row",
@@ -243,6 +254,35 @@ const SettingsContent = memo(function SettingsContent({
               onChangeSettingsData({
                 ...settingsData,
                 haptics: newVal,
+              });
+            }}
+          />
+        </View>
+      </Tooltip>
+      {/* Reduce effects (features.md §7 pass-3 accessibility): the manual
+          kill switch for the decorative juice — OR'd with the web OS
+          reduce-motion preference inside the hook, so it is the only
+          signal on native, where RN has no reduce-motion API. */}
+      <Tooltip
+        label={t("settings.tooltipReduceEffects")}
+        content={t("settings.reduceEffectsHelp")}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Text style={{ ...styles.text, fontSize: 11 }}>
+            {t("settings.reduceEffects")}
+          </Text>
+          <Switch
+            value={settingsData.reduceEffects}
+            onValueChange={(newVal) => {
+              onChangeSettingsData({
+                ...settingsData,
+                reduceEffects: newVal,
               });
             }}
           />
@@ -314,7 +354,12 @@ const SettingsContent = memo(function SettingsContent({
             <Text style={{ ...styles.text, fontSize: 11 }}>−</Text>
           </Pressable>
           <Text
-            style={{ ...styles.text, fontSize: 11, width: 36, textAlign: "center" }}
+            style={{
+              ...styles.text,
+              fontSize: 11,
+              width: 36,
+              textAlign: "center",
+            }}
           >
             {settingsData.soundVolume}%
           </Text>
@@ -476,7 +521,10 @@ const SettingsContent = memo(function SettingsContent({
           />
         </View>
       </Tooltip>
-      <Tooltip label={t("settings.tooltipEmojiArt")} content={t("settings.emojiArtHelp")}>
+      <Tooltip
+        label={t("settings.tooltipEmojiArt")}
+        content={t("settings.emojiArtHelp")}
+      >
         <View
           style={{
             flexDirection: "row",
@@ -540,10 +588,7 @@ const SettingsContent = memo(function SettingsContent({
           <Text style={{ ...styles.text, fontSize: 11 }}>
             {t("settings.onScreenKeypad")}
           </Text>
-          <Switch
-            value={onScreenKeypad}
-            onValueChange={onKeypadChange}
-          />
+          <Switch value={onScreenKeypad} onValueChange={onKeypadChange} />
         </View>
       </Tooltip>
     </View>

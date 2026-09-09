@@ -192,9 +192,7 @@ describe("legendary miner output", () => {
     for (let p = 1; p <= 100; p++) {
       expect(getLegendaryMinerOutput(p)).toBe(2 * p);
       // Always strictly stronger than a fast miner (the premium type).
-      expect(getLegendaryMinerOutput(p)).toBeGreaterThan(
-        getFastMinerOutput(p),
-      );
+      expect(getLegendaryMinerOutput(p)).toBeGreaterThan(getFastMinerOutput(p));
     }
   });
 });
@@ -277,33 +275,32 @@ describe("combo multiplier tiers", () => {
     expect(getComboMultiplier(2 * COMBO_TIER_SIZE + 3)).toBe(3);
   });
 
-  test("tier progress: fraction in [0, 1), untilNext and next tier correct",
-    () => {
-      // Mid-tier: 7 of 10 in, 3 to go, next is x2.
-      expect(getComboTierProgress(7)).toEqual({
-        fraction: 0.7,
-        untilNext: 3,
-        nextMultiplier: 2,
-      });
-      // Tier boundary: 10 is the start of the x2 tier, full tier to go.
-      expect(getComboTierProgress(10)).toEqual({
-        fraction: 0,
-        untilNext: COMBO_TIER_SIZE,
-        nextMultiplier: 3,
-      });
-      // Zero combo: empty bar, first tier is x2.
-      expect(getComboTierProgress(0)).toEqual({
-        fraction: 0,
-        untilNext: COMBO_TIER_SIZE,
-        nextMultiplier: 2,
-      });
-      // One away from a step-up.
-      expect(getComboTierProgress(19)).toEqual({
-        fraction: 0.9,
-        untilNext: 1,
-        nextMultiplier: 3,
-      });
+  test("tier progress: fraction in [0, 1), untilNext and next tier correct", () => {
+    // Mid-tier: 7 of 10 in, 3 to go, next is x2.
+    expect(getComboTierProgress(7)).toEqual({
+      fraction: 0.7,
+      untilNext: 3,
+      nextMultiplier: 2,
     });
+    // Tier boundary: 10 is the start of the x2 tier, full tier to go.
+    expect(getComboTierProgress(10)).toEqual({
+      fraction: 0,
+      untilNext: COMBO_TIER_SIZE,
+      nextMultiplier: 3,
+    });
+    // Zero combo: empty bar, first tier is x2.
+    expect(getComboTierProgress(0)).toEqual({
+      fraction: 0,
+      untilNext: COMBO_TIER_SIZE,
+      nextMultiplier: 2,
+    });
+    // One away from a step-up.
+    expect(getComboTierProgress(19)).toEqual({
+      fraction: 0.9,
+      untilNext: 1,
+      nextMultiplier: 3,
+    });
+  });
 });
 
 describe("combo resistance (tier-3 gem line)", () => {
@@ -461,23 +458,27 @@ describe("computeOfflineMinerals", () => {
 
   test("miners x minerPower x elapsed ticks", () => {
     // 10 ticks elapsed: 2 miners * 3 power * 10 = 60
-    expect(computeOfflineMinerals(2, 3, 0, now - 10 * msPerTick, now)).toBe(60n);
+    expect(computeOfflineMinerals(2, 3, 0, now - 10 * msPerTick, now)).toBe(
+      60n,
+    );
   });
 
   test("fast miners contribute their (weaker) output", () => {
     // 10 ticks: 2 normal @ power 3 (6/s) + 3 fast @ output 1 (3/s) = 90
-    expect(computeOfflineMinerals(2, 3, 3, now - 10 * msPerTick, now)).toBe(90n);
+    expect(computeOfflineMinerals(2, 3, 3, now - 10 * msPerTick, now)).toBe(
+      90n,
+    );
   });
 
   test("legendary miners contribute their (double) output", () => {
     // 10 ticks: 1 normal @ power 3 (3/s) + 2 legendary @ output 6 (12/s) = 150
-    expect(computeOfflineMinerals(1, 3, 0, now - 10 * msPerTick, now, 1, 2)).toBe(
-      150n,
-    );
+    expect(
+      computeOfflineMinerals(1, 3, 0, now - 10 * msPerTick, now, 1, 2),
+    ).toBe(150n);
     // Prestige multiplier and legendary miners compose.
-    expect(computeOfflineMinerals(1, 3, 0, now - 10 * msPerTick, now, 2, 2)).toBe(
-      300n,
-    );
+    expect(
+      computeOfflineMinerals(1, 3, 0, now - 10 * msPerTick, now, 2, 2),
+    ).toBe(300n);
   });
 
   test("caps at maxOfflineTicks (8h)", () => {
@@ -493,7 +494,9 @@ describe("computeOfflineMinerals", () => {
       120n,
     );
     // Default multiplier (no argument) is 1 — same as before.
-    expect(computeOfflineMinerals(2, 3, 0, now - 10 * msPerTick, now)).toBe(60n);
+    expect(computeOfflineMinerals(2, 3, 0, now - 10 * msPerTick, now)).toBe(
+      60n,
+    );
   });
 });
 
@@ -510,7 +513,13 @@ describe("computeOfflineTopUpMinerals", () => {
   test("0 while the away time never hit the 8h cap", () => {
     // 7h59m away — the cap never engaged, so nothing was withheld.
     expect(
-      computeOfflineTopUpMinerals(2, 3, 0, now - (maxOfflineTicks - 60) * msPerTick, now),
+      computeOfflineTopUpMinerals(
+        2,
+        3,
+        0,
+        now - (maxOfflineTicks - 60) * msPerTick,
+        now,
+      ),
     ).toBe(0n);
   });
 
@@ -532,7 +541,9 @@ describe("computeOfflineTopUpMinerals", () => {
     // 10h away, 2h beyond the cap, x2 banked.
     expect(
       computeOfflineTopUpMinerals(2, 3, 3, now - 10 * hour, now, 2, 4),
-    ).toBe(BigInt(getMineralsPerSec(2, 3, 3, 4)) * BigInt(offlineTopUpTicks) * 2n);
+    ).toBe(
+      BigInt(getMineralsPerSec(2, 3, 3, 4)) * BigInt(offlineTopUpTicks) * 2n,
+    );
   });
 });
 
@@ -809,13 +820,21 @@ describe("playtime save field (todo: statistics detail)", () => {
     ).toBe(0);
     expect(
       buildSaveData(
-        migrateSaveData({ saveVersion: 11, playSeconds: "banana", minerals: 1 }),
+        migrateSaveData({
+          saveVersion: 11,
+          playSeconds: "banana",
+          minerals: 1,
+        }),
         now,
       ).playSeconds,
     ).toBe(0);
     expect(
       buildSaveData(
-        migrateSaveData({ saveVersion: 11, playSeconds: 86_400.7, minerals: 1 }),
+        migrateSaveData({
+          saveVersion: 11,
+          playSeconds: 86_400.7,
+          minerals: 1,
+        }),
         now,
       ).playSeconds,
     ).toBe(86_400);
@@ -996,9 +1015,7 @@ describe("getVisiblePurchases", () => {
       { lifetimeMinerals: 0n, totalGemsMinted: 0 },
       NO_PURCHASE_UNLOCKS,
     );
-    expect([...visible].sort()).toEqual(
-      [...ALWAYS_VISIBLE_PURCHASES].sort(),
-    );
+    expect([...visible].sort()).toEqual([...ALWAYS_VISIBLE_PURCHASES].sort());
   });
 
   test("every catalog id is a known purchase id", () => {
@@ -1018,6 +1035,22 @@ describe("getVisiblePurchases", () => {
 
   test("settings default keeps haptics on (vibration is opt-OUT)", () => {
     expect(defaultSettingsData.haptics).toBe(true);
+  });
+
+  test("settings default keeps decorative effects on (reducing is opt-in)", () => {
+    // The toggle is a kill switch (pass-3 accessibility): effects are on
+    // for everyone by default, so the default must be false.
+    expect(defaultSettingsData.reduceEffects).toBe(false);
+  });
+
+  test("settings merge supplies the reduceEffects default and honors a stored choice", () => {
+    // Old settings never carry the field — the settings merge
+    // ({ ...defaultSettingsData, ...parsed }) supplies the false default,
+    // and a persisted choice in either direction wins (no migration).
+    const oldSettings = { ...defaultSettingsData, ...({} as object) };
+    expect(oldSettings.reduceEffects).toBe(false);
+    const optedIn = { ...defaultSettingsData, reduceEffects: true };
+    expect(optedIn.reduceEffects).toBe(true);
   });
 
   test("settings default keeps sound volume full (lowering is opt-in)", () => {
@@ -1088,9 +1121,9 @@ describe("getVisiblePurchases", () => {
       lifetimeMinerals: BigInt(minerPowerBase) - 1n,
       totalGemsMinted: 0,
     };
-    expect(getVisiblePurchases(below, NO_PURCHASE_UNLOCKS).has("minerPower")).toBe(
-      false,
-    );
+    expect(
+      getVisiblePurchases(below, NO_PURCHASE_UNLOCKS).has("minerPower"),
+    ).toBe(false);
     expect(
       getVisiblePurchases(
         { lifetimeMinerals: BigInt(minerPowerBase), totalGemsMinted: 0 },
@@ -1101,7 +1134,10 @@ describe("getVisiblePurchases", () => {
     const firstPrestigeRung = PRESTIGE_LEVELS[1].at;
     expect(
       getVisiblePurchases(
-        { lifetimeMinerals: BigInt(firstPrestigeRung) - 1n, totalGemsMinted: 0 },
+        {
+          lifetimeMinerals: BigInt(firstPrestigeRung) - 1n,
+          totalGemsMinted: 0,
+        },
         NO_PURCHASE_UNLOCKS,
       ).has("prestige"),
     ).toBe(false);
@@ -1231,10 +1267,10 @@ describe("hasAffordablePurchase", () => {
     const s = broke();
     expect(hasAffordablePurchase(coreVisible(), s)).toBe(false);
     expect(
-      hasAffordablePurchase(
-        coreVisible(),
-        { ...s, minerals: BigInt(getClickUpgradeCost(1)) },
-      ),
+      hasAffordablePurchase(coreVisible(), {
+        ...s,
+        minerals: BigInt(getClickUpgradeCost(1)),
+      }),
     ).toBe(true);
   });
 
@@ -1271,10 +1307,10 @@ describe("hasAffordablePurchase", () => {
     visible.add("gemChance");
     const s = { ...broke(), miners: 3, gems: 10, fastMinerUnlocked: true };
     expect(
-      hasAffordablePurchase(
-        visible,
-        { ...s, gemChanceLevels: GEM_CHANCE_MAX_LEVELS },
-      ),
+      hasAffordablePurchase(visible, {
+        ...s,
+        gemChanceLevels: GEM_CHANCE_MAX_LEVELS,
+      }),
     ).toBe(false);
     expect(hasAffordablePurchase(visible, s)).toBe(true);
   });
@@ -1305,22 +1341,23 @@ describe("hasAffordablePurchase", () => {
     visible.add("prestige");
     const rung = PRESTIGE_LEVELS[1].at;
     expect(
-      hasAffordablePurchase(
-        visible,
-        { ...broke(), lifetimeMinerals: BigInt(rung - 1) },
-      ),
+      hasAffordablePurchase(visible, {
+        ...broke(),
+        lifetimeMinerals: BigInt(rung - 1),
+      }),
     ).toBe(false);
     expect(
-      hasAffordablePurchase(
-        visible,
-        { ...broke(), lifetimeMinerals: BigInt(rung) },
-      ),
+      hasAffordablePurchase(visible, {
+        ...broke(),
+        lifetimeMinerals: BigInt(rung),
+      }),
     ).toBe(false); // still locked without the tier-3 goal
     expect(
-      hasAffordablePurchase(
-        visible,
-        { ...broke(), prestigeUnlocked: true, lifetimeMinerals: BigInt(rung) },
-      ),
+      hasAffordablePurchase(visible, {
+        ...broke(),
+        prestigeUnlocked: true,
+        lifetimeMinerals: BigInt(rung),
+      }),
     ).toBe(true);
   });
 });
@@ -1367,7 +1404,7 @@ describe("getDepthTierProgress (cave continuous scroll)", () => {
   it("final tier advances across the virtual span and caps", () => {
     const start = m(500); // depth 500, Crystal Kingdom
     expect(getDepthTierProgress(start)).toBe(0);
-    const mid = start + ((FINAL_TIER_PROGRESS_SPAN / 2) * 500);
+    const mid = start + (FINAL_TIER_PROGRESS_SPAN / 2) * 500;
     expect(getDepthTierProgress(mid)).toBeCloseTo(0.5, 6);
     const end = start + FINAL_TIER_PROGRESS_SPAN * 500;
     expect(getDepthTierProgress(end)).toBe(1);
@@ -1377,7 +1414,9 @@ describe("getDepthTierProgress (cave continuous scroll)", () => {
 
 describe("computeBuyAll (buy-all plans)", () => {
   // Affordability helper: sane defaults with a couple of lines unlocked.
-  const aff = (o: Partial<PurchaseAffordability> = {}): PurchaseAffordability => ({
+  const aff = (
+    o: Partial<PurchaseAffordability> = {},
+  ): PurchaseAffordability => ({
     minerals: 0n,
     gems: 0,
     clickPower: 1,
@@ -1424,16 +1463,56 @@ describe("computeBuyAll (buy-all plans)", () => {
     const lines: Line[] =
       currency === "minerals"
         ? [
-            { key: "clickPower", id: "power", cost: getClickUpgradeCost, max: null },
-            { key: "minerPower", id: "minerPower", cost: getMinerPowerUpgradeCost, max: null },
+            {
+              key: "clickPower",
+              id: "power",
+              cost: getClickUpgradeCost,
+              max: null,
+            },
+            {
+              key: "minerPower",
+              id: "minerPower",
+              cost: getMinerPowerUpgradeCost,
+              max: null,
+            },
           ]
         : [
-            { key: "miners", id: "miner", cost: getMinerUpgradeCost, max: null },
-            { key: "fastMiners", id: "fastMiner", cost: getFastMinerCost, max: null },
-            { key: "legendaryMiners", id: "legendaryMiner", cost: getLegendaryMinerCost, max: null },
-            { key: "gemChance", id: "gemChance", cost: getGemChanceCost, max: GEM_CHANCE_MAX_LEVELS },
-            { key: "clickBoost", id: "clickBoost", cost: getClickBoostCost, max: CLICK_BOOST_MAX_LEVELS },
-            { key: "comboResist", id: "comboResist", cost: getComboResistCost, max: COMBO_RESIST_MAX_LEVELS },
+            {
+              key: "miners",
+              id: "miner",
+              cost: getMinerUpgradeCost,
+              max: null,
+            },
+            {
+              key: "fastMiners",
+              id: "fastMiner",
+              cost: getFastMinerCost,
+              max: null,
+            },
+            {
+              key: "legendaryMiners",
+              id: "legendaryMiner",
+              cost: getLegendaryMinerCost,
+              max: null,
+            },
+            {
+              key: "gemChance",
+              id: "gemChance",
+              cost: getGemChanceCost,
+              max: GEM_CHANCE_MAX_LEVELS,
+            },
+            {
+              key: "clickBoost",
+              id: "clickBoost",
+              cost: getClickBoostCost,
+              max: CLICK_BOOST_MAX_LEVELS,
+            },
+            {
+              key: "comboResist",
+              id: "comboResist",
+              cost: getComboResistCost,
+              max: COMBO_RESIST_MAX_LEVELS,
+            },
           ];
     const unlocked: Record<PurchaseId, boolean> = {
       power: true,
@@ -1517,9 +1596,7 @@ describe("computeBuyAll (buy-all plans)", () => {
     expect(plan).toEqual(oracle);
     expect(plan.totalLevels).toBe(plan.clickPower + plan.minerPower);
     // Exact float total (small numbers) and within budget.
-    expect(BigInt(Math.floor(plan.totalCost))).toBeLessThanOrEqual(
-      s.minerals,
-    );
+    expect(BigInt(Math.floor(plan.totalCost))).toBeLessThanOrEqual(s.minerals);
     expect(plan.clickPower).toBeGreaterThan(0);
   });
 
@@ -1577,16 +1654,18 @@ describe("computeBuyAll (buy-all plans)", () => {
     const pg = computeBuyAll("gems", s, visible);
     expect(pg.miners).toBeGreaterThan(0);
     expect(
-      pg.fastMiners + pg.legendaryMiners + pg.gemChance + pg.clickBoost + pg.comboResist,
+      pg.fastMiners +
+        pg.legendaryMiners +
+        pg.gemChance +
+        pg.clickBoost +
+        pg.comboResist,
     ).toBe(0);
     // Locked lines are skipped even when visible.
     const locked = computeBuyAll("minerals", aff({ minerals: 10_000n }));
     expect(locked.minerPower).toBe(0); // minerPowerUnlocked=false
     expect(locked.clickPower).toBeGreaterThan(0);
     // Budgets: never overshoot, on hand-picked and random states.
-    expect(
-      BigInt(Math.floor(locked.totalCost)),
-    ).toBeLessThanOrEqual(10_000n);
+    expect(BigInt(Math.floor(locked.totalCost))).toBeLessThanOrEqual(10_000n);
     for (let i = 0; i < 60; i++) {
       const minerals = BigInt(Math.floor(Math.random() * 2e6));
       const gems = (Math.random() * 400) | 0;
@@ -1656,9 +1735,7 @@ describe("computeBuyAll (buy-all plans)", () => {
     expect(plan.totalLevels).toBeGreaterThan(1000);
     // The whole point of batching: not thousands of scans per level.
     expect(ms).toBeLessThan(500);
-    expect(BigInt(Math.floor(plan.totalCost))).toBeLessThanOrEqual(
-      s.minerals,
-    );
+    expect(BigInt(Math.floor(plan.totalCost))).toBeLessThanOrEqual(s.minerals);
   });
 });
 
@@ -1688,4 +1765,3 @@ describe("activePlaySeconds (todo: statistics detail — active clock honesty)",
     expect(activePlaySeconds(Number.POSITIVE_INFINITY, true)).toBe(0);
   });
 });
-

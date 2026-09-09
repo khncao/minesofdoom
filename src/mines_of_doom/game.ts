@@ -113,6 +113,18 @@ export type SettingsData = {
    */
   haptics: boolean;
   /**
+   * Reduce effects (OFF by default): the manual accessibility kill switch
+   * for the decorative juice — debris bursts, the combo flash, the
+   * gem-pocket pulse, the miners' bobbing, the save-pill pulse. OR'd with
+   * the OS-level prefers-reduced-motion preference in hooks/
+   * useAccessibilityReduceMotion.ts, so it covers the platforms where the
+   * OS setting can't reach the game (React Native has no iOS/Android
+   * reduce-motion API yet) and gives everyone a manual off. Old settings
+   * never carry the field — the settings merge supplies the default (no
+   * migration).
+   */
+  reduceEffects: boolean;
+  /**
    * Idle reminder (on by default): after a minute without a cave tap or
    * answer, a single one-per-session toast reminds the player that the
    * mine keeps collecting while away and progress autosaves (see
@@ -222,12 +234,10 @@ const migrations: Record<
     return {
       ...data,
       saveVersion: 3,
-      playerSeed:
-        num(
-          data.playerSeed,
-          ((num(data.startTime, 0) + num(data.saveTime, 0)) % 2147483647) ||
-            12345,
-        ),
+      playerSeed: num(
+        data.playerSeed,
+        (num(data.startTime, 0) + num(data.saveTime, 0)) % 2147483647 || 12345,
+      ),
       ownedCosmetics: owned,
       selectedOutfit:
         OUTFITS.find((o) => owned.includes(o.id))?.id ?? DEFAULT_OUTFIT,
@@ -423,8 +433,8 @@ export function buildSaveData(
     totalPrestiges: num(migrated.totalPrestiges, 0),
     playSeconds: Math.max(0, Math.floor(num(migrated.playSeconds, 0))),
     completedTiers: Array.isArray(migrated.completedTiers)
-      ? migrated.completedTiers.filter((t): t is string =>
-          typeof t === "string",
+      ? migrated.completedTiers.filter(
+          (t): t is string => typeof t === "string",
         )
       : [],
     completedAchievements: Array.isArray(migrated.completedAchievements)
@@ -440,8 +450,7 @@ export function buildSaveData(
         ...(Array.isArray(migrated.ownedCosmetics)
           ? migrated.ownedCosmetics.filter(
               (c): c is string =>
-                typeof c === "string" &&
-                (isOutfitId(c) || isPickaxeId(c)),
+                typeof c === "string" && (isOutfitId(c) || isPickaxeId(c)),
             )
           : []),
       ]),
@@ -462,8 +471,7 @@ export function buildSaveData(
         ...DEFAULT_OWNED_CAVE_THEMES,
         ...(Array.isArray(migrated.ownedCaveThemes)
           ? migrated.ownedCaveThemes.filter(
-              (c): c is string =>
-                typeof c === "string" && isCaveThemeId(c),
+              (c): c is string => typeof c === "string" && isCaveThemeId(c),
             )
           : []),
       ]),
@@ -515,12 +523,12 @@ export function serializeSaveData(data: SaveData): string {
 }
 
 /** Walk a parsed save through every migration up to the current version. */
-export function migrateSaveData(parsed: Record<string, unknown>): Record<
-  string,
-  unknown
-> {
+export function migrateSaveData(
+  parsed: Record<string, unknown>,
+): Record<string, unknown> {
   let version =
-    typeof parsed.saveVersion === "number" && Number.isFinite(parsed.saveVersion)
+    typeof parsed.saveVersion === "number" &&
+    Number.isFinite(parsed.saveVersion)
       ? Math.floor(parsed.saveVersion)
       : 0;
   let data = parsed;
@@ -788,6 +796,7 @@ export const defaultSettingsData = {
   showAllPurchases: false,
   emojiArt: false,
   haptics: true,
+  reduceEffects: false,
   idleReminder: true,
   music: true,
   soundVolume: 100,
@@ -933,13 +942,13 @@ export function getVisiblePurchases(
   if (unlocks.prestigeUnlocked || totalGemsMinted >= getClickBoostCost(0)) {
     visible.add("clickBoost");
   }
-  if (
-    unlocks.prestigeUnlocked ||
-    totalGemsMinted >= getComboResistCost(0)
-  ) {
+  if (unlocks.prestigeUnlocked || totalGemsMinted >= getComboResistCost(0)) {
     visible.add("comboResist");
   }
-  if (unlocks.prestigeUnlocked || lifetimeMinerals >= BigInt(PRESTIGE_LEVELS[1].at)) {
+  if (
+    unlocks.prestigeUnlocked ||
+    lifetimeMinerals >= BigInt(PRESTIGE_LEVELS[1].at)
+  ) {
     visible.add("prestige");
   }
   return visible;
@@ -1255,7 +1264,8 @@ export function computeBuyAll(
       })
       .map((line) => ({ line, next: line.cost(line.level) }))
       .sort(
-        (a, b) => a.next - b.next || lines.indexOf(a.line) - lines.indexOf(b.line),
+        (a, b) =>
+          a.next - b.next || lines.indexOf(a.line) - lines.indexOf(b.line),
       );
     if (affordable.length === 0) break;
     const best = affordable[0].line;
@@ -1269,17 +1279,10 @@ export function computeBuyAll(
       if (best.max != null && best.level + count > best.max) return false;
       // count === 1 is always valid (the line is affordable and, on a tie,
       // the greedy still buys one level and re-evaluates).
-      if (
-        count > 1 &&
-        best.cost(best.level + count - 1) >= rivalNext
-      ) {
+      if (count > 1 && best.cost(best.level + count - 1) >= rivalNext) {
         return false;
       }
-      const sum = buyAllCumulativeCost(
-        best.cost,
-        best.level,
-        count,
-      );
+      const sum = buyAllCumulativeCost(best.cost, best.level, count);
       return Number.isFinite(sum) && BigInt(Math.floor(sum)) <= budget;
     };
     // Binary-search the largest valid batch: double hi while valid (the
@@ -1378,9 +1381,11 @@ export function rollGem(chance: number, comboMultiplier: number): boolean {
 
 /** Effective base gem chance at the given upgrade level (capped). */
 export function getGemChance(level: number): number {
-  return gemChance +
+  return (
+    gemChance +
     Math.min(Math.max(0, Math.floor(level)), GEM_CHANCE_MAX_LEVELS) *
-      gemChancePerLevel;
+      gemChancePerLevel
+  );
 }
 
 /** Gem cost of raising gem chance from `level` to level + 1. */
@@ -1396,8 +1401,7 @@ export const CLICK_BOOST_MAX_LEVELS = 4;
 
 /** Tap/answer gain multiplier at the given level (2^level, clamped). */
 export function getClickBoostMultiplier(level: number): number {
-  return 2 **
-    Math.min(Math.max(0, Math.floor(level)), CLICK_BOOST_MAX_LEVELS);
+  return 2 ** Math.min(Math.max(0, Math.floor(level)), CLICK_BOOST_MAX_LEVELS);
 }
 
 /** Gem cost of raising the click multiplier from `level` to level + 1. */
@@ -1444,10 +1448,7 @@ export const comboResistRetentionPerLevel = 0.1;
 export function getComboRetention(level: number): number {
   return Math.min(
     comboResistRetentionPerLevel *
-      Math.min(
-        Math.max(0, Math.floor(level)),
-        COMBO_RESIST_MAX_LEVELS,
-      ),
+      Math.min(Math.max(0, Math.floor(level)), COMBO_RESIST_MAX_LEVELS),
     comboResistRetentionPerLevel * COMBO_RESIST_MAX_LEVELS,
   );
 }
@@ -1568,7 +1569,9 @@ export function computeOfflineMinerals(
     Math.max(0, Math.floor((now - saveTime) / msPerTick)),
     maxOfflineTicks,
   );
-  const base = BigInt(getMineralsPerSec(miners, minerPower, fastMiners, legendaryMiners)) * BigInt(elapsedTicks);
+  const base =
+    BigInt(getMineralsPerSec(miners, minerPower, fastMiners, legendaryMiners)) *
+    BigInt(elapsedTicks);
   return mulFloats(base, [multiplier]);
 }
 
@@ -1595,7 +1598,10 @@ export function computeOfflineTopUpMinerals(
   if (elapsedTicks <= maxOfflineTicks) {
     return 0n; // no cap was hit — nothing to top up
   }
-  const extraTicks = Math.min(offlineTopUpTicks, elapsedTicks - maxOfflineTicks);
+  const extraTicks = Math.min(
+    offlineTopUpTicks,
+    elapsedTicks - maxOfflineTicks,
+  );
   const base =
     BigInt(getMineralsPerSec(miners, minerPower, fastMiners, legendaryMiners)) *
     BigInt(extraTicks);

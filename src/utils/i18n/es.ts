@@ -193,6 +193,7 @@ export const es: Record<TranslationKey, string> = {
   "menu.account": "👤 Cuenta",
   "menu.goals": "🎯 Objetivos",
   "menu.records": "📊 Récords",
+  "menu.collection": "🧰 Colección",
   "menu.about": "ℹ️ Información",
 
   // --- Settings ------------------------------------------------------------
@@ -205,6 +206,7 @@ export const es: Record<TranslationKey, string> = {
   "settings.tooltipHard": "Ecuaciones de modo difícil",
   "settings.tooltipEmojiArt": "Arte de emoji (modo ligero)",
   "settings.tooltipHaptics": "Retroalimentación háptica",
+  "settings.tooltipReduceEffects": "Reducir efectos",
   "settings.tooltipIdleReminder": "Recordatorio de inactividad",
   "settings.tooltipShowAll": "Mostrar siempre todos los botones de mejora",
   "settings.gainFormula":
@@ -281,6 +283,16 @@ export const es: Record<TranslationKey, string> = {
     "en las incorrectas, y un doble toque en logros y compras. " +
     "Desactivado: sin vibración; el sonido no se ve afectado. En " +
     "dispositivos sin vibrador no cambia nada de ninguna forma.",
+  "settings.reduceEffects": "Reducir efectos: ",
+  "settings.reduceEffectsHelp":
+    "Activado: apaga los efectos decorativos — las explosiones de " +
+    "escombros, el destello de la racha, el pulso del bolsillo de gemas, " +
+    "el balanceo de los mineros y el pulso del indicador de guardado. Es " +
+    "el interruptor manual para los jugadores de Android/iOS, donde la " +
+    "preferencia del sistema no llega al juego; en la web la preferencia " +
+    "de movimiento reducido del sistema sigue funcionando por sí sola. " +
+    "Desactivado (por defecto): efectos activados, y la preferencia del " +
+    "sistema decide donde está disponible.",
   "settings.tooltipMusic": "Ambiente de cueva",
   "settings.music": "Ambiente de cueva: ",
   "settings.musicHelp":
@@ -316,7 +328,8 @@ export const es: Record<TranslationKey, string> = {
     "números completos con separadores de miles, 1.234.567. Toca la muestra " +
     "para cambiar; se aplica al instante a contadores, costes, récords y " +
     "insignias compartidas. Puremente estético: los valores nunca cambian.",
-  "a11y.cycleNumberNotation": "Cambiar la notación de los números entre compacta y simple",
+  "a11y.cycleNumberNotation":
+    "Cambiar la notación de los números entre compacta y simple",
   "settings.idleReminder": "Recordatorio de inactividad: ",
   "settings.idleReminderHelp":
     "Activado (por defecto): tras un minuto sin tocar la cueva ni responder " +
@@ -448,6 +461,17 @@ export const es: Record<TranslationKey, string> = {
   "records.sessionMinerals": "Minerales extraídos",
   "records.sessionAnswers": "Ecuaciones resueltas",
   "records.sessionTime": "Tiempo en la mina",
+
+  // --- Collection (compendium) --------------------------------------------------
+  "collection.header":
+    "Todo lo coleccionable de la mina — {owned} de {total} encontrados. " +
+    "Todo se gana con gemas; nada de esto cuesta dinero real.",
+  "collection.groupPickaxes": "Picos ({owned}/{total})",
+  "collection.groupOutfits": "Trajes ({owned}/{total})",
+  "collection.groupThemes": "Temas de cueva ({owned}/{total})",
+  "collection.groupBadges": "Insignias de logro ({owned}/{total})",
+  "collection.equipped": "✓ equipado",
+  "collection.earned": "✓ conseguida",
 
   // --- Legal section -----------------------------------------------------------
   "legal.heading": "Legal y privacidad",

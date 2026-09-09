@@ -200,6 +200,7 @@ export const en = {
   "menu.account": "👤 Account",
   "menu.goals": "🎯 Goals",
   "menu.records": "📊 Records",
+  "menu.collection": "🧰 Collection",
   "menu.about": "ℹ️ About",
 
   // --- Settings ------------------------------------------------------------
@@ -212,6 +213,7 @@ export const en = {
   "settings.tooltipHard": "Hard mode equations",
   "settings.tooltipEmojiArt": "Emoji art (low-end mode)",
   "settings.tooltipHaptics": "Haptic feedback",
+  "settings.tooltipReduceEffects": "Reduce effects",
   "settings.tooltipShowAll": "Always show all upgrade buttons",
   "settings.gainFormula":
     "Minerals mined per correct answer = answer × click power × combo " +
@@ -291,6 +293,15 @@ export const en = {
     "double-tap on achievements and purchases. Off: no vibration, sound " +
     "is unaffected. On devices without haptics hardware this does nothing " +
     "either way.",
+  "settings.reduceEffects": "Reduce effects: ",
+  "settings.reduceEffectsHelp":
+    "On: turns off the decorative effects — the debris bursts, the combo " +
+    "flash, the gem-pocket pulse, the miners' bobbing, and the save-pill " +
+    "pulse. It is the manual switch for players on Android/iOS, where the " +
+    "OS reduce-motion setting can't reach the game; on the web the " +
+    "system's reduce-motion preference still works on its own. Off " +
+    "(default): the effects are on, and the system preference decides " +
+    "where it is available.",
   "settings.tooltipMusic": "Cave ambience",
   "settings.music": "Cave ambience: ",
   "settings.musicHelp":
@@ -324,7 +335,8 @@ export const en = {
     "with thousand separators, 1,234,567. Tap the sample to switch; it " +
     "applies immediately to counters, costs, records and share badges. " +
     "Purely cosmetic — the numbers themselves never change.",
-  "a11y.cycleNumberNotation": "Switch number notation between compact and plain",
+  "a11y.cycleNumberNotation":
+    "Switch number notation between compact and plain",
   "settings.emojiArt": "Emoji art (low-end mode): ",
   "settings.emojiArtHelp":
     "Off (default): miners, currency icons, debris and the cave backdrop " +
@@ -442,6 +454,17 @@ export const en = {
   "records.sessionMinerals": "Minerals mined",
   "records.sessionAnswers": "Equations answered",
   "records.sessionTime": "Time in the mine",
+
+  // --- Collection (compendium) --------------------------------------------------
+  "collection.header":
+    "Everything collectible in the mine — {owned} of {total} found. " +
+    "All of it is earnable in gems; nothing here costs real money.",
+  "collection.groupPickaxes": "Pickaxes ({owned}/{total})",
+  "collection.groupOutfits": "Outfits ({owned}/{total})",
+  "collection.groupThemes": "Cave themes ({owned}/{total})",
+  "collection.groupBadges": "Achievement badges ({owned}/{total})",
+  "collection.equipped": "✓ equipped",
+  "collection.earned": "✓ earned",
 
   // --- Legal section -----------------------------------------------------------
   "legal.heading": "Legal & privacy",
