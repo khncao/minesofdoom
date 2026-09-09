@@ -165,6 +165,15 @@ expo-audio official docs (docs.expo.dev, fetched this pass — the
 latest-version page read against the 57.0.4 pin) and Wikipedia "Video
 game music" / "Loop (music)" / "Sound design" (tertiary, genre-canon
 use only). Items adopted from that list move into `docs/todo.md`.
+2026-09 pass 23: the goal / achievement layer — the two retention
+axes (live-audited: the sequential goal-tier chain t1–t5 that gates
+every major content unlock, the 19 independent one-time-bonus
+achievements, the completion effects, the GoalsPanel surface, the
+leaderboard achievement upload, and the analytics gap). Sources:
+Wikipedia "Achievement (video games)" (tertiary, genre-canon use only,
+fetched this pass), with the 2011 DiGRA achievement framework cited via
+that article's reference list only. Items adopted from that list move
+into `docs/todo.md`.
 
 ## 1. Core gameplay
 
@@ -3047,3 +3056,138 @@ Not re-audited: the haptics patterns themselves (pass 13 / §3
 "Haptics"), the synthesized assets' musical quality (subjective, out of
 scope), the settings rows' i18n (pass 14), and the rendering budget
 (pass 20 — audio playback is native and outside that pass's scope).
+
+### The goal / achievement layer (pass 23 — the two retention axes
+written 2026-09-09)
+
+Scope: two pure modules — `goals.ts` (191 lines, the 5 tier chain) and
+`achievements.ts` (103 lines, the 19 badges) — plus the two completion
+effects in `MinesOfDoom.tsx` (~665–720), the idempotent engine
+updaters (`useGameEngine.ts` `completeTiers` / `completeAchievements`),
+one UI panel (`GoalsPanel`, Menu → 🎯), and the leaderboard upload.
+§2 carries the settings-level summary; this pass is the mechanic +
+integration audit, checked against the achievement genre canon (sources
+below). These are the game's explicit retention surface.
+
+**F23.1 Two-axis design — gates vs. celebration, over the same stats.**
+The two modules are deliberately split: **goal tiers** are the
+*content spine* — 5 sequential tiers (t1 Prospector's License → t5
+Motherlode), each an AND of 3–4 goals over lifetime metrics, with
+`getCompletedTierIds` returning the longest prefix (a tier can't complete
+before its predecessors even if its stats are already high). The six
+`*_UNLOCK_TIER` constants make the chain gate every major purchase line:
+t1 miner power, t2 fast miners + gem chance, t3 prestige ("New Shaft") +
+gem upgrades, t4 cave themes, t5 legendary miners + hard mode — each gate
+reads `completedTiers.includes(...)` at the purchase site. **Achievements**
+are the *celebration* axis: 19 independent badges over 6 metric families
+(miners owned 1/5/10/25, gems minted 1/10/50/100, max combo 25/100/250,
+max depth 10/50/150/500, lifetime correct 100/1000, lifetime minerals
+1M/1B), each a one-time mineral bonus; the module doc is explicit —
+"they never unlock content … the minerals are the confetti". Both axes
+derive from the same 9 `GoalMetric` lifetime stats, and completion is
+always *derived* (`metric >= target`), never a mutable flag: the save's
+`completedTiers` / `completedAchievements` only record which
+celebrations already fired, and the engine updaters are idempotent (a
+double-fired dev updater can't pay a bonus twice). That matches the
+genre canon (Wikipedia: achievements as mastery-signaling meta-goals
+whose purpose is to "extend the title's longevity" — in-game systems
+rather than a platform profile, which the article notes is standard for
+long-form games). The metric axes deliberately overlap the tier targets
+(depth 10/50/150/500 appears in both), so the same milestone is
+celebrated twice by design (tier toast + badge toast) — confetti and badge
+landing on the same stats on purpose.
+
+**F23.2 The tier chain is cross-gated with prestige — and the shared
+names are deliberate.** t3 unlocks prestige; t4 requires *one* prestige;
+t5 requires *three* — so the endgame content (cave themes, legendary
+miners, hard mode) is unreachable without actually running the
+pass-18 reset loop, a deliberate coupling of the content spine and the
+prestige loop. The tier names that collide with depth-tier names are
+intentional, not a bug: depth tier 3 "Magma Frontier" (entered at 150 m,
+`game.ts`) shares its name with goal tier t3, whose depth goal is exactly
+150 m; likewise depth tier 4 "Crystal Kingdom" (500 m) and t4 (depth
+goal 500 m). The two toasts stay distinguishable ("Entered Magma
+Frontier!" vs "🏆 Magma Frontier complete! … unlocks …"); t1/t2/t5 use
+names no depth tier uses. Audit: the gates read the celebration record,
+which in-app code only fills from derived completion — no purchase or
+debug path sets a tier id without the metrics (the save-code import
+trust model is pass 21's, not this layer's).
+
+**F23.3 The economics — confetti by construction.** Tier bonuses step
+×10: 5k / 50k / 500k / 5M / 50M (total 55.555M). Achievement bonuses
+range 500 → 500k (total 1.185M across all 19, the largest single being
+mine-1b's 500k). Both updaters add the bonus to `minerals` **and**
+`lifetimeMinerals` — self-consistent "everything ever earned"
+semantics: a bonus can push the player across a lifetime target (mine-1m/
+mine-1b, t5-lifetime), but there is no feedback loop since each
+celebration fires once. Relative size: t5's bonus (50M) is 5 % of its
+tier's lifetime target (1B); mine-1b's (500k) is 0.05 % of 1B. The
+confetti is biggest relative to the curve early (t1's 5k lands when the
+player's totals are in the thousands — the D1–D7 era per pass 19's
+curve) and negligible late, which matches the canon: Wikipedia notes
+achievements can be "fulfilled without needing to provide the player
+with any direct, in-game benefit", and only *some* implementations add
+in-game perks (its example: TF2 class milestones) — this game adds none.
+Coverage gap: the achievement set stops scaling at the endgame — the
+three lifetime metrics `totalPrestiges`, `totalGemsSpent`, and
+`minerPower` exist in the `GoalMetric` union but appear in **zero**
+achievements, so a t4/t5 player (the only players who prestige at all)
+has no new badges past mine-1b.
+
+**F23.4 Integration-surface audit.** Completion effects
+(`MinesOfDoom.tsx` ~665–720): derived ids minus celebration record →
+idempotent updater → toasts. Tiers: one 6-second toast per newly completed
+tier plus a single "success" haptic. Achievements: multiple first-
+completions in one render collapse into a single toast (up to 3 names +
+"+N more") — the comment notes the anti-spam-on-save-load rationale —
+plus one "success" haptic. UI: a single `GoalsPanel` lists all 5 tiers
+with per-goal progress bars, shows what each completed tier unlocked, and
+carries the achievement badge list below — one surface for both axes
+(`CollectionPanel` is the cosmetic collection, unrelated). Leaderboard:
+the upload payload includes the achievement-id set
+(`completedAchievements`) alongside bestDepth / maxCombo /
+lifetimeMinerals — the badge set is the social-status axis; tier
+completions are not uploaded (implicitly derivable, not stated). The one
+real gap: `analytics.ts` (the guardrail-5 record) has **no** tier or
+achievement events — free-path progress is proxied by
+`firstPrestigeDay` + prestige counts, so the gate moments themselves
+(first t1 unlock = first purchasable line; t3 = the prestige gate) go
+unmeasured.
+
+**Candidates (documented, not planned)** — in rough order of value per
+line:
+
+- `analytics:tier-milestone` — one first-occurrence local-day field per
+tier (t1–t5) on the existing analytics record (same shape as
+`firstAdViewDay`), measuring the gate moments directly instead of via
+the prestige proxy. Guardrail 5: local, no PII, fits the record's
+existing one-shot-day pattern.
+- `endgame-achievements` — extend `ACHIEVEMENTS` to the three uncovered
+axes (`totalPrestiges`, `totalGemsSpent`, `minerPower`) so the badge
+list keeps scaling into the t4/t5 era.
+- `achievement-payback` — a small permanent per-achievement effect (the
+genre variant Wikipedia names: "Some implementations use a system of
+achievements that provide direct, in-game benefits"). Scope: save field
+- economy tuning + a guardrail-1 F2P check (trivially satisfiable —
+the payback keys to achievements a free player can earn).
+
+**Source-quality notes (pass 23).** Wikipedia "Achievement (video
+games)" (fetched this pass): tertiary/encyclopedic, used **only** for
+canon — the definition (mastery-signaling meta-goal), the purpose
+(longevity / "impetus to do more"), the secret-vs-achievement
+distinction, the in-game-benefit variant, and the origin timeline
+(Activision 1982 → Xbox 360 Gamerscore 2005 → Steam 2007). Its
+reference [1], Hamari & Eranti's 2011 DiGRA paper "Framework for
+Designing and Evaluating Game Achievements", is peer-reviewed but is
+cited here **only via the reference list** and was not fetched
+directly — no specific claim is attributed to it. The Cookie Clicker
+achievement-payback lore (per-achievement click-power bonus) is
+**not** cited — the source was unavailable this pass (Fandom 403,
+Exa search still 429-rate-limited); the `achievement-payback`
+candidate rests only on Wikipedia's general in-game-benefit statement.
+
+Not re-audited: the leaderboard internals (the Social / meta section),
+the gate cost curves (pass 19), the save-migration semantics of
+`completedTiers` / `completedAchievements` (pass 21), the i18n of the
+labels (pass 14), and the depth-tier click-power bonus (a separate
+surface — pass 15 / §1).
