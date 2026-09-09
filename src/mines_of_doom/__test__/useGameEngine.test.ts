@@ -72,16 +72,23 @@ const mockStore: Map<string, string> = (AsyncStorageMock as unknown as {
 }).__store;
 
 /** Render the engine and wait until the stored save has loaded.
- *  Pass `rawSave` to seed an arbitrary (e.g. corrupt) stored string. */
+ *  Pass `rawSave` to seed an arbitrary (e.g. corrupt) stored string, and
+ *  `onCosmeticPurchased` to capture the per-purchase analytics events. */
 async function renderEngine(
   overrides?: Partial<SaveData>,
   saveTime?: number | string,
+  onCosmeticPurchased?: (ev: {
+    line: string;
+    id: string;
+    path: string;
+    gems: number;
+  }) => void,
 ) {
   mockStore.clear();
   const displayMessage = jest.fn();
   if (typeof saveTime === "string") {
     mockStore.set(saveDataKey, saveTime); // rawSave pass-through
-    return doRender(displayMessage);
+    return doRender(displayMessage, onCosmeticPurchased);
   }
   if (overrides) {
     const base = createEmptySaveData();
@@ -92,11 +99,21 @@ async function renderEngine(
     };
     mockStore.set(saveDataKey, serializeSaveData(save));
   }
-  return doRender(displayMessage);
+  return doRender(displayMessage, onCosmeticPurchased);
 }
 
-async function doRender(displayMessage: jest.Mock) {
-  const { result } = renderHook(() => useGameEngine(displayMessage));
+async function doRender(
+  displayMessage: jest.Mock,
+  onCosmeticPurchased?: (ev: {
+    line: string;
+    id: string;
+    path: string;
+    gems: number;
+  }) => void,
+) {
+  const { result } = renderHook(() =>
+    useGameEngine(displayMessage, undefined, onCosmeticPurchased),
+  );
   for (let i = 0; i < 20 && !result.current.isLoaded; i++) {
     await act(async () => {
       await new Promise((r) => setTimeout(r, 0));
@@ -447,6 +464,59 @@ describe("useGameEngine — spending", () => {
       await Promise.resolve();
     });
     expect(result.current.gameState.selectedCaveTheme).toBe("natural");
+  });
+
+  it("gem buys fire the per-purchase analytics callback (line/path/balance)", async () => {
+    const events: Array<{
+      line: string;
+      id: string;
+      path: string;
+      gems: number;
+    }> = [];
+    const { result } = await renderEngine({ gems: 40 }, undefined, (ev) =>
+      events.push(ev),
+    );
+    await act(async () => {
+      result.current.buyCosmetic("night"); // 15-gem outfit
+      await Promise.resolve();
+    });
+    await act(async () => {
+      result.current.buyCosmetic("gold"); // 25-gem pickaxe
+      await Promise.resolve();
+    });
+    await act(async () => {
+      result.current.buyCaveTheme("amethyst"); // 25-gem theme — unaffordable
+      await Promise.resolve();
+    });
+    expect(result.current.gameState.gems).toBe(0);
+    expect(events).toEqual([
+      { line: "outfit", id: "night", path: "gems", gems: 25 },
+      { line: "pickaxe", id: "gold", path: "gems", gems: 0 },
+    ]);
+  });
+
+  it("does not fire the callback for no-op gem buys (owned / too poor)", async () => {
+    const events: Array<{
+      line: string;
+      id: string;
+      path: string;
+      gems: number;
+    }> = [];
+    const { result } = await renderEngine(
+      { gems: 5, ownedCosmetics: ["night"] },
+      undefined,
+      (ev) => events.push(ev),
+    );
+    await act(async () => {
+      result.current.buyCosmetic("night"); // already owned
+      await Promise.resolve();
+    });
+    await act(async () => {
+      result.current.buyCosmetic("crystal"); // unaffordable (50)
+      await Promise.resolve();
+    });
+    expect(result.current.gameState.gems).toBe(5);
+    expect(events).toEqual([]);
   });
 
   it("grantIapCosmetics grants store purchases for free and is idempotent", async () => {

@@ -7,7 +7,7 @@ import { useLocalStorage } from "src/hooks/useLocalStorage";
 import type { DebrisParticlesRef } from "src/components/DebrisParticles";
 import type { BlockBreakRef } from "src/components/BlockBreak";
 import { Context } from "./Context";
-import { getCaveTheme, getThemeTint } from "./cosmetics";
+import { getCaveTheme, getThemeTint, isOutfitId } from "./cosmetics";
 import { styles } from "./styles";
 import DepthBanner from "./components/DepthBanner";
 import EquationDisplay from "./components/EquationDisplay";
@@ -66,7 +66,10 @@ import { formatNumber } from "src/utils/format";
 import { emojis } from "src/utils/graphics/emojis";
 import type { FloatingTextRef } from "./components/FloatingTextLayer";
 import { useMessages } from "./hooks/useMessages";
-import { useGameEngine } from "./hooks/useGameEngine";
+import {
+  useGameEngine,
+  type CosmeticPurchaseEventInput,
+} from "./hooks/useGameEngine";
 import { useSettings } from "./hooks/useSettings";
 import { useSounds } from "./hooks/useSounds";
 import { useHaptics } from "./hooks/useHaptics";
@@ -161,6 +164,14 @@ export default function MinesOfDoom() {
   // loop always sees the value without re-subscribing, and updated once
   // settings have loaded below.
   const autosaveSecondsRef = useRef(defaultSettingsData.autosave);
+  // Forwarder for the engine's gem-buy cosmetics callback (features.md
+  // pass-16 `cosmetics:analytics`): the analytics hook is instantiated
+  // further down (hook order is fixed), so the engine hands its per-
+  // purchase events to this ref, which the render fills in with the
+  // real callback right after useAnalytics() returns.
+  const onCosmeticPurchaseRef = useRef<
+    ((ev: CosmeticPurchaseEventInput) => void) | null
+  >(null);
   const {
     gameState,
     onTick,
@@ -201,7 +212,11 @@ export default function MinesOfDoom() {
     importSaveCode,
     saveLoadFailed,
     restoreFromBlob,
-  } = useGameEngine(displayMessage, () => autosaveSecondsRef.current);
+  } = useGameEngine(
+    displayMessage,
+    () => autosaveSecondsRef.current,
+    (ev) => onCosmeticPurchaseRef.current?.(ev),
+  );
   // Localization is disabled for now (English only) — useI18n just hands
   // out the translator; the picker came back with the localization todo.
   const { t } = useI18n();
@@ -511,12 +526,15 @@ export default function MinesOfDoom() {
   // (falls back to the generic one for unknown ids, see useSounds). The
   // volume is the settings soundVolume (0–100, default 100) — the menu
   // mute toggle still wins over it — and settings.music gates the
-  // looping cave-ambience bed (on by default).
+  // looping cave-ambience bed (on by default) at the independent
+  // settings.musicVolume level (default 50, the pass-3 accessibility
+  // fix — no longer half the SFX level).
   const { play } = useSounds(
     mute,
     gameState.selectedPickaxe,
     settingsData.soundVolume,
     settingsData.music,
+    settingsData.musicVolume,
   );
   // Haptic feedback (settings toggle, on by default): same stable-callback
   // pattern as `play` so the memoized tap/answer handlers can use it.
@@ -998,8 +1016,13 @@ export default function MinesOfDoom() {
     onPrestige,
     onAdView: onFirstAdView,
     onIapPurchase: onFirstIap,
+    onCosmeticPurchase,
     clear: onClearAnalytics,
   } = useAnalytics();
+  // Fill the engine's forwarder with the real callback (the render-
+  // body assignment keeps the engine's callback stable and always
+  // current — same ref pattern as autosaveSecondsRef above).
+  onCosmeticPurchaseRef.current = onCosmeticPurchase;
 
   // Rewarded ads (plan §5.1): the provider is picked in ads.ts behind the
   // documented swap point (selectAdProvider — see its docs): dev builds run
@@ -1131,6 +1154,35 @@ export default function MinesOfDoom() {
   // change on buy/import/reset/load, never on the 1s tick.
   useEffect(() => {
     const { cosmetics, caveThemes } = iapGrantCosmeticIds(iap.entitlements);
+    // The grant's analytics events: only for ids the save DOESN'T already
+    // own (the engine grant below is the source of truth — "iap" path,
+    // gems unchanged by a pack). The closure's gameState is the
+    // pre-grant state: the effect ran on the render where the
+    // entitlements (or owned lists) changed, before the grant landed.
+    const freshCosmetics = cosmetics.filter(
+      (id) => !gameState.ownedCosmetics.includes(id),
+    );
+    const freshThemes = caveThemes.filter(
+      (id) => !gameState.ownedCaveThemes.includes(id),
+    );
+    if (freshCosmetics.length > 0 || freshThemes.length > 0) {
+      for (const id of freshCosmetics) {
+        onCosmeticPurchaseRef.current?.({
+          line: isOutfitId(id) ? "outfit" : "pickaxe",
+          id,
+          path: "iap",
+          gems: gameState.gems,
+        });
+      }
+      for (const id of freshThemes) {
+        onCosmeticPurchaseRef.current?.({
+          line: "theme",
+          id,
+          path: "iap",
+          gems: gameState.gems,
+        });
+      }
+    }
     if (cosmetics.length > 0 || caveThemes.length > 0) {
       grantIapCosmetics(cosmetics, caveThemes);
     }
@@ -1139,6 +1191,7 @@ export default function MinesOfDoom() {
     grantIapCosmetics,
     gameState.ownedCosmetics,
     gameState.ownedCaveThemes,
+    gameState.gems,
   ]);
 
   // The save's owned cosmetic ids (any source: gems, a pack, an import):

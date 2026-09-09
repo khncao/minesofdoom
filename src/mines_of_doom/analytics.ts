@@ -50,7 +50,40 @@ export type AnalyticsState = {
   firstPrestigeDay: string;
   /** Total prestiges sunk (free-path progress, guardrail 5). */
   prestiges: number;
+  /** Local day of the player's first cosmetic purchase (any path). */
+  firstCosmeticPurchaseDay: string;
+  /** Total cosmetic purchases (per-purchase log below). */
+  cosmeticPurchases: number;
+  /**
+   * Bounded per-purchase log (guardrail-5 granularity, features.md
+   * pass-16 `cosmetics:analytics`): which line, which item, which path,
+   * and the gem balance at the moment of purchase. Newest last, capped
+   * at COSMETIC_PURCHASE_LOG_MAX (the catalog is small; the cap only
+   * exists so a hand-edited record can't bloat the AsyncStorage row).
+   */
+  cosmeticPurchaseLog: CosmeticPurchaseEvent[];
 };
+
+/** The three cosmetic lines the catalog is organized by. */
+export type CosmeticLine = "outfit" | "pickaxe" | "theme";
+
+/** How the cosmetic was paid for: the in-game gem price or a store pack. */
+export type CosmeticPurchasePath = "gems" | "iap";
+
+/** One cosmetic purchase (the "day" field is stamped by the recorder). */
+export type CosmeticPurchaseEvent = {
+  line: CosmeticLine;
+  /** Cosmetic / theme id (save ids, not product ids). */
+  id: string;
+  path: CosmeticPurchasePath;
+  /** Gem balance at purchase (after the gem spend; unchanged for packs). */
+  gems: number;
+  /** Local day key of the purchase. */
+  day: string;
+};
+
+/** Newest-last cap on the per-purchase log (see the state field). */
+export const COSMETIC_PURCHASE_LOG_MAX = 100;
 
 /**
  * D1/D7 windows. "D1" here means "came back on a later LOCAL DAY than the
@@ -77,6 +110,9 @@ export function emptyAnalyticsState(now: number): AnalyticsState {
     iapPurchases: 0,
     firstPrestigeDay: "",
     prestiges: 0,
+    firstCosmeticPurchaseDay: "",
+    cosmeticPurchases: 0,
+    cosmeticPurchaseLog: [],
   };
 }
 
@@ -99,10 +135,8 @@ export function recordAppOpen(
     lastOpenMs: now,
     lastOpenDay: dayKey,
     activeDays: dayKey === s.lastOpenDay ? s.activeDays : s.activeDays + 1,
-    d1Retention:
-      s.d1Retention || (returned && elapsed <= D1_RETENTION_MS),
-    d7Retention:
-      s.d7Retention || (returned && elapsed <= D7_RETENTION_MS),
+    d1Retention: s.d1Retention || (returned && elapsed <= D1_RETENTION_MS),
+    d7Retention: s.d7Retention || (returned && elapsed <= D7_RETENTION_MS),
   };
 }
 
@@ -127,6 +161,32 @@ export function recordIapPurchase(
     ...s,
     firstIapPurchaseDay: s.firstIapPurchaseDay || getLocalDayKey(now),
     iapPurchases: s.iapPurchases + 1,
+  };
+}
+
+/**
+ * A cosmetic was bought (features.md pass-16 `cosmetics:analytics`):
+ * which line, which item, which path (the gem price vs a store pack —
+ * "is this line carry spend via time or via money?"), and the gem
+ * balance at the moment. Stamps the first-purchase day once, counts
+ * every one, and keeps the bounded per-purchase log. Idempotency is the
+ * caller's job (the engine gem buys and the IAP grant each fire once per
+ * item); double-firing would only add a duplicate log line.
+ */
+export function recordCosmeticPurchase(
+  state: AnalyticsState | null,
+  event: Omit<CosmeticPurchaseEvent, "day">,
+  now: number,
+): AnalyticsState {
+  const s = state ?? emptyAnalyticsState(now);
+  return {
+    ...s,
+    firstCosmeticPurchaseDay: s.firstCosmeticPurchaseDay || getLocalDayKey(now),
+    cosmeticPurchases: s.cosmeticPurchases + 1,
+    cosmeticPurchaseLog: [
+      ...s.cosmeticPurchaseLog,
+      { ...event, day: getLocalDayKey(now) },
+    ].slice(-COSMETIC_PURCHASE_LOG_MAX),
   };
 }
 
@@ -160,11 +220,7 @@ export function parseAnalytics(raw: string | null): AnalyticsState | null {
   } catch {
     return null;
   }
-  if (
-    typeof parsed !== "object" ||
-    parsed === null ||
-    Array.isArray(parsed)
-  ) {
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
     return null;
   }
   const o = parsed as Record<string, unknown>;
@@ -195,7 +251,36 @@ export function parseAnalytics(raw: string | null): AnalyticsState | null {
       Math.floor(num(o.prestiges, 0)),
       str(o.firstPrestigeDay) !== "" ? 1 : 0,
     ),
+    firstCosmeticPurchaseDay: str(o.firstCosmeticPurchaseDay),
+    cosmeticPurchases: Math.max(0, Math.floor(num(o.cosmeticPurchases, 0))),
+    // Forward-compat + corruption guard: keep only well-formed entries,
+    // newest last, capped (a hand-edited record can't bloat the log).
+    cosmeticPurchaseLog: sanitizeCosmeticPurchaseLog(o.cosmeticPurchaseLog),
   };
+}
+
+/**
+ * Corruption guard for the per-purchase log: keep only well-formed
+ * entries (hand-edited records must not crash the debug panel), newest
+ * last, capped — the same forward-compat posture the rest of the parse
+ * takes.
+ */
+function sanitizeCosmeticPurchaseLog(raw: unknown): CosmeticPurchaseEvent[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(isCosmeticPurchaseEvent).slice(-COSMETIC_PURCHASE_LOG_MAX);
+}
+
+function isCosmeticPurchaseEvent(e: unknown): e is CosmeticPurchaseEvent {
+  if (typeof e !== "object" || e === null) return false;
+  const o = e as Record<string, unknown>;
+  return (
+    (o.line === "outfit" || o.line === "pickaxe" || o.line === "theme") &&
+    typeof o.id === "string" &&
+    (o.path === "gems" || o.path === "iap") &&
+    typeof o.gems === "number" &&
+    Number.isFinite(o.gems) &&
+    typeof o.day === "string"
+  );
 }
 
 /**
@@ -217,6 +302,8 @@ export function summarizeAnalytics(state: AnalyticsState): string {
     `first ad view   ${day(state.firstAdViewDay)}`,
     `iap purchases   ${state.iapPurchases}`,
     `first iap       ${day(state.firstIapPurchaseDay)}`,
+    `cosmetic purchases   ${state.cosmeticPurchases}`,
+    `first cosmetic       ${day(state.firstCosmeticPurchaseDay)}`,
     `prestiges       ${state.prestiges}`,
     `first prestige  ${day(state.firstPrestigeDay)}`,
   ].join("\n");

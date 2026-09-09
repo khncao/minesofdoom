@@ -1,10 +1,12 @@
 import {
+  COSMETIC_PURCHASE_LOG_MAX,
   D1_RETENTION_MS,
   D7_RETENTION_MS,
   emptyAnalyticsState,
   parseAnalytics,
   recordAdView,
   recordAppOpen,
+  recordCosmeticPurchase,
   recordIapPurchase,
   recordPrestige,
   summarizeAnalytics,
@@ -112,6 +114,57 @@ describe("recordPrestige", () => {
   });
 });
 
+describe("recordCosmeticPurchase", () => {
+  it("stamps the first purchase day once and counts every one", () => {
+    let s = recordCosmeticPurchase(
+      null,
+      { line: "outfit", id: "night", path: "gems", gems: 0 },
+      day(2),
+    );
+    s = recordCosmeticPurchase(
+      s,
+      { line: "theme", id: "magma", path: "iap", gems: 5 },
+      day(4),
+    );
+    expect(s.cosmeticPurchases).toBe(2);
+    expect(s.firstCosmeticPurchaseDay).toBe(getLocalDayKey(day(2)));
+    expect(s.cosmeticPurchaseLog).toEqual([
+      {
+        line: "outfit",
+        id: "night",
+        path: "gems",
+        gems: 0,
+        day: getLocalDayKey(day(2)),
+      },
+      {
+        line: "theme",
+        id: "magma",
+        path: "iap",
+        gems: 5,
+        day: getLocalDayKey(day(4)),
+      },
+    ]);
+  });
+
+  it("keeps the log bounded (newest last) past the cap", () => {
+    let s = emptyAnalyticsState(day(1));
+    for (let i = 0; i < COSMETIC_PURCHASE_LOG_MAX + 7; i++) {
+      s = recordCosmeticPurchase(
+        s,
+        { line: "pickaxe", id: `p${i}`, path: "gems", gems: i },
+        day(2),
+      );
+    }
+    expect(s.cosmeticPurchaseLog).toHaveLength(COSMETIC_PURCHASE_LOG_MAX);
+    expect(s.cosmeticPurchases).toBe(COSMETIC_PURCHASE_LOG_MAX + 7);
+    // oldest entries dropped, newest kept
+    expect(s.cosmeticPurchaseLog[0].id).toBe("p7");
+    expect(s.cosmeticPurchaseLog.at(-1)?.id).toBe(
+      `p${COSMETIC_PURCHASE_LOG_MAX + 6}`,
+    );
+  });
+});
+
 describe("parseAnalytics", () => {
   it("returns null for absent, corrupt, or non-object raw values", () => {
     expect(parseAnalytics(null)).toBeNull();
@@ -120,14 +173,74 @@ describe("parseAnalytics", () => {
     expect(parseAnalytics(JSON.stringify([1, 2]))).toBeNull();
   });
 
-  it("round-trips a full record", () => {
+  it("round-trips a full record (incl. the per-purchase log)", () => {
     let s = emptyAnalyticsState(day(1));
     s = recordAppOpen(s, day(2));
     s = recordAdView(s, day(2));
     s = recordIapPurchase(s, day(3));
     s = recordPrestige(s, day(4));
+    s = recordCosmeticPurchase(
+      s,
+      { line: "outfit", id: "night", path: "gems", gems: 0 },
+      day(5),
+    );
     const parsed = parseAnalytics(JSON.stringify(s));
     expect(parsed).toEqual(s);
+  });
+
+  it("migrates a legacy record: cosmetic fields default in", () => {
+    const legacy = { ...emptyAnalyticsState(day(1)) };
+    delete (legacy as Record<string, unknown>).firstCosmeticPurchaseDay;
+    delete (legacy as Record<string, unknown>).cosmeticPurchases;
+    delete (legacy as Record<string, unknown>).cosmeticPurchaseLog;
+    const parsed = parseAnalytics(JSON.stringify(legacy));
+    expect(parsed).not.toBeNull();
+    expect(parsed!.firstCosmeticPurchaseDay).toBe("");
+    expect(parsed!.cosmeticPurchases).toBe(0);
+    expect(parsed!.cosmeticPurchaseLog).toEqual([]);
+  });
+
+  it("drops malformed log entries and re-caps a hand-edited oversized log", () => {
+    const bad = {
+      line: "quantum",
+      id: "night",
+      path: "gems",
+      gems: 0,
+      day: "2026-05-02",
+    };
+    const good = {
+      line: "outfit",
+      id: "night",
+      path: "gems",
+      gems: 0,
+      day: "2026-05-02",
+    };
+    const parsed = parseAnalytics(
+      JSON.stringify({
+        firstOpenMs: day(1),
+        cosmeticPurchaseLog: [
+          bad,
+          good,
+          null,
+          42,
+          { ...good, gems: "five" },
+          { ...good, id: 7 },
+        ],
+      }),
+    );
+    expect(parsed).not.toBeNull();
+    expect(parsed!.cosmeticPurchaseLog).toEqual([good]);
+    const oversized = {
+      firstOpenMs: day(1),
+      cosmeticPurchaseLog: Array.from(
+        { length: COSMETIC_PURCHASE_LOG_MAX + 5 },
+        (_, i) => ({ ...good, id: `p${i}` }),
+      ),
+    };
+    const reCapped = parseAnalytics(JSON.stringify(oversized));
+    expect(reCapped!.cosmeticPurchaseLog).toHaveLength(
+      COSMETIC_PURCHASE_LOG_MAX,
+    );
   });
 
   it("migrates a legacy record: missing counter defaults, stamped first day implies 1", () => {
@@ -169,12 +282,21 @@ describe("summarizeAnalytics", () => {
     s = recordAppOpen(s, day(3));
     s = recordAdView(s, day(2));
     s = recordPrestige(s, day(9));
+    s = recordCosmeticPurchase(
+      s,
+      { line: "outfit", id: "night", path: "gems", gems: 0 },
+      day(5),
+    );
     const lines = summarizeAnalytics(s).split("\n");
-    expect(lines).toHaveLength(10);
+    expect(lines).toHaveLength(12);
     expect(lines[0]).toContain(s.firstOpenDay);
     expect(lines[2]).toContain(`active days     ${s.activeDays}`);
     expect(lines[3]).toContain("d1 retention");
-    expect(lines[8]).toContain("prestiges       1");
+    expect(lines[8]).toContain("cosmetic purchases   1");
+    expect(lines[9]).toContain(
+      `first cosmetic       ${getLocalDayKey(day(5))}`,
+    );
+    expect(lines[10]).toContain("prestiges       1");
   });
 
   it("says 'never' for un-fired one-shot fields and reflects counts", () => {
@@ -182,6 +304,8 @@ describe("summarizeAnalytics", () => {
     const text = summarizeAnalytics(fresh);
     expect(text).toContain("first ad view   never");
     expect(text).toContain("iap purchases   0");
+    expect(text).toContain("cosmetic purchases   0");
+    expect(text).toContain("first cosmetic       never");
     expect(text).toContain("first prestige  never");
     expect(text).toContain("d1 retention    no");
   });

@@ -47,6 +47,7 @@ import {
   ALWAYS_VISIBLE_PURCHASES,
   defaultSettingsData,
   clampSoundVolume,
+  clampMusicVolume,
   musicLevel,
   getVisiblePurchases,
   hasAffordablePurchase,
@@ -984,13 +985,30 @@ describe("getVisiblePurchases", () => {
     expect(defaultSettingsData.music).toBe(true);
   });
 
-  test("musicLevel keeps the bed at half the clamped SFX level", () => {
-    expect(musicLevel(100)).toBe(0.5);
+  test("settings default keeps music volume at the old half-level default", () => {
+    // 50 on the independent scale is exactly what a 100% SFX player
+    // heard before the half-level law was relaxed (pass-3 accessibility).
+    expect(defaultSettingsData.musicVolume).toBe(50);
+  });
+
+  test("clampMusicVolume keeps volumes in 0–100 and rejects junk", () => {
+    expect(clampMusicVolume(0)).toBe(0);
+    expect(clampMusicVolume(100)).toBe(100);
+    expect(clampMusicVolume(-30)).toBe(0);
+    expect(clampMusicVolume(170)).toBe(100);
+    expect(clampMusicVolume(55.4)).toBe(55);
+    expect(clampMusicVolume(NaN)).toBe(50);
+    expect(clampMusicVolume("80")).toBe(50);
+    expect(clampMusicVolume(undefined)).toBe(50);
+  });
+
+  test("musicLevel is the clamped independent music volume, 1:1", () => {
+    expect(musicLevel(100)).toBe(1);
     expect(musicLevel(0)).toBe(0);
-    expect(musicLevel(40)).toBe(0.2);
+    expect(musicLevel(40)).toBe(0.4);
     expect(musicLevel(-10)).toBe(0);
-    expect(musicLevel(250)).toBe(0.5);
-    // junk input clamps to the 100 default first, then halves
+    expect(musicLevel(250)).toBe(1);
+    // junk input clamps to the 50 default first
     expect(musicLevel(NaN)).toBe(0.5);
     expect(musicLevel("70")).toBe(0.5);
   });

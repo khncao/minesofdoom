@@ -43,12 +43,33 @@ import {
 } from "../game";
 import { getAchievementBonus } from "../achievements";
 import { getTierBonus } from "../goals";
-import { getCaveThemeCost, getCostGems, isOutfitId, isPickaxeId } from "../cosmetics";
+import {
+  getCaveThemeCost,
+  getCostGems,
+  isOutfitId,
+  isPickaxeId,
+} from "../cosmetics";
 import { decodeSaveCode, encodeSaveCode } from "../saveCode";
+import type { CosmeticLine, CosmeticPurchasePath } from "../analytics";
+
+/**
+ * useGameEngine options (positional, back-compat with the two legacy
+ * args): `onCosmeticPurchased` fires once per COMPLETED gem buy with the
+ * line / item / path / post-spend gem balance (features.md pass-16
+ * `cosmetics:analytics` — the IAP grant path fires from the caller's
+ * grant effect instead, with path "iap").
+ */
+export type CosmeticPurchaseEventInput = {
+  line: CosmeticLine;
+  id: string;
+  path: CosmeticPurchasePath;
+  gems: number;
+};
 
 export function useGameEngine(
   displayMessage: (message: string, timeout: number) => void,
   getAutosaveSeconds?: () => number,
+  onCosmeticPurchased?: (ev: CosmeticPurchaseEventInput) => void,
 ) {
   const startTime = useRef(Date.now());
   const [gameState, setGameState] = useState<SaveData>(createEmptySaveData);
@@ -242,8 +263,8 @@ export function useGameEngine(
     // pagehide, manual, cloud) persists the clock as of NOW even though the
     // state copy in the ref may not have re-rendered with the flush yet.
     const playSeconds = playSecondsRef.current;
-    setGameState(
-      (n: SaveData) => (n.playSeconds === playSeconds ? n : { ...n, playSeconds }),
+    setGameState((n: SaveData) =>
+      n.playSeconds === playSeconds ? n : { ...n, playSeconds },
     );
     const data = serializeSaveData({
       ...gameStateRef.current,
@@ -330,10 +351,7 @@ export function useGameEngine(
       // Active play time only: a catch-up fire after a background gap
       // reports the whole absence as `elapsed`, so the clock takes the
       // capped live-tick contribution, never the raw elapsed.
-      playSecondsRef.current += activePlaySeconds(
-        elapsed,
-        activeRef.current,
-      );
+      playSecondsRef.current += activePlaySeconds(elapsed, activeRef.current);
       if (
         gameStateRef.current.miners > 0 ||
         gameStateRef.current.fastMiners > 0 ||
@@ -345,7 +363,14 @@ export function useGameEngine(
           // The banked prestige multiplier applies to passive income too, so a
           // new run starts with a stronger crew (the whole point of prestige).
           const income = mulFloats(
-            BigInt(getMineralsPerSec(n.miners, n.minerPower, n.fastMiners, n.legendaryMiners)) * BigInt(elapsed),
+            BigInt(
+              getMineralsPerSec(
+                n.miners,
+                n.minerPower,
+                n.fastMiners,
+                n.legendaryMiners,
+              ),
+            ) * BigInt(elapsed),
             [getPrestigeMultiplier(n.prestigeLevel)],
           );
           if (income <= 0n) return n;
@@ -613,11 +638,23 @@ export function useGameEngine(
     });
   }, []);
 
+  // The analytics callback is read through a ref so buyCosmetic /
+  // buyCaveTheme stay referentially stable (the caller's callback is
+  // stable by contract, but the ref keeps the engine's deps at []).
+  const onCosmeticPurchasedRef = useRef(onCosmeticPurchased);
+  onCosmeticPurchasedRef.current = onCosmeticPurchased;
+
   // Buy a cosmetic (outfit or pickaxe) with gems; auto-selects it. Unknown
   // ids and unaffordable prices are no-ops (button state may be stale).
   const buyCosmetic = useCallback((id: string) => {
     const cost = getCostGems(id);
     if (cost == null) return;
+    // Mirror of the updater's guard against the last-rendered state:
+    // gems only ever RISE outside a buy and ownership is never removed,
+    // so if this check passes the updater below will too — the analytics
+    // event is only fired when the buy actually lands.
+    const cur = gameStateRef.current;
+    const willBuy = !cur.ownedCosmetics.includes(id) && cur.gems >= cost;
     setGameState((n: SaveData) => {
       if (n.ownedCosmetics.includes(id) || n.gems < cost) return n;
       return {
@@ -629,6 +666,14 @@ export function useGameEngine(
         selectedPickaxe: isPickaxeId(id) ? id : n.selectedPickaxe,
       };
     });
+    if (willBuy) {
+      onCosmeticPurchasedRef.current?.({
+        line: isOutfitId(id) ? "outfit" : "pickaxe",
+        id,
+        path: "gems",
+        gems: cur.gems - cost,
+      });
+    }
   }, []);
 
   // Switch to an already-owned cosmetic.
@@ -659,6 +704,9 @@ export function useGameEngine(
   const buyCaveTheme = useCallback((id: string) => {
     const cost = getCaveThemeCost(id);
     if (cost == null) return;
+    // Mirror guard, same soundness argument as buyCosmetic.
+    const cur = gameStateRef.current;
+    const willBuy = !cur.ownedCaveThemes.includes(id) && cur.gems >= cost;
     setGameState((n: SaveData) => {
       if (n.ownedCaveThemes.includes(id) || n.gems < cost) return n;
       return {
@@ -669,6 +717,14 @@ export function useGameEngine(
         selectedCaveTheme: id,
       };
     });
+    if (willBuy) {
+      onCosmeticPurchasedRef.current?.({
+        line: "theme",
+        id,
+        path: "gems",
+        gems: cur.gems - cost,
+      });
+    }
   }, []);
 
   // Switch to an already-owned cave theme.
@@ -932,7 +988,10 @@ export function useGameEngine(
       return false;
     }
     const now = Date.now();
-    const data = buildSaveData(migrateSaveData(parsed as Record<string, unknown>), now);
+    const data = buildSaveData(
+      migrateSaveData(parsed as Record<string, unknown>),
+      now,
+    );
     const offline = computeOfflineMinerals(
       data.miners,
       data.minerPower,

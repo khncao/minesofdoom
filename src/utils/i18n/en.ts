@@ -49,8 +49,7 @@ export const en = {
   // --- Toasts / messages --------------------------------------------------
   "toast.depth": "Depth {depth}m — deeper into the cave!",
   "toast.enteredTier": "Entered {tier}! Click power ×{bonus}",
-  "toast.tierComplete":
-    "🏆 {tier} complete! +{bonus} 🪨 — unlocks: {unlock}",
+  "toast.tierComplete": "🏆 {tier} complete! +{bonus} 🪨 — unlocks: {unlock}",
   "toast.achievement": "🏅 {label}! +{bonus} 🪨",
   "toast.vein": "You struck a vein! +1 💎",
   "toast.comboUp": "Combo x{mult}!",
@@ -59,8 +58,7 @@ export const en = {
   "toast.idleReminder":
     "The mine keeps collecting while you're away, and your progress autosaves — " +
     "come back to check the haul!",
-  "toast.gemPocket":
-    "A gem pocket formed in the cave — tap it for a bonus!",
+  "toast.gemPocket": "A gem pocket formed in the cave — tap it for a bonus!",
   "toast.gemPocketCollected": "Gem pocket: +{bonus} minerals",
   "toast.saved": "Game saved",
   "toast.settingsSaved": "Saved",
@@ -77,17 +75,14 @@ export const en = {
   "toast.dailyBonus": "Daily bonus: +{bonus} minerals",
   "toast.dailyBonusStreak":
     "Daily bonus: +{bonus} minerals (day {streak} streak!)",
-  "toast.dailyEquation":
-    "Equation of the Day solved: +{bonus} minerals!",
+  "toast.dailyEquation": "Equation of the Day solved: +{bonus} minerals!",
   "toast.dailyEquationStart":
     "Equation of the Day: solve it for +{bonus} minerals — wrong answers are free",
   "toast.weeklyContract": "Weekly contract complete: +{bonus} minerals",
   "toast.iapPackUnlocked": "Unlocked {name} — find it in Cosmetics!",
   "toast.adFinishedGems": "Ad finished: +{count} 💎",
-  "toast.adFinishedDouble":
-    "Ad finished: offline haul doubled (+{count} 🪨)",
-  "toast.adFinishedTopUp":
-    "Ad finished: +2h offline top-up (+{count} 🪨)",
+  "toast.adFinishedDouble": "Ad finished: offline haul doubled (+{count} 🪨)",
+  "toast.adFinishedTopUp": "Ad finished: +2h offline top-up (+{count} 🪨)",
   "toast.adFinishedCombo": "Ad finished: combo restored to {combo}",
   "toast.adClosedEarly": "Ad closed early — no reward this time.",
 
@@ -113,16 +108,14 @@ export const en = {
   // greedy plan's total levels and total cost in the group's currency.
   "purchase.buyAllMinerals": "⚡ ALL +{count} (-{cost} 🪨)",
   "purchase.buyAllGems": "⚡ ALL +{count} (-{cost} 💎)",
-  "purchase.a11yBuyAllMinerals":
-    "Buy all mineral upgrades: +{count} levels",
+  "purchase.a11yBuyAllMinerals": "Buy all mineral upgrades: +{count} levels",
   "purchase.a11yBuyAllGems": "Buy all gem upgrades: +{count} levels",
   "purchase.nextCost": ", next {cost}",
   "purchase.upgradePower": "UPGRADE POWER (-{cost} 🪨) ({power})",
   "purchase.upgradeMiners": "UPGRADE MINERS (-{cost} 🪨) ({power})",
   "purchase.upgradeMinersLocked": "🔒 UPGRADE MINERS (Prospector's License)",
   "purchase.buyGem": "BUY A GEM (-{cost} 🪨)",
-  "purchase.buyMiner":
-    "BUY A MINER (-{cost} 💎) ({count}{next})",
+  "purchase.buyMiner": "BUY A MINER (-{cost} 💎) ({count}{next})",
   "purchase.buyFastMiner":
     "BUY A FAST MINER (-{cost} 💎) ({count}, {output}/s each{next})",
   "purchase.buyFastMinerLocked": "🔒 BUY FAST MINER (Deep Shaft)",
@@ -137,11 +130,9 @@ export const en = {
   "purchase.clickBoost": "CLICK ×2 (-{cost} 💎) (now ×{mult})",
   "purchase.comboResistLocked": "🔒 COMBO RESISTANCE (Magma Frontier)",
   "purchase.comboResistMaxed": "COMBO RESISTANCE (keep {pct}%) (MAX)",
-  "purchase.comboResist":
-    "COMBO RESISTANCE (-{cost} 💎) (keep {pct}%)",
+  "purchase.comboResist": "COMBO RESISTANCE (-{cost} 💎) (keep {pct}%)",
   "purchase.sinkNewShaftLocked": "🔒 SINK NEW SHAFT (Magma Frontier)",
-  "purchase.sinkNewShaftCanBank":
-    "⛏️ SINK NEW SHAFT → ×{next} (now ×{banked})",
+  "purchase.sinkNewShaftCanBank": "⛏️ SINK NEW SHAFT → ×{next} (now ×{banked})",
   "purchase.sinkNewShaftNeed":
     "⛏️ SINK NEW SHAFT ×{banked} — need {at} 🪨 total for ×{next}",
   "purchase.sinkNewShaftMax": "⛏️ SINK NEW SHAFT ×{banked} (MAX)",
@@ -223,12 +214,9 @@ export const en = {
   "settings.op.add": "No operator bonus (×1).",
   "settings.op.subtract":
     "Operator bonus ×2. Answers are always whole & non-negative.",
-  "settings.op.division":
-    "Operator bonus ×10. Division is always exact.",
-  "settings.op.percent":
-    "Operator bonus ×3. Only 10/25/50% — always exact.",
-  "settings.op.square":
-    "Operator bonus ×4. The answer is a².",
+  "settings.op.division": "Operator bonus ×10. Division is always exact.",
+  "settings.op.percent": "Operator bonus ×3. Only 10/25/50% — always exact.",
+  "settings.op.square": "Operator bonus ×4. The answer is a².",
   "settings.op.missing":
     'Operator bonus ×3. Find the number that goes in the "?".',
   "settings.opName.multiply": "multiplication",
@@ -300,8 +288,9 @@ export const en = {
   "settings.music": "Cave ambience: ",
   "settings.musicHelp":
     "A soft, looping cave drone under the sound effects (on by default). " +
-    "It plays at half the sound-volume level, and the menu's mute toggle " +
-    "still wins — while muted, nothing plays. Off: silence under the SFX.",
+    "Its level has its own Music volume setting, and the menu's mute " +
+    "toggle still wins — while muted, nothing plays. Off: silence under " +
+    "the SFX.",
   "settings.tooltipSoundVolume": "Sound volume",
   "settings.soundVolume": "Sound volume: ",
   "settings.soundVolumeHelp":
@@ -310,6 +299,16 @@ export const en = {
     "still wins — while muted, the volume sets nothing.",
   "a11y.decreaseSoundVolume": "Decrease sound volume",
   "a11y.increaseSoundVolume": "Increase sound volume",
+  "settings.tooltipMusicVolume": "Music volume",
+  "settings.musicVolume": "Music volume: ",
+  "settings.musicVolumeHelp":
+    "The level of the cave-ambience music (0–100%, default 50%). − and + " +
+    "step in 10% increments and apply immediately. It is independent of " +
+    "the sound-effects volume — the music can be heard with the SFX quiet " +
+    "and vice versa. The menu's mute toggle still wins — while muted, " +
+    "nothing plays.",
+  "a11y.decreaseMusicVolume": "Decrease music volume",
+  "a11y.increaseMusicVolume": "Increase music volume",
   "settings.emojiArt": "Emoji art (low-end mode): ",
   "settings.emojiArtHelp":
     "Off (default): miners, currency icons, debris and the cave backdrop " +
@@ -394,8 +393,7 @@ export const en = {
   "leaderboard.name": "Display name (shown on the leaderboard)",
   "leaderboard.refresh": "Refresh",
   "leaderboard.loading": "Loading the board…",
-  "leaderboard.unavailable":
-    "Unavailable right now — try again in a minute.",
+  "leaderboard.unavailable": "Unavailable right now — try again in a minute.",
   "leaderboard.youRow": "You — rank #{rank} · {depth}m",
   "leaderboard.notRanked": "Not in the top {limit} yet — keep digging!",
   "settings.saveButton": "Save",
@@ -418,15 +416,13 @@ export const en = {
   // --- Goals ----------------------------------------------------------------
   "goals.unlocks": "Unlocks: {unlock} · Bonus: {bonus} 🪨",
   "goals.achievements": "🏅 Achievements",
-  "goals.achievementsNote":
-    "One-off bonuses — no unlocks, just confetti.",
+  "goals.achievementsNote": "One-off bonuses — no unlocks, just confetti.",
 
   // --- Records ---------------------------------------------------------------
   "records.header":
     "Personal bests, kept on your save — they survive spending and " +
     "prestiges.",
-  "records.session":
-    "This session — since the app was last opened.",
+  "records.session": "This session — since the app was last opened.",
   "records.sessionMinerals": "Minerals mined",
   "records.sessionAnswers": "Equations answered",
   "records.sessionTime": "Time in the mine",
@@ -502,8 +498,7 @@ export const en = {
 
   // --- Footer misc -------------------------------------------------------------------
   "inquiries.subject": "Mines of Idle Doomath — feedback from a player",
-  "a11y.inquiries":
-    "Inquiries — opens your email app to contact the developer",
+  "a11y.inquiries": "Inquiries — opens your email app to contact the developer",
   "share.achievement": "I earned '{name}' in Mines of Idle Doomath!",
   "a11y.shareAchievement": "Share achievement {name}",
   "a11y.mute": "Mute sound",

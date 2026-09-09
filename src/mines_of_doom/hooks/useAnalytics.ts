@@ -6,8 +6,11 @@ import {
   parseAnalytics,
   recordAdView,
   recordAppOpen,
+  recordCosmeticPurchase,
   recordIapPurchase,
   recordPrestige,
+  type CosmeticPurchasePath,
+  type CosmeticLine,
 } from "../analytics";
 
 /**
@@ -58,9 +61,9 @@ export function useAnalytics() {
       setLoaded(true);
       const updated = recordAppOpen(stored, Date.now());
       setState(updated);
-      setItemRef.current(JSON.stringify(updated)).catch((e) =>
-        console.warn("Failed to write analytics", e),
-      );
+      setItemRef
+        .current(JSON.stringify(updated))
+        .catch((e) => console.warn("Failed to write analytics", e));
     })();
     return () => {
       cancelled = true;
@@ -71,9 +74,9 @@ export function useAnalytics() {
   const persist = useCallback((next: AnalyticsState) => {
     stateRef.current = next;
     setState(next);
-    setItemRef.current(JSON.stringify(next)).catch((e) =>
-      console.warn("Failed to write analytics", e),
-    );
+    setItemRef
+      .current(JSON.stringify(next))
+      .catch((e) => console.warn("Failed to write analytics", e));
   }, []);
 
   // Stable record* callbacks: each folds into the LATEST state via the ref,
@@ -95,15 +98,33 @@ export function useAnalytics() {
     persist(recordPrestige(stateRef.current, now));
   }, [persist]);
 
+  /**
+   * A cosmetic was bought (features.md pass-16 `cosmetics:analytics`):
+   * the per-purchase line — which line, which item, gems vs pack path,
+   * gem balance at the moment. Fired by the engine gem buys ("gems")
+   * and by the IAP grant effect ("iap").
+   */
+  const onCosmeticPurchase = useCallback(
+    (ev: {
+      line: CosmeticLine;
+      id: string;
+      path: CosmeticPurchasePath;
+      gems: number;
+    }) => {
+      persist(recordCosmeticPurchase(stateRef.current, ev, Date.now()));
+    },
+    [persist],
+  );
+
   // Data-deletion path (module docs: deletion is a removeItem). The next
   // app open re-establishes a fresh record — that's the semantics of
   // "delete my data", not "hide my data".
   const clear = useCallback(() => {
     stateRef.current = null;
     setState(null);
-    removeItemRef.current().catch((e: unknown) =>
-      console.warn("Failed to clear analytics", e),
-    );
+    removeItemRef
+      .current()
+      .catch((e: unknown) => console.warn("Failed to clear analytics", e));
   }, []);
 
   return {
@@ -113,6 +134,7 @@ export function useAnalytics() {
     onAdView,
     onIapPurchase,
     onPrestige,
+    onCosmeticPurchase,
     clear,
   };
 }

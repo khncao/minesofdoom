@@ -63,12 +63,10 @@ export const es: Record<TranslationKey, string> = {
   "toast.dailyBonus": "Bonus diario: +{bonus} minerales",
   "toast.dailyBonusStreak":
     "Bonus diario: +{bonus} minerales (¡racha de {streak} días!)",
-  "toast.dailyEquation":
-    "¡Ecuación del día resuelta: +{bonus} de minerales!",
+  "toast.dailyEquation": "¡Ecuación del día resuelta: +{bonus} de minerales!",
   "toast.dailyEquationStart":
     "Ecuación del día: resuélvela para +{bonus} minerales — los errores no cuestan nada",
-  "toast.weeklyContract":
-    "Contrato semanal completado: +{bonus} minerales",
+  "toast.weeklyContract": "Contrato semanal completado: +{bonus} minerales",
   "toast.iapPackUnlocked": "Desbloqueaste {name} — ¡búscalo en Cosméticos!",
   "toast.adFinishedGems": "Anuncio terminado: +{count} 💎",
   "toast.adFinishedDouble":
@@ -103,15 +101,14 @@ export const es: Record<TranslationKey, string> = {
   "purchase.buyAllGems": "⚡ TODO +{count} (-{cost} 💎)",
   "purchase.a11yBuyAllMinerals":
     "Comprar todas las mejoras de minerales: +{count} niveles",
-  "purchase.a11yBuyAllGems": "Comprar todas las mejoras de gemas: +{count} niveles",
+  "purchase.a11yBuyAllGems":
+    "Comprar todas las mejoras de gemas: +{count} niveles",
   "purchase.nextCost": ", siguiente {cost}",
   "purchase.upgradePower": "MEJORAR PODER (-{cost} 🪨) ({power})",
   "purchase.upgradeMiners": "MEJORAR MINEROS (-{cost} 🪨) ({power})",
-  "purchase.upgradeMinersLocked":
-    "🔒 MEJORAR MINEROS (Prospector's License)",
+  "purchase.upgradeMinersLocked": "🔒 MEJORAR MINEROS (Prospector's License)",
   "purchase.buyGem": "COMPRAR UNA GEMA (-{cost} 🪨)",
-  "purchase.buyMiner":
-    "COMPRAR UN MINERO (-{cost} 💎) ({count}{next})",
+  "purchase.buyMiner": "COMPRAR UN MINERO (-{cost} 💎) ({count}{next})",
   "purchase.buyFastMiner":
     "COMPRAR UN MINERO RÁPIDO (-{cost} 💎) ({count}, {output}/s cada uno{next})",
   "purchase.buyFastMinerLocked": "🔒 COMPRAR MINERO RÁPIDO (Deep Shaft)",
@@ -127,8 +124,7 @@ export const es: Record<TranslationKey, string> = {
   "purchase.clickBoost": "CLIC ×2 (-{cost} 💎) (ahora ×{mult})",
   "purchase.comboResistLocked": "🔒 RESISTENCIA DE COMBO (Magma Frontier)",
   "purchase.comboResistMaxed": "RESISTENCIA DE COMBO (conserva {pct}%) (MÁX)",
-  "purchase.comboResist":
-    "RESISTENCIA DE COMBO (-{cost} 💎) (conserva {pct}%)",
+  "purchase.comboResist": "RESISTENCIA DE COMBO (-{cost} 💎) (conserva {pct}%)",
   "purchase.sinkNewShaftLocked": "🔒 HUNDIR NUEVO POZÓ (Magma Frontier)",
   "purchase.sinkNewShaftCanBank":
     "⛏️ HUNDIR NUEVO POZÓ → ×{next} (ahora ×{banked})",
@@ -197,15 +193,13 @@ export const es: Record<TranslationKey, string> = {
   "lang.auto": "Automático",
   "settings.autosave": "Intervalo de autoguardado (segundos): ",
   "settings.maxNumber": "Valor máximo de la constante en ecuaciones: ",
-  "settings.operatorHelp":
-    "Mantén pulsado un operador para ver cuánto paga",
+  "settings.operatorHelp": "Mantén pulsado un operador para ver cuánto paga",
   "settings.operatorEquations": "Ecuaciones de {name}",
   "settings.tooltipHard": "Ecuaciones de modo difícil",
   "settings.tooltipEmojiArt": "Arte de emoji (modo ligero)",
   "settings.tooltipHaptics": "Retroalimentación háptica",
   "settings.tooltipIdleReminder": "Recordatorio de inactividad",
-  "settings.tooltipShowAll":
-    "Mostrar siempre todos los botones de mejora",
+  "settings.tooltipShowAll": "Mostrar siempre todos los botones de mejora",
   "settings.gainFormula":
     "Minerales por respuesta correcta = respuesta × poder de clic × " +
     "multiplicador de combo, más cualquier bonus de operador. Las ecuaciones " +
@@ -218,8 +212,7 @@ export const es: Record<TranslationKey, string> = {
     "Bonus de operador ×10. La división siempre es exacta.",
   "settings.op.percent":
     "Bonus de operador ×3. Solo 10/25/50% — siempre exacto.",
-  "settings.op.square":
-    "Bonus de operador ×4. La respuesta es a².",
+  "settings.op.square": "Bonus de operador ×4. La respuesta es a².",
   "settings.op.missing":
     "Bonus de operador ×3. Encuentra el número que va en la «?».",
   "settings.opName.multiply": "multiplicación",
@@ -285,10 +278,10 @@ export const es: Record<TranslationKey, string> = {
   "settings.music": "Ambiente de cueva: ",
   "settings.musicHelp":
     "Un zumbido suave de cueva en bucle bajo los efectos de sonido " +
-    "(activado por defecto). Suena a la mitad del nivel de volumen de " +
-    "sonido, y el botón de silencio del menú sigue imponiéndose: con " +
-    "silencio activado no suena nada. Desactivado: silencio bajo los " +
-    "efectos.",
+    "(activado por defecto). Su nivel tiene su propia configuración de " +
+    "volumen de música, y el botón de silencio del menú sigue " +
+    "imponiéndose: con silencio activado no suena nada. Desactivado: " +
+    "silencio bajo los efectos.",
   "settings.tooltipSoundVolume": "Volumen de sonido",
   "settings.soundVolume": "Volumen de sonido: ",
   "settings.soundVolumeHelp":
@@ -298,6 +291,16 @@ export const es: Record<TranslationKey, string> = {
     "el volumen no cambia nada.",
   "a11y.decreaseSoundVolume": "Bajar el volumen de sonido",
   "a11y.increaseSoundVolume": "Subir el volumen de sonido",
+  "settings.tooltipMusicVolume": "Volumen de música",
+  "settings.musicVolume": "Volumen de música: ",
+  "settings.musicVolumeHelp":
+    "El nivel de la música ambiental de la cueva (0–100 %, por defecto " +
+    "50 %). − y + ajustan en pasos de 10 % y se aplican al instante. Es " +
+    "independiente del volumen de los efectos de sonido: la música se " +
+    "puede oír con los efectos bajados y viceversa. El botón de silencio " +
+    "del menú sigue imponiéndose: con silencio activado no suena nada.",
+  "a11y.decreaseMusicVolume": "Bajar el volumen de la música",
+  "a11y.increaseMusicVolume": "Subir el volumen de la música",
   "settings.idleReminder": "Recordatorio de inactividad: ",
   "settings.idleReminderHelp":
     "Activado (por defecto): tras un minuto sin tocar la cueva ni responder " +
@@ -311,8 +314,7 @@ export const es: Record<TranslationKey, string> = {
     "cueva son sprites de píxeles generados. Activado: emojis planos en su " +
     "lugar — más ligero en dispositivos modestos donde decodificar/renderizar " +
     "PNGs es el cuello de botella. Puro visual; la jugada no cambia.",
-  "settings.showAllPurchases":
-    "Mostrar siempre todos los botones de mejora: ",
+  "settings.showAllPurchases": "Mostrar siempre todos los botones de mejora: ",
   "settings.showAllPurchasesHelp":
     "Desactivado (por defecto): cada botón de mejora aparece solo cuando " +
     "tuviste suficientes minerales o gemas para comprar su primer nivel — la " +
@@ -331,8 +333,7 @@ export const es: Record<TranslationKey, string> = {
   "settings.saveCode": "Código de guardado (copia / compartir)",
   "settings.export": "Exportar código",
   "settings.import": "Importar código",
-  "settings.importPlaceholder":
-    "Pega un código de guardado para importarlo",
+  "settings.importPlaceholder": "Pega un código de guardado para importarlo",
   "settings.saveCodeHelp":
     "Exportar te da un código para copiar y compartir; al importar un código " +
     "se reemplaza tu guardado actual por el del código.",
@@ -348,7 +349,8 @@ export const es: Record<TranslationKey, string> = {
     "¿Reemplazar tu guardado actual por la copia en la nube? Esto no se " +
     "puede deshacer.",
   "settings.cloudLastSyncOk": "Última sincronización: {when}",
-  "settings.cloudLastSyncFailed": "La última sincronización falló — se reintentará sola",
+  "settings.cloudLastSyncFailed":
+    "La última sincronización falló — se reintentará sola",
   "settings.cloudNeverSynced": "Sin sincronizar todavía",
   "settings.deleteData": "Borrar mis datos",
   "settings.deleteDataDescription":
@@ -382,7 +384,8 @@ export const es: Record<TranslationKey, string> = {
   "settings.accountError":
     "No se pudo alcanzar el servicio de cuentas — comprueba tu conexión " +
     "e inténtalo de nuevo.",
-  "settings.accountProviderError": "No se pudo iniciar sesión — inténtalo de nuevo.",
+  "settings.accountProviderError":
+    "No se pudo iniciar sesión — inténtalo de nuevo.",
   "settings.accountLinked":
     "Este dispositivo está vinculado a tu cuenta — la partida, las " +
     "compras y la clasificación la siguen a un dispositivo nuevo.",
@@ -417,18 +420,15 @@ export const es: Record<TranslationKey, string> = {
   "cosmetics.themesUnlockedAt": "Se desbloquea en Crystal Kingdom",
 
   // --- Goals ----------------------------------------------------------------
-  "goals.unlocks":
-    "Desbloquea: {unlock} · Bonus: {bonus} 🪨",
+  "goals.unlocks": "Desbloquea: {unlock} · Bonus: {bonus} 🪨",
   "goals.achievements": "🏅 Logros",
-  "goals.achievementsNote":
-    "Bonos únicos — sin desbloqueos, solo confeti.",
+  "goals.achievementsNote": "Bonos únicos — sin desbloqueos, solo confeti.",
 
   // --- Records ---------------------------------------------------------------
   "records.header":
     "Récords personales, guardados en tu partida — sobreviven a los gastos " +
     "y a los prestigio.",
-  "records.session":
-    "Esta sesión — desde que abriste la app.",
+  "records.session": "Esta sesión — desde que abriste la app.",
   "records.sessionMinerals": "Minerales extraídos",
   "records.sessionAnswers": "Ecuaciones resueltas",
   "records.sessionTime": "Tiempo en la mina",
@@ -449,19 +449,16 @@ export const es: Record<TranslationKey, string> = {
   "ads.leftToday": "{left} de {total} restantes hoy",
   "ads.backTomorrow": "Vuelve mañana.",
   "ads.comboSave": "🔥 Guardar un combo perdido",
-  "ads.comboSaveDetail":
-    "Restaura un combo de {combo} — expira en {time}",
+  "ads.comboSaveDetail": "Restaura un combo de {combo} — expira en {time}",
   "ads.comboSaveNone": "Disponible justo después de perder un combo.",
   "ads.double": "🪨 Duplicar ganancias offline",
-  "ads.doubleDetail":
-    "Duplica tu último botín: +{count} 🪨",
+  "ads.doubleDetail": "Duplica tu último botín: +{count} 🪨",
   "ads.doubleNone": "Aún no hay botín offline para duplicar.",
   "ads.topUp": "⏱️ Recarga offline (+{hours}h)",
   "ads.topUpDetail":
     "El tope de 8h retuvo tu último botín — mira para ganar las próximas " +
     "{hours}h: +{count} 🪨",
-  "ads.topUpNone":
-    "Disponible cuando un botín offline alcance el tope de 8h.",
+  "ads.topUpNone": "Disponible cuando un botín offline alcance el tope de 8h.",
   "ads.cap": "Hasta {count} recompensas al día en total.",
   "ads.watching": "Reproduciendo…",
   "ads.watch": "Ver",

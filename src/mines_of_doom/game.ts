@@ -121,8 +121,9 @@ export type SettingsData = {
   idleReminder: boolean;
   /**
    * Cave ambience music (on by default): a soft looping ambient bed under
-   * the SFX — plays at MUSIC_VOLUME_RATIO of the SFX level and follows the
-   * menu mute toggle (see hooks/useSounds.ts). Off: SFX only.
+   * the SFX at the INDEPENDENT musicVolume level (no longer a fraction of
+   * the SFX level — the pass-3 accessibility fix) and follows the menu
+   * mute toggle (see hooks/useSounds.ts). Off: SFX only.
    */
   music: boolean;
   /**
@@ -133,6 +134,15 @@ export type SettingsData = {
    * (see useSounds.ts).
    */
   soundVolume: number;
+  /**
+   * Music volume in percent (0–100, default 50): the level of the cave-
+   * ambience bed, independent of the SFX level since the pass-3
+   * accessibility fix (previously locked to half the SFX level). The
+   * default 50 keeps the old default experience for a 100% SFX player.
+   * Stepped in 10% units from the settings panel and clamped by
+   * clampMusicVolume on the way in (see useSounds.ts).
+   */
+  musicVolume: number;
 };
 
 export const saveDataKey = "save";
@@ -767,6 +777,7 @@ export const defaultSettingsData = {
   idleReminder: true,
   music: true,
   soundVolume: 100,
+  musicVolume: 50,
 };
 
 /**
@@ -785,14 +796,32 @@ export function clampSoundVolume(volume: unknown): number {
 }
 
 /**
- * The ambient music bed plays UNDER the SFX, not at their level: this
- * fraction of the (clamped) SFX volume setting, on expo-audio's 0.0–1.0
- * scale. Pure so the level law is unit-testable next to clampSoundVolume.
+ * Clamp a parsed/persisted music volume to the 0–100 percent range. Old
+ * settings (pre-musicVolume) never carry the field — the settings merge
+ * ({ ...defaultSettingsData, ...parsed }) supplies the 50 default, which
+ * keeps the former half-level law's default experience (a 100% SFX player
+ * heard the bed at 0.5) — so this guards the UI step and hand-edited
+ * values: junk values fall back to the default instead of NaN-ing the
+ * audio layer.
  */
-export const MUSIC_VOLUME_RATIO = 0.5;
+export function clampMusicVolume(volume: unknown): number {
+  const n = typeof volume === "number" ? volume : NaN;
+  if (!Number.isFinite(n)) {
+    return defaultSettingsData.musicVolume;
+  }
+  return Math.min(100, Math.max(0, Math.round(n)));
+}
 
-export function musicLevel(soundVolume: unknown): number {
-  return (clampSoundVolume(soundVolume) / 100) * MUSIC_VOLUME_RATIO;
+/**
+ * The ambient music bed's level, from the INDEPENDENT music-volume setting
+ * (settings.musicVolume), on expo-audio's 0.0–1.0 scale. The pass-3
+ * accessibility fix dropped the old "half the SFX level" law so the bed
+ * can be heard with the SFX muted-quiet and vice versa; the menu mute
+ * toggle still pauses it outright. Pure so the level law is
+ * unit-testable next to clampSoundVolume.
+ */
+export function musicLevel(musicVolume: unknown): number {
+  return clampMusicVolume(musicVolume) / 100;
 }
 
 /** Every purchase button id (see PurchaseId). */

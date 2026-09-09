@@ -31,6 +31,8 @@ export function useSounds(
   volume: number,
   /** Cave-ambience music toggle (settings.music, on by default). */
   music: boolean,
+  /** Music volume in percent (0–100, settings.musicVolume, default 50). */
+  musicVolume: number,
 ) {
   const pickaxeRef = useRef<AudioPlayer | null>(null);
   const stoneRef = useRef<AudioPlayer | null>(null);
@@ -157,12 +159,14 @@ export function useSounds(
         p.volume = level;
       }
     });
-    // The music bed sits at MUSIC_VOLUME_RATIO of the SFX level so it
-    // stays a bed, not a competitor, when the volume is turned up.
+    // The music bed rides its own INDEPENDENT musicVolume setting (the
+    // pass-3 accessibility fix — it no longer scales with the SFX level,
+    // so the music can be heard with quiet SFX and vice versa); the menu
+    // mute toggle still pauses it outright.
     if (musicRef.current != null) {
-      musicRef.current.volume = musicLevel(volume);
+      musicRef.current.volume = musicLevel(musicVolume);
     }
-  }, [volume]);
+  }, [volume, musicVolume]);
 
   return { play };
 }

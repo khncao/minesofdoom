@@ -12,7 +12,7 @@ import {
   type OperatorKey,
   type MultiplySymbol,
 } from "src/utils/math/equations";
-import { SettingsData, clampSoundVolume } from "../game";
+import { SettingsData, clampSoundVolume, clampMusicVolume } from "../game";
 import { styles } from "../styles";
 
 /**
@@ -248,8 +248,8 @@ const SettingsContent = memo(function SettingsContent({
         </View>
       </Tooltip>
       {/* Cave ambience (todo: "Music / ambient loop", features.md §7 gap):
-          the looping music-bed toggle — the settings soundVolume still
-          scales it (at half level, musicLevel) and the menu mute toggle
+          the looping music-bed toggle — its level is the independent
+          musicVolume setting below (musicLevel) and the menu mute toggle
           still wins; this just switches the bed on/off. */}
       <Tooltip
         label={t("settings.tooltipMusic")}
@@ -324,6 +324,72 @@ const SettingsContent = memo(function SettingsContent({
               onChangeSettingsData({
                 ...settingsData,
                 soundVolume: clampSoundVolume(settingsData.soundVolume + 10),
+              })
+            }
+            style={{
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 6,
+              backgroundColor: "#2a2a2a",
+            }}
+          >
+            <Text style={{ ...styles.text, fontSize: 11 }}>+</Text>
+          </Pressable>
+        </View>
+      </Tooltip>
+      {/* Music volume (todo: independent music volume, features.md §7
+          pass-3 accessibility item): the cave-ambience bed's level, now
+          independent of the SFX level (was half-level by law). Same
+          immediate-apply, 10%-step pattern as the SFX row above. */}
+      <Tooltip
+        label={t("settings.tooltipMusicVolume")}
+        content={t("settings.musicVolumeHelp")}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Text style={{ ...styles.text, fontSize: 11, flex: 1 }}>
+            {t("settings.musicVolume")}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("a11y.decreaseMusicVolume")}
+            onPress={() =>
+              onChangeSettingsData({
+                ...settingsData,
+                musicVolume: clampMusicVolume(settingsData.musicVolume - 10),
+              })
+            }
+            style={{
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 6,
+              backgroundColor: "#2a2a2a",
+            }}
+          >
+            <Text style={{ ...styles.text, fontSize: 11 }}>−</Text>
+          </Pressable>
+          <Text
+            style={{
+              ...styles.text,
+              fontSize: 11,
+              width: 36,
+              textAlign: "center",
+            }}
+          >
+            {settingsData.musicVolume}%
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("a11y.increaseMusicVolume")}
+            onPress={() =>
+              onChangeSettingsData({
+                ...settingsData,
+                musicVolume: clampMusicVolume(settingsData.musicVolume + 10),
               })
             }
             style={{

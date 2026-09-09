@@ -265,13 +265,16 @@ of Pressable so rapid tapping doesn't double-render).
   **sound-volume** setting (0–100%, default 100%, stepped in 10% units in
   the settings panel; `clampSoundVolume` keeps parsed/hand-edited values in
   range, the menu mute toggle still wins — a muted player never hears
-  anything regardless of the volume). Plus a **cave-ambience** music bed
-  (on by default, settings toggle): a 20 s exactly-periodic looping WAV
-  synthesized in-repo (`scripts/generate-ambient-loop.mjs` →
+  anything regardless of the volume) plus an **independent
+  music-volume** setting (0–100%, default 50% — the former half-level
+  law's default experience — same 10% step pattern; `clampMusicVolume`
+  in `game.ts`). Plus a **cave-ambience** music bed (on by default,
+  settings toggle): a 20 s exactly-periodic looping WAV synthesized in-repo
+  (`scripts/generate-ambient-loop.mjs` →
   `public/assets/audio/cave-ambient.wav`) played by `hooks/useSounds.ts`
-  with the player's loop flag, at half the SFX level (`musicLevel` /
-  `MUSIC_VOLUME_RATIO` in `game.ts`), paused while muted, music-off, or
-  backgrounded (AppState); asset nets in
+  with the player's loop flag, at the independent
+  `musicLevel(settings.musicVolume)` level, paused while muted, music-off,
+  or backgrounded (AppState); asset nets in
   `scripts/__test__/ambientLoop.test.ts`.
 - **Accessibility & UX** — accessibility labels/roles throughout,
   reduce-motion preference respected (`hooks/useAccessibilityReduceMotion.ts`),
@@ -344,7 +347,8 @@ of Pressable so rapid tapping doesn't double-render).
   (`analytics.ts`, `crashLog.ts`, `crashContext.ts`,
   `components/ErrorBoundary.tsx`).
 - **Settings** — autosave cadence, show-all-purchases, emoji-art fallback,
-  haptics, cave-ambience music, sound volume, mute, language,
+  haptics, cave-ambience music, sound volume, music volume, mute,
+  language,
   on-screen keypad, equation types / range / hard mode / symbols
   (`hooks/useSettings.ts`,
   `components/SettingsPanel.tsx`, `components/SaveTab.tsx`,
@@ -502,12 +506,18 @@ low-effort/high-impact first tier, so this section is in that order.
   everywhere; nothing scales with the OS font setting. The cheapest
   high-impact item in the playbooks: a settings row with ~3 scale
   steps applied as a multiplier at the style layer.
-- **Independent music volume** — the cave-ambience bed is locked to
-  half the SFX level by the `musicLevel` law (`game.ts`), so there is
-  no way to hear the music without the SFX (or vice versa). The
-  audio-channel guideline is separate sliders; the cheap version is a
-  music-volume settings row parallel to the existing SFX row, relaxing
-  the half-level law.
+- ~~**Independent music volume**~~ — **DONE 2026-09** (iteration 16,
+  autonomous no-signal pick): the bed no longer rides the SFX level —
+  `settings.musicVolume` (0–100, default **50**, which is exactly the
+  old half-level law's default experience for a 100% SFX player) sets
+  it on its own independent scale via `clampMusicVolume` /
+  `musicLevel(musicVolume)` in `game.ts`; a parallel 10%-step settings
+  row next to the SFX row (`components/SettingsPanel.tsx`), the menu
+  mute toggle still pauses the bed outright, and old settings get the
+  default through the `{ ...defaultSettingsData, ...parsed }` merge
+  (no migration — the settings key is unversioned like soundVolume's
+  precedent). Pinned by `game.test.ts` (clampMusicVolume + the new
+  1:1 `musicLevel` semantics).
 - **Native reduce-motion** — `useAccessibilityReduceMotion.ts` already
   respects `prefers-reduced-motion` **on web only** (RN has no API for
   the iOS/Android OS setting yet, per the file's own comment; native
@@ -1765,15 +1775,18 @@ The research (five sources; quality notes at the end):
   also the source for the sink-first design discipline: sinks designed
   before sources — which is exactly what the balance test encodes.
 
-Candidates (documented, trigger-gated — **none planned, none
-implemented**):
+Candidates (documented, trigger-gated — **one landed in iteration 17,
+the rest not planned, none shipped without the trigger**):
 
-- **`cosmetics:analytics`** — per-purchase event granularity on the
+- ~~**`cosmetics:analytics`**~~ — per-purchase event granularity on the
   guardrail-5 event log: line, item id, path (gems vs pack), gem balance
   at purchase. A pure `analytics.ts` addition on the existing buy/grant
   paths; no UX. The cheapest candidate and the precondition for every
   other trigger in this pass — which lines carry spend is currently
-  unanswerable. Candidate, not planned.
+  unanswerable. **DONE (iteration 17, 2026-07-16):**
+  `recordCosmeticPurchase` + `CosmeticPurchaseEvent` in `analytics.ts`
+  (bounded newest-last log, cap 100, parse sanitizer + cap, summary
+  rows in the Settings debug panel); the engine fires it from `buyCosmetic` / `buyCaveTheme` on completed gem buys (mirror-guarded, path "gems", post-spend balance) and `MinesOfDoom`'s IAP grant effect fires the "iap" path for newly granted items only. ~15 new test assertions across `analytics.test.ts` / `useGameEngine.test.ts`; zero UX change.
 - **`cosmetics:collection`** — a collection-progress surface: per-line
   owned counts ("5/14 outfits"), the next-missing item highlighted, a
   completion reward that stays earnable (a free-only cosmetic or a
@@ -1904,7 +1917,9 @@ offline-immune is the load-bearing choice that keeps it safe. (5) **The
 absence-retention surface is thin where the habit literature says it
 bites:** the daily streak (`dailyBonus.ts`) hard-resets on any missed local
 day — no grace day, no shield — while the streak-design literature (sources
+
 # 4/#5) names the one-missed-day hard reset as the #1 burnout trigger and
+
 the grace-day/freeze as the standard anti-burnout pattern; the weekly
 contract at least re-snapshots baselines on a missed week without penalty,
 which is the correct absence posture. The ad pair (`offlineDouble` /
@@ -2018,7 +2033,9 @@ affordability invariants are pinned to, and it removes the only
 active-play gate on the premium currency the cosmetic lines are paid in;
 the load path's gems-immunity is deliberate and load-bearing. (3) *
 server-side absence accounting* (Pocketbase as the time oracle) — source
+
 # 3's conclusion applies: the system clock is player-controllable either
+
 way, the device is the source of truth by design (cloud save is an LWW
 *copy*, pass 5), and adding a server round-trip to the earn path buys
 none of the security a competitive game needs — it buys latency and a new
@@ -2253,7 +2270,8 @@ benchmark that the “×N doesn’t touch gems” finding depends on (pass 4/11)
   ambient loop"): the cave-ambience bed — a 20 s exactly-periodic looping
   WAV synthesized in-repo (`scripts/generate-ambient-loop.mjs`), played
   under the SFX at half the sound-volume level by `hooks/useSounds.ts`
-  (player loop flag, half-level `musicLevel` law, paused while muted /
+  (player loop flag, independent `musicVolume` level via `musicLevel`,
+  paused while muted /
   music-off / backgrounded), settings toggle `settings.music` (on by
   default). See §3 "Sound". Per-sound toggles stay open if they ever earn
   their place (see the sound-volume note above).
