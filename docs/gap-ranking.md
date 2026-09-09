@@ -92,6 +92,16 @@ repo is not equipped to make.
     `analytics:leaderboard-open` into the family. The only measurement
     that turns pass 27's IA candidates from a hunch into data; same
     local-stamp-now, cohort-later split as item 1.
+12. **`deploy:prod-env-gate`** (pass 28) — the one trust-chain
+    weakness pass 28 found, and the only one where a silent
+    failure is a money leak, not a UX bug: the sandbox flag
+    (`MDOOM_DEV_FAKE_TOKEN`, which mints *any* IAP + identity
+    token when set) and the sidecar URL are asserted nowhere at
+    release time — §4's release gate checks on-device
+    verification but never the production container's env.
+    The release-gate item (or a deploy-time assert): production
+    reports the flag unset and the sidecar `/healthz` is
+    `configured: true` per platform. Hours of work.
 
 ## Tier 1 — Real feature gaps, ranked by impact-per-line
 
@@ -223,7 +233,7 @@ fake scarcity, pay-to-win gates, device-motion input, landscape,
 voice/social input) are guardrails, not gaps, and stay out of this
 ranking.
 
-**Net:** Tier 0 first — items 1–11 are mostly days of work, they are
+**Net:** Tier 0 first — items 1–12 are mostly days of work, they are
 the guardrail-5 obligation, and they convert the Tier 1 items from
 research into a data-ordered queue. Among the real features,
 top-of-queue on impact-per-line: **Tier 1 #1 adaptive math, #2 text
@@ -466,6 +476,24 @@ three-state button state machine, the contextual-UI argument), and the
 MissionsSanx idle-game design guide re-fetched (the gradual-unlock
 progression line; SEO-adjacent, flagged). Exa still 429; DuckDuckGo per
 the re-pull convention.
+2026-09 pass 28: the trust / adversarial layer — what a modified
+client, a fast clock, and a misconfigured deploy can do (the one
+frame no per-axis pass asked). The clock-attack canon is all
+vendor or community: bugnet.io's daily-reward clock-rewind fix
+(vendor — the Bugnet error-capture SDK, and the article's second
+half pitches it; the fix section only was used —
+server-authoritative eligibility, wall-vs-monotonic divergence,
+offline fail-closed), the Unity Cloud Code "server time
+anti-cheat" sample (official docs, JS-heavy page — cited as a
+canon pointer only), the GameMaker forum idle-game time-cheat
+thread (community practitioner, two visible posts — the
+worldtimeapi-ping pattern and its self-avowed offline crash),
+and a PocketBase rate-limiting deepwiki page (AI-generated
+tertiary over line-referenced source — IP-based, in-memory,
+disabled by default). The save-tampering vector taxonomy comes
+from guardingpearsoftware (vendor, anti-cheat SDK knowledge
+base — the vectors and the prioritization line only). Exa still
+429; DuckDuckGo per the re-pull convention.
 
 ## The gap layers (formerly `docs/features.md` §7)
 
@@ -3988,3 +4016,131 @@ game" surface), the content of the a11y labels (pass 3 / pass 22's
 surface — their existence is noted here, their copy was not audited),
 the FTUE tour's content (pass 7), and pre-install discoverability, which
 is the store listing (pass 10).
+
+### The trust / adversarial layer (pass 28 — what a modified client, a fast clock, and a misconfigured deploy can do, written 2026-09-09)
+
+The per-axis passes never asked the adversarial question: what
+can a player who can't be trusted do? The server-side trust
+posture existed only as `pb_hooks/README.md`'s security section
+plus store-integration.md §4's release gate that defends it, and
+the client's clock surfaces (the offline formula, the
+daily/weekly rolls) were audited in passes 15/17 without an
+adversarial frame. This pass audits that frame end to end:
+(a) time trust — the local-clock day boundaries, (b) device
+identity — the regenerable `deviceId`, (c) save-data trust —
+plaintext local state, (d) server posture — the verification
+chain, write budget, caps, PII, (e) the operational seam where
+(a)–(d) meet production: the container env.
+
+**F28.1 — the day-boundary rewards trust the local clock; the
+reward structure makes tampering unprofitable by construction.**
+Claim eligibility is a string comparison against the local
+wall: `computeDailyClaim` says `lastClaimDay !==
+getLocalDayKey(Date.now())` (a local `yyyy-MM-dd` string;
+`dailyBonus.ts`); the weekly contract reuses the same clock on a
+Monday anchor (`getLocalWeekKey`) and the daily equation rolls on
+the same `dayKey`. So, yes — rewinding the device clock re-opens
+🎁/📜/📅. But the streak logic is the defense: a rewind leaves
+`lastClaimDay` *in the future*, which is neither "yesterday"
+nor "2 days ago", so the claim lands as a gap reset paying the
+day-1 bonus (10,000); the valuable rewards — the streak ladder,
+the milestone free freeze every 7 days, the repair snapshot — are
+the ones the tamperer *breaks*, not farms. Max extractable per
+real day: one extra day-1 bonus. A legitimate player earns at
+least that every day. The canonical fix set (server-side
+eligibility; wall-vs-monotonic divergence detection; offline
+fail-closed — bugnet; Unity's server-time sample; the GM
+thread's worldtime ping rolling dailies on server `day_of_year`)
+is all disproportionate to the value at risk, and the one
+*farmable* clock surface in the game — the 8-hour offline
+earnings cap — is already ranked (Tier 1 item 16,
+`offline:clock-hwm`, deliberately low priority). Server-side
+eligibility, the canonical answer, is *considered and rejected*:
+it would trade a network round-trip on the game's cheapest
+feature to deny a ~10,000/day extra to a player who can already
+root their device. No new candidate — the axis is closed as
+safe-by-construction, and its one residual is already ranked.
+
+**F28.2 — the server posture is stronger than the genre norm,
+and the README's claims hold against the shipped surface.**
+All collections are private with null rules and only the hooks
+touch the rows; every data route is keyed to the anonymous
+device id (verified in `collections.js`, `handlerLib.js`, the
+endpoint table). Minting has exactly one path — the store's own
+API verdict (Play `purchaseState` 0 on the pinned SKU; Apple
+JWS + x5c chain + live root fetch; Stripe paid-lookup bound to
+product + device) — and the three-mode `sandbox → sidecar →
+fail-closed` chain makes an unconfigured or down verifier
+degrade to "not purchased", never "granted" (`storeVerify.js`,
+`identityVerify.js`). Webhook bodies are untrusted hints
+deduped by event id; raw receipts are never persisted (sha256
+only); the 30 writes/hour per-device budget is *durable* (an
+`events` row; reads unlimited); caps reject rather than clamp;
+blob ≤16 KB; a `saveVersion` newer than the app is rejected;
+display names ≤16. Secrets are env-only; the web bundle holds
+`pk_` only; the client ships *no* sandbox/fake-receipt path
+(grep of `src/`: cosmetic blurbs and the `storeConfig` "never
+fake" comment only). The runtime's own rate limiter is no
+substitute — PocketBase's is IP-based, in-memory, off by
+default (deepwiki, tertiary), and under the v0.40 pooled-VM
+model an in-memory limiter couldn't be shared between handlers
+anyway (pb_hooks rule 5), which is exactly why the app built its
+own durable budget. Consistent with pass 24's F24.5 (claims +
+caps as the genre answer) and the anti-cheat canon (the server
+owns the important state; the client may cache). PII is
+minimal: displayName ≤16, no names or emails in the crash
+snapshot's 24 keys, analytics local-only, GDPR deletion
+documented (pass 26).
+
+**F28.3 — the single trust-chain weakness is operational, and
+it isn't in the release gate.** `MDOOM_DEV_FAKE_TOKEN=1` mints
+*any* non-empty token — IAP and identity (README: "**must never
+be set in production**"). But store-integration.md §4 (the
+release gate) and the deploy checklist assert nothing about the
+production container having it unset, or
+`MDOOM_SIDECAR_URL` set — the flag is documented only in the
+sandbox runbook (pocketbase-plan.md) and the README's env
+table. A misconfigured production would silently mint arbitrary
+entitlements — a money leak — and accept any identity link
+(account-takeover class), which is the one failure mode the
+README calls out by name. The sidecar already exposes the
+surface (`/healthz` reports `configured` per platform);
+nothing asserts on it at deploy time. (→ the candidate below;
+Tier 0 item 12.)
+
+**F28.4 — the plaintext local save is the right posture, not a
+gap.** The save blob, the day stamps, the entitlements state,
+the analytics record: all readable and writable in place
+(AsyncStorage; `localStorage` on web, pass 12). The canon's
+mitigations (encryption + integrity, context / monotonic
+counters, server-owned state — guardingpear) are satisfied to
+the extent the architecture allows: the *important* state
+(entitlements, the cloud copy, the board rows) is server-owned
+and store-verified, and the local copy is a cache — exactly the
+shape the canon prescribes for offline-first games. The only
+state where a wrong local value hurts is where it hurts the
+player themself (single-player; no server truth for a run,
+F24.5). The cross-player vectors are closed by design: device
+identity never rides in the save blob (`iapDeviceId.ts` keeps
+it out on purpose — a copied/imported save cannot steal
+entitlements, because the store token proves ownership and the
+id is "a key, not a secret"); the board takes capped claims
+(F24.5). Rollback abuse (save before a risk, restore after) has
+pass 21's recovery paths (`.corrupt` backup, cloud LWW, save
+code). The regenerable `deviceId` (`dev-<ts36><16 alnum>`,
+`Math.random`) costs the player only: a fresh identity starts
+with an empty cloud save / board / events — no endpoint exposes
+another device's state (the board's top-10 exposes depth claims
+by design, F24.5) — so regenerating is self-harm, not theft. No
+candidate.
+
+**Candidates (documented, not planned):**
+
++ `deploy:prod-env-gate` — the release-gate item (store-
+  integration §4, beside the IAP row): assert the production
+  container reports `MDOOM_DEV_FAKE_TOKEN` unset and the
+  sidecar `/healthz` shows `configured: true` per platform (one
+  curl, or a compose-level assert that fails the deploy while
+  the flag is set). The only trust-chain weakness this pass
+  found, and the one where a silent failure is a money leak
+  instead of a UX bug. Hours of work; Tier 0 item 12.
