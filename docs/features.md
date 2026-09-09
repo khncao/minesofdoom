@@ -122,6 +122,15 @@ incremental-game design guide (token-vs-effect split, the
 `floor(lifetime^exp × mult)` curve with exp 0.5–0.8, the `earned > 0`
 hard block, the `preview >= 3 && run_time > 1800 s` suggestion floor, the
 reset/keep lists). Items adopted from that list move into `docs/todo.md`).
+2026-09 pass 19: the numerical curve / pacing layer — Pecorella "Quest
+for Progress — The Math of Idle Games, Part I" (GDC Europe 2016, via
+Game Developer — the genre-standard `cost = base × rate^owned` model and
+the generator-optimality rules) and PaperPilot.dev's idle-balancing guide
+(secondary/community: inflation rules — effect growth must stay under
+cost growth, caps as controlled inflation, D30+ depth via additive
+mechanics). Pass 8 named "interval to next purchase" as unmeasured;
+this pass measures it (scratch harness, deleted after the run) and audits
+the whole cost/production family as a system.
 
 ## 1. Core gameplay
 
@@ -766,7 +775,9 @@ canon below, not gaps); the rest are candidates.
   different depths, log time-to-next-affordable-upgrade over a few
   days; the pass-4 churn workflow (review themes per version) gets a
   concrete pacing signal to match complaints against. Candidate, not
-  planned.
+  planned. *(Pass 19, §7, measured this invariant for the free persona
+  with a temporary instrumentation harness — the interval distribution is
+  in that section; the measurement itself stays a candidate.)*
 - ~~**The number notation is a fixed ladder**~~ — **DONE 2026-09**
   (iteration 20, autonomous no-signal pick): exactly the cheap version
   as researched — `settings.notation` ("compact" | "plain", default
@@ -1776,7 +1787,10 @@ themes (free + 9 paid, 25–170 💎, background recolors). The full paid
 collection is **1,675 💎** (675 outfits + 160 pickaxes + 840 themes). Gem
 income for scale (`freePath.ts` sim, the same one the balance test runs):
 the first prestige run takes ~4.7 days and grosses 208 💎 (164 drops + 44
-mints); a 30-day free run grosses 1,946 💎. Gem sources are the per-answer
+mints); a 30-day free run grosses 1,958 💎 (re-measured pass 19, 2026-09-10,
+on the deterministic seed-20260902 sim: 1,548 drops + 410 mints; the
+1,946 figure quoted in pass 16 was a one-off measurement of a pre-09-08
+code state that never landed in a test or the repo). Gem sources are the per-answer
 drop (5 % base + 1 %/level, `gemChance`), the 100 k minerals → 1 gem mint
 faucet (`gemMineralCost`), and the ad roll (5 💎, 3×/day, `ads.ts`). Gem
 *sinks* are the three miner lines, gem chance, click boost, and combo
@@ -2346,6 +2360,151 @@ targets (same as passes 13/16/17).
 offline/absence math around the offline multiplier (pass 17), the depth-tier
 table and depth-lifetime coupling (pass 15), and the free-path / guardrail-1
 benchmark that the “×N doesn’t touch gems” finding depends on (pass 4/11).
+
+### The numerical curve / pacing layer (pass 19 — what the cost curves actually do)
+
+Passes 3–18 audited every *surface* the player touches; the one layer
+never audited as a system is the one underneath all of them — the
+**cost/production curves**: how fast each line's price grows, how fast
+its effect grows, and what that does to the *interval* between
+purchases (the invariant pass 8 named as unmeasured, citing Pecorella).
+Live audit (2026-09-10, `game.ts` cost/effect formulas re-read in full at
+HEAD, `freePath.ts` sim, `freePath.test.ts`, `useGameEngine.ts` buy paths)
+plus a deterministic re-run of the shipped sim at 30 and 60 days (scratch
+instrumentation harness, **deleted after the run** — nothing committed
+from it except the numbers below), plus the two research sources in the
+header.
+
+**The cost family as shipped** (`game.ts`, all verified at HEAD):
+
+| Line | Cost (to buy the next) | Effect of the next | Curve shape |
+| --- | --- | --- | --- |
+| click power | `level⁴` (marginals 15, 671, 4,641, 34,481 at n=1,5,10,20) | +1 click power | polynomial cost, **flat** effect |
+| miner power | `1,000·n²` (marginals 3,000, 11,000, 21,000, 41,000) | +1 power to *every* miner line | polynomial cost, **compounding** effect (return grows with miner count — the only such line) |
+| regular miner | `n⁴ + 1` | +1 miner × power | polynomial, flat effect |
+| fast miner | `⌈(n+1)⁴/8⌉` | +1 miner × `⌊power/2⌋` | polynomial, flat effect |
+| legendary miner | `⌈2(n+1)⁴⌉` | +1 miner × `2·power` | polynomial, flat effect |
+| gem chance | `10(l+1)²` (cap 20 → 25 %) | +1 %/level | quadratic, capped |
+| click boost | `25(l+1)²` (cap 4) | `2^level` (×16 max) | quadratic cost, **exponential** effect — the one line where effect growth outruns cost growth; the cap at ×16 is what makes it safe |
+| combo resist | `20(l+1)²` (cap 5 → 42 %) | +8 %/level | quadratic, capped |
+| gem mint | 100 k minerals | 1 gem | linear faucet |
+
+Versus the genre standard (source #1, Pecorella Part I — the canonical
+description): `cost = base × rate^owned` with `rate ≈ 1.07–1.15`, i.e.
+**exponential** cost, where "exponential costs will eventually crush
+polynomial production" and the pacing loop *is* the cost curve — each
+purchase deliberately takes longer than the last. This game runs the
+opposite family: polynomial (mostly n⁴) cost with flat-or-compounding
+effects. Pecorella's generator-balancing rule (each generator should be
+the optimal buy at a different stage) is applied here only in the weakest
+sense — see finding 2.
+
+Five structural findings.
+
+1. **Pacing here is income-governed, not cost-governed — the genre
+inversion.** Deterministic shipped sim (seed 20260902, `freePath.ts`),
+no-prestige runs: 30-day = **97.2 M lifetime** (answers 37.9 M / 39 %, passive
+49.6 M / 51 %, daily 6.2 M / 6 %, taps 3.5 M / 4 %, **offline 0**); 60-day =
+**286.7 M**. Production: 70/s at D1 → 239/s D10–15 → **296/s D18–30 → 330/s
+D45–60** — a 13 % rise across the last 30 days of the run. The D18→D60 wall
+is not the cost curve (marginal costs keep falling as a share of income);
+it is **income saturation**: every gem line is capped (gem chance 20,
+click boost 4, combo resist 5), the sim's own mineral policy caps at
+`cpCost ≤ 2,500` and `mpCost ≤ 500 k` (the persona stops there because
+beyond it the next upgrade costs more than the day's income), the expected
+answer value is flat (E = 30 in the sim; the live equation table is
+bounded too), and the prestige multiplier tops at ×5. In the genre model
+the wall is "the cost outpaced my income"; here it is "my income plateaued
+and the caps stopped the effects from scaling with it". Same felt
+symptom (stretching intervals), opposite lever — which matters for every
+"pacing feels off" report (finding 5).
+
+2. **The miner trio is a finite-value sink, and its first purchases are the
+bargains.** Per-gem marginal efficiency (pps bought per gem, at
+minerPower 23): the *first* units — regular 23/gem, **legendary 23/gem**
+(46/s for 2), fast 5.5/gem; the *second* units — regular 1.35, fast 1.0,
+legendary 0.28; by the fifth — fast 0.068 > regular 0.037 > legendary
+0.018; by the tenth all three ≈ 0.002–0.006. Two consequences. (a) The
+ordering *inverts* around n≈2–3 (early: legendary/regular first; later:
+fast wins) — so the trio is not a single-winner collapse, but (b) every
+line's marginal value trends to **zero** (flat production against n⁴
+cost): the rational strategy the numbers describe is "buy the first few
+of each line cheap, then stop" — the remaining gems either idle in the
+hoard or mint-loop. Pecorella's per-generator optimality (source #1) is
+only half present: the lines differ by cost offset, not by *role*, so
+none of them is the interesting buy at any given stage — they are all
+the same buy (flat pps) with different entry prices.
+
+3. **The pass-8 invariant, measured.** From the instrumented 30-day run:
+interval-to-next-purchase minimum falls 35 s (D1) → 14 s (D30) — the
+cheap lines stay trivially buyable — while the **median** interval
+stretches to 17–27 k s (≈ 5–7 h) by D14+: the persona's affordable set
+simply runs out and the run becomes a hoard-to-next-capped-line wait.
+That is the genre's "production outrunning cost" failure mode (source #1)
+in its mildest form: anticipation doesn't collapse, it just stops being
+*per-purchase* and becomes *per-cap*. The D30 next-meaningful-purchase
+concretely: fast miner #7 costs ⌈7⁴/8⌉ = 301 gems; the D30 hoard is 229
+→ ~1–2 days at the run's drop rate. The measurement itself (the
+harness) is not committed — candidate below.
+
+4. **The benchmark's offline term is structurally zero.** `freePath.ts`
+calls `computeOfflineMinerals(miners, power, fastMiners, /*saveTime*/ 0,
+/*now*/ offlineSeconds)` and the function's first guard is
+`if (saveTime <= 0 || now <= saveTime) return 0n` — so the persona's
+22 h of "offline" time has **never earned anything** in the benchmark
+(the call has passed `saveTime: 0` since before the bigint rewrite,
+verified by history). The `freePath.test.ts` near-idle test's comment
+("offline earnings carry the run") is therefore inaccurate: that run is
+carried by in-session passive + active play. Direction of the bias:
+real players *do* earn offline (pass 17's load path pays 100 % of the
+passive rate for up to 8 h), so the benchmark is **conservative** — a
+balance that passes it passes for real players, and the 7-day F2P
+assertion holds a fortiori. What it can *not* do is what its comments
+claim: guard against a balance that only works offline (such a balance
+would pass the benchmark invisibly, and the near-idle persona's margin
+would overstate the offline dependency rather than measure it).
+
+5. **Doc drift, minor, fixed here.** Pass 16 quoted "a 30-day free run
+grosses 1,946 💎"; the deterministic sim today grosses **1,958** (1,548
+drops + 410 mints) — the margin over the 1,675 💎 full-collection
+cost is 283 (pass 16 said 271 — same conclusion, near-identical margin).
+The quoted figure never appeared in any test or commit (one-off
+measurement of a pre-09-08 code state; streak-mode removal `a751060` and
+the daily-bonus rework landed around it). The mineral-side 30-day figure
+this pass re-ran (97.2 M) is new — no prior doc quote existed to drift.
+
+Six candidates, **documented, not planned** (todo rule): `economy:offline-sim-fix`
+— set `saveTime` to the session-end timestamp in the sim so the near-idle
+guard actually measures offline carry (benchmark bug fix, smallest of the
+six); `economy:interval-metric` — commit the pass-8 invariant as a dev-only
+script (or a `--pacing` flag on the sim) and only surface a
+"next purchase in ~" readout in-app if a D30+ churn theme names pacing
+(guardrail 5: measure first); `economy:miner-trio-roles` — give the three
+lines distinct roles per Pecorella's generator balancing (e.g. legendary
+as the offline-mechanic tie-in, fast as the combo tie-in) so gem spend
+is a choice between *what it does*, not a per-gem efficiency ranking;
+`economy:cost-family` — if D30+ pacing ever is the felt problem, the
+genre lever is switching the miner lines to `base·rate^n` (rate ≈ 1.07–1.15)
+to deliberately lengthen intervals; the buy-all planner (`planBuyAll`
+binary search over any monotone cost, `game.ts`) is curve-agnostic, so
+the mechanics are already migration-ready — a balance decision, not an
+implementation blocker; `economy:wall-diagnostic` — the real endgame
+walls are the 1.5 B t5 goal and the 5 B final prestige level (the sim
+runs the whole no-prestige run at ×1, so even the 286.7 M D60 figure
+overstates how far a ×1.5–×5 prestige'd player is from t5); what a
+D250+ player does is an open question and a candidate *additive* D30+
+mechanic in the PaperPilot sense (source #2) — only if retention data
+shows the wall is felt.
+
+Source quality per the pass-6 discipline: #1 is the canonical genre
+document (Pecorella, GDC 2016, full text via Game Developer — the
+`base × rate^owned` model and the generator-optimality rules are the
+primary reference for the cost-family finding); #2 is community
+practice (PaperPilot.dev balancing guide — the inflation rules and
+"caps as controlled inflation" vocabulary; treated as practice, not
+benchmark). As in passes 13/16/18, no source carries a market
+benchmark for curve shapes — curve choice is a design decision the
+sim's numbers constrain but do not settle.
 
 ### Player-facing surfaces
 
