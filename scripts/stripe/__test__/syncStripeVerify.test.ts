@@ -131,6 +131,7 @@ function runVerify(
   apiBase: string,
   secretKey: string,
   flags: string[] = [],
+  repoFile?: string,
 ): Promise<{ status: number | null; stdout: string; stderr: string }> {
   return new Promise((resolvePromise) => {
     const child = spawn(process.execPath, [SCRIPT, "verify", ...flags], {
@@ -138,6 +139,9 @@ function runVerify(
         ...process.env,
         STRIPE_API_BASE: apiBase,
         STRIPE_SECRET_KEY: secretKey,
+        // The MDOOM_STORE_CONFIG_PATH seam: a scratch storeConfig.ts for a
+        // finished-flip run (the committed file is never touched).
+        ...(repoFile ? { MDOOM_STORE_CONFIG_PATH: repoFile } : {}),
       },
     });
     let stdout = "";
@@ -204,10 +208,46 @@ test("verify flags a rogue mdoom-marker product in the account", async () => {
   expect(r.stderr).toContain("unknown mdoom product");
 });
 
-test("verify flags the half flip: sk_live key against a still-test-mode repo", async () => {
+test("verify --live checks stripeProd: an unfilled prod block is a finding", async () => {
   mock = await startMock();
+  // The live key verifies against the auto-enabled prod block
+  // (storeConfig.stripeProd) — empty pre-launch, so the flip is not done.
   const r = await runVerify(mock.url, "sk_live_fixture000", ["--live"]);
   expect(r.status).toBe(1);
-  expect(r.stderr).toContain("half flip");
-  expect(r.stderr).toContain("test-mode but the secret key is live-mode");
+  expect(r.stderr).toContain("stripeProd");
+  expect(r.stderr).toContain("publishableKey is not set");
+});
+
+test("verify --live passes once stripeProd holds the live snippet", async () => {
+  // Simulate the finished launch flip WITHOUT touching the committed file:
+  // a scratch storeConfig.ts whose stripeProd carries a live key + the
+  // price ids the (mock) live account serves. (The flip swaps the key and
+  // price SOURCE — in this mock world the ids happen to match.)
+  const cfgPath = path.join(
+    REPO_ROOT,
+    "src",
+    "mines_of_doom",
+    "storeConfig.ts",
+  );
+  const original = fs.readFileSync(cfgPath, "utf8");
+  const tmp = path.join(REPO_ROOT, "storeConfig.verify-tmp.ts");
+  const livePrices = Object.entries(parseRepo().prices)
+    .map(([id, price]) => `      ${id}: "${price}",`)
+    .join("\n");
+  const liveConfig = original
+    .replace('publishableKey: "",', 'publishableKey: "pk_live_fixture",')
+    .replace(
+      "prices: {} as Record<string, string>,",
+      "prices: {\n" + livePrices + "\n    },",
+    );
+  expect(liveConfig).not.toBe(original); // both replacements landed
+  fs.writeFileSync(tmp, liveConfig);
+  try {
+    mock = await startMock();
+    const r = await runVerify(mock.url, "sk_live_fixture000", ["--live"], tmp);
+    expect(r.status).toBe(0);
+    expect(r.stderr).not.toContain("DRIFT");
+  } finally {
+    fs.unlinkSync(tmp);
+  }
 });

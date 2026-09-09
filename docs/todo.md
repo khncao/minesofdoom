@@ -2,6 +2,11 @@
 
 Legend: [ ] not started, [o] in progress, [-] blocked
 Completed items are removed from this file (see git history); only remaining work is tracked here.
+Only work on continuous tasks after other tasks are completed
+
+- [ ] draft a few different generated art styles for characters and cosmetics
+- [ ] add a one time purchase that enables custom skinning (user uploaded images and audio)
+- [ ] rework mine background. Player should feel as if they are digging deeper based on depth
 
 - [ ] continuous task (do not complete): document feature map and fill out feature gaps and potential product improvements. Do not implement any feature gaps until greenlit
 

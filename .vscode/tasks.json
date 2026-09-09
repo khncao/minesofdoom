@@ -9,6 +9,11 @@
             "command": "echo Hello"
         },
         {
+            "label": "merge dev into main",
+            "type": "shell",
+            "command": "git checkout main && git merge dev && git push && git checkout dev"
+        },
+        {
             "label": "build-release-android",
             "type": "shell",
             "command": "npx react-native build-android --mode=release"

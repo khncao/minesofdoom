@@ -2,10 +2,12 @@ import fs from "fs";
 import path from "path";
 import {
   getAdMobIds,
+  getActiveStripe,
   getStripePrice,
   isAdMobIdsConfigured,
   isAdSenseConfigured,
   isStripeConfigured,
+  isStripeProdConfigured,
   storeConfig,
 } from "../storeConfig";
 import { IAP_PRODUCT_IDS, IAP_PRODUCTS } from "../iaps";
@@ -67,17 +69,30 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
   });
 
   it("isAdMobIdsConfigured requires the app id AND every placement unit", () => {
-    const filled = { gemRolls: "u", offlineDouble: "u", offlineTopUp: "u", comboSave: "u" };
+    const filled = {
+      gemRolls: "u",
+      offlineDouble: "u",
+      offlineTopUp: "u",
+      comboSave: "u",
+    };
+    expect(isAdMobIdsConfigured({ appId: "", rewardedUnitIds: filled })).toBe(
+      false,
+    );
     expect(
-      isAdMobIdsConfigured({ appId: "", rewardedUnitIds: filled }),
-    ).toBe(false);
-    expect(
-      isAdMobIdsConfigured({ appId: "app", rewardedUnitIds: { ...filled, gemRolls: "" } }),
+      isAdMobIdsConfigured({
+        appId: "app",
+        rewardedUnitIds: { ...filled, gemRolls: "" },
+      }),
     ).toBe(false);
     expect(
       isAdMobIdsConfigured({
         appId: "app",
-        rewardedUnitIds: { gemRolls: "", offlineDouble: "", offlineTopUp: "", comboSave: "" },
+        rewardedUnitIds: {
+          gemRolls: "",
+          offlineDouble: "",
+          offlineTopUp: "",
+          comboSave: "",
+        },
       }),
     ).toBe(false);
     expect(
@@ -89,9 +104,10 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
     // app.config.ts can't import this module (the Expo config loader uses a
     // plain node require), so the AdMob App ids are duplicated in the
     // `adMobAppIds` block there for the prebuild plugin. Pin them together.
-    const cfg = fs
-      .readFileSync(path.join(__dirname, "../../../app.config.ts"), "utf8")
-      .match(/^const adMobAppIds = \{[^}]*\};/m)?.[0] ?? "";
+    const cfg =
+      fs
+        .readFileSync(path.join(__dirname, "../../../app.config.ts"), "utf8")
+        .match(/^const adMobAppIds = \{[^}]*\};/m)?.[0] ?? "";
     const valueOf = (name: string) =>
       cfg.match(new RegExp(`${name}: "([^"]*)"`))?.[1] ?? "";
     expect(valueOf("androidAppId")).toBe(storeConfig.adMob.androidAppId);
@@ -117,9 +133,7 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
     // `node scripts/stripe/syncStripe.mjs products`) must cover the FULL
     // catalog — a missing product would silently hide it from the web
     // shop while native still sells it.
-    expect(storeConfig.stripe.publishableKey).toMatch(
-      /^pk_test_[A-Za-z0-9]+$/,
-    );
+    expect(storeConfig.stripe.publishableKey).toMatch(/^pk_test_[A-Za-z0-9]+$/);
     expect(new Set(Object.keys(storeConfig.stripe.prices))).toEqual(
       new Set(IAP_PRODUCT_IDS),
     );
@@ -143,7 +157,9 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
     expect(isStripeConfigured("pk_foo_abc", { a: "p" }, ["a"])).toBe(false);
     expect(isStripeConfigured("pk_test_abc123", { a: "" }, ["a"])).toBe(false);
     // A half-filled price map → the WHOLE catalog stays hidden.
-    const partial = Object.fromEntries(ids.slice(0, -1).map((id) => [id, "price_x"]));
+    const partial = Object.fromEntries(
+      ids.slice(0, -1).map((id) => [id, "price_x"]),
+    );
     expect(isStripeConfigured("pk_test_abc", partial, ids)).toBe(false);
     // A full map (every catalog id priced) → configured.
     const full = Object.fromEntries(ids.map((id) => [id, "price_x"]));
@@ -178,5 +194,77 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
     expect(isAdSenseConfigured("ca-pub-1234567890")).toBe(true);
     // The live default is true: the client is configured (docs/todo.md #2).
     expect(isAdSenseConfigured()).toBe(true);
+  });
+
+  describe("prod variables (stripeProd — the auto-enable, environment.ts)", () => {
+    // The flip is a data paste: these mutate the prod block, then
+    // restore it (the file pin above keeps the committed state exact).
+    const savedKey = storeConfig.stripeProd.publishableKey;
+    const savedPrices = storeConfig.stripeProd.prices;
+    afterEach(() => {
+      storeConfig.stripeProd.publishableKey = savedKey;
+      storeConfig.stripeProd.prices = savedPrices;
+    });
+
+    it("is empty until the launch flip (pre-launch state is pinned)", () => {
+      expect(storeConfig.stripeProd.publishableKey).toBe("");
+      expect(storeConfig.stripeProd.prices).toEqual({});
+      expect(isStripeProdConfigured()).toBe(false);
+    });
+
+    it("never activates on a non-prod env, even fully filled", () => {
+      storeConfig.stripeProd.publishableKey = "pk_live_fixture123";
+      storeConfig.stripeProd.prices = Object.fromEntries(
+        IAP_PRODUCT_IDS.map((id) => [id, "price_LiveFixture123"]),
+      );
+      expect(isStripeProdConfigured()).toBe(true);
+      // Non-prod env (dev server / preview) always runs the test block.
+      expect(getActiveStripe(false)).toBe(storeConfig.stripe);
+    });
+
+    it("prod env + unconfigured prod block falls back to the test block", () => {
+      // The pre-launch state: the prod domain still serves the test-mode
+      // block until the --live snippet is pasted.
+      expect(getActiveStripe(true)).toBe(storeConfig.stripe);
+    });
+
+    it("a test key in the prod block is a config error, not an activation", () => {
+      storeConfig.stripeProd.publishableKey = "pk_test_fixture123";
+      storeConfig.stripeProd.prices = Object.fromEntries(
+        IAP_PRODUCT_IDS.map((id) => [id, "price_TestFixture123"]),
+      );
+      expect(isStripeProdConfigured()).toBe(false);
+      expect(getActiveStripe(true)).toBe(storeConfig.stripe);
+    });
+
+    it("prod env + a fully live prod block auto-enables the prod variables", () => {
+      storeConfig.stripeProd.publishableKey = "pk_live_fixture123";
+      storeConfig.stripeProd.prices = Object.fromEntries(
+        IAP_PRODUCT_IDS.map((id) => [id, "price_LiveFixture123"]),
+      );
+      const active = getActiveStripe(true);
+      expect(active).toBe(storeConfig.stripeProd);
+      expect(active.publishableKey).toBe("pk_live_fixture123");
+    });
+
+    it("a half-pasted prod map is served but the provider's catalog gate still refuses it", () => {
+      storeConfig.stripeProd.publishableKey = "pk_live_fixture123";
+      // One id missing from the full catalog.
+      storeConfig.stripeProd.prices = Object.fromEntries(
+        IAP_PRODUCT_IDS.slice(0, -1).map((id) => [id, "price_LiveFixture123"]),
+      );
+      const active = getActiveStripe(true);
+      // The activation check is coarse (live key + non-empty map) so the
+      // half map IS served — but the all-or-nothing catalog gate the
+      // providers use on top of it refuses it (shop stays hidden).
+      expect(active).toBe(storeConfig.stripeProd);
+      expect(
+        isStripeConfigured(
+          active.publishableKey,
+          active.prices,
+          IAP_PRODUCT_IDS,
+        ),
+      ).toBe(false);
+    });
   });
 });

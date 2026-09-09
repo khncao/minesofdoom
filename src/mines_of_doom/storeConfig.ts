@@ -25,147 +25,167 @@
 export type StorePlatform = "android" | "ios";
 
 import type { AdKind } from "./ads";
+import { isProdEnvNow } from "./environment";
 
 export type AdMobIds = {
-  /** The AdMob App ID for this platform (AdMob console → Apps). */
-  appId: string;
-  /** The rewarded ad unit id per placement (AdMob console → Ad units →
-   *  Rewarded). Only rewarded placements exist in this app (guardrail 2);
-   *  each `AdKind` (ads.ts) is its own placement so AdMob can report them
-   *  separately. */
-  rewardedUnitIds: Record<AdKind, string>;
+ /** The AdMob App ID for this platform (AdMob console → Apps). */
+ appId: string;
+ /** The rewarded ad unit id per placement (AdMob console → Ad units →
+  *  Rewarded). Only rewarded placements exist in this app (guardrail 2);
+  *  each `AdKind` (ads.ts) is its own placement so AdMob can report them
+  *  separately. */
+ rewardedUnitIds: Record<AdKind, string>;
 };
 
 export const storeConfig = {
-  adMob: {
-    // AdMob console → Apps → Android / iOS → App ID. Baked into the native
-    // manifests by the config plugin in app.config.ts at prebuild.
-    androidAppId: "ca-app-pub-2101316086878618~4973124022",
-    iosAppId: "",
-    // AdMob console → Ad units → Rewarded → unit id, one per placement
-    // (AdKind) per platform. All four placements are production (one set
-    // serves both platforms — ad units aren't platform-scoped; the App ID
-    // is). AdMob's public test unit ids must never appear here —
-    // storeConfig.test.ts fails on them (docs/store-integration.md §1).
-    rewardedUnitAndroid: {
-      gemRolls: "ca-app-pub-2101316086878618/8308813932",
-      offlineDouble: "ca-app-pub-2101316086878618/9024953635",
-      offlineTopUp: "ca-app-pub-2101316086878618/1898589303",
-      comboSave: "ca-app-pub-2101316086878618/9285949727",
-    },
-    rewardedUnitIos: {
-      gemRolls: "ca-app-pub-2101316086878618/8308813932",
-      offlineDouble: "ca-app-pub-2101316086878618/9024953635",
-      offlineTopUp: "ca-app-pub-2101316086878618/1898589303",
-      // AdMob ad units aren't platform-scoped (the App ID is), so the same
-      // production unit serves iOS — moot until iosAppId lands (the pair
-      // stays hidden with an empty App ID).
-      comboSave: "ca-app-pub-2101316086878618/9285949727",
-    },
-    // Guardrail 6 (kid safety): TAG_FOR_CHILD_DIRECTED_TREATMENT.
-    // DECIDED 2026-09-08 (docs/security-audit.md S6): the app is positioned
-    // teen+ (13+), NOT child-directed, so the flag stays false — applied
-    // via MobileAds().setRequestConfiguration in adProvider.ts. Only flip to
-    // true if the stance ever becomes kid-directed (that also makes the
-    // COPPA-2025 parental-consent gate a launch requirement, see S6).
-    tagForChildDirectedTreatment: false,
+ adMob: {
+  // AdMob console → Apps → Android / iOS → App ID. Baked into the native
+  // manifests by the config plugin in app.config.ts at prebuild.
+  androidAppId: "ca-app-pub-2101316086878618~4973124022",
+  iosAppId: "",
+  // AdMob console → Ad units → Rewarded → unit id, one per placement
+  // (AdKind) per platform. All four placements are production (one set
+  // serves both platforms — ad units aren't platform-scoped; the App ID
+  // is). AdMob's public test unit ids must never appear here —
+  // storeConfig.test.ts fails on them (docs/store-integration.md §1).
+  rewardedUnitAndroid: {
+   gemRolls: "ca-app-pub-2101316086878618/8308813932",
+   offlineDouble: "ca-app-pub-2101316086878618/9024953635",
+   offlineTopUp: "ca-app-pub-2101316086878618/1898589303",
+   comboSave: "ca-app-pub-2101316086878618/9285949727",
   },
-  // Self-hosted Pocketbase base URL — ONE deployment serves receipt
-  // validation + entitlements (docs/pocketbase-plan.md) AND the store
-  // integrations: cloud saves + leaderboard (docs/store-integration.md).
-  // Read by the IAP / cloud-save providers at call time. Empty = unset
-  // (same rule as the ad ids): the real providers stay no-ops until it
-  // lands. Server-side verification is fail closed (the sidecar carries no
-  // store credentials yet — real purchases are refused, never faked);
-  // cloud saves / leaderboard work as-is.
-  // Deployed: ~/docker/pocketbase on the servarica VPS (Caddy TLS on the
-  // public domain; hooks in pb_hooks/; sidecar on the internal network).
-  // https://minesofdoom.minus4kelvin.com
-  pocketbaseUrl: "https://minesofdoom.minus4kelvin.com",
-  /**
-   * Stripe (web IAP, docs/todo.md #1) — `publishableKey` is the account's
-   * PUBLIC key (pk_…; safe in the bundle; the sk_ secret lives only in the
-   * VPS sidecar env) and `prices` maps every catalog product id to its
-   * Stripe Price id (price_…, Stripe dashboard → Products). The web IAP
-   * provider is available only when isStripeConfigured() passes
-   * (all-or-nothing, like AdMob) — a half-filled price map keeps the whole
-   * shop hidden on web so no button can lead to a purchase that cannot
-   * complete. Keyed by the catalog's internal product ids ("packGold",
-   * "pickaxeGoldPack", … — iaps.ts IAP_PRODUCT_LIST).
-   */
-  stripe: {
-    publishableKey:
-      "pk_test_51UDFSrDPxWoXhXF89ljfKfug4SEnW89VOEfHZd49ymBwMZ5CkBrpbDplb9hBdTvFAoqb5tf5QWzMKWSR946fV2mn00MUoKKYIH",
-    // Test-mode prices (sk_test/sk_ account, synced by
-    // `node scripts/stripe/syncStripe.mjs products`). The sk_live flip at
-    // launch re-syncs the live ids over these (§2.6 step 6).
-    prices: {
-      packGold: "price_1UDH4LDPxWoXhXF862vfpf9W",
-      packFrost: "price_1UDH5rDPxWoXhXF8KJSAjz0T",
-      packShadow: "price_1UDH5rDPxWoXhXF8ZuJ1wQ8m",
-      packNight: "price_1UDH5sDPxWoXhXF87A385cST",
-      packGoldrush: "price_1UDH5sDPxWoXhXF85ddJqYJH",
-      packCrystal: "price_1UDH5sDPxWoXhXF84KSohM56",
-      packMagma: "price_1UDH5tDPxWoXhXF8QWD3Qtjj",
-      packBlocky: "price_1UDH5tDPxWoXhXF8W28ok0BR",
-      packSurface: "price_1UDH5tDPxWoXhXF8kYLGVloe",
-      packKnight: "price_1UDH5uDPxWoXhXF8SalbCGuz",
-      packHunter: "price_1UDH5uDPxWoXhXF8poynRols",
-      packOni: "price_1UDH5uDPxWoXhXF8KeFubu8x",
-      packMarmot: "price_1UDH5vDPxWoXhXF8XyKxdXhX",
-      packFox: "price_1UDH5vDPxWoXhXF8wHG4Rhy8",
-      packOtter: "price_1UDH5vDPxWoXhXF8x50CwKAc",
-      packDamsel: "price_1UDH5wDPxWoXhXF8faIhyQxB",
-      packAmethyst: "price_1UDH5wDPxWoXhXF8AIJZWawT",
-      packVerdant: "price_1UDH5wDPxWoXhXF8zbLMB18l",
-      packSolar: "price_1UDH5xDPxWoXhXF85E1hyVZL",
-      packVoid: "price_1UDH5xDPxWoXhXF8SP1RkTGC",
-      packVoxel: "price_1UDH5xDPxWoXhXF8M00cO66B",
-      packWilds: "price_1UDH5yDPxWoXhXF8OxW6QCxA",
-      packAshen: "price_1UDH5yDPxWoXhXF8k89wYQou",
-      packGothic: "price_1UDH5yDPxWoXhXF8vT8zd0Jk",
-      packCherry: "price_1UDH5zDPxWoXhXF873VrwPjR",
-    },
+  rewardedUnitIos: {
+   gemRolls: "ca-app-pub-2101316086878618/8308813932",
+   offlineDouble: "ca-app-pub-2101316086878618/9024953635",
+   offlineTopUp: "ca-app-pub-2101316086878618/1898589303",
+   // AdMob ad units aren't platform-scoped (the App ID is), so the same
+   // production unit serves iOS — moot until iosAppId lands (the pair
+   // stays hidden with an empty App ID).
+   comboSave: "ca-app-pub-2101316086878618/9285949727",
   },
-  /**
-   * AdSense (web rewarded ads, docs/todo.md #2) — the web parity path for
-   * the AdMob rewarded placements, via the AdSense "Ad Placement API"
-   * (H5 Games Ads): `client` is the publisher id (ca-pub-…) from the
-   * AdSense dashboard. The Ad Placement API needs no per-unit slot id —
-   * each rewarded placement (one per AdKind, see adSenseProvider.web.ts)
-   * is a fresh `type: "reward"` adBreak on this client. While the client
-   * is empty the feature is off end to end (the loader script in +html.tsx
-   * simply isn't emitted and the provider reports unavailable). Rewarded
-   * ads only, player-tapped (guardrail 2) — the old shop-sheet banner was
-   * removed when web moved to rewarded-only (2026-09-07).
-   */
-  adsense: {
-    client: "ca-pub-2101316086878618",
+  // Guardrail 6 (kid safety): TAG_FOR_CHILD_DIRECTED_TREATMENT.
+  // DECIDED 2026-09-08 (docs/security-audit.md S6): the app is positioned
+  // teen+ (13+), NOT child-directed, so the flag stays false — applied
+  // via MobileAds().setRequestConfiguration in adProvider.ts. Only flip to
+  // true if the stance ever becomes kid-directed (that also makes the
+  // COPPA-2025 parental-consent gate a launch requirement, see S6).
+  tagForChildDirectedTreatment: false,
+ },
+ // Self-hosted Pocketbase base URL — ONE deployment serves receipt
+ // validation + entitlements (docs/pocketbase-plan.md) AND the store
+ // integrations: cloud saves + leaderboard (docs/store-integration.md).
+ // Read by the IAP / cloud-save providers at call time. Empty = unset
+ // (same rule as the ad ids): the real providers stay no-ops until it
+ // lands. Server-side verification is fail closed (the sidecar carries no
+ // store credentials yet — real purchases are refused, never faked);
+ // cloud saves / leaderboard work as-is.
+ // Deployed: ~/docker/pocketbase on the servarica VPS (Caddy TLS on the
+ // public domain; hooks in pb_hooks/; sidecar on the internal network).
+ // https://minesofdoom.minus4kelvin.com
+ pocketbaseUrl: "https://minesofdoom.minus4kelvin.com",
+ /**
+  * Stripe (web IAP, docs/todo.md #1) — `publishableKey` is the account's
+  * PUBLIC key (pk_…; safe in the bundle; the sk_ secret lives only in the
+  * VPS sidecar env) and `prices` maps every catalog product id to its
+  * Stripe Price id (price_…, Stripe dashboard → Products). The web IAP
+  * provider is available only when isStripeConfigured() passes
+  * (all-or-nothing, like AdMob) — a half-filled price map keeps the whole
+  * shop hidden on web so no button can lead to a purchase that cannot
+  * complete. Keyed by the catalog's internal product ids ("packGold",
+  * "pickaxeGoldPack", … — iaps.ts IAP_PRODUCT_LIST).
+  */
+ stripe: {
+  publishableKey:
+   "pk_test_51UDFSrDPxWoXhXF89ljfKfug4SEnW89VOEfHZd49ymBwMZ5CkBrpbDplb9hBdTvFAoqb5tf5QWzMKWSR946fV2mn00MUoKKYIH",
+  // Test-mode prices (sk_test/sk_ account, synced by
+  // `node scripts/stripe/syncStripe.mjs products`). The sk_live flip at
+  // launch re-syncs the live ids over these (§2.6 step 6).
+  prices: {
+   packGold: "price_1UDH4LDPxWoXhXF862vfpf9W",
+   packFrost: "price_1UDH5rDPxWoXhXF8KJSAjz0T",
+   packShadow: "price_1UDH5rDPxWoXhXF8ZuJ1wQ8m",
+   packNight: "price_1UDH5sDPxWoXhXF87A385cST",
+   packGoldrush: "price_1UDH5sDPxWoXhXF85ddJqYJH",
+   packCrystal: "price_1UDH5sDPxWoXhXF84KSohM56",
+   packMagma: "price_1UDH5tDPxWoXhXF8QWD3Qtjj",
+   packBlocky: "price_1UDH5tDPxWoXhXF8W28ok0BR",
+   packSurface: "price_1UDH5tDPxWoXhXF8kYLGVloe",
+   packKnight: "price_1UDH5uDPxWoXhXF8SalbCGuz",
+   packHunter: "price_1UDH5uDPxWoXhXF8poynRols",
+   packOni: "price_1UDH5uDPxWoXhXF8KeFubu8x",
+   packMarmot: "price_1UDH5vDPxWoXhXF8XyKxdXhX",
+   packFox: "price_1UDH5vDPxWoXhXF8wHG4Rhy8",
+   packOtter: "price_1UDH5vDPxWoXhXF8x50CwKAc",
+   packDamsel: "price_1UDH5wDPxWoXhXF8faIhyQxB",
+   packAmethyst: "price_1UDH5wDPxWoXhXF8AIJZWawT",
+   packVerdant: "price_1UDH5wDPxWoXhXF8zbLMB18l",
+   packSolar: "price_1UDH5xDPxWoXhXF85E1hyVZL",
+   packVoid: "price_1UDH5xDPxWoXhXF8SP1RkTGC",
+   packVoxel: "price_1UDH5xDPxWoXhXF8M00cO66B",
+   packWilds: "price_1UDH5yDPxWoXhXF8OxW6QCxA",
+   packAshen: "price_1UDH5yDPxWoXhXF8k89wYQou",
+   packGothic: "price_1UDH5yDPxWoXhXF8vT8zd0Jk",
+   packCherry: "price_1UDH5zDPxWoXhXF873VrwPjR",
   },
+ },
+ /**
+  * Stripe PRODUCTION (live) variables — the launch-flip target
+  * (docs/store-integration.md §2.6 step 6). The `stripe` block above
+  * stays the non-prod (test-mode) variables; these are the live ones.
+  * AUTO-ENABLED: `getActiveStripe()` serves this block instead of the
+  * test one whenever the app detects the prod environment (environment.ts
+  * — the prod web domain / a non-`__DEV__` native build) AND this block
+  * is fully live-mode (`pk_live_` key, non-empty price map). The flip is
+  * therefore "paste the `--live` snippet here" — no code switch, no
+  * re-wiring; until it is pasted, prod falls back to the test block
+  * (the pre-launch state) exactly as before.
+  */
+ stripeProd: {
+  // Launch: `node scripts/stripe/syncStripe.mjs products --live` prints
+  // this exact block (pk_live_ key + live price map, the §2.6 step-6
+  // snippet). Empty = not flipped yet.
+  publishableKey: "",
+  prices: {} as Record<string, string>,
+ },
+ /**
+  * AdSense (web rewarded ads, docs/todo.md #2) — the web parity path for
+  * the AdMob rewarded placements, via the AdSense "Ad Placement API"
+  * (H5 Games Ads): `client` is the publisher id (ca-pub-…) from the
+  * AdSense dashboard. The Ad Placement API needs no per-unit slot id —
+  * each rewarded placement (one per AdKind, see adSenseProvider.web.ts)
+  * is a fresh `type: "reward"` adBreak on this client. While the client
+  * is empty the feature is off end to end (the loader script in +html.tsx
+  * simply isn't emitted and the provider reports unavailable). Rewarded
+  * ads only, player-tapped (guardrail 2) — the old shop-sheet banner was
+  * removed when web moved to rewarded-only (2026-09-07).
+  */
+ adsense: {
+  client: "ca-pub-2101316086878618",
+ },
 };
 
 /** The AdMob ids for one platform, straight out of the config. */
 export function getAdMobIds(platform: StorePlatform): AdMobIds {
-  if (platform === "ios") {
-    return {
-      appId: storeConfig.adMob.iosAppId,
-      rewardedUnitIds: storeConfig.adMob.rewardedUnitIos,
-    };
-  }
+ if (platform === "ios") {
   return {
-    appId: storeConfig.adMob.androidAppId,
-    rewardedUnitIds: storeConfig.adMob.rewardedUnitAndroid,
+   appId: storeConfig.adMob.iosAppId,
+   rewardedUnitIds: storeConfig.adMob.rewardedUnitIos,
   };
+ }
+ return {
+  appId: storeConfig.adMob.androidAppId,
+  rewardedUnitIds: storeConfig.adMob.rewardedUnitAndroid,
+ };
 }
 
 /** Pure: an ad pair is usable only when the app id is set AND every
  *  placement has a unit id (a test id counts) — any entry point that could
  *  not fill must stay hidden. */
 export function isAdMobIdsConfigured(ids: AdMobIds): boolean {
-  return (
-    ids.appId.length > 0 &&
-    Object.values(ids.rewardedUnitIds).every((unitId) => unitId.length > 0)
-  );
+ return (
+  ids.appId.length > 0 &&
+  Object.values(ids.rewardedUnitIds).every((unitId) => unitId.length > 0)
+ );
 }
 
 /** The Pocketbase backend is configured — the IAP provider's
@@ -173,7 +193,7 @@ export function isAdMobIdsConfigured(ids: AdMobIds): boolean {
  *  = unset, same rule as the ad ids). Until the URL lands the purchase UI
  *  and the store integrations stay hidden. */
 export function isPocketbaseConfigured(): boolean {
-  return storeConfig.pocketbaseUrl.length > 0;
+ return storeConfig.pocketbaseUrl.length > 0;
 }
 
 /**
@@ -185,9 +205,9 @@ export function isPocketbaseConfigured(): boolean {
  * client id, so no second value to half-fill.
  */
 export function isAdSenseConfigured(
-  client: string = storeConfig.adsense.client,
+ client: string = storeConfig.adsense.client,
 ): boolean {
-  return /^ca-pub-\d+$/.test(client);
+ return /^ca-pub-\d+$/.test(client);
 }
 
 /**
@@ -200,14 +220,50 @@ export function isAdSenseConfigured(
  * price map itself, so a caller with a full map gets the simple check).
  */
 export function isStripeConfigured(
-  publishableKey: string = storeConfig.stripe.publishableKey,
-  prices: Record<string, string> = storeConfig.stripe.prices,
-  requiredIds: readonly string[] = Object.keys(prices),
+ publishableKey: string = storeConfig.stripe.publishableKey,
+ prices: Record<string, string> = storeConfig.stripe.prices,
+ requiredIds: readonly string[] = Object.keys(prices),
 ): boolean {
-  return (
-    /^pk_(test|live)_[A-Za-z0-9]+$/.test(publishableKey) &&
-    requiredIds.every((id) => (prices[id] ?? "").length > 0)
-  );
+ return (
+  /^pk_(test|live)_[A-Za-z0-9]+$/.test(publishableKey) &&
+  requiredIds.every((id) => (prices[id] ?? "").length > 0)
+ );
+}
+
+/**
+ * The PRODUCTION Stripe variables are usable: a live-mode key AND a
+ * non-empty price map whose values are all well-formed `price_…` ids.
+ * Deliberately stricter than `isStripeConfigured` (which accepts
+ * `pk_test_`): the prod block must carry REAL live values — a test key
+ * pasted there is a config error, never an activation. The full-catalog
+ * coverage check (`isStripeConfigured(…, IAP_PRODUCT_IDS)`) still runs
+ * at the provider gates, so a half-pasted map keeps the shop hidden.
+ */
+export function isStripeProdConfigured(): boolean {
+ const prod = storeConfig.stripeProd;
+ return (
+  /^pk_live_[A-Za-z0-9]+$/.test(prod.publishableKey) &&
+  Object.keys(prod.prices).length > 0 &&
+  Object.values(prod.prices).every((p) => /^price_[A-Za-z0-9]+$/.test(p))
+ );
+}
+
+/**
+ * The Stripe variables actually in effect RIGHT NOW (the auto-enable,
+ * docs/todo.md "prod variables"): the `stripeProd` block when the app
+ * is in the prod environment (environment.ts) AND it is fully live-mode
+ * (`isStripeProdConfigured`); the test-mode `stripe` block otherwise
+ * (dev server, previews, non-prod builds — and prod before the launch
+ * flip, when the live block is still empty). Consumers read the
+ * publishable key + price map ONLY through here, so the flip is a
+ * data paste, not a code change.
+ *
+ * `isProd` is injectable for tests (defaults to `isProdEnvNow()`).
+ */
+export function getActiveStripe(isProd = isProdEnvNow()) {
+ return isProd && isStripeProdConfigured()
+  ? storeConfig.stripeProd
+  : storeConfig.stripe;
 }
 
 /**
@@ -215,8 +271,8 @@ export function isStripeConfigured(
  * must treat "" as "not buyable" and keep the button disabled/hidden).
  */
 export function getStripePrice(
-  productId: string,
-  prices: Record<string, string> = storeConfig.stripe.prices,
+ productId: string,
+ prices: Record<string, string> = storeConfig.stripe.prices,
 ): string {
-  return prices[productId] ?? "";
+ return prices[productId] ?? "";
 }

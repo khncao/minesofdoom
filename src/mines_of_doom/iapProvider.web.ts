@@ -47,6 +47,7 @@ import {
 } from "./iaps";
 import {
   storeConfig,
+  getActiveStripe,
   isPocketbaseConfigured,
   isStripeConfigured,
 } from "./storeConfig";
@@ -132,7 +133,9 @@ export function loadStripe(): Promise<StripeRedirectClient | null> {
 function safeConstruct(ctor?: StripeConstructor): StripeRedirectClient | null {
   if (!ctor) return null;
   try {
-    return ctor(storeConfig.stripe.publishableKey);
+    // getActiveStripe(): the prod env auto-enables the live key once
+    // storeConfig.stripeProd is filled (environment.ts).
+    return ctor(getActiveStripe().publishableKey);
   } catch {
     return null;
   }
@@ -289,13 +292,16 @@ async function restoreFromServer(
 export const storeIapProvider: IapProvider = {
   id: "stripe",
   grantsLocally: false,
-  isAvailable: () =>
-    isPocketbaseConfigured() &&
-    isStripeConfigured(
-      storeConfig.stripe.publishableKey,
-      storeConfig.stripe.prices,
-      IAP_PRODUCT_IDS,
-    ),
+  isAvailable: () => {
+    // The active Stripe block (prod env auto-enables storeConfig.stripeProd
+    // once it is filled — environment.ts); the full-catalog all-or-nothing
+    // gate keeps a half-pasted prod map from ever exposing the shop.
+    const stripe = getActiveStripe();
+    return (
+      isPocketbaseConfigured() &&
+      isStripeConfigured(stripe.publishableKey, stripe.prices, IAP_PRODUCT_IDS)
+    );
+  },
 
   async purchase(productId, sessionToken) {
     if (!this.isAvailable()) return "error";

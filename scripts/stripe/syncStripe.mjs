@@ -4,12 +4,13 @@
  *
  * Zero dependencies, Node >= 18 (global fetch). Two commands:
  *
- *   node scripts/stripe/syncStripe.mjs products
+ *   node scripts/stripe/syncStripe.mjs products [--live]
  *     Ensures the 25 catalog products + one-time USD prices exist in the
  *     account (idempotent: products are looked up by the
  *     metadata mdoomProductId marker, so re-runs never duplicate).
  *     Prints a paste-ready snippet for src/mines_of_doom/storeConfig.ts
- *     (stripe.prices).
+ *     (stripe.prices — or stripeProd.prices with --live; the prod block
+ *     auto-enables on the prod domain, see storeConfig.getActiveStripe).
  *
  *   node scripts/stripe/syncStripe.mjs webhook
  *     Ensures the webhook endpoint at the public /stripe/webhook URL
@@ -46,14 +47,11 @@ const API_BASE = process.env.STRIPE_API_BASE || "https://api.stripe.com/v1";
 const WEBHOOK_URL = "https://minesofdoom.minus4kelvin.com/stripe/webhook";
 const WEBHOOK_EVENTS = ["checkout.session.completed"];
 const APP_DIR = path.dirname(fileURLToPath(import.meta.url));
-const STORE_CONFIG_PATH = path.resolve(
-  APP_DIR,
-  "..",
-  "..",
-  "src",
-  "mines_of_doom",
-  "storeConfig.ts",
-);
+// Test seam (like STRIPE_API_BASE): point at a scratch storeConfig.ts so a
+// finished-flip run can be checked without touching the committed file.
+const STORE_CONFIG_PATH = process.env.MDOOM_STORE_CONFIG_PATH
+  ? path.resolve(process.env.MDOOM_STORE_CONFIG_PATH)
+  : path.resolve(APP_DIR, "..", "..", "src", "mines_of_doom", "storeConfig.ts");
 let CATALOG;
 try {
   CATALOG = JSON.parse(
@@ -186,17 +184,40 @@ async function accountSnapshot(apiKey) {
 }
 
 /**
- * The stripe block straight out of storeConfig.ts (regex over the known
- * shape — the file is TS and this is a zero-dependency ops script; the
- * shape is pinned by storeConfig.test.ts, so the regex can't silently
- * read the wrong block).
+ * The stripe / stripeProd blocks straight out of storeConfig.ts. The
+ * file is TS and this is a zero-dependency ops script, so parsing is a
+ * brace-matching slice (comment-stripped) over the known top-level
+ * property names — the shape is pinned by storeConfig.test.ts, so the
+ * slice can't silently read the wrong block.
  */
-function parseStoreConfig(source = fs.readFileSync(STORE_CONFIG_PATH, "utf8")) {
-  const pkMatch = /publishableKey:\s*"([^"]*)"/.exec(source);
-  const blockMatch = /prices:\s*\{([^}]*)\}/.exec(source);
+function parseStripeBlock(source, blockName) {
+  // Strip comments first so braces inside comments can't break the slice.
+  const src = source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/[^\n]*/g, "");
+  const start = src.indexOf(`${blockName}: {`);
+  if (start < 0) {
+    return { publishableKey: "", prices: {} };
+  }
+  const open = src.indexOf("{", start);
+  let depth = 0;
+  let close = -1;
+  for (let i = open; i < src.length; i++) {
+    if (src[i] === "{") depth++;
+    else if (src[i] === "}") {
+      depth--;
+      if (depth === 0) {
+        close = i;
+        break;
+      }
+    }
+  }
+  const block = close > 0 ? src.slice(open, close + 1) : src.slice(open);
+  const pkMatch = /publishableKey:\s*"([^"]*)"/.exec(block);
   const prices = {};
-  if (blockMatch) {
-    for (const m of blockMatch[1].matchAll(/(\w+)\s*:\s*"([^"]*)"/g)) {
+  const pricesMatch = /prices:\s*\{([^}]*)\}/.exec(block);
+  if (pricesMatch) {
+    for (const m of pricesMatch[1].matchAll(/(\w+)\s*:\s*"([^"]*)"/g)) {
       prices[m[1]] = m[2];
     }
   }
@@ -206,13 +227,23 @@ function parseStoreConfig(source = fs.readFileSync(STORE_CONFIG_PATH, "utf8")) {
   };
 }
 
+/** Both store blocks: { test, prod } (the test block is pre-launch
+ *  behavior; the prod block is the launch-flip target). */
+function parseStoreConfig(source = fs.readFileSync(STORE_CONFIG_PATH, "utf8")) {
+  return {
+    test: parseStripeBlock(source, "stripe"),
+    prod: parseStripeBlock(source, "stripeProd"),
+  };
+}
+
 /**
  * Pure drift check: catalog.json vs the account snapshot vs the repo
  * price map. Returns the list of findings (empty = clean). Repo-side
  * checks run even when the account side is empty (a half-flip must be
  * visible offline, too).
  */
-export function verifyCatalog(catalog, snapshot, repo, keyEnv) {
+export function verifyCatalog(catalog, snapshot, repo, keyEnv, repoLabel) {
+  const label = repoLabel ?? "repo";
   const findings = [];
   const catalogIds = new Set(catalog.map((e) => e.id));
   const repoIds = new Set(Object.keys(repo.prices));
@@ -232,10 +263,12 @@ export function verifyCatalog(catalog, snapshot, repo, keyEnv) {
       ? "test"
       : null;
   if (pkEnv === null) {
-    findings.push("repo: publishableKey is not set (no pk_test_/pk_live_ key)");
+    findings.push(
+      `${label}: publishableKey is not set (no pk_test_/pk_live_ key)`,
+    );
   } else if (pkEnv !== keyEnv) {
     findings.push(
-      `repo: publishableKey is ${pkEnv}-mode but the secret key is ${keyEnv}-mode — half flip (re-paste the ${keyEnv}-mode snippet)`,
+      `${label}: publishableKey is ${pkEnv}-mode but the secret key is ${keyEnv}-mode — half flip (re-paste the ${keyEnv}-mode snippet)`,
     );
   }
   for (const e of catalog) {
@@ -366,8 +399,13 @@ async function main() {
   }
   if (cmd === "products") {
     const result = await ensureProducts(apiKey);
+    const live = flags.includes("--live");
     console.log(
-      "\nPaste into src/mines_of_doom/storeConfig.ts (stripe.prices):",
+      "\nPaste into src/mines_of_doom/storeConfig.ts " +
+        (live
+          ? "(stripeProd — auto-enabled on the prod domain)"
+          : "(stripe — the test-mode block)") +
+        ":",
     );
     console.log("  prices: {");
     for (const r of result) console.log(`    ${r.id}: "${r.price}",`);
@@ -376,10 +414,20 @@ async function main() {
       "\nAll-or-nothing gate: the web shop appears only when every id in\nIAP_PRODUCT_IDS has a price (isStripeConfigured).",
     );
   } else if (cmd === "verify") {
-    const repo = parseStoreConfig();
-    const snapshot = await accountSnapshot(apiKey);
     const keyEnv = apiKey.startsWith("sk_live_") ? "live" : "test";
-    const findings = verifyCatalog(CATALOG, snapshot, repo, keyEnv);
+    const cfg = parseStoreConfig();
+    // Verify each key against the block it is meant to hold: the test
+    // key against `stripe`, the live key against `stripeProd` (the
+    // auto-enabled prod block — a half flip must surface here).
+    const repo = keyEnv === "live" ? cfg.prod : cfg.test;
+    const snapshot = await accountSnapshot(apiKey);
+    const findings = verifyCatalog(
+      CATALOG,
+      snapshot,
+      repo,
+      keyEnv,
+      keyEnv === "live" ? "stripeProd" : "stripe",
+    );
     if (findings.length > 0) {
       console.error(
         `DRIFT — ${findings.length} finding(s):\n  ` + findings.join("\n  "),

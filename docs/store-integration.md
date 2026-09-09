@@ -165,24 +165,24 @@ an external account gate and the in-code integration:
 
 *External gates (account-side, not code):*
 
-* **H5 Games Ads access is by-application.** Apply at
+- **H5 Games Ads access is by-application.** Apply at
   `adsense.google.com/start/h5-beta`; “account approval is not
   guaranteed as it is subject to partner eligibility,” and an approved
   AdSense account is required. **Until approved, placements push but
   never fill** — the watch button silently re-enables (the no-fill
   behaviour in item 2 is the *expected* symptom of a missing approval,
   not a bug).
-* The site (`minesofdoom.pages.dev`) is added to the AdSense account
+- The site (`minesofdoom.pages.dev`) is added to the AdSense account
   and approved.
 
 *Integration (in code — audit result 2026-09-30, all met):*
 
-* **Tag** — `async` + `?client=` + `crossorigin="anonymous"` in the same
+- **Tag** — `async` + `?client=` + `crossorigin="anonymous"` in the same
   document as the game canvas, no `<ins>`/slot unit (the API is
   queue-driven; `app/+html.tsx`). The docs' `adBreak()` boilerplate is
   sugar for `adsbygoogle.push(o)`; `adSenseProvider.web.ts` pushes the
   same placement objects directly once the queue exists.
-* **Placement object matches the rewarded reference field-for-field**
+- **Placement object matches the rewarded reference field-for-field**
   (`adSenseProvider.web.ts`) — `type: "reward"`, `name`,
   `beforeReward(showAdFn)`, `beforeAd`, `afterAd`, `adViewed`,
   `adDismissed`. `showAdFn` is invoked only from a synchronous user tap,
@@ -190,13 +190,13 @@ an external account gate and the in-code integration:
   placement is pushed at every new opportunity (the documented reset
   path); `adBreakDone` is optional and intentionally omitted (the app's
   own telemetry logs outcomes).
-* **Policy** — rewarded-only (no interstitials → none of the
+- **Policy** — rewarded-only (no interstitials → none of the
   “unexpected full-screen ad” / “ad after an ad closes” prohibitions can
   trigger); the ad renders full-screen covering the document (the
   loader's job, not ours); rewards are in-game currency with no
   monetary value, never saleable or exchangeable; nothing in the UI
   encourages clicking *on* the ad.
-* **One deliberate deviation** from the call-sequence note — `beforeAd`
+- **One deliberate deviation** from the call-sequence note — `beforeAd`
   does NOT pause/mute the game (it is synchronous and returns
   immediately, as required; the idle tick keeps running behind the
   full-screen ad, which for an idle game is player-favourable and the ad
@@ -206,7 +206,7 @@ an external account gate and the in-code integration:
 *Validating the client pipeline on the deployed domain (no approval
 needed):*
 
-* Export with `EXPO_PUBLIC_ADSENSE_TEST=1 pnpm run deploy` — the loader
+- Export with `EXPO_PUBLIC_ADSENSE_TEST=1 pnpm run deploy` — the loader
   gains `data-adbreak-test="on"` (Google's documented test mode: mock
   ads, **no** requests to Google's servers, cycling ad-loaded /
   ad-not-loaded so both tap outcomes are exercised). Tap a watch row:
@@ -215,7 +215,7 @@ needed):*
   afterwards (a test build shows players mock ads and never earns).
   (`e2e/web/server.mjs` injects the same attribute in-process for the
   Playwright suite — §2.7; the export itself is flag-free by default.)
-* Console probes for a manual session: `window.adsbygoogle` must be an
+- Console probes for a manual session: `window.adsbygoogle` must be an
   array once the loader boots, and its length grows by 1 per prime
   (ad-panel open / combo-save pill mount / after every settled ad).
 
@@ -559,12 +559,15 @@ started") from ever being mistaken for a confirmed payment.
    real paid session-creation route (`--via-sidecar` → the sidecar's
    `POST /stripe/checkout`) is verified for session creation; it cannot
    be driven to completion by the script (blank card is policy). The
-   only remaining step is the `sk_live` flip at launch.
+   only remaining step is the launch flip: paste the `--live` snippet
+   into the `stripeProd` block (it auto-enables on the prod
+   environment — the step-6 flip below).
 
    **Steps 1–2 are scriptable** — `node scripts/stripe/syncStripe.mjs
    products` (idempotent, creates the 25 products + prices from
    `scripts/stripe/catalog.json` — the table jest-pins against `iaps.ts`
-   — and prints the `storeConfig.stripe.prices` snippet) and
+   — and prints the snippet for the matching block: the test
+   `stripe.prices` map, or the `stripeProd` block with `--live`) and
    `node scripts/stripe/syncStripe.mjs webhook` (idempotent by URL,
    prints the `STRIPE_WEBHOOK_SECRET`). The `sk_` key comes from env
    `STRIPE_SECRET_KEY`, the gitignored root `stripe-secret.env`, or a
@@ -594,7 +597,10 @@ started") from ever being mistaken for a confirmed payment.
    `stripe.prices` with every catalog id → `price_…` (all-or-nothing —
    `isStripeConfigured` keeps the whole web shop hidden until every
    `IAP_PRODUCT_IDS` entry has a price, so no button can lead to a
-   purchase that can't complete).
+   purchase that can't complete). The prod counterpart — the
+   `stripeProd` block — stays EMPTY until the launch flip (step 6);
+   until then every environment (including the prod domain) runs the
+   test block.
 5. **Deploy:** rebuild the web export (`npm run deploy`) and reload the
    sidecar (new env). The IAP panel appears in the web shop sheet only
    once both the URL and the full Stripe block are set.
@@ -605,21 +611,35 @@ started") from ever being mistaken for a confirmed payment.
    grants the entitlement via the client verify fetch AND the webhook
    minted the same (device, product) row idempotently (exactly 1 row).
    **DONE 2026-09-08** (see the status block above; session
-   `cs_test_a1f0WT…`). Then flip to live keys for launch — re-run both
-   `syncStripe.mjs` commands with a `sk_live_` key + `--live`, re-paste
-   the price map into `storeConfig.ts`, and re-sync the webhook secret
-   (the endpoint URL is the same; the `whsec_` secret changes per key).
+   `cs_test_a1f0WT…`). Then flip to live keys for launch — **the flip is
+   a data paste, not a code change**: re-run
+   `syncStripe.mjs products --live` (and `webhook`) with a `sk_live_`
+   key to print the live snippet, and paste it into the
+   `storeConfig.ts` **`stripeProd` block** (the test block `stripe`
+   stays test-mode — dev/previews keep working). The prod environment
+   auto-activates the prod variables: `environment.ts` detects it (the
+   prod web domain `minesofdoom.pages.dev` exactly — never previews,
+   never localhost — or a non-`__DEV__` native build), and
+   `getActiveStripe()` serves `stripeProd` instead of `stripe` whenever
+   the env is prod AND the block is fully live-mode (`pk_live_` key +
+   non-empty price map); until the paste, prod falls back to the test
+   block exactly as pre-launch. Re-sync the webhook secret too (the
+   endpoint URL is the same; the `whsec_` secret changes per key).
    **Confirm the flip with the third command**:
    `node scripts/stripe/syncStripe.mjs verify --live` (read-only) — it
    diffs the account's mdoom-marker products + prices against
-   `catalog.json` AND the `storeConfig.ts` stripe block, so it catches
-   exactly the manual-flip failure modes: a stale/half-pasted price map
-   (repo `price_…` ≠ the live id), a `pk_live_` key against a still-
-   test-mode price map (and vice versa), a price amount that drifted
-   from the catalog tier, and missing/rogue products. Exit 0 = the
-   account and the repo agree; exit 1 prints the finding list. Pinned
-   by `scripts/stripe/__test__/syncStripeVerify.test.ts` (subprocess
-   against a mock Stripe API via the script's `STRIPE_API_BASE` seam).
+   `catalog.json` AND the `storeConfig.ts` **`stripeProd` block** (the
+   `sk_live_` key reads `stripeProd`; the `sk_test_` key reads
+   `stripe` — each block is checked where it belongs), so it catches
+   exactly the manual-flip failure modes: an unfilled/half-pasted
+   `stripeProd` (repo `price_…` missing or ≠ the live id), a
+   `pk_test_` key pasted into the prod block (never an activation), a
+   price amount that drifted from the catalog tier, and missing/rogue
+   products. Exit 0 = the account and the repo agree; exit 1 prints the
+   finding list. Pinned by
+   `scripts/stripe/__test__/syncStripeVerify.test.ts` (subprocess
+   against a mock Stripe API via the script's `STRIPE_API_BASE` seam,
+   plus a scratch-storeConfig seam for the finished-flip run).
 
 **Why hosted Checkout and not Payment Element:** it keeps all
 PCI-scoped card fields on Stripe's page (lowest cardholder-data
