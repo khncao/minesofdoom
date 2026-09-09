@@ -104,8 +104,24 @@ vanity, decorative-environment customization, bundle shape),
 GameGrowthAdvisor "Game economy design & virtual currency balancing"
 (2026-07-14: sink-first design, pinch points, the 5-question audit, the
 prestige-sink inflation lever), and Steinnes & Reich "Cosmetics as social
-currency" (Procedia Computer Science 2025, peer-reviewed, abstract only).
-Items adopted from that list move into `docs/todo.md`).
+currency" (Procedia Computer Science 2025, peer-reviewed, abstract only);
+2026-09 pass 17: the offline / absence math layer — HustleTycoon's
+offline-earnings design doc (the cap is the genre contract and the
+upgrade target, only automated producers earn offline), GeekExtreme's
+idle-math overview (delta-time fast-forward is the illusion; the 30m–2h
+check-in rhythm), the two canonical indie-forum clock-cheating threads
+(GDevelop "[SOLVED]" + GameMaker: no offline-only counter exists, low
+severity outside competitions, cheap client-side high-water marks are the
+right trade), and the streak-forgiveness literature (Yu-kai-chou's streak
+teardown + the habit-tracker literature: the one-missed-day hard reset is
+the #1 burnout trigger, the grace day is the standard fix);
+2026-09 pass 18: the prestige / reset math layer — HustleTycoon's
+idle-prestige overview (the four reset shapes — soft / hard / tiered /
+currency — and the loss-as-investment reframe) and the Godot
+incremental-game design guide (token-vs-effect split, the
+`floor(lifetime^exp × mult)` curve with exp 0.5–0.8, the `earned > 0`
+hard block, the `preview >= 3 && run_time > 1800 s` suggestion floor, the
+reset/keep lists). Items adopted from that list move into `docs/todo.md`).
 
 ## 1. Core gameplay
 
@@ -146,9 +162,9 @@ of Pressable so rapid tapping doesn't double-render).
   **fast miners** (tier-2 unlock), **legendary miners** (tier-5 endgame
   sink), plus a shared miner-power upgrade; total minerals/sec shown
   (`game.ts: getMineralsPerSec`).
-- **Depth** — depth (meters) is derived from lifetime minerals; six
-  **depth tiers** (Surface Caverns → …) each tint the cave and add a
-  click bonus; the depth banner announces tier changes
+- **Depth** — depth (meters) is derived from lifetime minerals; five
+  **depth tiers** (Surface Caverns → Crystal Kingdom) each tint the cave and
+  add a click bonus; the depth banner announces tier changes
   (`game.ts: DEPTH_TIERS, getDepthTierProgress`,
   `components/DepthBanner.tsx`).
 - **Prestige ("sink a new shaft")** — resets the run (miners, upgrades,
@@ -167,7 +183,7 @@ of Pressable so rapid tapping doesn't double-render).
   `components/GoalsPanel.tsx`).
 - **Achievements** — independent one-off badges with a small one-time
   mineral bonus; completion derived from lifetime stats
-  (`achievements.ts` — 21 of them).
+  (`achievements.ts` — 19 of them).
 - **Daily bonus / streak** — 10k base × streak through day 6, then a
   250k day-7 milestone (worth more than days 1–6 combined) for streaks
   7+; stored separately from the save so a lost streak never costs
@@ -249,6 +265,18 @@ of Pressable so rapid tapping doesn't double-render).
   recolors); the IAP cosmetic pack sells the *same* items
   (`cosmetics.ts`, `components/PurchaseButtons.tsx`, `components/Miner.tsx`,
   `components/CaveBackground.tsx`).
+- **Collection view** — the menu sheet's read-only compendium (between
+  Records and About): every catalog line — pickaxes (sprite thumbs), outfits
+  (the shop's fixed-seed previews), cave themes (tint swatches), achievement
+  badges (icon + bonus) — shown owned vs. not-yet, with per-group and total
+  progress. `getCollection` (`collection.ts`) derives everything from the
+  save in the `records.ts` spirit (the IAP entitlement record stays a
+  purchase record, not an ownership source; achievement "ownership" is the
+  same derived-from-lifetime-stats completion the Goals panel uses), and
+  `components/CollectionPanel.tsx` is a dumb renderer — no buys, no
+  equipping, the shop keeps its single-surface contract. No migration
+  (nothing new is stored); §7 "Cosmetic compendium", DONE iteration 23.
+  (`collection.ts`, `components/CollectionPanel.tsx`).
 - **Juice** — debris bursts, pickaxe swings, floating "+N" text, screen
   shake on errors; magnitude log-scales with the mined amount
   (`juice.ts`, `hooks/useJuiceWaves.ts`, `components/FloatingTextLayer.tsx`,
@@ -287,8 +315,9 @@ of Pressable so rapid tapping doesn't double-render).
 
 ## 4. Economy & monetization
 
-- **One-time IAP catalogue** (26 products: gem packs + cosmetic packs), one
-  shared provider abstraction with per-platform backends — Play Billing /
+- **One-time IAP catalogue** (25 products — one pack per paid cosmetic
+  catalog line; no gem/currency packs, by design — pass 16 rejection (1)),
+  one shared provider abstraction with per-platform backends — Play Billing /
   App Store (expo-iap) on native, **hosted Stripe Checkout** on web, a
   dev-sim provider in dev builds, and clean no-ops until configured
   (`iaps.ts`, `iapProvider.ts`, `iapProvider.web.ts`). Purchases verify
@@ -344,8 +373,13 @@ of Pressable so rapid tapping doesn't double-render).
 - **Platforms** — Android (Play live, 1.0.x), web (static export on
   Cloudflare Pages; Caddy → Pocketbase sidecar for the server legs), iOS
   (code complete; console-side items in `docs/backlog.md`).
-- **i18n** — English (source of truth) + Spanish, auto-detected or
-  player-picked (`utils/i18n/`).
+- **i18n** — English-only **live**: the live locale store is pinned to
+  `"en"` (commit `62ff419`), the settings language picker is gone, and no
+  preference persists — but the full machinery is intact in `utils/i18n/`
+  (en source-of-truth table + es tables held to key-parity and
+  placeholder-parity in CI, `navigator.language` detection, the data-driven
+  content namespace, a11y coverage). Re-enablement is a checklist, not a
+  rebuild: the four landmines and the `i18n:*` candidates live in §7 pass 14.
 - **Observability** — local lightweight analytics events (guardrail 5),
   on-device crash context + crash log view, React error boundary
   (`analytics.ts`, `crashLog.ts`, `crashContext.ts`,
@@ -353,7 +387,8 @@ of Pressable so rapid tapping doesn't double-render).
 - **Settings** — autosave cadence, show-all-purchases, emoji-art fallback,
   haptics, reduce effects (manual kill switch, pass-3 accessibility),
   cave-ambience music, sound volume, music volume, mute,
-  language,
+  number notation (compact / plain, live-sample settings row),
+  idle reminder,
   on-screen keypad, equation types / range / hard mode / symbols
   (`hooks/useSettings.ts`,
   `components/SettingsPanel.tsx`, `components/SaveTab.tsx`,
@@ -364,17 +399,26 @@ of Pressable so rapid tapping doesn't double-render).
   compact strip, pulse suppressed under reduce-motion; autosave still runs
   in the background — the pill makes saving a first-class visible action
   rather than a menu dig (`components/SavePill.tsx`).
-- **Quality** — Jest suites over the pure modules (980+ tests), Maestro
-  e2e flows, Play Console CLI helper (`npm run play`), static-export-safe
+- **Quality** — Jest suites over the pure modules (1082 tests), Maestro
+  e2e flows, **hermetic Playwright web e2e** (`pnpm run test:e2e:web`:
+  boot / rewarded-ads / IAP specs against stubbed ad + Stripe/Pocketbase
+  backends from `e2e/web/` — the boot spec doubles as the zero-backend
+  offline-resilience check, ads run in Google's documented
+  `data-adbreak-test` test mode, and a guard route fails the suite on any
+  request that would become a live impression or sidecar call; §7 pass 12
+  is the design context, `docs/store-integration.md` §2.7 the spec-by-spec
+  contract), Play Console CLI helper (`npm run play`), static-export-safe
   routing (AGENTS.md).
 - **Support** — in-app mailto inquiries button (`components/InquiriesButton.tsx`).
 
 ## 7. Missing features, explored (2026-09)
 
 Cross-checked against the idle/clicker genre roundups and math-game
-engagement research linked in the header. **None of these exist in the
-codebase today** (verified against `src/`). Ranked rough order of
-genre-impact; anything picked up goes into `docs/todo.md`.
+engagement research linked in the header. **None of the open (non-struck)
+items exist in the codebase** (verified against `src/` on each pass; DONE
+items are struck through with their iteration and carry a short
+implementation note). Ranked rough order of genre-impact; anything picked
+up goes into `docs/todo.md`.
 
 ### Engagement / progression
 
