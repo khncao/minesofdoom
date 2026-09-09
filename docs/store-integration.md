@@ -157,6 +157,68 @@ days).
    rows simply no-fill (button re-enables, no toast) — the purchase UI
    is unaffected.
 
+**Verification requirements** — audited against the official docs
+(`developers.google.com/ad-placement`: overview, sign up, use the Ad
+Placement API (rewarded call sequence), testing modes, H5 game
+structure; fetched 2026-09-30). “Passing verification” has two halves —
+an external account gate and the in-code integration:
+
+*External gates (account-side, not code):*
+
+* **H5 Games Ads access is by-application.** Apply at
+  `adsense.google.com/start/h5-beta`; “account approval is not
+  guaranteed as it is subject to partner eligibility,” and an approved
+  AdSense account is required. **Until approved, placements push but
+  never fill** — the watch button silently re-enables (the no-fill
+  behaviour in item 2 is the *expected* symptom of a missing approval,
+  not a bug).
+* The site (`minesofdoom.pages.dev`) is added to the AdSense account
+  and approved.
+
+*Integration (in code — audit result 2026-09-30, all met):*
+
+* **Tag** — `async` + `?client=` + `crossorigin="anonymous"` in the same
+  document as the game canvas, no `<ins>`/slot unit (the API is
+  queue-driven; `app/+html.tsx`). The docs' `adBreak()` boilerplate is
+  sugar for `adsbygoogle.push(o)`; `adSenseProvider.web.ts` pushes the
+  same placement objects directly once the queue exists.
+* **Placement object matches the rewarded reference field-for-field**
+  (`adSenseProvider.web.ts`) — `type: "reward"`, `name`,
+  `beforeReward(showAdFn)`, `beforeAd`, `afterAd`, `adViewed`,
+  `adDismissed`. `showAdFn` is invoked only from a synchronous user tap,
+  exactly once per placement (single-use, per the docs), and a fresh
+  placement is pushed at every new opportunity (the documented reset
+  path); `adBreakDone` is optional and intentionally omitted (the app's
+  own telemetry logs outcomes).
+* **Policy** — rewarded-only (no interstitials → none of the
+  “unexpected full-screen ad” / “ad after an ad closes” prohibitions can
+  trigger); the ad renders full-screen covering the document (the
+  loader's job, not ours); rewards are in-game currency with no
+  monetary value, never saleable or exchangeable; nothing in the UI
+  encourages clicking *on* the ad.
+* **One deliberate deviation** from the call-sequence note — `beforeAd`
+  does NOT pause/mute the game (it is synchronous and returns
+  immediately, as required; the idle tick keeps running behind the
+  full-screen ad, which for an idle game is player-favourable and the ad
+  covers the document entirely). Noted here so it isn't “fixed” by
+  accident later.
+
+*Validating the client pipeline on the deployed domain (no approval
+needed):*
+
+* Export with `EXPO_PUBLIC_ADSENSE_TEST=1 pnpm run deploy` — the loader
+  gains `data-adbreak-test="on"` (Google's documented test mode: mock
+  ads, **no** requests to Google's servers, cycling ad-loaded /
+  ad-not-loaded so both tap outcomes are exercised). Tap a watch row:
+  a mock full-screen ad appears, or the cycle is no-fill and the button
+  quietly re-enables — both correct. Redeploy without the flag
+  afterwards (a test build shows players mock ads and never earns).
+  (`e2e/web/server.mjs` injects the same attribute in-process for the
+  Playwright suite — §2.7; the export itself is flag-free by default.)
+* Console probes for a manual session: `window.adsbygoogle` must be an
+  array once the loader boots, and its length grows by 1 per prime
+  (ad-panel open / combo-save pill mount / after every settled ad).
+
 ---
 
 ## 2. IAP products

@@ -227,7 +227,9 @@ of Pressable so rapid tapping doesn't double-render).
   invokes the stashed show function SYNCHRONOUSLY; only `adViewed`
   entitles the reward, early dismiss → `closed`, no fill / 60 s
   watchdog → `error` (`adSenseProvider.web.ts`, loader script in
-  `app/+html.tsx`, gated on the `storeConfig.adsense` client). The
+  `app/+html.tsx`, gated on the `storeConfig.adsense` client;
+  `EXPO_PUBLIC_ADSENSE_TEST=1` at export adds Google's `data-adbreak-test`
+  mock-ad mode for live-domain validation). The
   AdMob SDK itself never enters the web bundle (`adProvider.web.ts` is
   the no-op swap).
 - **Guardrails enforced by design** — rewarded-only on both platforms,

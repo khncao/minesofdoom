@@ -38,10 +38,21 @@ export default function Html({ children }: { children: React.ReactNode }) {
             also powers the Ad Placement API (H5 Games Ads): the rewarded
             placements are pushed onto window.adsbygoogle at probe time
             from adSenseProvider.web.ts, never rendered as a DOM unit —
-            rewarded full-screen ads only, player-tapped (guardrail 2). */}
+            rewarded full-screen ads only, player-tapped (guardrail 2).
+            Exporting with EXPO_PUBLIC_ADSENSE_TEST=1 adds
+            data-adbreak-test="on" — Google's documented test mode: mock
+            ads, NO requests to Google's servers, cycling ad-loaded /
+            ad-not-loaded. Use it to validate the pipeline on the deployed
+            domain before the account is approved for H5 Games Ads; the
+            export is flag-free by default and a test build must be
+            re-deployed without the flag afterwards (docs/store-integration.md
+            §1.1). */}
         {isAdSenseConfigured() && (
           <script
             async
+            {...(process.env.EXPO_PUBLIC_ADSENSE_TEST === "1"
+              ? { "data-adbreak-test": "on" }
+              : {})}
             src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${storeConfig.adsense.client}`}
             crossOrigin="anonymous"
           />
