@@ -201,6 +201,27 @@ source-quality notes. The related unsourced lines in passes 23
 (achievement-payback lore — now sourced, with a correction) and 24
 (trust-model industry cross-check) were upgraded in the same re-pull.
 
+pass 26 (2026-09-09) closed the last unaudited axis, the **telemetry /
+data layer** — the guardrail-5 local analytics record, the on-device crash
+diagnostics, and the pre-staged-but-unwired server `events` collection
+(the `pb_hooks` write budget and GDPR delete endpoint already treat it as
+the future analytics home). The data never leaves the device, by design;
+the gap is the missing **opt-in cohort channel** plus a handful of dropped
+event kinds and a recorded-but-never-surfaced purchase log (F26.1–F26.5,
+F26.6 a canon pin: the crash-first, local-only posture is exactly the
+2026 indie-safe default, and its fill-in trigger is guardrail 5 itself).
+**3 candidates** (`telemetry:opt-in-cohort` (the big one),
+`analytics:readout-completeness`, `analytics:first-ad-kind`) — documented,
+not planned; cross-references keep pass 7's FTUE funnel, pass 23's
+`analytics:tier-milestone`, and F21.2's failure-class events from
+re-listing. Sourced this pass via DuckDuckGo (Exa still 429): the PostHog
+analytics docs (event-schema canon, primary vendor docs),
+GameGrowthAdvisor's retention-measurement rewrite (same 50+ launch-studio
+family as passes 6/10/16 — also the source of a benchmark-freshness flag
+against pass 4's top-quartile line, see F26.2), the 2026
+privacy-telemetry posture articles, and a crash-vs-analytics ordering
+article (vendor; ordering argument only).
+
 ## 1. Core gameplay
 
 - **Tap mining** — hold the cave canvas (300 ms — a quick tap
@@ -458,10 +479,14 @@ of Pressable so rapid tapping doesn't double-render).
   placeholder-parity in CI, `navigator.language` detection, the data-driven
   content namespace, a11y coverage). Re-enablement is a checklist, not a
   rebuild: the four landmines and the `i18n:*` candidates live in §7 pass 14.
-- **Observability** — local lightweight analytics events (guardrail 5),
-  on-device crash context + crash log view, React error boundary
-  (`analytics.ts`, `crashLog.ts`, `crashContext.ts`,
-  `components/ErrorBoundary.tsx`).
+- **Observability** — local lightweight analytics record (guardrail 5;
+  per-device only, readable and clearable in Settings → About “Local
+  stats (debug)”), on-device crash ring + session-trail context behind two
+  capture nets (render error boundary + global handler) with two readouts;
+  all local, no network, no PII (`analytics.ts`, `crashLog.ts`,
+  `crashContext.ts`, `crashLogging.ts`, `components/ErrorBoundary.tsx`,
+  `components/AboutTab.tsx`). Pass 26 (F26.1–F26.6) audits the layer and
+  names the missing opt-in cohort channel.
 - **Settings** — autosave cadence, show-all-purchases, emoji-art fallback,
   haptics, reduce effects (manual kill switch, pass-3 accessibility),
   cave-ambience music, sound volume, music volume, mute,
@@ -3634,3 +3659,208 @@ depend on it), the cloud-save round trip (pass 21), and the
 leaderboard social layer (pass 24 — the endgame is single-player by
 design; the leaderboard reads from it but doesn't change its
 terminal state).
+
+### The telemetry / data layer (pass 26 — the measurement surface, written 2026-09-09)
+
+The last unaudited axis. Every prior pass referenced the analytics gap from
+the side (pass 4's benchmark table targets it, pass 7's FTUE funnel needs
+it, pass 23's F23.4 leaves a named candidate in it); none of them audited
+the instrumentation surface itself. The layer has exactly three surfaces,
+live-audited this pass:
+
+1. **The guardrail-5 local record** — `analytics.ts` /
+   `hooks/useAnalytics.ts`: one AsyncStorage record per device ("no PII,
+   no third-party SDK, no network" by documented design), holding one-shot
+   day stamps (first open, first ad view, first IAP, first prestige, first
+   cosmetic), counters (`d1Retention` / `d7Retention` booleans,
+   `activeDays`, prestige / IAP / cosmetic purchase counts) and
+   `cosmeticPurchaseLog` (the only per-event log in the game, capped at
+   100 rows). Folded in on app open, first ad-watch tap, verified IAP,
+   prestige, cosmetic purchase. Read out only as human-copyable
+   "Local stats (debug)" text on the Settings → About screen
+   (`summarizeAnalytics`).
+2. **On-device crash diagnostics** — `crashLog.ts` (5-entry ring with
+   dedupe counts), `crashContext.ts` (12-event session trail + 24-key state
+   snapshot, in-memory, snapshotted at capture time),
+   `crashLogging.ts` (AsyncStorage bridge), two capture nets (render
+   `ErrorBoundary` + global `ErrorUtils` handler) and two readouts (the
+   crash screen, the About screen).
+3. **The pre-staged server side** — the Pocketbase `events` collection,
+   created "now so the GDPR delete endpoint can clear it even before any
+   endpoint writes rows" (`pb_hooks/collections.js`), currently carrying
+   only the per-device write-budget counters (`kind:"write"`) and Stripe
+   webhook dedup rows — not analytics.
+
+**F26.1 The guardrail-5 data never leaves the device, and no cohort
+denominator exists anywhere.** Everything in the record is per-device
+truth. The only off-device paths are the human-copiable debug text and the
+save code — and the save code does not include the analytics record
+(different AsyncStorage key, `saveCode.ts` serializes the save only). The
+server accepts no analytics rows: no endpoint in the Pocketbase client
+handler set writes them. So the architecture is pre-staged end-to-end for
+an opt-in upload — the row shape (deviceId-keyed `events` rows), the
+deletion path (the GDPR endpoint already clears them), the budget
+precedent (the write budget already counts per-device rows in that same
+collection) — but the channel itself is unwired on both sides. Every
+"measure before scaling" number is currently single-player: no fraction can
+be computed anywhere, because no device can see another device.
+
+**F26.2 The retention metric is rolling-return, not classic day-N — and
+the benchmark it would be compared against is itself contested.**
+`recordAppOpen` flips `d1Retention` / `d7Retention` when the player "came
+back on a later local day within ~2 / ~8 calendar days" — a
+return-within-N-days boolean, flipped at most once, never reversed. That
+reads higher than classic day-N (pass 4's AppFollow note already said
+so), and the 2-day D1 window sits between classic D1 and classic D2 —
+whichever number this device eventually contributes, its definition must
+be named at the moment of use (pass 4's rule). This pass's re-pull also
+surfaced a benchmark-freshness flag: GameGrowthAdvisor's July 2026
+rewrite of its retention page (the same 50+ launch-studio family as passes
+6/10/16) reports a measured top-quartile D7 of 7–8% (GameAnalytics 2025,
+11,600 games) and calls a 20% D7 excellence target "a category error
+rather than ambition" — directly in tension with pass 4's "top quartile
+D7 20%+" line (PlayIO). Both lines are live in the Benchmarks section;
+the rewrite's stated rule — "if a retention table does not name a primary
+dataset with a date and a population, it is folklore" — is the standard
+the final table should be judged by. Its two useful re-anchors: the D30
+cost arithmetic (cost of a day-30-active player = install cost ÷ D30;
+moving D30 from 3.5% to 5% "does the same work as cutting your CPI by
+30%") and the staged kill signals ("D7 at or under 4%, the market median,
+means the loop is not forming"; "get to playable inside 60 seconds. No
+account creation, no settings, no extended tutorial before the first
+game" — the latter is pass 7's 60-second rule, independently stated).
+
+**F26.3 The only per-event log is never surfaced.**
+`cosmeticPurchaseLog` (line, item, gems, path, day — the pass-16
+`cosmetics:analytics` data) is stored, sanitized on parse, and then
+unread: `summarizeAnalytics` omits it and no other reader exists. The one
+debug surface that can leave the device shows the count, not the rows the
+count was built for — recorded-but-unexportable. The mirror image: IAP has
+no per-event log at all — `recordIapPurchase` is a bare counter, so for a
+25-SKU catalogue "which product sold" is not measurable on-device
+(cosmetics get a row per purchase; IAP does not).
+
+**F26.4 Event kinds are dropped at the hook boundary; ad outcomes are
+unrecorded.** `useAdRewards` fires `onAdView?.(kind)` carrying the
+rewarded kind, but the wiring in `MinesOfDoom.tsx` passes
+`onAdView: onFirstAdView` — a no-arg hook — so `recordAdView` stores the
+day key only. "Which ad kind did the player first touch" (gem roll vs
+offline double vs top-up vs combo save) is lost at the seam. And no ad
+*outcome* is recorded at all: the first tap is stamped, but the pipeline's
+second-phase results (`rewarded` / `closed` / `error`, pass 12) never are
+— the ad pipeline's failure modes (no fill, early close) are invisible to
+the record.
+
+**F26.5 The only per-event trail exists only on the failure path.**
+Pass 7's FTUE funnel (time-to-core, per-step drop-off, tour completion,
+first-session length, session 1→2 conversion) remains uninstrumented;
+onboarding dismissal is still the only onboarding telemetry (re-verified
+this pass — no analytics field references it). Meanwhile
+`crashContext.ts` maintains the game's only per-event trail — 12 labeled
+transitions (app start, save loaded, prestige, ad reward, IAP purchase,
+reset, daily bonus, weekly contract, equation-of-day, cloud restore, save
+imported, data deletion, equations mode) plus a 24-key state snapshot —
+but it is in-memory, capped at 12 events, and snapshotted only when a
+process actually crashes. The trail's label vocabulary is exactly the
+event vocabulary a future pipeline would want; it dies with the process.
+Also confirmed still open this pass: pass 23's
+`analytics:tier-milestone` (no goal-tier or achievement completion
+events) and F21.2 (save corruption / write failure emit no event —
+"the one failure class this game can least afford to be blind to … is the
+only one with no event"). (One line of doc drift found while auditing:
+`analytics.ts`'s module comment says the record holds "the raw session
+signals [retention is] derived from" — the record holds one-shot day
+stamps and counters, no session signals.)
+
+**F26.6 (canon pin, not a gap) The crash-first posture is canon, and the
+local-only variant is its small-team form.** The 2026 canonical
+integration order (the crash-vs-analytics article): crash reporting →
+custom crash context / breadcrumbs → basic analytics once the crash rate
+is acceptable → funnels / cohorts / A-B only after confident
+product-market fit. The game ships steps 1 and 2 fully local (two capture
+nets, context trail, ring buffer, two readouts) and none of 3–4, which is
+defensible pre-launch — "a crash ends the session before analytics can
+record it, and a player who can't launch your game at all generates no
+analytics events whatsoever" is the argument, and the Play vitals crash
+rate is the OS-side aggregate substitute (pass 11). The local-only choice
+also matches the 2026 indie-safe posture the privacy-telemetry literature
+states ("first-party telemetry that does not collect PII, is documented in
+a one-page privacy posture statement, and is opt-in or anonymous-by-design";
+the pressures it names: tightened ATT enforcement, Play Data Safety
+disclosure of every collected data category, GDPR/DMA second-wave
+audits). The privacy statement in `legal.ts` already discloses the local
+record ("used only for our own development decisions … readable
+on-device … can be deleted there at any time"). What the canon does *not*
+excuse is a *permanent* local-only state: a per-device ring cannot produce
+a crash rate, and per-device booleans cannot produce retention. The fill-in
+trigger is the one guardrail 5 names (the pre-UA-spend decision).
+
+**Candidates (documented, not planned)** — in rough order of value per
+line:
+
+- `telemetry:opt-in-cohort` — opt-in (default off; a settings row next to
+  the existing ad opt-in, a11y + copy on both) upload of the *reduced*
+  analytics record (day keys, booleans, counters — never the per-purchase
+  log, never the save) to the existing `events` collection
+  (`kind:"analytics"`, deviceId-keyed rows: the GDPR delete endpoint
+  already clears them and the write-budget precedent already budgets
+  per-device rows there). The one-page privacy posture is in `legal.ts`;
+  the Play Data Safety section gains one data category. This is the only
+  candidate that turns per-device booleans into fractions; until it lands,
+  guardrail 5 is single-player. (F26.1. The big one.)
+- `analytics:readout-completeness` — surface what is stored: last-N
+  `cosmeticPurchaseLog` rows (plus per-product IAP counts, if any log is
+  added) in `summarizeAnalytics`, so the debug section reflects the
+  record. Cheapest item in the layer. (F26.3.)
+- `analytics:first-ad-kind` — stamp the first rewarded ad kind next to the
+  day (the hook already carries it; the fold drops it), and if it's being
+  touched, a first-ad-outcome stamp for the `closed` / `error` failure
+  modes too. (F26.4.)
+- Cross-references, not new items: pass 7's FTUE funnel events (the
+  PostHog docs' event-schema canon and the privacy article's
+  one-event-first discipline pin their shape), pass 23's
+  `analytics:tier-milestone`, F21.2's failure-class events, pass 25's
+  endgame-measurement candidate. All land on the same record or the same
+  pipeline; the ordering canon says crash-first is already shipped, so any
+  of them may come next — but only the upload channel makes them
+  cohortable.
+- Not a candidate: a full event pipeline (PostHog-style). The PostHog
+  docs' schema conventions (fixed lowercase snake_case names,
+  `category:object_action` shape, `is_` / `has_` boolean prefixes,
+  `_date` / `_timestamp` suffixes, never dynamically-named events,
+  version-on-revamp) are the reference for *when* any of the above lands;
+  the local record stays field-based, not event-based, until an upload
+  path exists.
+
+**Source-quality notes (pass 26).** PostHog official docs
+(`posthog.com/docs/product-analytics/best-practices`, `schema-management`;
+fetched this pass): primary vendor documentation, used **only** for the
+event-schema canon (naming, property conventions, fixed names, versioning)
+and the backend-over-frontend reliability note — a shape reference for
+future event work, not a product claim. GameGrowthAdvisor "Mobile Game
+Retention 2026" (2026-03-17, rewritten 2026-07; same 50+ launch-studio
+family as passes 6/10/16): used for the benchmark-freshness finding
+(top-quartile D7 7–8% with the "category error" framing, the folklore
+rule, the D30 cost arithmetic, the staged kill signals, the 60-second
+playable line); its numbers cite GameAnalytics 2025 / AppsFlyer Q3 2022 /
+Liftoff, which are attributed here **via that page only**, not fetched
+directly. GameNeAI "Your first in-game telemetry event" (2026, Unity/
+Godot, vendor-flavored): used only for the 2026 posture (the
+ATT / Data Safety / GDPR-DMA pressure lines, the "first-party,
+non-PII, opt-in or anonymous-by-design" default, the one-event-first
+discipline). Bugnet "game-analytics-vs-crash-reporting" (vendor blog,
+self-interested — it sells a crash SDK): used **only** for the structural
+ordering argument (crash before analytics; crash report and analytics
+event are different evidence); its numbers (15% launch-week crash rate,
+10%-of-players crash-on-launch) are treated as illustrative, not canon.
+opensources.live "Privacy-first telemetry for games": SEO-tier, low
+signal; used only for the edge-aggregation / ephemeral-raw-data /
+consent-as-first-class-event principles, flagged as such — it supports
+nothing load-bearing. Exa was 429-rate-limited throughout the initial
+pull; sourced via DuckDuckGo per the re-pull convention.
+
+Not re-audited: the crash ring's own mechanics (`crashLog.ts` dedupe /
+ring internals — the Adjust-plan surface), the ad pipeline's second-phase
+outcomes (pass 12), the leaderboard trust model (pass 24), the
+save-corruption backup surface (pass 21), and the write budget itself (its
+`events`-collection usage is read here only for the pre-staging).
