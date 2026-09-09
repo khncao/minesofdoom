@@ -1513,6 +1513,29 @@ export function getAnswerPayoutMultiplier(equation: Equation): number {
 }
 
 /**
+ * The EXACT minerals a correct answer to this equation will earn — the
+ * pending-gain readout's number (pass-15 audit finding (1),
+ * `math:pending-gain`). Mirrors applyAnswerReward's integer core: the
+ * premium-folded answer value (floored at 1 exactly like the reward
+ * does — degenerate zero-answer equations pay the same floor) × the
+ * EFFECTIVE click power × the combo multiplier. The float tail (depth-tier
+ * click bonus, prestige) already rides inside the caller's effective click
+ * power via mulFloats, exactly as applyAnswerReward applies it, so the
+ * readout agrees with the floating "+N" on solve digit for digit.
+ */
+export function getPendingAnswerGain(
+  equation: Equation,
+  clickPower: bigint,
+  comboMultiplier: number,
+): bigint {
+  const value = Math.max(
+    1,
+    equation.answer * getAnswerPayoutMultiplier(equation),
+  );
+  return BigInt(value) * clickPower * BigInt(comboMultiplier);
+}
+
+/**
  * Depth (meters) for a given amount of LIFETIME-mined minerals — NOT the
  * current balance. The cave keeps descending as the player mines in total;
  * spending minerals never lifts it back up, and a sunk shaft doesn't raise

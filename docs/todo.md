@@ -16,7 +16,7 @@ outside this file:
 - `docs/backlog.md` — the intentionally deferred iOS track (AdMob iOS entry,
   App Store IAP products + credentials, iOS on-device verification passes).
 - `docs/features.md` §7 — trigger-gated candidates. No-signal picks have
-  been done out-of-queue five times: on 2026-07-16 (iteration 17) the
+  been done out-of-queue eight times: on 2026-07-16 (iteration 17) the
   pass-16 candidate `cosmetics:analytics` landed — per-purchase events
   (line, item id, gems-vs-pack path, gem balance at purchase) on the
   guardrail-5 log: `recordCosmeticPurchase`/`CosmeticPurchaseEvent` in
@@ -59,7 +59,18 @@ outside this file:
   it), MinesOfDoom syncing the setting in and subscribing via
   useSyncExternalStore so a flip re-renders counters/costs/records/badges
   in place; plain mode mirrors compact's value law exactly (floored,
-  non-finite via toString, bigint exact). The rest stays
+  non-finite via toString, bigint exact), and on 2026-09-08 (iteration 21)
+  the pass-15 `math:pending-gain` finding (audit finding (1) — the
+  pending-gain readout no longer understates the payout by a factor of the
+  answer's value): `getPendingAnswerGain` in `game.ts` mirrors
+  `applyAnswerReward`'s integer core (premium-folded answer value floored
+  at 1 exactly like the reward, × effective click power × combo multiplier;
+  the depth/prestige float tail stays in the caller's mulFloats'ed
+  effective click power), so the readout agrees with the floating "+N" on
+  solve digit-for-digit; `EquationDisplay` swapped its local product for
+  the helper — pure display change, engine untouched, `equation.pending`
+  copy unchanged (now literally true), tests in `game.test.ts` (premium
+  ladder, hard-mode leading-op keying, zero-answer floor). The rest stays
   trigger-gated (including `offline:clock-hwm`, deliberately low priority per
   its own sources). Reopen on the signals recorded there (first
   production release + the guardrail-5 signal batch, endgame-lifetime content

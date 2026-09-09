@@ -11,6 +11,7 @@ import { formatNumber } from "src/utils/format";
 import {
   getAnswerPayoutMultiplier,
   getEquationOpBonus,
+  getPendingAnswerGain,
 } from "../game";
 import { styles } from "../styles";
 
@@ -34,7 +35,16 @@ const EquationDisplay = memo(function EquationDisplay({
   const opMultiplier = getEquationOpBonus(equation);
   const hardMode = equation.op2 !== undefined;
   const payoutMultiplier = getAnswerPayoutMultiplier(equation);
-  const pendingGain = clickPower * BigInt(comboMultiplier) * BigInt(payoutMultiplier);
+  // The EXACT pending gain, answer value included (pass-15 audit finding
+  // (1)): the readout used to show only the answer-independent base
+  // (click power × combo × premium), understating the payout by a factor
+  // of the answer; getPendingAnswerGain mirrors the engine's integer core
+  // so it agrees with the floating "+N" on solve.
+  const pendingGain = getPendingAnswerGain(
+    equation,
+    clickPower,
+    comboMultiplier,
+  );
 
   return (
     <>

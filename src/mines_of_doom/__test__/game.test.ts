@@ -61,6 +61,7 @@ import {
   getAnswerPayoutMultiplier,
   getEquationOpBonus,
   getOpPayoutMultiplier,
+  getPendingAnswerGain,
 } from "../game";
 
 describe("cost curves", () => {
@@ -921,6 +922,58 @@ describe("getAnswerPayoutMultiplier (hard mode, tier-5)", () => {
     expect(getAnswerPayoutMultiplier(mkEq(Ops.div, Ops.mult))).toBe(
       10 * HARD_MODE_PAYOUT,
     );
+  });
+});
+
+describe("getPendingAnswerGain (pass 15, math:pending-gain)", () => {
+  const eq = (answer: number, op: string, op2?: string): Equation => ({
+    ...mkEq(op, op2),
+    answer,
+  });
+
+  test("includes the answer value: answer × premium × click power × combo", () => {
+    expect(getPendingAnswerGain(eq(56, Ops.mult), 10n, 4)).toBe(56n * 10n * 4n);
+    expect(getPendingAnswerGain(eq(56, Ops.mult), 1n, 1)).toBe(56n);
+  });
+
+  test("the premium ladder rides through (÷ ×10, − ×2, +/× ×1)", () => {
+    expect(getPendingAnswerGain(eq(7, Ops.div), 10n, 1)).toBe(7n * 10n * 10n);
+    expect(getPendingAnswerGain(eq(7, Ops.sub), 10n, 1)).toBe(7n * 2n * 10n);
+    expect(getPendingAnswerGain(eq(7, Ops.add), 10n, 1)).toBe(7n * 10n);
+  });
+
+  test("hard mode: the ×2 premium rides the leading op's bonus", () => {
+    // getEquationOpBonus keys off equation.op (the first step), so
+    // a·?·? keeps the first op's premium × HARD_MODE_PAYOUT.
+    expect(getPendingAnswerGain(eq(9, Ops.mult, Ops.div), 10n, 2)).toBe(
+      9n * BigInt(HARD_MODE_PAYOUT) * 10n * 2n,
+    );
+    expect(getPendingAnswerGain(eq(9, Ops.div, Ops.mult), 10n, 2)).toBe(
+      9n * BigInt(10 * HARD_MODE_PAYOUT) * 10n * 2n,
+    );
+  });
+
+  test("missing-number equations pay the flat ×3 premium", () => {
+    const missing: Equation = { ...mkEq(Ops.add), missing: true, answer: 5 };
+    expect(getPendingAnswerGain(missing, 10n, 3)).toBe(5n * 3n * 10n * 3n);
+  });
+
+  test("zero-answer equations pay the same floor the engine pays", () => {
+    // applyAnswerReward's integer core is BigInt(Math.max(1, value)):
+    // the readout must agree digit-for-digit, not show 0.
+    const zero = eq(0, Ops.mult);
+    expect(getPendingAnswerGain(zero, 10n, 4)).toBe(
+      BigInt(Math.max(1, 0 * getAnswerPayoutMultiplier(zero))) * 10n * 4n,
+    );
+    expect(getPendingAnswerGain(zero, 10n, 4)).toBe(40n);
+  });
+
+  test("the float tail stays in the caller's effective click power", () => {
+    // The depth bonus / prestige are already mulFloats'd into the effective
+    // click power the component passes; the helper must not double-apply
+    // anything — it is pure integer arithmetic on what it is given.
+    const e = eq(6, Ops.mult);
+    expect(getPendingAnswerGain(e, 1234567n, 2)).toBe(6n * 1234567n * 2n);
   });
 });
 

@@ -1519,11 +1519,20 @@ The research (four sources; quality notes at the end):
   same time. This is the research anchor for pass 4's per-type mastery
   tiers: not a different game, the same seven shapes at stepped ranges.
 
-- **`math:pending-gain`** — make the readout honest: `EquationDisplay`
-  already receives the full equation, so show the exact pending gain
-  (answer × premium × effective click-power × combo) or label the base as
-  such. Pure display change; the engine is untouched. Audit finding (1).
-  Candidate, not planned.
+- ~~**`math:pending-gain`**~~ — **DONE 2026-09** (iteration 21,
+  autonomous no-signal pick; audit finding (1)): the pending-gain
+  readout now shows the EXACT payout — `getPendingAnswerGain`
+  (`game.ts`) mirrors `applyAnswerReward`'s integer core (premium-folded
+  answer value floored at 1 exactly like the reward, × effective click
+  power × combo multiplier; the depth/prestige float tail stays in the
+  caller's `mulFloats`'d effective click power), so the readout agrees
+  with the floating "+N" on solve digit-for-digit instead of
+  understating by a factor of the answer's value. `EquationDisplay` just
+  swapped its local product for the helper — the `×{mult}` detail suffix
+  and the `equation.pending` copy ("correct: +{gain}") are unchanged and
+  are now literally true. Pure display change, engine untouched; tests in
+  `game.test.ts` (premium ladder, hard-mode leading-op keying, the
+  zero-answer floor).
 - ~~**`math:zero-operand`**~~ — **DONE 2026-09-12** (iteration 13,
   autonomous pick alongside the pass-17 active-clock fix; audit finding
   (2)): `generateTermsEquation` now floors multiplicative operands (× and
