@@ -175,6 +175,26 @@ fetched this pass), with the 2011 DiGRA achievement framework cited via
 that article's reference list only. Items adopted from that list move
 into `docs/todo.md`.
 
+pass 24 (2026-09-27) closed the social/leaderboard axis — its three social
+candidates were **adopted in full: `play-store-review`** (Play Console in-app
+feedback → `docs/todo.md`), **`leaderboards`** (one live monthly
+leaderboard + season resets → `docs/todo.md`), **`social-compare`**
+(passive, no accounts → `docs/todo.md`). Pass 25 (2026-09-28) closed the
+final unaudited axis, **endgame / content-ceiling** (the t5→∞ arc, gem
+currency, cosmetics, achievements, goals): the end-state exists and is
+honest (no hard wall, F25.1), but it is **one-dimensional** — the Motherlode
+tier binds on 1B lifetime minerals (a single axis, since depth is derived
+from lifetime: at 1B the player is at depth 2,000,000 m, not the 1500 m the
+goal names), the cave scroll freezes at 850 m and never moves again, post-max
+gems only buy more miners, and the achievement list has zero
+prestige/legendary/cosmetics coverage (F25.2–F25.5). **5 candidates**
+(`free-path:motherlode-target` (recommended), `endless-biomes`,
+`achievements:tail`, `t6`/second-axis surprise, `gem-sink:post-max`) —
+none adopted yet. As with passes 22–24, **external genre-canon sourcing
+failed this pass too** (Exa rate-limited, 3rd consecutive pass); the
+endgame findings are internal-only and are labelled as such where it
+matters.
+
 ## 1. Core gameplay
 
 - **Tap mining** — hold the cave canvas (300 ms — a quick tap
@@ -2752,8 +2772,7 @@ repo read.
   These show up on genre checklists and are listed here so future passes
   don't "discover" them as missing.
 
-### The persistence / data-integrity layer (pass 21 — the save blob is
-the game, written 2026-09-09)
+### The persistence / data-integrity layer (pass 21 — the save blob is the game, written 2026-09-09)
 
 Everything the player owns lives in one AsyncStorage key
 (`saveDataKey` — a ~1.5–2 KB JSON blob carrying `saveVersion` 11) plus
@@ -2894,8 +2913,7 @@ section headings carry day-level dates (e.g. "2026-09-18") that are
 later than the git commit dates of the same passes (2026-09-08/09);
 flagged here, history not rewritten.
 
-### The audio / feedback layer (pass 22 — what the player hears,
-written 2026-09-09)
+### The audio / feedback layer (pass 22 — what the player hears, written 2026-09-09)
 
 §3 ("Sound", "Haptics") documents the settings surface; this pass
 audits the audio system itself: one hook (`hooks/useSounds.ts`) owning
@@ -2950,7 +2968,8 @@ effect sites); (b) no ducking — SFX never dip the bed while playing
 technique); the mix is static, which works at the defaults because the
 bed is quiet by construction (the generator normalizes its peak to
 0.55, "the bed sits under the SFX at the same volume"), but a 100% SFX
-+ 100% music setting has no automatic priority order.
+
+- 100% music setting has no automatic priority order.
 
 **F22.3 The ambient bed is correct-by-construction — and one track for
 all content.** 20 s, 16 kHz mono, 16-bit (320k samples, 640 KB),
@@ -3057,8 +3076,7 @@ Not re-audited: the haptics patterns themselves (pass 13 / §3
 scope), the settings rows' i18n (pass 14), and the rendering budget
 (pass 20 — audio playback is native and outside that pass's scope).
 
-### The goal / achievement layer (pass 23 — the two retention axes
-written 2026-09-09)
+### The goal / achievement layer (pass 23 — the two retention axes, written 2026-09-09)
 
 Scope: two pure modules — `goals.ts` (191 lines, the 5 tier chain) and
 `achievements.ts` (103 lines, the 19 badges) — plus the two completion
@@ -3193,8 +3211,7 @@ save-migration semantics of `completedTiers` /
 and the depth-tier click-power bonus (a separate surface — pass 15 /
 §1).
 
-### The social / leaderboard layer (pass 24 — the scoreboard and its
-trust model, written 2026-09-09)
+### The social / leaderboard layer (pass 24 — the scoreboard and its trust model, written 2026-09-09)
 
 Scope: the client trio — provider core (`leaderboard.ts`, 349 lines),
 engine-wiring hook (`hooks/useLeaderboard.ts`, 206 lines), and the
@@ -3358,3 +3375,186 @@ mechanism (pass 14), the local Records view (`records.ts` — the 95-
 line pure-derivation sibling, the offline half of plan §4.3's
 "leaderboard groundwork"), the share-badge flow (separate surface),
 and the daily-challenge board (candidate, not shipped).
+
+---
+
+### The endgame / content-ceiling layer (pass 25 — what remains after every named goal is complete)
+
+pass 23 closed the goal / achievement axis at the **t5 boundary** (it
+flagged `t6` / the Motherlode arc as the open question — §3.7) and pass 22
+had the endgame **economy** in scope but not the endgame **content**. This
+pass closes the last unaudited axis: what the game looks like after every
+named goal is complete — the t5→∞ arc, the gem currency's post-max state,
+cosmetics, achievements, and the goal list itself. **Source-quality note,
+carrying the pass 22–24 precedent:** the external genre-canon pull
+**failed again** (Exa rate-limited, 3rd consecutive pass; no Brave/OpenAI
+keys in this environment), so the endgame findings below rest on the
+repo's own code plus **internal convention only**, exactly like pass 22's
+`local-first` finding — the genre-claim lines are labelled "internal,
+not canon-verified" where they'd otherwise read as category consensus.
+**F25.1 — The end-state exists and is honest: no hard wall, no
+paywall, no fake ceiling** (the guardrail holds at the top of the
+curve). Verified: depth is unbounded but **derived** —
+`getDepth(lifetimeMinerals) = lifetimeMinerals / 500` (`game.ts`), so the
+"depth axis" and the "lifetime-minerals axis" are the same axis in two units
+and depth can never stall; every named goal is a derived lifetime stat
+(never a mutable flag) that stays complete; cosmetics are all gem-earnable
+one-shot buys with nothing gated behind a purchase (the store is
+cosmetic-only, per store-integration §3 — and IAP exists in the build);
+achievements grant a one-time mineral bonus and **never** gate content
+(`achievements.ts`: "they never unlock content, they just celebrate"); and
+the prestige multiplier is unbounded. There is no "final screen", no game-over, no pay-to-progress
+branch. The F2P guardrail (AGENTS.md) is not just met at the opening —
+it's structural at the endgame too. This is a **confirmation** finding,
+not a gap; it's recorded because "is there a wall" was the open
+question from pass 22's `endgame-economy` scope.
+**F25.2 — t5 "Motherlode" is the last named goal; it binds on 1B
+lifetime minerals, which puts the player at depth 2,000,000 m — 1333×
+past the 1500 m the goal names — while the cave scroll has been frozen
+since 850 m** (the tail is a single axis with no named anchors past
+t5). Verified in code: the four t5 sub-goals are prestige ×3,
+`maxDepth` 1500 m, `maxCombo` 500, and `lifetimeMinerals` 1B
+(`goals.ts`). Because `getDepth = lifetimeMinerals / 500`, the "depth
+1500 m" sub-goal is the *same axis* as "lifetime 1B" in different units,
+and it is met at only 750K lifetime (1500×500) — 0.075% of the way to
+the binding 1B target. So **lifetime 1B is the binding sub-goal**, and
+at that point the player's depth is 1B/500 = **2,000,000 m**, not the
+1500 m the goal labels. Meanwhile the cave scroll is driven by the same
+`lifetimeMinerals` (`getDepthTierProgress`) and freezes at 850 m of
+depth: the final real tier (Crystal Kingdom, `game.ts` `DEPTH_TIERS` at
+500 m) scrolls a virtual `FINAL_TIER_PROGRESS_SPAN` of 350 m and caps
+— i.e. 850×500 = 425K lifetime. The free-path benchmark CI pins only
+the **opening** (first prestige ≤ 7 days); nothing pins the
+time-to-t5. Net: the "Motherlode" destination is a static background
+~2,000,000 m deep, the last ~1,999,150 m of it un-scrolled, and the
+depth labels in the goal chain are ~1333× shallower than where the
+binding target actually lands. Everything else in the tail (miner
+count, miner power, combo, answers, prestige) is unbounded and
+un-named.
+**F25.3 — Post-max, gems have exactly one sink: more miners** (the gem
+economy's terminal state is a single monotone spend, not a design).
+Verified: the three gem upgrade lines are finite and capped —
+`GEM_CHANCE_MAX_LEVELS = 20`, `CLICK_BOOST_MAX_LEVELS = 4`,
+`COMBO_RESIST_MAX_LEVELS = 5` (29 levels total, `game.ts`) — and the
+only **unbounded** gem spend is miners (`getMinerUpgradeCost`, whose
+count is unbounded; fast miners likewise). Cosmetics are also gem
+spend but one-shot (a finite set, F25.4), so they run out; there is no
+gem sink for achievements or for goals. In the terminal state — every
+line maxed, every cosmetic owned — the gem counter is a number that
+only buys one thing: another miner. That is the inverse of the
+idle-genre "satisfying sink" convention (internal convention claim, not
+canon-verified this pass: no genre-canon pull succeeded).
+**F25.4 — The cosmetic collection is finite and complete-able; the
+"collection" is the actual endgame, and it's done by a small number
+of gem-spend events, not a progression** (internal
+observation). Verified: `cosmetics.ts` defines the full set —
+pickaxes, outfits, cave themes — as a finite, enumerable list, each a
+**pure one-time gem purchase**; no achievement gating exists anywhere
+in `cosmetics.ts` (achievements grant only mineral bonuses, per
+F25.1). There is no "collect them all" meta-goal in `goals.ts` (no
+completionist goal), no cosmetic rarity/rotation, no seasonal
+cosmetics. So the collection is
+**finishable** — a player can own 100% of every cosmetic and the game
+has no named response to that (contrast: the goal list names depth,
+gems, prestiges, but not cosmetics). This is a candidate, not a bug:
+"collection-complete" is a real idle-game endgame shape, and naming
+it would cost ~1 goal entry.
+**F25.5 — The achievement list has zero coverage of the prestige,
+legendary-cosmetic, and collection axes, and its combo axis stops at
+half of what t5 demands** (the "achievement tail" is the cheapest real
+gap in the layer). Verified in `achievements.ts`: the 19 achievements
+cover exactly six metrics — `minersOwnedEver`, `totalGemsMinted`,
+`maxCombo`, `maxDepth`, `lifetimeCorrect`, `lifetimeMinerals` — capping
+at `mine-1b` (1B), and the combo axis (the closest thing to a "streak")
+stops at `maxCombo` 250 while t5 demands 500. There are **no**
+prestige-count achievements (the prestige multiplier is the biggest
+number in the game and has none), **no** legendary-cosmetic
+achievements (the priciest gem cosmetics have no "you collected
+this"), **no** collection-complete achievements, and no day/login-streak
+axis at all (the daily-challenge board is an unshipped candidate, so
+there is no login-streak metric for such an achievement to bind on).
+The 19-count is a single flat list with no tiers.
+Pass 23's F23.4 already flagged the completion-effect gap; this
+narrows it: the **content** of the tail (which achievements are
+missing) is the missing piece, and it's data-only (add entries to the
+list, no new mechanics).
+
+**Endgame terminal-state itemization** (what "after everything" looks
+like, concretely, for the candidate decisions below):
+- **Depth**: derived from lifetime (/500), art freezes at 850 m;
+  t5's binding target (1B lifetime) actually lands at 2,000,000 m.
+- **Gems**: earn unbounded, spend is 29 fixed upgrade levels +
+  unbounded miners; post-max, one sink.
+- **Cosmetics**: finite set, 100%-ownable, no meta-goal, no rotation.
+- **Achievements**: 19, flat, 6 metrics only, cap 1B; no
+  prestige/legendary/collection coverage, combo stops at 250 (t5
+  wants 500).
+- **Goals**: 5 tiers t1–t5, t5 = 1B lifetime; no t6, no completionist.
+- **Prestige**: unbounded multiplier, no achievement, no named arc
+  beyond "new shaft".
+
+**Candidate additions** (in value-per-line order, none greenlit):
+- `free-path:motherlode-target` (recommended) — pin **time-to-t5** in
+  the CI free-path benchmark (it currently pins only first-prestige
+  ≤ 7 days). This is the one finding that is a **measurement** gap, not
+  a content gap: we don't know how long the tail actually takes, and
+  the F2P-viability guardrail is only as good as the benchmark's
+  coverage. Cheap (a benchmark assertion), high-value (it's the
+  guardrail itself), no new content. Pairs with F25.2: if the tail is
+  too long, the fix is a pacing knob, not more content.
+- `endless-biomes` — give the cave scroll a destination past 850 m
+  (F25.2). With the corrected numbers the gap is not 650 m but ~2,000,000
+  m (the 1B-lifetime binding target), so "extend the span until it
+  catches up" is not a design — the realistic shapes are (a) a few named
+  deep biomes that re-anchor the scroll periodically (data: new
+  `DEPTH_TIERS` entries + tints, the final-tier virtual-span mechanism
+  already exists), or (b) accept the freeze deliberately and make the
+  end-state background a designed "Motherlode" scene instead of a stalled
+  scroll. Medium cost, high value (it's the "Motherlode" name having a
+  destination). Gated on the motherlode-target timing first — if the
+  tail is too fast, this is premature.
+- `achievements:tail` — fill F25.5: prestige-count, legendary-cosmetic,
+  and collection-complete achievements. All data-only — the metrics
+  already exist on the save (`totalPrestiges`, the `owned*` cosmetic
+  sets), so this is entries on the list, no new mechanics. A
+  day/login-streak achievement would additionally need a new
+  login-streak metric (the daily-challenge board is unshipped), so keep
+  that one out of scope. Directly extends pass 23's
+  `achievement:completion` candidate (which was about the completion
+  *effect*; this is the completion *content*).
+- `t6` / second-axis surprise — a t6 goal that is **not** depth or gems
+  (the only two axes that ever plateau) — e.g. a cosmetics-collection
+  goal (F25.4) or a prestige-count goal, so the tail has a *different*
+  named destination than "more minerals" (F25.2). Cheapest as a goal
+  entry; the design question is what axis it binds on. This is the
+  direct continuation of pass 23's `t6` open question, now with the
+  terminal-state itemization above to answer it from.
+- `gem-sink:post-max` — a second post-max gem sink so the terminal
+  gem counter buys more than one thing (F25.3). The obvious shapes:
+  an upgrade the cosmetic lines (rare/seasonal cosmetics as gem
+  *progression* not one-shot buys), or a prestige-linked gem sink.
+  Highest design risk of the five (it touches the gem economy's
+terminal balance, which the cosmetics-balance test guards) —
+  recommend it last, after the measurement candidate proves the tail
+  actually needs it.
+
+**Source-quality notes for the pass 25 findings** (per the standing
+convention, since no genre-canon pull succeeded): the F25.1
+confirmation rests on the repo's own guardrail text (AGENTS.md) plus
+the store-integration §3 cosmetic-only claim; the F25.2–F25.5 findings
+are pure code audit; the genre-claim lines ("satisfying sink" is the
+idle-genre convention; "collection-complete" is a real endgame shape)
+are **internal, not canon-verified** — same status as pass 22's
+`local-first` finding. Re-running the external pull (Exa) in a
+non-rate-limited environment would upgrade the two genre-claim lines
+from internal to sourced; it would not change the findings, which are
+structural either way.
+
+**Not re-audited in pass 25:** the goal/achievement **mechanics**
+(pass 23's scope — the tier-chain gating, completion effects, the
+GoalsPanel surface), the store/IAP internals (store-integration §3),
+the analytics gap (pass 23 F23.5 — the endgame findings above don't
+depend on it), the cloud-save round trip (pass 21), and the
+leaderboard social layer (pass 24 — the endgame is single-player by
+design; the leaderboard reads from it but doesn't change its
+terminal state).
