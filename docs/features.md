@@ -155,6 +155,16 @@ codewithkarani "last-write-wins sync silently destroys user data"
 (vendor post-mortem), oneuptime LWW reference (vendor),
 cookieclicker.wiki.gg Save (community), three reddit thread titles as
 existence signals only (community, secondary)).
+2026-09 pass 22: the audio / feedback layer — what the player hears
+(live-audited: the SFX trigger map and per-key throttles, the generated
+ambient bed's construction, the mute > toggle > two-independent-scales
+volume hierarchy, and the pinned expo-audio 57.0.4 dependency contract
+— the `createAudioPlayer` memory-leak clause, the iOS silent-switch
+default, the Android background lock-screen stop). Sources: the
+expo-audio official docs (docs.expo.dev, fetched this pass — the
+latest-version page read against the 57.0.4 pin) and Wikipedia "Video
+game music" / "Loop (music)" / "Sound design" (tertiary, genre-canon
+use only). Items adopted from that list move into `docs/todo.md`.
 
 ## 1. Core gameplay
 
@@ -2874,3 +2884,166 @@ that decision, not the architecture). Meta note: several earlier
 section headings carry day-level dates (e.g. "2026-09-18") that are
 later than the git commit dates of the same passes (2026-09-08/09);
 flagged here, history not rewritten.
+
+### The audio / feedback layer (pass 22 — what the player hears,
+written 2026-09-09)
+
+§3 ("Sound", "Haptics") documents the settings surface; this pass
+audits the audio system itself: one hook (`hooks/useSounds.ts`) owning
+7 `AudioPlayer` instances (generic pickaxe, stone, 4 per-pickaxe
+swing WAVs, the cave-ambience bed), 7 asset files in
+`public/assets/audio/` all synthesized in-repo by deterministic scripts
+(`generate-pickaxe-sounds.mjs` + `generate-ambient-loop.mjs`, asset
+net in `scripts/__test__/ambientLoop.test.ts`), and two pure scale
+functions in `game.ts` (`clampSoundVolume`, `clampMusicVolume` /
+`musicLevel`). It is checked against (a) the pinned dependency's actual
+contract (expo-audio 57.0.4; docs fetched this pass) and (b) the
+genre canon of looped / dynamic game audio (sources below). Haptics
+are in scope only where they couple to sound: they don't — `haptics.ts`
+is a parallel channel.
+
+**F22.1 The SFX trigger map and throttles — audit, no contract
+violations found.** Five trigger sites, per-`SoundKey` throttles
+(capped replays, not per-player): mine-tap 60 ms (`useMineTaps.ts`),
+correct answer 60 ms, gem pocket 80 ms, wrong answer 150 ms — both the
+penalizing and the soft-penalty-free paths (`MinesOfDoom.tsx`). The
+two keys are `"pickaxe"` and `"stone"` regardless of which file plays:
+the generic pickaxe mp3 and the 4 per-pickaxe WAVs share one 60 ms
+lane, which is the intended behavior — one swing per tap, from whichever
+file the equipped id selects (`pickaxeSoundFiles`, keyed by pickaxe id;
+unknown/corrupt ids fall back to the generic asset so a bad save can't
+silence mining). `replay()` re-creates expo-av's "cancel + restart"
+semantics on top of expo-audio's `play()`, which the shipped source
+states never rewinds (playing → pause + `seekTo(0)` → play; finished →
+`seekTo(0)` → play; fresh → play) — the restart is explicit, correct.
+Mute is checked at trigger time; volumes are applied by an effect on
+settings change while the 7 players are created once (the creation
+comment records the per-click re-render tick-budget fix). Every API
+surface used (`play` / `pause` / `seekTo` / `volume` / `loop` /
+`currentTime` / `playing`) is unqualified in the fetched docs — `volume`
+is 0.0–1.0 (the hook divides by 100), `loop` is a plain flag, `seekTo(0)`
+is the least-error-prone seek target.
+
+**F22.2 Sound is the flat channel of the juice loop.** Visuals scale
+with gain magnitude (`juice.ts` wave count drives the canvas waves) and
+haptics scale with it too (the in-module `10 + 4·(waves-1)` ms tap
+tick, capped at 30 — verified in `haptics.ts`), but sound does not: a
+5-crystal mine and a 500k-crystal mine play the identical ~0.2 s clip.
+Sound is the only juice channel that ignores `juiceWaves`, and the one
+the genre sources treat as the reward signal (the VGM article:
+soundtracks "reward ... specific achievements"). Two related absences:
+(a) no dedicated reward SFX — the gem pocket rides the generic
+`pickaxe` clip (its "success" haptic is a two-step `[0,15,60,15,40]`),
+and the depth-milestone toasts (the 10 m boundaries) and depth-tier-
+entry toasts are display-only (no audio, no haptic — verified at the
+effect sites); (b) no ducking — SFX never dip the bed while playing
+(the Wikipedia sound-design article's named "adaptive mixing"
+technique); the mix is static, which works at the defaults because the
+bed is quiet by construction (the generator normalizes its peak to
+0.55, "the bed sits under the SFX at the same volume"), but a 100% SFX
++ 100% music setting has no automatic priority order.
+
+**F22.3 The ambient bed is correct-by-construction — and one track for
+all content.** 20 s, 16 kHz mono, 16-bit (320k samples, 640 KB),
+seamless by construction: 4 pad partials at 27.5 / 55 / 82.4 / 110 Hz
+(all integer multiples of 1/20 Hz — the generator's own NOTE),
+integer-cycle amplitude LFOs (1 / 2 / 3 / 2 cycles, free phases), a
+period-preserving circular box low-pass on the deterministic noise bed
+(width 65 samples → first null ≈ 246 Hz, "air, not hiss"), 5 drip
+blips with two echoes each confined to [1.5, 18.5] s so they never
+land in the fade zones, peak normalized to 0.55, and a redundant
+0.35 s head/tail fade ("belt-and-suspenders"). Deterministic: mulberry32
+seed 4242, asset net in `scripts/__test__/ambientLoop.test.ts`. That
+matches the genre canon exactly (Wikipedia "Loop (music)": "The musical
+loop is one of the most important features of video game music"; the
+VGM history: Space Invaders' looped melody, Dig Dug stopping its music
+while idle, Frogger's 11 adaptive tracks — looped and *conditional*
+audio is the canonical technique). The bed is stateless: identical
+across all 5 `DEPTH_TIERS` (Surface Caverns → Crystal Kingdom), all 10
+`CAVE_THEMES`, and all modes — tier transitions and theme purchases
+re-color the cave but never touch the audio. It is on by default
+(`settings.music`), rides the independent `musicVolume` scale (default
+50 — the former half-level law's default experience, §7 DONE item), and
+pauses on muted / music-off / backgrounded (AppState), the player's
+`loop` flag alone making it seamless.
+
+**F22.4 Dependency-contract findings (expo-audio 57.x docs, fetched
+this pass).** (a) *Lifecycle:* the docs state explicitly that
+`createAudioPlayer` players "may cause memory leaks" unless the caller
+removes/releases them, and name the lifecycle-managed alternative
+(`useAudioPlayer`, not used here). The hook's cleanup pauses all 7
+players and nulls the refs but never calls `remove()` — bounded in
+practice (root-screen hook; unmount is app exit) but the cleanup does
+not do what the docs ask of `createAudioPlayer` callers. (b) *Web
+autoplay — likely silent, unverified:* the bed's `play()` fires from a
+mount effect with **no user gesture**; browsers gate non-muted
+`play()` behind a user gesture, the rejection is swallowed
+(`void p.play()`), and the effect only re-runs on
+`appActive` / `muted` / `music` — so on web the ambient bed is likely
+permanently silent, unlike on native. SFX are unaffected (they play
+inside gesture handlers). A related edge the docs state: audio also
+stops when the headphone / Bluetooth device unplugs, and the app has no
+explicit re-arm path beyond the same effect deps. Flagged as **likely,
+not verified** — see source-quality notes. (c) *iOS silent switch:* no
+`setAudioModeAsync` anywhere in `src/` (verified), so
+`playsInSilentMode` stays false and the silent switch mutes the game —
+genre-correct; do **not** "fix" this by enabling `playsInSilentMode`
+(a flipped switch should silence the cave). (d) *Android background:*
+the docs' ~3-minute background stop without lock-screen controls is
+moot because the AppState pause fires first — double insurance, keep
+the AppState pause.
+
+**Candidates (documented, not planned)** — in rough order of value per
+line:
+
+- `web-ambient-unlock` — a one-time user-gesture audio unlock for web
+  (first interaction re-fires the bed effect), or, if the bed is a
+  non-goal on web, an explicit "ambient music: native only" scope note.
+  First step: confirm the F22.4(b) silence with a manual web check;
+  if the bed ever needs player reachability, add the audio-state event
+  (guardrail 5). No guardrail interaction either way.
+- `reward-sfx-set` — dedicated one-shot SFX for the reward moments that
+  ride generic clips today: combo tier-up, the depth-milestone toasts,
+  the gem pocket (synthesized, same deterministic-script family —
+  highest-frequency reward moments first). Guardrail: none of them may
+  be purchase-gated — sound must never become a paywall.
+- `sfx-gain-scaling` — scale audio with gain the way haptics already
+  do: a pitch or loudness step per juice wave (or wave-count layering
+  mirroring `juiceWaves`). `haptics.ts` is the precedent (10 + 4
+  ms/wave, capped 30) — sound is the only juice channel ignoring
+  `juiceWaves`.
+- `tier-ambience-variant` — one bed variant per depth tier (5 generated
+  files, same pipeline — the integer-harmonic construction is already
+  parameterized by `DUR`) — the Frogger-shaped genre answer. Theme-
+specific audio is a separate, larger candidate; the 10 cave themes
+  stay audio-silent for now.
+- `bed-ducking` — dip the bed N dB for T ms while SFX play (adaptive
+  mixing). Only worth it after `reward-sfx-set` raises SFX density; at
+  current density the static mix is fine at the defaults.
+- `player-cleanup-remove` — `player.remove()` in the `useSounds`
+  cleanup to match the documented `createAudioPlayer` contract
+  (F22.4(a)). One line; fold into any future touch of that file rather
+  than shipping alone.
+
+**Source-quality notes (pass 22).** expo-audio official docs
+(docs.expo.dev, fetched this pass; the page is the *latest* version,
+read against the pinned 57.0.4 — the API surface this hook uses, the
+`createAudioPlayer` memory-leak clause, `playsInSilentMode`, and the
+background-stop behavior are quoted from that page; nothing cited there
+is marked deprecated on it). Wikipedia "Video game music", "Loop
+(music)", "Sound design": tertiary/encyclopedic, used **only** for
+genre canon (looping as the canonical game-music technique, dynamic /
+conditional audio, adaptive mixing as a named technique), not as design
+authority — the VGM article carries `[citation needed]` markers in
+places this pass does not rely on. The F22.4(b) web-autoplay claim is
+**inference** (browser autoplay policy + the code path), not
+expo-audio-documented behavior — treat it as "likely, verify with a
+manual web check" and do not cite it as fact. The `gamedesignpatterns`
+.com audio-design pattern was attempted and unreachable at fetch time —
+**not** cited, and this pass was not blocked on it (the three retrieved
+sources cover the canon used).
+
+Not re-audited: the haptics patterns themselves (pass 13 / §3
+"Haptics"), the synthesized assets' musical quality (subjective, out of
+scope), the settings rows' i18n (pass 14), and the rendering budget
+(pass 20 — audio playback is native and outside that pass's scope).
