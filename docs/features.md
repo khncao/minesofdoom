@@ -1867,8 +1867,9 @@ The research (five sources; quality notes at the end):
   also the source for the sink-first design discipline: sinks designed
   before sources — which is exactly what the balance test encodes.
 
-Candidates (documented, trigger-gated — **one landed in iteration 17,
-the rest not planned, none shipped without the trigger**):
+Candidates (documented, trigger-gated — **`cosmetics:analytics` landed in
+iteration 17, the collection surface partially in iteration 23, the rest
+not planned, none shipped without the trigger**):
 
 - ~~**`cosmetics:analytics`**~~ — per-purchase event granularity on the
   guardrail-5 event log: line, item id, path (gems vs pack), gem balance
@@ -1885,7 +1886,14 @@ the rest not planned, none shipped without the trigger**):
   minerals bonus — nothing pay-gated, guardrail 1). The aspiration ladder
   the static catalog lacks; turns the 1,675 💎 ceiling into a visible
   runway. The save already holds the owned lists; the surface is
-  IapPanel/settings UI + one achievement metric. Candidate, not planned.
+  IapPanel/settings UI + one achievement metric. **Partially landed
+  2026-09 (iteration 23):** the progress surface is DONE (the menu
+  sheet's Collection view — per-line owned counts, per-group + total
+  progress, see §3 and the DONE entry in "Engagement / progression");
+  the two unlanded legs are the next-missing highlight and the
+  completion reward/achievement (pass 16 finding (1): `achievements.ts`
+  still has no cosmetic metric). Candidate for the remaining legs, not
+  planned.
 - **`cosmetics:visibility`** — give the cosmetics a sightline, cheapest
   leg first: the share badge already has the pixel-sprite pipeline, so
   draw the owned pickaxe sprite (palette-tinted) instead of the hardcoded
