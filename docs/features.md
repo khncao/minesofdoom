@@ -192,8 +192,14 @@ prestige/legendary/cosmetics coverage (F25.2–F25.5). **5 candidates**
 `achievements:tail`, `t6`/second-axis surprise, `gem-sink:post-max`) —
 none adopted yet. As with passes 22–24, **external genre-canon sourcing
 failed this pass too** (Exa rate-limited, 3rd consecutive pass); the
-endgame findings are internal-only and are labelled as such where it
-matters.
+endgame findings were internal-only where they'd otherwise read as
+category consensus, and are labelled as such where it matters. **Re-pull
+(2026-09-09, after the 3-pass 429 streak broke):** the two endgame
+genre-claim lines (F25.3 "satisfying sink", F25.4 "collection-complete
+endgame") are now partially sourced — see the re-pull note in pass 25's
+source-quality notes. The related unsourced lines in passes 23
+(achievement-payback lore — now sourced, with a correction) and 24
+(trust-model industry cross-check) were upgraded in the same re-pull.
 
 ## 1. Core gameplay
 
@@ -3199,10 +3205,21 @@ reference [1], Hamari & Eranti's 2011 DiGRA paper "Framework for
 Designing and Evaluating Game Achievements", is peer-reviewed but is
 cited here **only via the reference list** and was not fetched
 directly — no specific claim is attributed to it. The Cookie Clicker
-achievement-payback lore (per-achievement click-power bonus) is
-**not** cited — the source was unavailable this pass (Fandom 403,
-Exa search still 429-rate-limited); the `achievement-payback`
-candidate rests only on Wikipedia's general in-game-benefit statement.
+achievement-payback lore (per-achievement click-power bonus) was
+**not** cited in the original pass (Fandom 403, Exa still 429).
+**Re-pull note (2026-09-09):** the wiki mirror (cookieclicker.wiki.gg,
+fetched — Fandom is still 403) was reached, and it corrects the lore:
+payback is **not** a direct click-power bonus, it is the **milk**
+mechanic — each normal achievement grants +4% milk (622 normal
+achievements → max 2488% milk), milk thresholds unlock the Kitten
+upgrade series, and each Kitten multiplies CpS (all 17 kittens at max
+milk ≈ 1.17×10¹³ CpS, per the wiki's worked example). So the folklore
+the `achievement-payback` candidate was chasing — a *permanent
+per-achievement effect* — is real but indirect: the reference title
+makes achievements the backbone of the production curve, not of click
+power. That strengthens the candidate (shape: a small per-achievement
+permanent production bump, milk-style) and gives Wikipedia's general
+in-game-benefit statement its concrete reference-title instance.
 
 Not re-audited: the leaderboard internals (the Social / meta section,
 covered in pass 24), the gate cost curves (pass 19), the
@@ -3363,10 +3380,23 @@ Galaxies videotape-verification era as the historical precedent
 for verifying claimed scores (which this game inverts by making
 the board prize-free). A "Leaderboard (software)" page does not
 exist (red link — checked this pass; do not cite it). Exa search
-was still 429-rate-limited this pass (as in pass 23), so there is
-no industry-side cross-check; the trust-model claims above rest on
-the repo's own plan text (store-integration.md §3, written with
-the design) rather than external sources.
+was still 429-rate-limited this pass (as in pass 23), so there was
+no industry-side cross-check in the original pass. **Re-pull note
+(2026-09-09):** an industry-side cross-check was fetched (boomiestudio
+"Secure Leaderboards with Firebase: The Anti-Cheat Guide" — vendor
+engineering blog, practitioner tier, not canon). It supports the
+*direction* of the shipped trust model: the standard answer to
+client-claimed scores is server-side heuristic validation (submit the
+run's metadata, not just the score; "speedrunner" and "impossible"
+caps; the server writes the row, never the client) — the same shape
+as this game's submit contract (derived lifetime stats + server-side
+caps + server-side write). It does **not** validate the *lightness*
+choice: that article prescribes obfuscation and shadow-banning for
+board stakes that actually mean something, whereas this game's "no
+prize → caps-only validation" stance is a deliberate inversion of the
+industry default, justified by the board being cosmetic. That inversion
+remains a repo-plan-text claim (store-integration.md §3), now with the
+industry default on record for contrast.
 
 Not re-audited: the `cloudSave.ts` round trip and the restore-choice
 UX (pass 21 + store-integration §3.1), the optional-login / auth
@@ -3389,9 +3419,12 @@ cosmetics, achievements, and the goal list itself. **Source-quality note,
 carrying the pass 22–24 precedent:** the external genre-canon pull
 **failed again** (Exa rate-limited, 3rd consecutive pass; no Brave/OpenAI
 keys in this environment), so the endgame findings below rest on the
-repo's own code plus **internal convention only**, exactly like pass 22's
-`local-first` finding — the genre-claim lines are labelled "internal,
-not canon-verified" where they'd otherwise read as category consensus.
+repo's own code plus **internal convention only** — same status as
+pass 22's F22.4(b) web-autoplay claim ("likely, verify manually"). The
+genre-claim lines are labelled "internal, not canon-verified" where
+they'd otherwise read as category consensus; **a re-pull on 2026-09-09
+(after the 3-pass 429 streak broke) sourced one and half of the two —
+see the re-pull note in the source-quality section below.**
 **F25.1 — The end-state exists and is honest: no hard wall, no
 paywall, no fake ceiling** (the guardrail holds at the top of the
 curve). Verified: depth is unbounded but **derived** —
@@ -3442,12 +3475,20 @@ spend but one-shot (a finite set, F25.4), so they run out; there is no
 gem sink for achievements or for goals. In the terminal state — every
 line maxed, every cosmetic owned — the gem counter is a number that
 only buys one thing: another miner. That is the inverse of the
-idle-genre "satisfying sink" convention (internal convention claim, not
-canon-verified this pass: no genre-canon pull succeeded).
+idle-genre "satisfying sink" convention — **sourced on the 2026-09-09
+re-pull**: Novak, "Don't Ask What a Sink Gives. Ask What It Eats"
+(itembase.dev, also in pass 16's lineage), names this exact terminal
+failure mode — "the sink ran out of depth while its source kept
+minting… If there's nothing left to buy, the soft currency has nowhere
+to go, it inflates into meaninglessness, and the number going up stops
+meaning anything" — i.e. a source/sink-rate imbalance, which is
+precisely the single-sink gem economy described above.
 **F25.4 — The cosmetic collection is finite and complete-able; the
 "collection" is the actual endgame, and it's done by a small number
-of gem-spend events, not a progression** (internal
-observation). Verified: `cosmetics.ts` defines the full set —
+of gem-spend events, not a progression** (internal observation; the
+"collection-complete is a real endgame shape" half is partially sourced
+on the 2026-09-09 re-pull at the reference-title level — see the note
+in the source-quality section below). Verified: `cosmetics.ts` defines the full set —
 pickaxes, outfits, cave themes — as a finite, enumerable list, each a
 **pure one-time gem purchase**; no achievement gating exists anywhere
 in `cosmetics.ts` (achievements grant only mineral bonuses, per
@@ -3481,6 +3522,7 @@ list, no new mechanics).
 
 **Endgame terminal-state itemization** (what "after everything" looks
 like, concretely, for the candidate decisions below):
+
 - **Depth**: derived from lifetime (/500), art freezes at 850 m;
   t5's binding target (1B lifetime) actually lands at 2,000,000 m.
 - **Gems**: earn unbounded, spend is 29 fixed upgrade levels +
@@ -3494,6 +3536,7 @@ like, concretely, for the candidate decisions below):
   beyond "new shaft".
 
 **Candidate additions** (in value-per-line order, none greenlit):
+
 - `free-path:motherlode-target` (recommended) — pin **time-to-t5** in
   the CI free-path benchmark (it currently pins only first-prestige
   ≤ 7 days). This is the one finding that is a **measurement** gap, not
@@ -3539,16 +3582,49 @@ terminal balance, which the cosmetics-balance test guards) —
   actually needs it.
 
 **Source-quality notes for the pass 25 findings** (per the standing
-convention, since no genre-canon pull succeeded): the F25.1
-confirmation rests on the repo's own guardrail text (AGENTS.md) plus
-the store-integration §3 cosmetic-only claim; the F25.2–F25.5 findings
-are pure code audit; the genre-claim lines ("satisfying sink" is the
-idle-genre convention; "collection-complete" is a real endgame shape)
-are **internal, not canon-verified** — same status as pass 22's
-`local-first` finding. Re-running the external pull (Exa) in a
-non-rate-limited environment would upgrade the two genre-claim lines
-from internal to sourced; it would not change the findings, which are
-structural either way.
+convention, since no genre-canon pull succeeded in the original pass):
+the F25.1 confirmation rests on the repo's own guardrail text
+(AGENTS.md) plus the store-integration §3 cosmetic-only claim; the
+F25.2–F25.5 findings are pure code audit. The two genre-claim lines
+("satisfying sink" is the idle-genre convention; "collection-complete"
+is a real endgame shape) were **internal, not canon-verified** in the
+original pass — the re-pull note below supersedes that for one and
+half of them.
+
+**Re-pull note (2026-09-09 — the 3-pass Exa 429 streak finally
+broke; searched via DuckDuckGo, not Exa).** (1) **F25.3 is now
+sourced.** Novak, "Don't Ask What a Sink Gives. Ask What It Eats"
+(itembase.dev/blogs/…, with the dev.to mirror) — full text fetched —
+names the terminal single-sink failure explicitly: "the sink ran out
+of depth while its source kept minting"; "If there's nothing left to
+buy, the soft currency has nowhere to go, it inflates into
+meaninglessness, and the number going up stops meaning anything." The
+article taxes all idle sink failure as rate problems (source outpaces
+a maxed sink; mistuned conversion; exhausted meaning), not content
+lists — which is exactly the framing F25.3 needs. Tier: indie
+practitioner design blog, not canon; it is the strongest sink-taxonomy
+source found on this pull and was already in pass 16's lineage (this
+re-pull re-fetched it and confirms the cited passage). (2) **F25.4 is
+now partially sourced — at the reference-title level, not the genre
+level.** Cookie Clicker wiki (cookieclicker.wiki.gg, fetched): Milk
+"is a statistic… directly associated with the player's Achievements
+amount"; shadow achievements are defined *by not counting* towards
+"achievement completion percentage" — i.e. the reference title has a
+completion meter in its UI. Community records of a ~600-hour 100%
+achievement run (steamcommunity threads, search snippets only, not
+fetched), and a dedicated third-party 100%-tracker site
+(cookieclickercalc.com) — completion is a real community endgame
+activity in the reference title, with tracking infrastructure. But
+nothing on this pull asserts "collection-complete" for the idle genre
+as a whole: the only genre-wide guide found (missionszanx "Idle Game
+Design: Systems, Mechanics, and Progression") is SEO-thin and not
+citable, and the r/incremental_games endgame-design thread was
+snippet-only (Reddit extraction blocked). The genre-wide half of the
+F25.4 claim therefore stays **internal**. (3) The missionszanx article
+is recorded here as attempted-and-rejected so a future pass doesn't
+re-cite it. (4) The two genre-claim findings themselves are
+unchanged — the re-pull confirmed direction, not structure; F25.2–
+F25.5 remain pure code audit either way.
 
 **Not re-audited in pass 25:** the goal/achievement **mechanics**
 (pass 23's scope — the tier-chain gating, completion effects, the
