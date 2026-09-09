@@ -11,6 +11,7 @@ import {
   isPickaxeId,
 } from "./cosmetics";
 import { Equation, Ops } from "src/utils/math/equations";
+import type { NumberNotation } from "src/utils/format";
 
 /**
  * Save data model — the persisted game state.
@@ -143,6 +144,19 @@ export type SettingsData = {
    * clampMusicVolume on the way in (see useSounds.ts).
    */
   musicVolume: number;
+  /**
+   * Number notation (default "compact"): how big numbers are written
+   * everywhere (pass-8 "the number notation is a fixed ladder" item — the
+   * genre guide's cozy-vs-clinical choice as a plain preference toggle).
+   * "compact" is the original suffix ladder (1.2k, 3.4M); "plain" writes
+   * full numbers with thousand separators (1,234,567). Cycled from the
+   * settings row and pushed to the live store in utils/format
+   * (setNumberNotation), which formatNumber's default argument reads —
+   * no call site threads it. Clamped by clampNumberNotation on the way
+   * in; old settings get the default through the settings merge (no
+   * migration).
+   */
+  notation: NumberNotation;
 };
 
 export const saveDataKey = "save";
@@ -778,6 +792,7 @@ export const defaultSettingsData = {
   music: true,
   soundVolume: 100,
   musicVolume: 50,
+  notation: "compact" as NumberNotation,
 };
 
 /**
@@ -822,6 +837,18 @@ export function clampMusicVolume(volume: unknown): number {
  */
 export function musicLevel(musicVolume: unknown): number {
   return clampMusicVolume(musicVolume) / 100;
+}
+
+/**
+ * Clamp a parsed/persisted notation mode to the two known values. Old
+ * settings (pre-notation) never carry the field — the settings merge
+ * ({ ...defaultSettingsData, ...parsed }) supplies the "compact" default,
+ * which is the game's original notation — so this guards hand-edited or
+ * hand-written save values: anything that isn't exactly "plain" falls
+ * back to the default instead of rendering a bogus mode.
+ */
+export function clampNumberNotation(value: unknown): NumberNotation {
+  return value === "plain" ? "plain" : defaultSettingsData.notation;
 }
 
 /** Every purchase button id (see PurchaseId). */

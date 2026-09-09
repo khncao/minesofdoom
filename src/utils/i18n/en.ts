@@ -316,6 +316,15 @@ export const en = {
     "nothing plays.",
   "a11y.decreaseMusicVolume": "Decrease music volume",
   "a11y.increaseMusicVolume": "Increase music volume",
+  "settings.tooltipNotation": "Number notation",
+  "settings.notation": "Number notation: ",
+  "settings.notationHelp":
+    "How big numbers are written everywhere in the game. Compact (default): " +
+    "short suffixes like 1.2M — the genre's standard. Plain: full numbers " +
+    "with thousand separators, 1,234,567. Tap the sample to switch; it " +
+    "applies immediately to counters, costs, records and share badges. " +
+    "Purely cosmetic — the numbers themselves never change.",
+  "a11y.cycleNumberNotation": "Switch number notation between compact and plain",
   "settings.emojiArt": "Emoji art (low-end mode): ",
   "settings.emojiArtHelp":
     "Off (default): miners, currency icons, debris and the cave backdrop " +

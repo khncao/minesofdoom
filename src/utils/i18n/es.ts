@@ -308,6 +308,15 @@ export const es: Record<TranslationKey, string> = {
     "del menú sigue imponiéndose: con silencio activado no suena nada.",
   "a11y.decreaseMusicVolume": "Bajar el volumen de la música",
   "a11y.increaseMusicVolume": "Subir el volumen de la música",
+  "settings.tooltipNotation": "Notación de los números",
+  "settings.notation": "Notación de los números: ",
+  "settings.notationHelp":
+    "Cómo se escriben los números grandes en todo el juego. Compacta (por " +
+    "defecto): sufijos cortos como 1,2 M — el estándar del género. Simple: " +
+    "números completos con separadores de miles, 1.234.567. Toca la muestra " +
+    "para cambiar; se aplica al instante a contadores, costes, récords y " +
+    "insignias compartidas. Puremente estético: los valores nunca cambian.",
+  "a11y.cycleNumberNotation": "Cambiar la notación de los números entre compacta y simple",
   "settings.idleReminder": "Recordatorio de inactividad: ",
   "settings.idleReminderHelp":
     "Activado (por defecto): tras un minuto sin tocar la cueva ni responder " +

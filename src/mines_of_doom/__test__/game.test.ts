@@ -49,6 +49,7 @@ import {
   clampSoundVolume,
   clampMusicVolume,
   musicLevel,
+  clampNumberNotation,
   getVisiblePurchases,
   hasAffordablePurchase,
 } from "../game";
@@ -1000,6 +1001,21 @@ describe("getVisiblePurchases", () => {
     expect(clampMusicVolume(NaN)).toBe(50);
     expect(clampMusicVolume("80")).toBe(50);
     expect(clampMusicVolume(undefined)).toBe(50);
+  });
+
+  test("settings default keeps the original compact notation", () => {
+    // The game shipped compact-only; the plain mode is opt-in, so the
+    // default must be "compact" for old saves to look unchanged.
+    expect(defaultSettingsData.notation).toBe("compact");
+  });
+
+  test("clampNumberNotation keeps the two known modes and rejects junk", () => {
+    expect(clampNumberNotation("compact")).toBe("compact");
+    expect(clampNumberNotation("plain")).toBe("plain");
+    expect(clampNumberNotation(undefined)).toBe("compact");
+    expect(clampNumberNotation("PLAIN")).toBe("compact");
+    expect(clampNumberNotation(1)).toBe("compact");
+    expect(clampNumberNotation({})).toBe("compact");
   });
 
   test("musicLevel is the clamped independent music volume, 1:1", () => {

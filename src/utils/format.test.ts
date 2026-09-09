@@ -1,4 +1,10 @@
-import { formatDuration, formatNumber } from "./format";
+import {
+  formatDuration,
+  formatNumber,
+  getNumberNotation,
+  setNumberNotation,
+  subscribeNumberNotation,
+} from "./format";
 
 describe("formatNumber", () => {
   test("small numbers shown in full", () => {
@@ -55,5 +61,54 @@ describe("formatNumber", () => {
     expect(formatNumber(1_200_000_000n)).toBe("1.2B");
     // Beyond precision of `number`, still exact, and tier caps at Qi.
     expect(formatNumber(1_234_567_890_123_456_789n)).toBe("1.23Qi");
+  });
+});
+
+describe("formatNumber plain notation (settings.notation)", () => {
+  afterEach(() => {
+    // The store is module state — never leak a mode into other suites.
+    setNumberNotation("compact");
+  });
+
+  test("explicit plain mode writes full numbers with thousand separators", () => {
+    expect(formatNumber(0, "plain")).toBe("0");
+    expect(formatNumber(999, "plain")).toBe("999");
+    expect(formatNumber(1000, "plain")).toBe("1,000");
+    expect(formatNumber(12345, "plain")).toBe("12,345");
+    expect(formatNumber(1234567, "plain")).toBe("1,234,567");
+  });
+
+  test("plain mirrors compact's value law (floor, non-finite via toString)", () => {
+    expect(formatNumber(42.9, "plain")).toBe("42");
+    expect(formatNumber(9999.9, "plain")).toBe("9,999");
+    expect(formatNumber(NaN, "plain")).toBe("NaN");
+    expect(formatNumber(Infinity, "plain")).toBe("Infinity");
+  });
+
+  test("plain bigint stays exact past float precision", () => {
+    expect(formatNumber(12345n, "plain")).toBe("12,345");
+    expect(formatNumber(1234567890123n, "plain")).toBe("1,234,567,890,123");
+    expect(formatNumber(1_234_567_890_123_456_789n, "plain")).toBe(
+      "1,234,567,890,123,456,789",
+    );
+  });
+
+  test("the live store drives the default mode and notifies subscribers", () => {
+    const notifications: number[] = [];
+    const unsubscribe = subscribeNumberNotation(() =>
+      notifications.push(1),
+    );
+    expect(getNumberNotation()).toBe("compact");
+    setNumberNotation("plain");
+    expect(formatNumber(1234567)).toBe("1,234,567");
+    // Same-value set is a no-op (no notify, no render loop).
+    setNumberNotation("plain");
+    expect(notifications).toHaveLength(1);
+    setNumberNotation("compact");
+    expect(formatNumber(1234567)).toBe("1.23M");
+    expect(notifications).toHaveLength(2);
+    unsubscribe();
+    setNumberNotation("plain");
+    expect(notifications).toHaveLength(2);
   });
 });

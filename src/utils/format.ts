@@ -1,6 +1,88 @@
 const SUFFIXES = ["", "k", "M", "B", "T", "Qa", "Qi"];
 
 /**
+ * The player-selected number-notation mode (settings.notation, pass-8
+ * "the number notation is a fixed ladder" item). "compact" is the genre
+ * default (1.2k, 3.4M); "plain" writes full numbers with thousand
+ * separators (1,234,567) — the genre guide's "cozy vs clinical" choice,
+ * a plain preference toggle (guardrail 4: nothing to hide).
+ */
+export type NumberNotation = "compact" | "plain";
+
+/**
+ * Live notation-mode store — the same shape as the locale store in
+ * utils/i18n/i18n.ts: the settings row pushes the chosen mode once, and
+ * formatNumber reads it as its default second argument, so none of the
+ * ~70 display call sites thread it through. The MinesOfDoom screen
+ * subscribes (useSyncExternalStore) so a flip re-renders the tree with
+ * fresh strings. No-op on same-value sets (no render loop).
+ */
+let numberNotation: NumberNotation = "compact";
+const notationSubscribers = new Set<() => void>();
+
+export function getNumberNotation(): NumberNotation {
+  return numberNotation;
+}
+
+export function setNumberNotation(mode: NumberNotation): void {
+  if (mode === numberNotation) {
+    return;
+  }
+  numberNotation = mode;
+  for (const subscribe of Array.from(notationSubscribers)) {
+    subscribe();
+  }
+}
+
+export function subscribeNumberNotation(callback: () => void): () => void {
+  notationSubscribers.add(callback);
+  return () => {
+    notationSubscribers.delete(callback);
+  };
+}
+
+/**
+ * Plain notation: the full integer with thousand separators ("12,345",
+ * "1,234,567,890"). Mirrors the compact path's value law exactly —
+ * non-finite numbers format via toString (the stat can never render
+ * NaN-as-"0"), everything else is floored like compact does below 10,000,
+ * so a plain-mode counter and a compact-mode counter never disagree about
+ * the underlying number. bigint takes the string route (the regex works
+ * on any-length digit strings, no float round-trip for absurd values).
+ */
+function formatPlainNumber(value: number | bigint): string {
+  if (typeof value === "bigint") {
+    const abs = value < 0n ? -value : value;
+    return abs.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+  if (!Number.isFinite(value)) {
+    return value.toString();
+  }
+  return Math.floor(Math.abs(value))
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+/**
+ * Format a number with the live notation mode, or with an explicit mode
+ * (tests, and surfaces that want a fixed mode regardless of the setting).
+ * "compact": 1.2k, 3.4M (the original behavior, unchanged). "plain":
+ * full numbers with thousand separators. Accepts `number | bigint` —
+ * minerals (and derived lifetime/depth stats) are bigint in the save;
+ * counts and costs stay numbers.
+ */
+export function formatNumber(
+  value: number | bigint,
+  notation: NumberNotation = getNumberNotation(),
+): string {
+  if (notation === "plain") {
+    return formatPlainNumber(value);
+  }
+  if (typeof value === "bigint") {
+    return formatBigNumber(value);
+  }
+
+/**
  * Format a number with compact notation (1.2k, 3.4M, 1.2B).
  * Numbers below 10,000 are shown in full.
  *
@@ -9,10 +91,6 @@ const SUFFIXES = ["", "k", "M", "B", "T", "Qa", "Qi"];
  * mirrors the number path exactly, using integer arithmetic (values only
  * ever shrink here, so no overflow is possible).
  */
-export function formatNumber(value: number | bigint): string {
-  if (typeof value === "bigint") {
-    return formatBigNumber(value);
-  }
   if (!Number.isFinite(value)) {
     return value.toString();
   }

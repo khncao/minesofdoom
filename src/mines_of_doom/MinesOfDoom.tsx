@@ -1,5 +1,13 @@
 import { StatusBar } from "expo-status-bar";
-import { MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  MutableRefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useContent, useI18n } from "src/hooks/useI18n";
@@ -62,7 +70,12 @@ import {
   PRESTIGE_UNLOCK_TIER,
   getCompletedTierIds,
 } from "./goals";
-import { formatNumber } from "src/utils/format";
+import {
+  formatNumber,
+  getNumberNotation,
+  setNumberNotation,
+  subscribeNumberNotation,
+} from "src/utils/format";
 import { emojis } from "src/utils/graphics/emojis";
 import type { FloatingTextRef } from "./components/FloatingTextLayer";
 import { useMessages } from "./hooks/useMessages";
@@ -266,6 +279,17 @@ export default function MinesOfDoom() {
     (newSettings: SettingsData) => setSettingsData(newSettings),
     [setSettingsData],
   );
+
+  // Number-notation mode (settings.notation): push the settings value into
+  // format.ts's live store and subscribe, so a settings flip re-renders the
+  // whole tree and every formatNumber() call site picks up the new mode
+  // through its default argument — no call site threads the mode (same
+  // store shape as the i18n locale store). The store set is a no-op when
+  // the value hasn't changed, so the sync never loops.
+  useSyncExternalStore(subscribeNumberNotation, getNumberNotation);
+  useEffect(() => {
+    setNumberNotation(settingsData.notation);
+  }, [settingsData.notation]);
 
   // Purchase-button visibility (plan "Adjust"): by default only the core
   // buttons + anything the lifetime economy has ever reached (a sunk shaft

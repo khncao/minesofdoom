@@ -12,7 +12,8 @@ import {
   type OperatorKey,
   type MultiplySymbol,
 } from "src/utils/math/equations";
-import { SettingsData, clampSoundVolume, clampMusicVolume } from "../game";
+import { SettingsData, clampSoundVolume, clampMusicVolume, clampNumberNotation } from "../game";
+import { formatNumber } from "src/utils/format";
 import { styles } from "../styles";
 
 /**
@@ -400,6 +401,53 @@ const SettingsContent = memo(function SettingsContent({
             }}
           >
             <Text style={{ ...styles.text, fontSize: 11 }}>+</Text>
+          </Pressable>
+        </View>
+      </Tooltip>
+      {/* Number notation (todo: "the number notation is a fixed ladder",
+          features.md §7 pass-8 item): how big numbers are written
+          everywhere — the genre guide's cozy-vs-clinical choice as a
+          plain preference toggle (guardrail 4). Tapping the sample
+          cycles compact (1.23M) ↔ plain (1,234,567); the sample is the
+          SAME value rendered in the current mode, so the row previews
+          both modes in place. Immediate-apply, like the volume rows
+          above — MinesOfDoom's sync effect pushes the live store and
+          every counter re-renders in place. */}
+      <Tooltip
+        label={t("settings.tooltipNotation")}
+        content={t("settings.notationHelp")}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Text style={{ ...styles.text, fontSize: 11, flex: 1 }}>
+            {t("settings.notation")}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("a11y.cycleNumberNotation")}
+            onPress={() =>
+              onChangeSettingsData({
+                ...settingsData,
+                notation: clampNumberNotation(
+                  settingsData.notation === "compact" ? "plain" : "compact",
+                ),
+              })
+            }
+            style={{
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 6,
+              backgroundColor: "#2a2a2a",
+            }}
+          >
+            <Text style={{ ...styles.text, fontSize: 11 }}>
+              {formatNumber(1234567, settingsData.notation)}
+            </Text>
           </Pressable>
         </View>
       </Tooltip>

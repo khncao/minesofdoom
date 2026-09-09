@@ -48,7 +48,18 @@ outside this file:
   **repair** that restores a reset 3+ streak to lost+1 on the next
   local day's claim (once per rolling 30 days); all counters real and
   bounded, all new state fields optional (no migration), a11y-only
-  freeze counter on the bonus button. The rest stays
+  freeze counter on the bonus button, and on 2026-09 (iteration 20)
+  the pass-8 `ui:notation` item (**player-chosen number notation**,
+  the genre guide's cozy-vs-clinical toggle): `settings.notation`
+  ("compact" | "plain", default "compact" = the shipped ladder, old
+  saves unchanged) cycled from a settings row whose button is a live
+  sample of 1,234,567 in the current mode; plumbing mirrors the i18n
+  locale-store precedent — a tiny store in `utils/format.ts` that
+  `formatNumber`'s default second argument reads (no call site threads
+  it), MinesOfDoom syncing the setting in and subscribing via
+  useSyncExternalStore so a flip re-renders counters/costs/records/badges
+  in place; plain mode mirrors compact's value law exactly (floored,
+  non-finite via toString, bigint exact). The rest stays
   trigger-gated (including `offline:clock-hwm`, deliberately low priority per
   its own sources). Reopen on the signals recorded there (first
   production release + the guardrail-5 signal batch, endgame-lifetime content

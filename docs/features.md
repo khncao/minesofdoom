@@ -698,18 +698,25 @@ canon below, not gaps); the rest are candidates.
   days; the pass-4 churn workflow (review themes per version) gets a
   concrete pacing signal to match complaints against. Candidate, not
   planned.
-- **The number notation is a fixed ladder** — `utils/format.ts`
-  formats everything (HUD counters, share badges) with one fixed suffix
-  ladder ("", k, M, B, T, Qa, Qi); there is no player-facing choice.
-  The genre guide: suffix notation feels warm and human, scientific
-  notation scales without limit, and **many titles let the player
-  choose, because the same number feels cozy or clinical depending on
-  how it is written** — "when your reward is literally 'the number got
-  bigger,' the typography of that number is core game feel." Cheap
-  version: a settings row (compact suffix vs. plain full numbers) into
-  the existing formatter, persisted with the rest of the settings —
-  the i18n table stays key-pinned as always. Guardrail 4: it is a
-  plain preference toggle, nothing to hide. Candidate, not planned.
+- ~~**The number notation is a fixed ladder**~~ — **DONE 2026-09**
+  (iteration 20, autonomous no-signal pick): exactly the cheap version
+  as researched — `settings.notation` ("compact" | "plain", default
+  "compact" so old saves look unchanged) cycles from a settings row
+  whose button is a live sample of 1,234,567 in the current mode
+  (compact "1.23M" ↔ plain "1,234,567"); `clampNumberNotation` in
+  `game.ts` (junk falls back to the default, pinned in game.test.ts),
+  no migration through the settings merge. Plumbing follows the i18n
+  locale-store precedent: a tiny store in `utils/format.ts` (get / set
+  / subscribe, no-op on same-value sets) that `formatNumber`'s default
+  second argument reads, so none of the ~70 display call sites thread
+  it; MinesOfDoom syncs the settings value in and subscribes via
+  useSyncExternalStore, so a flip re-renders the tree in place
+  (counters, costs, records, share badges — everything). Plain mode
+  mirrors compact's value law exactly (floored, non-finite via
+  toString; bigint through the string route so absurd values stay
+  exact). The i18n table stays key-pinned (en + es). Candidate that
+  stays open: the scientific-notation step, if a player ever asks for
+  it.
 - **Canon pin (confirmed correct, not gaps):** (1) the automation arc
   — the genre's shape is click → generator → auto-collection → pure
   optimization, and our deliberate inversion (equations stay
