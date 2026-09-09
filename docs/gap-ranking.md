@@ -219,6 +219,20 @@ repo is not equipped to make.
     timestamp that removes the free 8 h clock-jump farm. Lowest
     impact in the inventory: non-competitive single-player, and it
     doesn't make the clock trustworthy anyway.
+17. **`iap:anchor-bundle`** (pass 29, F29.3) — the IAP ladder is
+    compressed (4 points, $0.99–$3.99) and has no anchor: the top tier
+    is the *best* $/gem and the whole catalogue is 25 bare items. The
+    gap is the missing high anchor — an honest bundle tier (per-line
+    "full set" or a collection pack) whose price sits above $3.99 so
+    the bare items read as the cheap path. Trigger-gated on the same
+    tier-3 adoption / payer-mix data as item 13: no payer-mix signal,
+    no bundle. Constraints (canon + guardrails): real discount only —
+    sum of parts > bundle price, no decoys, no fake scarcity;
+    every packed item stays earnable in the shop (the 100k-mineral
+    converter keeps that floor automatic); price stays band-derived
+    from gem cost so store and shop can't drift. Note the structural
+    ceiling that motivates it: one-time-only packs cap IAP revenue at
+    $59.75 per player, so the mix is ad-weighted by design (F29.4).
 
 **Context — closed since the passes ran** (so the ranking isn't
 re-derived from stale reads): streak grace (it.14), streak freezes +
@@ -494,6 +508,26 @@ disabled by default). The save-tampering vector taxonomy comes
 from guardingpearsoftware (vendor, anti-cheat SDK knowledge
 base — the vectors and the prioritization line only). Exa still
 429; DuckDuckGo per the re-pull convention.
+2026-09 pass 29: the monetization-mix layer — how the IAP
+catalog, the ad surfaces, and the gem economy relate to each other
+(the one frame passes 6/12/16 each touched from the outside but
+never audited as one system; the F29.1–F29.2 numbers are live-code
+and deterministic freePath sim measurement, not sourced). The
+pricing/monetization canon is all vendor: gamemantra "IAP Pricing
+Psychology: Decoy, Anchor, Charm" (vendor blog — anchor-effect and
+decoys-vs-trust quotes, the 30–40% bundle-lift claim, no
+methodology on the page), SolarEngine "Casual Games IAP
+Monetization Strategies" (vendor docs — the 5–7-point ladder
+$0.99–$99.99 and the $4.99–$9.99 transaction-share line), cas.ai
+"Hybrid Monetization in Mobile Games: A Practical Guide" (vendor
+— the 50/50 and 30/70 ads/IAP slots, geo segmentation, 3–4
+rewarded/day starting frequency; "no perfect ratio" stated on the
+page), and GameGrowthAdvisor "Mobile Game Paywall / IAP Pricing
+Optimization 2026" (same 50+ launch-studio family as passes 6/10/
+16/26 — the "hard currency must be scarce" framing; fetched, not
+cited). All directional, not Tier A; if the bundle candidate is
+ever greenlit, re-pull the price claims from a Tier A source.
+Exa still 429; DuckDuckGo per the re-pull convention.
 
 ## The gap layers (formerly `docs/features.md` §7)
 
@@ -4144,3 +4178,148 @@ candidate.
   the flag is set). The only trust-chain weakness this pass
   found, and the one where a silent failure is a money leak
   instead of a UX bug. Hours of work; Tier 0 item 12.
+
+### The monetization-mix layer (pass 29 — how the IAP catalog, the ad surfaces, and the gem economy relate to each other, written 2026-09-09)
+
+Pass 6 set the *external* benchmark (where this game slots in hybrid-casual
+ARPDAU/ARPDAU bands, rewarded-format economics, the pass-6 sequencing canon).
+Pass 12 covered the web IAP mechanism; pass 16 the cosmetics sink; pass 25
+pinned the free path's first-prestige target. But the game's own mix — the
+25-pack catalog, the four capped ad kinds, and the gem economy they share —
+had never been audited as one system: nobody had checked the price-ladder
+shape, whether the ad and IAP surfaces overlap, or measured how long a free
+player actually waits for what the store sells. That is this pass.
+
+**F29.1 — the audited mix (live code, `iaps.ts` / `ads.ts` /
+`cosmetics.ts` / `game.ts`).**
+The IAP catalog is 25 one-time cosmetic packs (13 outfits, 3 pickaxes,
+9 cave themes) — no currency packs, deliberately: nothing for advantage is
+sold, so the store cannot out-earn the free path. There is no
+repurchasable surface; max revenue per player is the catalog itself,
+$59.75 at list (5×$0.99 + 9×$1.99 + 7×$2.99 + 4×$3.99). Prices are not
+independently set: `packPriceLabel` maps gem cost to a monotone band
+(≤30g→$0.99, ≤60g→$1.99, ≤100g→$2.99, else→$3.99), so the IAP price can
+never drift from the in-game shop — and the panel already shows the
+"earnable in game (N gems)" line per item, which is the transparency the
+canon asks for. The ad surface is four capped opt-in "watch" kinds (3×/day
+5-gem rolls, 1×/day combo save, 2 situational offline helpers, a 10×/day
+total anti-fraud cap), caps visible in the rewards panel; the meter is stored under its own key
+outside the save blob, so a save edit can't farm ads (live code,
+`ads.ts`; F28.4 covers why that local state isn't worth defending). And
+the two surfaces
+do not overlap: ads never grant cosmetics or money; IAP never grants a
+mechanic. The only intersection is gems (ads→gems→cosmetics), which is the
+designed substitution path. Guardrail 1 (F2P viability) is structural here,
+not aspirational: every pack in the store is gem-earnable and no mechanic
+is sold anywhere in the game.
+
+**F29.2 — "a purchase and saving gems stay roughly comparable" is a
+measurable claim, and the freePath sim says it holds at item level.**
+The freePath benchmark persona (seeded, deterministic; run with
+`stopAtFirstPrestige: false` for the long-horizon gem trajectory the
+module documents) accumulates gross gem income of 52 by day 1, 130 by day
+3, 332 by day 7, 841 by day 14, 1,361 by day 21, 1,958 by day 30, 2,739 by
+day 40 (gross, before the persona's own upgrade policy spends them; ad
+rolls add up to 15g/day on top; the 100k-mineral faucet keeps the floor
+non-random). Against that: an entry pack (≤30g) is covered by day 1, a
+mid pack (90g) by day 3, the top tier (170g) by day 4, and the full
+1,675g catalog is crossed between day 21 and day 30 (≈ day 25). So
+"pay, or wait days" holds for every item in the catalog, not "wait weeks".
+Caveat, stated plainly: gems are one shared flow currency — the same gem a
+player would save for an outfit can fund the gemChance line (28,700g
+across 20 levels) or the quartic miner lines (unbounded, self-throttling) —
+so the *net* wait for a player simultaneously bankroll-ing upgrades is
+longer; the measurement pins the ceiling, not the player's actual queue.
+The cosmetics catalog is 5.5% of the finite gem sink (1,675 of 30,375),
+i.e. cosmetics are cheap relative to upgrades by construction, which is
+the right direction for the guardrail. (Sim measurement, deterministic
+seed — not a sourced claim.)
+
+**F29.3 — the mix's shape is the finding: an anchorless 25-item ladder
+where the top tier is the best buy.**
+The ladder is four price points, $0.99–$3.99, entirely bare single items,
+no bundle anywhere. And the value gradient runs the wrong way for a
+catalog: dollars per gem *fall* as price rises — from $0.066/gem at the
+weakest entry item (15g at $0.99) to $0.023/gem at the top themes
+(170g at $3.99). The most expensive thing in the store is the best value.
+The canon is consistent on what that does:
+
++ **Anchor effect.** "A starter pack at $0.99 reads as cheap when the
+  catalog tops out at $99.99. The same starter pack reads as expensive in
+  a catalog that tops out at $4.99." and "A studio that prices its largest
+  bundle at $19.99 because they don't expect many players to buy it is
+  mispricing the rest of the catalog." (gamemantra, price-psychology
+  audit — vendor blog, directional not Tier A). Our top is $3.99, *below*
+  the standard tier: nothing in the catalog anchors the rest, and the
+  top tier is doing the opposite of anchoring (it makes the middle look
+  like the deal).
++ **Ladder size.** "Most successful casual games use a tiered ladder of
+  5–7 price points, typically $0.99, $1.99, $4.99, $9.99, $19.99,
+  $49.99, and $99.99. The $4.99–$9.99 tier drives the majority of
+  transactions for most titles." (SolarEngine docs — vendor, same tier).
+  This catalog has four points and no $4.99 tier at all.
++ **Bundles.** "Bundled IAPs convert 30–40% higher than standalone
+  items." (gamemantra). The trust caveat matters as much as the lift:
+  "A decoy that's obviously a decoy … reads as manipulation and damages
+  trust." Guardrail 3 (no dark patterns) rules the decoy pattern out of
+  the box; what survives it is the honest-bundle shape — a real discount
+  against the sum of its parts, nothing else.
++ **Mix ratio / frequency slots.** "Many casual titles land near 50/50
+  (Ads/IAP)"; logic/puzzle "often 30% Ads / 70% IAP"; rewarded frequency
+  starts "3–4 rewarded per user/day" (cas.ai practical guide — vendor,
+  starting points not benchmarks; "no perfect ratio" is stated on the
+  page). Our 3-rolls/day ad cap sits inside that frequency band, and the
+  no-interstitials posture is the guardrail, not a gap.
+
+**F29.4 — the mix can't be observed yet, and that's the other half of
+the finding.** The guardrail-5 cohort upload (Tier 0 item 1 — the
+IAP and gem-purchase rows are already recorded locally, the upload is
+what makes them a fraction) is what produces the first mix KPI —
+revenue and per-install split by surface — against which the canon's
+30/70–50/50 slot means something for
+*this* game. Until then the mix exists only as design intent. One
+structural fact that will frame that data: with one-time packs and no
+repurchasable surface, the IAP side has a hard per-player ceiling
+($59.75), so the mix is structurally ad-weighted relative to a
+consumables catalog. That is consistent with the 30/70 slot (puzzle-
+leaning), documented here so the first real split is read against intent
+rather than surprise.
+
+**Source quality (pass 29).** Exa was 429 at write time; per the
+documented re-pull convention this pass used DuckDuckGo. All three
+sources are vendor-affiliated (gamemantra blog, SolarEngine docs, cas.ai
+guide) — directional design canon, not Tier A measurements, and the
+quantitative claims (30–40% bundle lift, 5–7-point ladders, 50/50 and
+30/70 slots, 3–4 rewarded/day) carry no methodology on the page. The
+F29.1–F29.2 numbers are live-code and sim measurement, not sourced. If
+pass 29's bundle candidate is ever greenlit, the price claims behind it
+should be re-pulled from a Tier A source before design.
+
+**Research sources (pass 29, DuckDuckGo fallback):**
+
++ gamemantra, “IAP Pricing Psychology: Decoy, Anchor, Charm”
+  (vendor blog): anchor-effect and decoy-trust quotes + the 30–40%
+  bundle lift. No methodology on the page; directional.
++ SolarEngine docs, “Casual Games IAP Monetization Strategies”:
+  the 5–7-point ladder ($0.99–$99.99) and the $4.99–$9.99
+  transaction share. Vendor docs.
++ cas.ai, “Hybrid Monetization in Mobile Games: A Practical Guide”:
+  the 50/50 and 30/70 mix slots, geo segmentation, 3–4 rewarded/day
+  frequency. Starting points, methodology unstated.
++ (fetched, not cited) gamegrowthadvisor, “Mobile Game Paywall / IAP
+  Pricing Optimization 2026”: the “hard currency must be scarce”
+  claim is a useful framing but the page is the weakest of the four
+  and adds nothing the above don't; excluded rather than padded in.
+
+**Candidates (documented, not planned):**
+
++ `iap:anchor-bundle` (pass 29) — gated on the same tier-3 adoption /
+  payer-mix data as Tier 1 item 13 (`prestige:currency`): if that data
+  shows a demand pattern, add an honest bundle (e.g. per-line "full set"
+  packs, or a collection pack) that gives the ladder an anchor tier above
+  the current $3.99 ceiling. Constraints from the canon + guardrails:
+  real discount only (sum of parts > bundle price; no decoys, no fake
+  scarcity), the earnable-in-game line preserved for every packed item,
+  price still band-derived from gem cost so the store can't drift from
+  the shop. Until the data exists, this is a note, not a plan. Tier 1,
+  item 17.
