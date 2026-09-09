@@ -143,6 +143,18 @@ per +6 MB APK below 100 MB — treated as illustrative), and Google's 2016
 research (53 % of mobile visits abandoned past a 3 s load, via
 Marketing Dive — illustrative). Items adopted from that list move into
 `docs/todo.md`.)
+2026-09 pass 21: the persistence / data-integrity layer — the save blob
+is the game (live-audited: the load/save corruption paths, the v11
+migration chain, the cloud LWW against the clock-skew literature, the
+save-code trust chain; the dependency's entire persistence contract is
+one sentence long, which is itself a finding; candidates: the corrupt-
+backup surface, the stale-resolution audit event, the save-failure
+event, the save-code checksum/sentinel (source: AsyncStorage README +
+FAQ + usage docs + the pinned 2.2.0 shipped source (official),
+codewithkarani "last-write-wins sync silently destroys user data"
+(vendor post-mortem), oneuptime LWW reference (vendor),
+cookieclicker.wiki.gg Save (community), three reddit thread titles as
+existence signals only (community, secondary)).
 
 ## 1. Core gameplay
 
@@ -2720,3 +2732,145 @@ repo read.
 
   These show up on genre checklists and are listed here so future passes
   don't "discover" them as missing.
+
+### The persistence / data-integrity layer (pass 21 — the save blob is
+the game, written 2026-09-09)
+
+Everything the player owns lives in one AsyncStorage key
+(`saveDataKey` — a ~1.5–2 KB JSON blob carrying `saveVersion` 11) plus
+a handful of independent keys (settings, equation settings, the
+daily/weekly day-stamps, the analytics state, the cloud-save toggle +
+last-sync, the device id, the auth token). This pass audits the
+integrity of that state end to end — load, store, migrate, back up,
+sync, export/import — and brings in the literature pass 16 (the
+cloud-save design itself) deliberately left out: what "persistent"
+actually guarantees, and what client-clock last-write-wins can silently
+do. The design reviewed here is stronger than the genre norm in its
+recovery paths and weaker in its observability; the candidates below
+are the observability half.
+
+**F21.1 The local lifecycle already treats loss as detectable at load
+time, and that is the correct posture for the contract the dependency
+actually provides.** Load = read → `JSON.parse` →
+`migrateSaveData` (per-version steps 0→11, each lenient and clamped) →
+`buildSaveData` (per-field clamp/filter, BigInt minerals as strings) →
+online pay-up. Read or parse failure → the raw bytes are backed up to
+`saveDataKey + ".corrupt"`, a `saveLoadFailed` flag is set, a fresh
+save starts with a toast, and cloud launch-recovery (once per launch,
+ignores the user toggle, provider-live only) pulls the stored backup
+through the same import pipeline (`hooks/useGameEngine.ts:
+restoreFromBlob`). Store failure toasts `saveFailed` and the next
+periodic autosave (5–600 s, default 30 s) retries. Nothing on the
+dependency side is stronger than this: the AsyncStorage 2.2.0 README's
+entire persistence contract is its opening sentence ("an asynchronous,
+unencrypted, persistent key-value storage system") — the README, FAQ,
+and usage doc state no quota, no eviction, no update/reinstall
+semantics (the FAQ covers serialization and batch atomicity only). The
+pinned 2.2.0 shipped source confirms the web backend is
+`window.localStorage`, so the pass-12 MDN quota/eviction analysis
+applies to the web save directly; the current v3 docs (SQLite /
+IndexedDB backends) do not apply to this pin. Truncation or a wipe is
+therefore always visible at the next load (unparseable → the
+`.corrupt` path) — "detect at load, back up, recover from cloud" is
+exactly what this contract warrants, and the code does it.
+
+**F21.2 The `save.corrupt` backup is an orphan, and the failure class
+has zero instrumentation.** The backup is written (and unit-tested) but
+nothing reads it: no settings row, no restore path, no event. It is the
+only forensic record of a destroyed save, and it is invisible to both
+the player and the team. Likewise, neither a detected corruption nor a
+repeated write-failure produces an analytics event — the toast is the
+whole signal. Under guardrail 5 ("measure before scaling"), the one
+failure class this game can least afford to be blind to (progress loss)
+is the only one with no event.
+
+**F21.3 The cloud LWW is the literature's risk class, bounded to a much
+narrower failure than the general case — but its one silent path is
+unobservable.** The server keeps `max(stored, pushed)` by client
+`updatedAt` (a tie goes to the push — `stored > pushed` is the only
+stored-wins branch, so it is deterministic), caps timestamps at year
+2100 (a sanity fence, not a skew bound), and caps the blob at 16 KB
+(the save is ~2 KB; 8× headroom). The sources state the general failure
+precisely: wall-clock LWW lets "the device with the faster clock win,
+even when its edit was older," with "no error in your logs" (codewith-
+karani's 40-minutes-fast example), and the loss is "undetectable after
+the fact"; its fixes are server-controlled ordering (version numbers +
+409, or per-field server sequences) and "log every resolution"
+oneuptime adds bounded-skew rejection and HLCs as the clock-side
+variants. Against that, the actual blast radius here: (a) per push the
+loss window is ≤ the 5-minute push cadence of play; (b) the stale path
+restores the server-held blob into the pushing device, so a *linked*
+device whose clock runs persistently fast (by more than the cadence)
+while holding an older save can roll the correct device's state back —
+but cross-device scope requires sign-in (anonymous backups are
+device-scoped), so the risk is opt-in and bounded to linked players;
+(c) the stale outcome is already visible to the client (`res.status ===
+"stale"`) yet is neither logged nor surfaced — the "no conflict log" item
+from both sources is the one gap this game actually has.
+
+**F21.4 The save code is the weakest link in the trust chain, by
+design.** No checksum, no MAC, no end sentinel: `decodeSaveCode`
+accepts the `MOD1` prefix *or* any raw base64 JSON. The genre's
+reference point (Cookie Clicker, the wiki's Save article) appends an
+`!END!` trailer to its base64 save string as a portability marker —
+ours has no such shape marker, and a truncated paste decodes to a
+partial JSON that is then *clamped into a valid-looking save* rather
+than rejected, because the import rides the same lenient pipeline as
+stored saves (clamp/filter/NaN-guard: garbage degrades silently). The
+import UI does carry a confirm modal (guardrail 3 is met at the consent
+level), but the player is never told what a given code *does* —
+including that an out-of-range value was clamped or an unknown id
+dropped — so a "successful" import can be a quiet downgrade. The
+transparency gap, not the trust gap, is the finding.
+
+**Candidates (documented, not planned)** — in rough order of value per
+line:
+
+- `corrupt-backup-surface` — a settings row ("last corrupt save —
+  restore / discard") that reads the `.corrupt` key: restore rides
+  `restoreFromBlob`, discard removes it. Turns the orphan forensic
+  record into a second recovery path (it covers exactly the case where
+  no cloud backup exists: web, or cloud never synced). Pairs with a
+  corruption event (day, `saveVersion`, byte size).
+- `stale-resolution-event` — the client already knows when a push loses
+  (`stale`); log it (reason, the pushed-vs-stored `updatedAt` delta).
+  The minimum of the sources' "log every conflict resolution" list, and
+  the delta is the skew measurement this game can't get any other
+  way.
+- `save-failure-event` — on the Nth consecutive failed local write, log
+  one event. A write-failure loop is a quota/backend problem, and the
+  toast is today's only signal.
+- `save-code-checksum` — a trailing 16-bit FNV-1a over the JSON folded
+  into the code's tail (plus the optional `!END!`-style sentinel for
+  shape), so a truncated paste *fails* instead of clamping into a
+  partial save; keep prefix-free decoding for legacy codes and report
+  "imported, N fields clamped" instead of a bare success. The
+  checksum-only half is strictly safe; the sentinel half is cosmetic.
+
+**Source-quality notes (pass 21).** AsyncStorage: official README +
+FAQ + usage docs, all checked — the absence of any persistence
+guarantee is the finding, not a research gap; the web-backend claim
+(`window.localStorage`) is verified in the pinned 2.2.0 shipped source
+in-tree. The v3 docs' SQLite/IndexedDB backends do not apply to this
+pin — a version-pin trap for any future "the docs say" citation in this
+layer. codewithkarani: vendor post-mortem; the 40-minute figure is an
+example, not a measurement — used as a failure taxonomy, not data.
+oneuptime (2026-01): vendor reference write-up; its NTP-100 ms /
+1000 ms numbers are its own examples. cookieclicker.wiki.gg: community
+wiki, the genre-canonical save-code reference. Reddit
+(r/incremental_games "I lost all of my saves"; r/idleslayer "cloud save
+and lost progress"; a Territory Idle save-corruption thread): titles
+only — the fetches were JS-blocked, so they confirm this failure class
+is genre-common, not the details. No official AsyncStorage eviction or
+quota numbers exist; F21.1's point is that the contract is the
+sentence, not that the sentence is wrong.
+
+Not re-audited: the Pocketbase schema/migrations (endpoint contracts
+are pass 16's), auth-token storage (the 2026-09-14 optional-login
+section), the analytics pipeline internals (pass 2026-09-02), the
+offline-earnings math (pass 15), and pass 16's "the cloud is a backup,
+not a sync" decision (unchanged — this pass audits the LWW edges of
+that decision, not the architecture). Meta note: several earlier
+section headings carry day-level dates (e.g. "2026-09-18") that are
+later than the git commit dates of the same passes (2026-09-08/09);
+flagged here, history not rewritten.
