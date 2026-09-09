@@ -3186,8 +3186,175 @@ achievement-payback lore (per-achievement click-power bonus) is
 Exa search still 429-rate-limited); the `achievement-payback`
 candidate rests only on Wikipedia's general in-game-benefit statement.
 
-Not re-audited: the leaderboard internals (the Social / meta section),
-the gate cost curves (pass 19), the save-migration semantics of
-`completedTiers` / `completedAchievements` (pass 21), the i18n of the
-labels (pass 14), and the depth-tier click-power bonus (a separate
-surface — pass 15 / §1).
+Not re-audited: the leaderboard internals (the Social / meta section,
+covered in pass 24), the gate cost curves (pass 19), the
+save-migration semantics of `completedTiers` /
+`completedAchievements` (pass 21), the i18n of the labels (pass 14),
+and the depth-tier click-power bonus (a separate surface — pass 15 /
+§1).
+
+### The social / leaderboard layer (pass 24 — the scoreboard and its
+trust model, written 2026-09-09)
+
+Scope: the client trio — provider core (`leaderboard.ts`, 349 lines),
+engine-wiring hook (`hooks/useLeaderboard.ts`, 206 lines), and the
+single panel (`components/LeaderboardPanel.tsx`, 134 lines) — plus
+the server half in the same Pocketbase deployment (`pb_hooks/`:
+the `leaderboard` collection in `collections.js`, validation in
+`logic.js`, submit/top/rank handlers in `handlerLib.js`) and two
+client test suites (290 + 354 lines). The Social / meta section of
+§5 holds the feature-level status (✅ implemented, not yet verified
+on device); this pass is the mechanics-and-trust-model audit pass 23
+deferred. It is the game's only cross-player surface — the one thing
+the VPS exists for (guardrails: "a scoreboard, never a paywall").
+
+**F24.1 The client trio.** The provider core is pure fetch round-
+trips mirroring `cloudSave.ts`: three POST endpoints (`/api/app/
+leaderboard/{submit,top,rank}`), a 20 s timeout, a never-reject
+contract, and strict per-field parse validation (`parseRow` /
+`parseRankEntry` — malformed rows are dropped, never rendered).
+Provider selection is a pure, unit-tested matrix: dev builds → an
+in-memory labelled simulation (one row, this device only, module
+state — honest, never fakes a populated board); web → no-op
+(always; the save-code + local records view cover web); native
+production → the real provider, gated on
+`isPocketbaseConfigured()`. No-op hides the entry point — the same
+rule as ads / IAP / cloud save. The hook adds the policy layer
+(F24.2–3); the panel is a dumb memoized renderer (rows, you-row,
+name input, refresh, `leaderboard-*` testIDs, both locales of the
+seven i18n keys — mechanism pass 14).
+
+**F24.2 Submission — derived lifetime stats only, fire-and-forget.**
+What leaves the device is lifetime maxima only: `maxDepth`,
+`maxCombo`, `lifetimeMinerals`, the `completedAchievements` set —
+read from a ref at submit time so a stale capture is impossible —
+and monotone by construction. `requestSubmit()` is called on the
+same two triggers as cloud push (the dirty→clean landing of every
+local save, plus the prestige run-boundary); it is cadence-gated
+at 5 min per attempt — the prestige cadence-bypass applies to cloud
+push only; the board submit stays 5-minute-gated. A failed submit
+is silent: the board has no status line (the status line belongs to
+cloud backup). The display name lives in its own AsyncStorage key,
+never in the save blob — save codes cannot carry it, so a restore
+cannot resurrect a stale one; default "Digger"; both sides strip
+control/whitespace and cap at 16 chars; renaming takes effect on the
+*next* submit.
+
+**F24.3 Display — no spinner trap.** A refresh fetches top-10 and
+this device's rank in parallel; 60 s in-memory cache (reopen within
+a minute is free) and a 5 s tap-throttle on refresh; a loaded board
+stays on screen while the refetch runs; a failed fetch swaps in the
+"unavailable right now" row. Rows render rank / name / depth /
+badge count; the you-row is the pinned rank + depth (or "not in the
+top 10 yet"); the trophy button renders only when a provider is
+available, and the sim label is appended to the title in dev.
+
+**F24.4 The server half — honest-casual, made concrete.** One row
+per `deviceId` (unique index); numeric fields are NOT required, so
+a fresh device's first all-zeros submit is legal. The validation
+caps are the anti-cheat: `bestDepth` / `maxCombo` integers below
+1e9, `lifetimeMinerals` below 1e15, achievement ids ≤ 64 chars ×
+1000 — over-cap means the submission is treated as a corrupted save
+and dropped, not clamped. Merge is monotone: per-field maxes, set
+union of badge ids, display name from the latest submit — a
+re-submitted older save cannot move a row backwards, and a reset
+device cannot farm a fresh one. Top-N sorts by `-bestDepth` with a
+stable `deviceId` tiebreak, limit clamped 1..50 (the client asks
+for 10). Rank is the count of strictly-greater rows + 1, so ties
+share a rank. When a session is live the row is tagged with
+`accountId` and the rank is the best across the account's linked
+devices — a reinstall keeps board position from its prior devices —
+while no session token means a byte-identical round trip, so login
+is never a prerequisite (optional login, §3.3 decision 3). The
+write budget is durable (`events` rows — Pocketbase's pooled
+runtime has no in-memory state that survives a request): 30 writes
+per hour per `deviceId`, **shared across the writing endpoints**
+(IAP verify, cloud push, leaderboard submit, auth register) — the
+31st write in an hour 429s. GDPR delete covers both scopes:
+device (cloudSaves + leaderboard + events; entitlements *survive*
+so refunds can still be honored) and account (everything,
+including entitlements, and the sessions are killed).
+
+**F24.5 The trust model — and where it drifted from the plan.**
+The stance is plan §3.1 decision 4, near-verbatim: "the leaderboard
+is a *claim*, not an authoritative score" — the server trusts
+monotone lifetime stats plus caps, never re-simulates the game, and
+the board is cosmetic: nothing is gated on it, so the only cheating
+incentive is top-10 vanity. The genre framing comes from the
+Wikipedia high-score canon (source note below): inherently
+competitive lists, initials entry since Star Fire (1978), then the
+move to central online boards, and the Twin Galaxies era that
+invented *verification* (videotaped submissions) — this game
+deliberately inverts that, because there is no prize. The shipped
+contract drifted from the §3.3 table in ways the plan text does not
+yet record (all in the lenient direction, and the plan text should
+say so): "1 write/device/hour" → the 30/hour shared budget (a per-
+endpoint cap would have starved the board under save traffic);
+submit response `{ ok, rank }` → `{ ok: true }` (rank is its own
+route and the client doesn't read an inline one); field `name` →
+`displayName`; and the cloud-save 16 KB client blob cap (pass 21's
+territory; the plan said 64 KB). Also: decision 5's `achievement_
+log` collection + `/api/app/achievements/unlock` append-only route
+was **not** shipped — badge ids ride the leaderboard submit payload
+instead (same data, one row; the append-only log's replay value is
+moot while the save blob itself carries the completed set). And
+the §4 release-gate checklist still carries the board's on-device
+verification as an open item — end-to-end it is unit-tested
+client and server but not yet walked on a device, unlike the
+rewarded-ads and IAP paths.
+
+**Candidates (documented, not planned)** — rough value-per-line
+order:
+
+- `board-row-enrichment` — `maxCombo` and `lifetimeMinerals` are
+collected (client → server → collection → top-row shape) but never
+rendered; rows show depth + badge count. Either render maxCombo on
+the row (one i18n string + one format call) or drop both fields
+from the submit and the collection. The combo axis is the one the
+game's own identity lives on (pass 15), so rendering is the better
+default.
+- `analytics:leaderboard-open` — first-board-open as a one-time day
+field on the existing guardrail-5 record, same shape as
+`firstAdViewDay`; today nothing here is measured (Phase 7 is ⬜ —
+store-integration §3.4). Local, no PII.
+- `plan-drift-sync` — update store-integration.md §3.3 to the
+shipped contract (30/hour shared budget, `{ ok: true }` response,
+`displayName`, 16 KB blob cap, no `achievements/unlock` route).
+Doc-only; makes §3 re-readable.
+- `web-board-view` — a read-only board on web (the `/top` route is
+an unauthenticated POST; only the provider's no-op keeps web out).
+Guardrail-3 transparency preserved: plain label, no gating; the
+save-code / local-records story is unchanged.
+- `daily-challenge-board` — already listed in the Social / meta
+section (first-solve-speed on the day-keyed equations, reusing
+this layer's endpoints pattern); cross-referenced here so the two
+candidate lists point at one layer.
+- `achievement-log-route` — decision 5's append-only unlock log, if
+a durable per-account badge record is ever wanted beyond the board
+row. Lowest value: badge ids are already durable in the row, and
+the save is the local truth.
+
+**Source-quality notes (pass 24).** Wikipedia "Score (video
+games)" (fetched this pass via the MediaWiki API behind the
+"High score" redirect): tertiary / encyclopedic, and the article
+carries its own "needs rewrite" flag (April 2017) — used **only**
+for canon: the high-score-table / leaderboard terminology, the
+"inherently competitive" one-upmanship framing, the initials-entry
+origin (Star Fire, December 1978), the move to central online
+boards with continuously-maintained rankings, and the Twin
+Galaxies videotape-verification era as the historical precedent
+for verifying claimed scores (which this game inverts by making
+the board prize-free). A "Leaderboard (software)" page does not
+exist (red link — checked this pass; do not cite it). Exa search
+was still 429-rate-limited this pass (as in pass 23), so there is
+no industry-side cross-check; the trust-model claims above rest on
+the repo's own plan text (store-integration.md §3, written with
+the design) rather than external sources.
+
+Not re-audited: the `cloudSave.ts` round trip and the restore-choice
+UX (pass 21 + store-integration §3.1), the optional-login / auth
+session internals (`pb_hooks/README.md` territory), the i18n
+mechanism (pass 14), the local Records view (`records.ts` — the 95-
+line pure-derivation sibling, the offline half of plan §4.3's
+"leaderboard groundwork"), the share-badge flow (separate surface),
+and the daily-challenge board (candidate, not shipped).
