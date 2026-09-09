@@ -84,6 +84,14 @@ repo is not equipped to make.
     the crash-context trail (12 labels + 24-key snapshot) is the
     game's only per-event trail but is in-memory and dies with the
     process; an export path makes per-device crash context reportable.
+11. **Per-feature first-use / first-open stamps** (pass 27) — which
+    header entries players actually discover: first daily-equation start,
+    first weekly-contract claim, first leaderboard open, first records /
+    collection / goals tab open, first save-code export, first cloud link
+    — one-shot stamps on the existing local record, generalizing pass 24's
+    `analytics:leaderboard-open` into the family. The only measurement
+    that turns pass 27's IA candidates from a hunch into data; same
+    local-stamp-now, cohort-later split as item 1.
 
 ## Tier 1 — Real feature gaps, ranked by impact-per-line
 
@@ -215,7 +223,7 @@ fake scarcity, pay-to-win gates, device-motion input, landscape,
 voice/social input) are guardrails, not gaps, and stay out of this
 ranking.
 
-**Net:** Tier 0 first — items 1–10 are mostly days of work, they are
+**Net:** Tier 0 first — items 1–11 are mostly days of work, they are
 the guardrail-5 obligation, and they convert the Tier 1 items from
 research into a data-ordered queue. Among the real features,
 top-of-queue on impact-per-line: **Tier 1 #1 adaptive math, #2 text
@@ -442,6 +450,22 @@ family as passes 6/10/16 — also the source of a benchmark-freshness flag
 against pass 4's top-quartile line, see F26.2), the 2026
 privacy-telemetry posture articles, and a crash-vs-analytics ordering
 article (vendor; ordering argument only).
+2026-09 pass 27: the discoverability / information-architecture layer —
+where the features live on the screen and how their arrival is announced
+(the one surface the per-axis passes never treated as an axis in its own
+right). Feature-discovery content is a vendor category, so this pass's
+canon is its thinnest: InAppStory "How to drive new feature adoption"
+(vendor, in-app-messaging SDK — the announcement → discovery → first use
+→ repeat use cycle, the badge/timing cadence, the minimal measurement
+set), UserGuiding "A Guide to Feature Discovery" (vendor, onboarding
+SDK — the discovery-vs-adoption split, the tooltip-on-new-icon pattern,
+the Flowla one-tooltip-not-a-tour discipline), Boomiestudio "5 UI
+Mistakes Killing Your Game's Retention" (independent dev blog — the
+Hoober 2014 thumb-zone result, the 44–48 px hit-box canon, the
+three-state button state machine, the contextual-UI argument), and the
+MissionsSanx idle-game design guide re-fetched (the gradual-unlock
+progression line; SEO-adjacent, flagged). Exa still 429; DuckDuckGo per
+the re-pull convention.
 
 ## The gap layers (formerly `docs/features.md` §7)
 
@@ -561,7 +585,8 @@ up goes into `docs/todo.md`.
   dopamine-schedule pattern; our pocket sits at the same spawn order
   (1/120 per 1 s ≈ 5 %/min, 30 s lifetime), so a rarity-weighted pocket
   pool is the documented growth path for this item if it's ever picked
-  up. — pass 4. The equation
+  up.
++ **Adaptive difficulty / mastery tiers** — pass 4. The equation
   difficulty is static per player setting: a number range + optional
   hard mode, chosen once in settings and unchanged by performance.
   The math-engagement research line (spaced-repetition / mastery apps)
@@ -2158,10 +2183,11 @@ hour away), invalidating the pass-16 gem-income benchmark the
 affordability invariants are pinned to, and it removes the only
 active-play gate on the premium currency the cosmetic lines are paid in;
 the load path's gems-immunity is deliberate and load-bearing. (3) *
-server-side absence accounting* (Pocketbase as the time oracle) — source
-# 3's conclusion applies: the system clock is player-controllable either
-way, the device is the source of truth by design (cloud save is an LWW
-*copy*, pass 5), and adding a server round-trip to the earn path buys
+server-side absence accounting* (Pocketbase as the time oracle) —
+source #3's conclusion applies: the system clock is player-controllable
+either way, the device is the source of truth by design (cloud save is
+an LWW *copy*, pass 5), and adding a server round-trip to the earn path
+buys
 none of the security a competitive game needs — it buys latency and a new
 failure mode for an idle game. (4) *win-back / return-timer push
 mechanics on absence* — the reward surface for absence must exist at
@@ -3780,3 +3806,185 @@ ring internals — the Adjust-plan surface), the ad pipeline's second-phase
 outcomes (pass 12), the leaderboard trust model (pass 24), the
 save-corruption backup surface (pass 21), and the write budget itself (its
 `events`-collection usage is read here only for the pre-staging).
+
+### The discoverability / information-architecture layer (pass 27 — how the player finds what the game has, written 2026-09-09)
+
+The one surface the per-axis passes never treated as an axis in its own
+right: where the features live on the screen, and how their arrival is
+announced. Pass 7 audited what the player is *taught* on day 0 (the tour
+content); pass 10 audited discoverability *before install* (the listing);
+nothing has looked at the navigation itself — the header row, the menu
+sheet, and the "hidden until configured" rule. The canon this pass pulls
+is thin and vendor-flavored (flagged in the source notes below); it is
+used for *shape* only, never for thresholds.
+
+The surfaces (live-audited this pass):
+
+1. **The header row** — a single wrapping `View` at the top of the game
+   column holding every non-canvas entry point: menu (☰, "the entry
+   point to every other top-row button's settings and to save/account/
+   goals"), save (💾, icon-only, dirty-amber pulse), daily bonus (🎁/🌙),
+   weekly contract (📜), daily equation (📅), leaderboard (🏆, rendered
+   only while the provider is available), ad rewards (🎬, same gate), and
+   the shop (🛍️, rendered always — "the gem buy is the universal path").
+   The upgrades button deliberately sits *outside* the row (it floats over
+   the canvas); the row's docstring records the placement trade: "the old
+   footer moved up so no entry point sits behind the OS keyboard."
+2. **The menu sheet** — a 7-tab BottomModal (Settings / Save / Account /
+   Goals / Records / Collection / About) with no tab gating. The Account
+   tab and its cloud-save section render only "while the provider is
+   available" — "hidden until configured", by name; the hard-mode settings
+   line appears only once `HARD_MODE_UNLOCK_TIER` is in
+   `completedTiers`.
+3. **The canvas-attached surfaces** — the depth banner, the equation
+   display, the floating upgrades button, the gem pocket, and the toast
+   stack. The pocket is the one canvas feature that announces itself
+   (scale-pulse, then a collection toast).
+
+**F27.1 The IA is "show everything, hide nothing" — a documented policy,
+not an omission.** Every entry point above the canvas is always rendered
+(no drawer, no tab, no overflow menu), and the only absence rule is the
+provider-availability one (🏆/🎬/Account tab). That is the inverse of the
+anti-clutter canon (the contextual-UI argument: "do not have an 'Inventory'
+button always on screen") — but the canon's own examples are busy shooter
+HUDs (kill feeds, ammo counters), and the idle genre's progression canon
+is *gradual expansion* (new mechanics unlock as the player progresses;
+early simple, late optimization), which this game already ships in two
+other places: `showAllPurchases` hides the upgrades button until the first
+affordable line, and content unlocks on goal tiers t1–t5 (pass 23). So the
+policy is defensible and consistent; the audit question is its *cost* —
+the row can wrap to two or more rows on a narrow phone with all eight
+pills present (the docstring acknowledges it wraps, and the "canvas floor
+keeps the cave visible" is the mitigation) — and whether the player can
+still read a strip of eight 30-px glyphs as a menu at all (F27.3). Not a
+defect by itself; the device audit below is its check, not a
+reorganization.
+
+**F27.2 There is no announcement layer: availability changes are
+silent.** The game has two of the three discoverability affordances —
+*presence* (render only when ready: `showAllPurchases`, the provider
+gates) and *state* (the opacity 0.5 dim, the glyph swap 🎁→🌙, the
+save pill's two-tone status dot, the pulses: save-dirty, pocket,
+claimable) — and the middle one is absent:
+nothing ever says *this has arrived*. The inventory of what appears
+without announcement: the 🏆 and 🎬 pills (zero-to-pill the moment their
+provider becomes available — no toast, no badge, nothing), the
+hard-mode settings line and the cave-theme purchases (tier unlocks,
+`themesLocked`), the weekly contract's claimable state changing meaning
+mid-run, and the streak freezes (a11y-label-only). The onboarding tour
+teaches three verbs plus setup and points once at the 🎯 goals; it
+mentions none of the eight header entries, and no "what's new" mechanism
+exists anywhere in the app. The discovery canon (vendor sources, flagged
+below) is consistent on shape even though its vendors sell the tooling:
+a one-shot nudge on the new surface (badge on the new icon for ~a week,
+or a single tooltip — the Flowla case is "one tooltip, not a tour"),
+event-triggered, timed (day 0 → event-driven days 1–7 → reminder ~day
+14 → retired by ~day 30), and measured (reach → click-through to the
+feature → 7-day activation → retention). The repo already has both
+primitives: the `onboardingDone`-style one-shot localStorage stamp and the
+`showMessage` toast (the toast inventory — depth, tier, achievement,
+pocket, vein, combo, daily-equation start, save/import — has no
+first-availability entry).
+
+**F27.3 The strip is emoji-only: seven glyphs at 30 px and one at 16 px,
+no labels, no tooltips; state is dim or glyph swap.** There is no
+`Tooltip` on any header entry (the `Tooltip` component exists and is used
+only in `SettingsPanel`); the *full* detail of every pill lives in its
+`accessibilityLabel` (e.g. the daily bonus carries bonus, streak, and
+freeze counts) — the detail exists, only for screen-reader users. Against
+the UI-mistakes canon: the 44×44 hit-box canon is met everywhere (the
+44×44 is commented into the pill code); the "mystery meat" line is the
+finding — a 30-px 📜 with no label is low affordance, and the 💾 at 16 px
+breaks the strip's own size uniformity. The dimmed state (opacity 0.5, no
+shape change, `disabled` Pressable) is the pass-3 color-independence
+follow-up, with the bonus glyph swap (🎁→🌙) being the one place state
+gets a shape change. Placement note that comes out in the row's favor:
+the canon's thumb-zone result (75 % one-handed hold; top corners are the
+"hard zone", reserved for read-only data) would not put *primary* actions
+up there — and this layout does not: the core verbs (cave tap, answer
+input, keypad, upgrades drawer) all live in the lower two-thirds, the
+header is secondary/periodic content, and the docstring's keyboard-
+occlusion reason is independently recorded.
+
+**F27.4 Discoverability itself is unmeasured, and unmeasurable today.**
+No field in the local analytics record says whether a player ever opened
+the leaderboard, claimed a weekly contract, used the daily equation, or
+exported a save code; the only such candidate in the file is pass 24's
+`analytics:leaderboard-open` (single feature, never generalized). Pass 7's
+FTUE funnel is still uninstrumented (re-verified in pass 26), and F26.1
+confirms no off-device path carries the record at all (the save code
+serializes the save, not the analytics key). So the question every other
+pass-27 candidate hinges on — *which of the eight entries do players
+actually find, and when* — has no answer path today, local or cohort.
+The cheap local half is a family of one-shot stamps on the existing
+record (below); the cohort half waits on `telemetry:opt-in-cohort`
+(Tier 0, item 12).
+
+**Candidates (documented, not planned)** — in rough order of value per
+line:
+
++ `analytics:feature-first-use` — the one-shot stamp family on the
+  existing local record: first daily-equation start, first weekly
+  contract claim, first leaderboard open, first records / collection /
+  goals tab open, first save-code export, first cloud link. Generalizes
+  pass 24's `analytics:leaderboard-open` into the family and is the
+  Tier-0 precondition for every other item here (F27.4). Same
+  local-stamp-now, cohort-later split as Tier 0 item 1.
++ `ia:arrival-toast` — a one-shot toast (or ~week-limited badge) when a
+  gated entry point *becomes* available (🏆, 🎬) and when a tier unlock
+  adds content (hard-mode line, cave themes), stamped with an
+  `onboardingDone`-style one-shot so it fires exactly once per surface;
+  the `showMessage` toast system already exists, so the cheapest variant
+  is a single toast per arrival, copy in the existing i18n files.
+  Data-triggered: adopt once `analytics:feature-first-use` shows an
+  actual discovery gap for a named surface — or immediately if it ever
+  costs less than a day. (F27.2.)
++ `ia:header-device-audit` — verify on a real device (per the project
+  note: the mines-play-35 AVD) how many rows the header wraps to with
+  all eight pills present at 360 dp, and whether the strip is readable as
+  a menu before ~60 s of play (pass 7's rule, applied to the nav row).
+  If it wraps to three or more rows or the 60-second check fails,
+  reorder by first-use frequency (from the stamp family above) or fold
+  the least-used entries into the menu sheet. A check, not a spec.
+  (F27.1, F27.3.)
++ `ia:pill-labels` — text labels (or first-use labels) for the emoji-only
+  pills, plus a dimmed state that changes shape, not just opacity — the
+  mystery-meat fix folded into the pass-3 color-independence item rather
+  than re-listed there. (F27.3.)
++ Not a candidate: a full IA reorganization (drawers, tabs, "hide until
+  needed"). Show-everything is a documented, deliberate design choice
+  (the row's own docstring), matches the genre's single-screen layout,
+  and the clutter canon it would be judged against targets busy HUDs, not
+  a single-screen idle's eight secondary entries. Revisit only via
+  `ia:header-device-audit` plus the stamp family's data.
+
+**Source-quality notes (pass 27).** This is the thinnest canon of any
+pass — feature-discovery content is a vendor category, and it shows:
+InAppStory "How to drive new feature adoption" (vendor, sells an in-app
+messaging SDK) used only for the announcement → discovery → first use →
+repeat use cycle, the badge/timing cadence (the ~7-day badge, day 0 →
+event-driven 1–7 → ~14-day reminder → ~30-day retirement), and the
+minimal measurement set (reach / click-through-to-feature / 7-day
+activation / retention) — vendor intent flagged, the game is not
+buying a messaging SDK. UserGuiding "A Guide to Feature Discovery"
+(vendor, onboarding SDK) used for the discovery-vs-adoption distinction,
+the tooltip-on-new-icon pattern, behavior-targeted nudges, and the Flowla
+one-tooltip-not-a-tour discipline — same flag. Boomiestudio "5 UI
+Mistakes Killing Your Game's Retention" (independent dev blog) used for
+the Hoober 2014 thumb-zone result (75 % one-handed hold; natural /
+stretch / hard zones; top corners for read-only data), the 44–48 px
+hit-box canon (the game already meets it), the three-state button
+state machine, the contextual-UI anti-clutter argument, and the WCAG
+4.5:1 / 18 sp lines (the last two already pass-3 findings, not
+re-listed). MissionsSanx idle-game design guide (the pass-5 prestige
+source, re-fetched) used only for the gradual-unlock / layered-expansion
+progression line; the page is SEO-adjacent and low-signal overall,
+flagged as such. Exa still 429-rate-limited; sourced via DuckDuckGo per
+the re-pull convention.
+
+Not re-audited: the upgrades drawer's internal discoverability
+(`showAllPurchases`'s hiding rule itself, pass 16's "the drawer is the
+game" surface), the content of the a11y labels (pass 3 / pass 22's
+surface — their existence is noted here, their copy was not audited),
+the FTUE tour's content (pass 7), and pre-install discoverability, which
+is the store listing (pass 10).
