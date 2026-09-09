@@ -130,7 +130,19 @@ the generator-optimality rules) and PaperPilot.dev's idle-balancing guide
 cost growth, caps as controlled inflation, D30+ depth via additive
 mechanics). Pass 8 named "interval to next purchase" as unmeasured;
 this pass measures it (scratch harness, deleted after the run) and audits
-the whole cost/production family as a system.
+the whole cost/production family as a system;
+2026-09 pass 20: the performance / rendering layer — the one layer
+passes 3–19 never audited as a system (pass 11 covered the OS-side vitals
+deliberately without code; the repo has no performance instrumentation).
+The React Native "Performance" docs (official: the 16.67 ms frame budget,
+the JS-thread vs UI-thread model, native-driver animations, the
+root-re-render cost example), the Play Console app-size page (official,
+direction only — no numbers), the Google Play developer blog "Shrinking
+APKs, growing installs" (vendor benchmark, 2017: ~1 % install-conversion
+per +6 MB APK below 100 MB — treated as illustrative), and Google's 2016
+research (53 % of mobile visits abandoned past a 3 s load, via
+Marketing Dive — illustrative). Items adopted from that list move into
+`docs/todo.md`.)
 
 ## 1. Core gameplay
 
@@ -2505,6 +2517,116 @@ practice (PaperPilot.dev balancing guide — the inflation rules and
 benchmark). As in passes 13/16/18, no source carries a market
 benchmark for curve shapes — curve choice is a design decision the
 sim's numbers constrain but do not settle.
+
+### The performance / rendering layer (pass 20 — what a second of this game costs)
+
+Passes 3–19 audited every surface the player touches and the math under
+them; the one layer never audited as a system is the cost of keeping the
+app alive — re-render cadence, per-frame animation, particle caps, and
+the delivery size behind the first paint. Pass 11 audited the OS-side
+vitals (crash / ANR / battery / memory) and deliberately changed no code
+"unless the numbers say so" — but the repo has **no performance
+instrumentation at all** (no frame or startup measurement anywhere), so
+that decision had no numbers to act on. This pass audits the code at
+HEAD, measures the artifacts that exist, and brings two benchmark
+sources for the delivery-size side only.
+
+Live audit (2026-09-09, at HEAD — `useGameEngine.ts` loop,
+`animationClock.ts`, `MiningCanvas.tsx`, `Miner.tsx`, `DebrisParticles.tsx`,
+`BlockBreak.tsx`, `FloatingTextLayer.tsx`, `CaveBackground.tsx`,
+`useSounds.ts`, the `dist/` export):
+
+- **Tick** — `msPerTick = 1000` (`game.ts`); one timestamped `setInterval`
+  (`useGameEngine.ts`) with `maxOfflineTicks`-capped catch-up. `setGameState`
+  allocates only when passive income > 0, so the root re-renders **once
+  per second with miners, zero times without**.
+- **Per-frame motion** — one shared `Animated.Value` clock
+  (`utils/graphics/animationClock.ts`) with deterministic per-miner phase
+  offsets; native driver on native, JS driver on web.
+- **Roster** — max 50+50+50 miners + player = **151 memoized `Miner`
+  views**; sprites lazily baked (emoji-art fallback path).
+- **Particle caps** (the code's own comment: avoiding RN's "Excessive
+  number of pending callbacks" on the JS driver): debris MAX 12 /
+  80 ms min interval / 600 ms, floating text MAX 16, block break MAX 5.
+- **Memo coverage** is wide (~30 memoized components) but `gameState`
+  flows into `MenuPanel` etc., so the per-tick top-level re-render is real
+  and shallow — the leaf views under it skip.
+- **Canvas** — plain-View responder instead of Pressable (the web
+  double-render fix, noted in code).
+- **Artifacts (measured this pass)** — web entry JS **1.57 MB raw /
+  420 KB gzip**, single file, no code splitting; `dist/` total 3.1 MB;
+  assets 1.5 MB, of which the 20 s cave-ambience WAV is **640 KB** — the
+  largest single asset and the only audio file over 10 KB (created
+  *paused* at mount in `useSounds.ts`, so the fetch is at first play, not
+  load). No APK/AAB artifact in the tree — the Android download size is
+  **unmeasured**. No `preferredFrameRate` config, no frame or startup
+  instrumentation.
+
+Four findings.
+
+1. **The architecture already implements the docs' own recommendations**
+   (source #1): per-second state re-render instead of per-frame, one
+   shared animation driver, capped pending animations, memoized roster,
+   transform-based pocket scale (scale over width/height is exactly the
+   expensive-path warning in that doc). What is unknown is not
+   *probably-fine*, it is *unmeasured*: the root re-render — a 1,692-line
+   component plus the full header row — is the exact shape of source #1's
+   "root state change re-rendering an expensive subtree, 200 ms, 12
+   dropped frames" example, and it happens once per second.
+
+2. **The web's continuous per-frame cost is JS-driven.**
+   `useNativeDriver: true` is ignored by react-native-web, so every frame
+   is one clock tick + ~151 miner interpolations + DOM transform writes
+   at the display refresh rate (60–120 Hz). Capped and presumably fine —
+   but it is the largest *continuous* cost in the game, the only one that
+   runs every frame regardless of what the player does, and it is the
+   only cost with no number next to it.
+
+3. **The delivery-size side is healthy against both benchmarks.** 420 KB
+   gzip JS is comfortably inside the 3 s / 53 % threshold (source #4) on
+   any modern mobile connection; the one heavy asset (the 640 KB WAV) is
+   off the load path. Android is the open question: no AAB in the tree,
+   no measurement, and source #3's benchmark (≈1 % install conversion per
+   +6 MB, pre-AAB data) says size is the one delivery number that moves
+   conversion — so the honest state is "comfortable on web, unknown on
+   Android", not "small everywhere".
+
+4. **No gate.** CI (currently disabled; typecheck + lint + tests when
+   enabled) would not fail on a frame regression. The particle caps are
+   data-driven constants and the only defense; nothing would flag a
+   future feature that adds an unbounded JS-driven animation.
+
+Four candidates, **documented, not planned** (todo rule):
+`perf:tick-measure` — one-shot release-mode measurement of the per-tick
+root re-render (React profiler, or `performance.now` around the render)
+logged locally (guardrail 5), the smallest and most informative of the
+four; `perf:web-startup` — `performance.mark` the web load (bundle eval →
+first paint → first tick) and log it locally, giving the 3 s / 53 %
+benchmark (source #4) a real number; `perf:android-size` — build one
+release AAB and record download vs installed size against source #3
+(measurement only, no code change); `perf:audio-lazy` — only if
+`perf:web-startup` shows the WAV on the critical path, defer
+`createAudioPlayer(ambientLoop)` to first un-mute play. Rejected:
+120 Hz (`preferredFrameRate`) — a 1 s-tick idler with a 1 s-period bob
+gets zero visible gain at extra per-frame cost (source #1's frame-budget
+math); rasterization flags — source #1 warns of the memory cost itself and
+there is nothing to rasterize; React Compiler — SDK-level, not justified
+at a once-per-second re-render cadence.
+
+Source quality per the pass-6 discipline: #1 is the official mechanism
+reference (authoritative on the JS/UI thread model and native driver; the
+200 ms / 12-frames figure is an *example*, not a benchmark); #2 is
+official but numberless (direction only — "smaller apps … higher install
+success rates"); #3 is a 2017 vendor benchmark (pre-AAB, snippet-verified
+— illustrative, per passes 4/6/11); #4 is the 2016 Google research stat
+(re-cited; no newer primary data located). As in the earlier passes, no
+source carries a benchmark for *this game's* per-second cost — only a
+release-build local measurement can be the honest number (guardrail 5).
+
+Not re-audited here: the OS-side vitals (pass 11), the service-worker /
+PWA caching and delivery strategy (pass 12), and the native build
+pipeline (R8 / Play App Bundling) — all three need a release build, not a
+repo read.
 
 ### Player-facing surfaces
 
