@@ -18,8 +18,14 @@ of Pressable so rapid tapping doesn't double-render).
 - **Equations** — the main active loop: solve arithmetic to earn minerals ×
   click power × combo multiplier. Seven toggleable types (multiply, add,
   subtract, division, percent, square, "missing"-operand), configurable
-  number range, **hard mode** (3-term equations, 2× payout), and a
-  display-symbol preference (`*`/`×`, `/`/`÷`). Answer via the **on-screen
+  number range (multiplicative operands floor at 1 even when the player-
+  set minimum is 0, so the default range never rolls trivial 0·n / 0²
+  equations — `utils/math/equations.ts: generateTermsEquation`),
+  **hard mode** (3-term equations, 2× payout), and a display-symbol
+  preference (`*`/`×`, `/`/`÷`). The display shows the **exact pending
+  gain**, answer value included (`components/EquationDisplay.tsx` —
+  `getPendingAnswerGain`, mirroring the engine's integer core so it
+  agrees with the floating "+N" on solve). Answer via the **on-screen
   keypad** (default on native — a 3-column digit strip beside the
   upgrades list: 56 px keys that flex-shrink to a 44 px floor on short
   screens so a bottom row is never clipped off the edge, ⌫ held clears

@@ -95,8 +95,9 @@ repo is not equipped to make.
     the research shape; `equations.ts` is pure and shapes per type,
     so tiers slot in without touching the active loop. Hard
     constraint: challenge, never replace, hand-solved math; the
-    player-set range stays the ceiling. Smaller fixes ride along:
-    `math:zero-operand`, `math:ladder`, `math:pending-gain`.
+    player-set range stays the ceiling. Of its smaller companion fixes,
+    `math:zero-operand` (it.13) and `math:pending-gain` (it.21) are DONE;
+    `math:ladder` (a stepped number range) is the one still riding along.
  2. **Text size / UI scaling** (+ high-contrast second step) (pass 3,
     accessibility) — "the cheapest high-impact item in the playbooks":
     `styles.ts` hard-codes `fontSize: 11–12` with no OS scaling; a
@@ -205,10 +206,11 @@ repo is not equipped to make.
 re-derived from stale reads): streak grace (it.14), streak freezes +
 repair (it.19), day-7 bonus spike (it.15), `cosmetics:analytics`
 (it.17), the Collection view (it.23), `offline:active-clock` (it.13),
-`offline:streak-grace` (it.14), weekly contract, equation of the day,
-gem pocket, idle reminder, share images, SFX/music volume controls,
-music bed, reduce-effects toggle, statistics detail, cosmetic
-compendium. All the "deliberately absent" items (interstitials,
+`math:zero-operand` (it.13), `offline:streak-grace` (it.14),
+`math:pending-gain` readout (it.21), number-notation setting (it.20),
+weekly contract, equation of the day, gem pocket, idle reminder, share
+images, SFX/music volume controls, music bed, reduce-effects toggle,
+statistics detail, cosmetic compendium. All the "deliberately absent" items (interstitials,
 fake scarcity, pay-to-win gates, device-motion input, landscape,
 voice/social input) are guardrails, not gaps, and stay out of this
 ranking.
