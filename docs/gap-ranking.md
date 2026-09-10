@@ -311,6 +311,21 @@ repo is not equipped to make.
     and `cloud:stale-notice` (F33.4 — the stale-push import path
     replaces local progress with the other device's save and no toast,
     unlike the two restore paths that do).
+23. **`entitlements:clobber-on-second-purchase`** (pass 39, F39.1) —
+    a real bug on the money path, not a feature gap: the entitlement
+    row upsert is keyed by `deviceId` alone, so a second, *different*
+    pack bought on the same device silently rewrites the first
+    purchase's row in place — restore and the verify response return
+    only the last product purchased, and the first pack's entitlement
+    is gone from the collection. Masked in normal play by the
+    device-local entitlement store; surfaces on reinstall or
+    cross-device restore, exactly where the server row is the recovery
+    source. The webhook suite can't catch it (every scenario mints one
+    product per device, and the fake datastore models the *intended*
+    pair-keyed semantics, not the code's). Fix is small: pair-keyed
+    upsert for `entitlements`, `linkDeviceRows` iterating the device's
+    rows, and a two-product regression test against a
+    production-faithful fake.
 
 **Context — closed since the passes ran** (so the ranking isn't
 re-derived from stale reads): streak grace (it.14), streak freezes +
@@ -5454,3 +5469,131 @@ as of this commit. The single external tool run was `pnpm audit`
 (vulnerability count only, not chased, per F38.3); the single external
 empirical check was running the hermetic `storeConfig` jest suite to
 confirm bare-alias resolution (F38.4a).
+
+### The server-side store-verification layer (pass 39 — what runs when a purchase is verified, minted, and restored, written 2026-09-10)
+
+Pass 24 audited the leaderboard half of this same Pocketbase surface
+(submit caps, merge rules, the 30/hour durable write budget, the trust
+model); pass 28 audited the signature chain (S2: the sidecar verifies
+Stripe-Signature over the raw body, the trusted-source gate); pass 29
+the client-side catalog; pass 33 the account data plane. Nobody had
+audited the handler logic that *mints and reads entitlements* — the
+money path itself: verify → upsert → restore, with the webhook backup
+mint — or the shared device-row helpers those lean on. This pass does,
+on the server side: `handlerLib.js` (`handleVerify`, `handleRestore`,
+`handleStripeWebhook`, `linkDeviceRows`, the shared `upsertDeviceRow`),
+the collection contracts (`collections.js`), the route table
+(`endpoints.js`), and the ten `__test__/` files (≈2,944 lines) that
+net them.
+
+**F39.1 — `entitlements:clobber-on-second-purchase` (real bug, →
+Tier 1 #23).** The collection contract says "one row per
+(deviceId, productId)" (`collections.js`, the `entitlements` def), and
+both readers honor it: `listEntitlements` filters `deviceId = …` and
+maps *every* row's `productId`, and `handleRestore`/`handleVerify`
+union device rows with the account's rows. But the shared writer
+doesn't key on the pair: `upsertDeviceRow(app, "entitlements",
+deviceId, row)` looks the row up with
+`findFirstRecordByData(name, "deviceId", deviceId)` — **deviceId
+alone** — and on a hit sets *every key of the new row* on the existing
+record. The first pack creates the row; a second, different pack on the
+same device finds that same row and rewrites it in place: `productId`,
+`tokenHash`, `verifiedAt`, `platform` all flip to the newer purchase
+and the first pack's entitlement row no longer exists. The readers can
+only return what's in rows, so restore and the verify response return
+only the last product purchased — on a 26-pack catalog, any two-purchase
+player on one device is affected.
+
++ *Why it's masked in normal play:* the client keeps entitlements in a
+device-local AsyncStorage and restore is explicitly additive ("a
+restore can never revoke" — `iapProvider.ts`), so the loss surfaces only
+when the server row is the recovery source: a reinstall, a fresh
+device, or the cross-device account restore. That is the worst moment
+to lose a purchase (the player just asked the game to give it back).
++ *Blast radius of the same assumption:* `linkDeviceRows` (the sign-in
+backfill, "claim, never copy") also takes the *first* row found per
+collection via the same single-row helper — in the intended
+multi-row-per-device world, only one of the device's entitlement rows
+ever gets the `accountId` tag, so the account-union restore misses the
+others even when they exist.
++ *Why the suite missed it — two independent gaps:* (1) every webhook
+scenario mints one product per device, so the find → set → save cycle
+is idempotent under BOTH semantics and the divergence never fires;
+(2) the fake datastore's `save()` implements the *intended*
+upsert — its comment literally says "upsertDeviceRow semantics: one
+row per device+product" — and the handler mutates a `FakeRecord`
+shallow-copy, so even a two-product scenario against the fake would
+pass: the fake pushes a second row where Pocketbase's in-place record
+mutation clobbers the stored one. The fake models the design, not the
+code; the one place it mirrors production exactly (`findFirstRecordByData`
+matching on the given field) is the field the handler chose wrong.
++ *Fix (small):* key the `entitlements` upsert on the pair — look up
+with `findRecordsByFilter("entitlements", "deviceId = {:d} &&
+productId = {:p}", …)` instead of `findFirstRecordByData(…, "deviceId",
+…)` (keep the single-row-by-deviceId shape for `cloudSaves` /
+`leaderboard`, where one row per device is correct), make
+`linkDeviceRows` iterate the device's rows rather than the first one,
+and add the regression test the fake's comment promises: real
+`handleVerify` against a production-faithful fake (in-place record
+mutation), two distinct products, one device → two rows.
+
+**F39.2 — `verify:no-direct-coverage` (the gap that let F39.1 hide).**
+Of the minting surface, only the webhook *backup* path has a direct
+handler test. `handleVerify` — the PRIMARY path (client return-visit
+verify, the platform the player actually hits) — and `handleRestore`
+have no test at all; `handleCloudPush`/`Pull`,
+`handleLeaderboardSubmit`/`Top`/`Rank`, `handleDelete`, and the auth
+handlers (register/login/google/apple/link/set-password/logout)
+likewise. `logic.test.js` covers the pure halves (validators, merge,
+budget, KDF, session, provider-merge) and the sidecar has its own
+suites, so the *logic* is netted — but the handler wiring between
+validation and record I/O (the layer where F39.1 lives) is exercised
+only for `stripe/webhook`. The money path's coverage map: webhook
+backup ✔ (with the F39.1 divergence), primary verify ✘, restore ✘.
+
+**F39.3 — Recorded, not a defect.**
+
++ A *refused* verify records no dedup marker, so a Stripe retry can
+still mint once the sidecar is healthy — "a refused verify must not
+poison the dedup marker" (tested, fail-closed mode).
++ Webhook idempotency on the Stripe event id is tested, including the
+duplicate-delivery no-op (`events` rows: `kind: "stripe-event"`,
+`payload: <eventId>`, pageSize 1 probe).
++ The trusted-source gate's header normalization is tested across three
+wire shapes (canonical, canonical-cased, v0.40 snake_case
+`x_mdoom_key`) — a live-probed regression: a hyphen-only lookup 403'd
+the sidecar's own correctly-keyed forward on the public v0.40.3
+deployment.
++ Re-verify of the *same* product is idempotent under both semantics
+(the row just refreshes `tokenHash`/`verifiedAt`), so a webhook
+delivery racing the client return-visit verify can't double-mint.
++ `accountId` is set, never cleared: a row minted signed-in keeps its
+account tag through later anonymous writes on the same device (the
+update path sets only keys present in the new row). Direction of
+effect is grant-not-revoke (the tagged account can restore the row;
+the writer is the same device), and the sign-in backfill deliberately
+re-labels ("claim, never copy") — a property of the backfill model,
+recorded so a future pass doesn't re-derive it.
+
+**Not audited this pass:** the sidecar's Stripe-API internals
+(checkout lookup, price-map enforcement, `verify.js`'s JWKS/identity
+path) — covered by their own suites
+(`stripeCheckoutRoute`, `stripeWebhookSignature`, `verifySidecar.*`,
+`identityVerify`, `storeVerify`) and pass 28's S2 posture; the
+ops/deploy half (compose, container env, the `MDOOM_*` surface) is
+pass 35/28 territory (`deploy:prod-env-gate`, Tier 0 #12). One stale
+doc reference found en route: `docs/store-integration.md` still cites
+`pb_hooks/verify-purchase.js` — a module that no longer exists (verify
+lives in `storeVerify.js` + the sidecar); same drift class as F33.2's
+stale gate lines, folded into that item's fix rather than ranked anew.
+
+**Source quality (pass 39).** Internal audit by construction (the same
+class as passes 30–38): F39.1–F39.3 are properties of this repo's
+`pb_hooks/*.js`, `pb_hooks/__test__/*.js` (10 files, ≈2,944 lines),
+`collections.js`'s field contracts, and the client's IAP seam
+(`useIap.ts`, `iapProvider.ts`, `iapProvider.web.ts`) as of this
+commit — no external sources, no external claims. The F39.1 clobber
+trace was followed line-by-line through `handleVerify` →
+`upsertDeviceRow` → `findDeviceRow` → the fake's
+`findFirstRecordByData`/`save` in `handlerStripeWebhook.test.js`; no
+external corroboration was sought for an internal-code claim.

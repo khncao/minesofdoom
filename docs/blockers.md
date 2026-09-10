@@ -11,7 +11,12 @@ API key for the sidecar (`docs/backlog.md`, iOS section), and (2) the
 Stripe **`sk_live` flip at launch** (`todo.md` — step-6 test purchase
 is **done 2026-09-08**: `scripts/stripe/checkoutTest.mjs` confirmed the
 redirect grant + the webhook's idempotent backup mint for the same
-(device, product) row via a no-cost hosted-Checkout order). The web
+(device, product) row via a no-cost hosted-Checkout order); (3) the
+`packSkin` price leg — `node scripts/stripe/syncStripe.mjs products`
++ paste the real test price over the `price_PENDINGPACKSKIN` placeholder
+in storeConfig.ts, and the pack_skin Play Billing SKU
+(`docs/store-integration.md` §2) — until (3) lands, only packSkin
+web checkouts fail (see `docs/todo.md`). The web
 Stripe + AdSense console side that used to sit here has LANDED: Stripe
 test mode is fully configured (`syncStripe.mjs products` + `webhook`,
 sidecar `/healthz` → `configured.web: true` +
