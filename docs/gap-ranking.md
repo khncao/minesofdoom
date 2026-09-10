@@ -5603,3 +5603,130 @@ trace was followed line-by-line through `handleVerify` →
 `upsertDeviceRow` → `findDeviceRow` → the fake's
 `findFirstRecordByData`/`save` in `handlerStripeWebhook.test.js`; no
 external corroboration was sought for an internal-code claim.
+
+### The tick / time-scheduling layer (pass 40 — every clock in the repo, and what freezes each, written 2026-09-10)
+
+Pass 17 audited the absence *accounting* (which minerals get paid for
+away time, through which of the two paths); pass 20 the cost of a second
+(what one tick renders); pass 13 the input path (where a tap enters). None
+audited the *scheduler itself* — what fires, when, what freezes it, and
+which state would die if a fire never came. Live audit (2026-09-10):
+the tick loop + liveness effects in `useGameEngine.ts`, the `onTick`
+registry contract in `Context.tsx`, the `msPerTick` / `maxOfflineTicks` /
+`activePlaySeconds` / `LIVE_PLAY_TICK_CAP` block in `game.ts`, the 50 ms
+rAF flush in `useMineTaps.ts`, and all eight deadline pollers
+(`useDailyBonus`, `useDailyEquation`, `useWeeklyChallenge`,
+`useIdleReminder`, `useGemPocket`, `AdRewardsPanel`,
+`ComboSaveIndicator`, and `MinesOfDoom`'s combo-save expiry interval).
+
+**The load-bearing invariant holds (audited, no violation).** Exactly two
+timer shapes exist in the repo, and neither counts fires:
+
++ *Catch-up timers.* The engine loop is `setInterval(msPerTick=1000)` but
+  every fire recomputes `elapsed = floor((now − last) / msPerTick)` from
+  wall clock (per-fire capped at `maxOfflineTicks`), so a fire being late
+  loses no time — the catch-up *is* the resume handler; there is no
+  resume handler. The 50 ms tap flush (`useMineTaps`) likewise recomputes
+  `Date.now()` on every frame instead of banking a per-frame constant.
++ *Deadline pollers.* Every other timer in the repo polls a wall-clock
+deadline — `now ≥ until` (gem-pocket expiry, combo expiry, the two
+countdown panels), a local day-key (daily bonus / daily equation, 60 s
+poll), a local week-key (weekly challenge, 60 s poll), or an idle
+threshold (5 s poll) — so a late fire can only *delay* a transition
+becoming visible, never *miss* it (React bails out on unchanged keys, so
+the 60 s polls are no-ops most minutes).
+
+Consequence, verified across all ten sites: the OS behaviors that freeze
+JS — iOS process suspension, Android keep-alive-or-kill, Chrome's
+background-tab timer throttling (≤1 fire/min) — can delay any state in
+this repo but never lose it, because the next surviving fire recomputes
+from `Date.now()`. That is why the game survives bfcache restores,
+laptop sleep, and Android process death with zero `resume` code: there is
+none to write, by construction.
+
+**F40.1 — `tick:registry-not-a-clock` (Tier 2, low).** The documented 1 Hz
+animation clock is actually “1 Hz *while passive income is non-zero*”.
+`Context.tsx` describes `onTick` as “the engine's 1Hz loop calls every
+registered callback exactly once per tick” — but the loop invokes the
+registry only inside `if (miners > 0 || fastMiners > 0 ||
+legendaryMiners > 0)`, and only after the `elapsed < 1` early return. A
+zero-miner session (the whole run until the first miner purchase) gets no
+tick callbacks at all. The gate is correct for the registry's only consumer
+(`Miner` rows, which `MiningCanvas` mounts per miner — a zero-miner roster
+mounts none), and the *reason* the eight deadline pollers each reinvent a
+1 Hz clock instead of riding the documented registry is precisely that they
+can't trust it as a clock; their deadline-based shape is exactly what makes
+them throttle-immune, so the reinvention is *correct*. What remains is the
+doc-trap for future consumers: a countdown or spawn roll registered on
+`onTick` would silently stop for the entire pre-miner session, and nothing
+(a comment at the gate, a doc line, a test) says why. Fix is one line in
+`Context.tsx` (state the gate); promoting the registry to a true clock
+(moving `onTick` outside the miner branch) is optional and only pays if a
+future consumer actually wants to ride it. No player-visible or data
+impact.
+
+**F40.2 — `tick:catchup-untested` (Tier 3).** The one expression the whole
+absence economy depends on — `elapsed = min(max(0, floor((now − last)/
+msPerTick)), maxOfflineTicks)` — is inline in `useGameEngine` and
+unit-tested nowhere, while its sibling, the play-time half of the same
+fire (`activePlaySeconds`, extracted into `game.ts`, fully tested incl.
+the `maxOfflineTicks`-catch-up cap and NaN/negative inputs), is. Same
+class as F37.1 (an invariant that lives in code without a net): extract
+the catch-up expression into a pure `game.ts` helper (e.g.
+`catchUpTicks(lastMs, nowMs)`) and test it the way `activePlaySeconds` is
+tested — sub-tick → 0, floor at tick boundaries, backward clock → 0, >8 h
+absence → capped. Cheap, no behavior change.
+
+**F40.3 — Recorded, not a defect.**
+
++ *The pre-load race is netted.* The tick loop and both save-on-background
+handlers (`AppState` on native, `pagehide` on web) start on mount — before
+the async save load finishes — but `saveGame` guards on `loadedRef`, so a
+background during a slow cold start cannot clobber the stored save with
+the zeroed in-memory state. The race F39.1's class would have been here;
+the guard is there.
++ *Autosave cadence is tick-counted, not wall-counted*
+(`tickCountRef − lastSaveTickRef ≥ interval`, with the settings value
+clamped to 5–600 s): under background throttling one fire advances up to
+60 ticks and the save lands on that fire — throttling delays the autosave
+but the effective interval can't stretch past the throttle, and the 5 s
+floor means a bad stored value can't disable autosaving. The manual-save,
+cloud-push, and pagehide paths all funnel through the same guarded
+`saveGame`.
++ *The tap-flush window is the one state that depends on a fire that may
+never come:* `useMineTaps` banks gains in a ref and flushes on rAF; a tab
+closed inside the ≤50 ms window after the last tap drops the unflushed
+gain (rAF doesn't run in a background tab). Bounded by one frame of
+accumulation (~a tap or two of click power) and invisible at idle-game
+scale; the `pagehide` save can't see it either, because it never entered
+state. Recorded, not worth fixing.
++ *Clock phases are independent and that is safe:* no consumer diffs two
+separately-scheduled clocks. The engine tick, the 50 ms flush, and the
+eight pollers each run on their own phase, and every read of time
+recomputes `Date.now()` at the point of use — which is also why a device
+clock jump hits exactly the surfaces pass 17 finding (3) already
+ranked (`offline:clock-hwm`), not the scheduler itself.
++ *The platform-freeze matrix* (recorded so the invariant above stays
+checkable): iOS suspends the process → one catch-up fire on resume,
+per-fire capped at 8 h; Android keeps the loop alive (pays every fire in
+full) or kills it (the load path pays 8 h + the ad top-up instead); Chrome
+throttles a hidden tab's timers to ≤1/min → each fire pays ~a minute,
+so a *restarted* absence pays 8 h + 2 h while a *live, hidden-tab*
+absence pays everything — the accounting asymmetry is pass 17 finding (2)
+(the per-continuous-absence cap, bypassable by chunking); the scheduler
+mechanism that enables it is this layer's, and it is ranked there, not
+here.
+
+**Not audited this pass:** the offline payment *math* (pass 17 — caps, the
+`offlineDouble`/`offlineTopUp` ad offers, streak grace), per-second render
+cost (pass 20), the tap input path's latency budget (pass 13), and the
+audio pause-on-background (pass 22, `useSounds`' AppState handling).
+
+**Source quality (pass 40).** Internal audit by construction (the same
+class as passes 30–39): F40.1–F40.3 are properties of this repo's
+`useGameEngine.ts` tick loop, `Context.tsx` registry contract, the
+game.ts timing constants, `useMineTaps.ts`, and the eight poller sites as
+of this commit — no external sources, no external claims. The platform
+freeze semantics are the standard RN-`AppState` / browser-tab behavior
+the repo's own comments already rely on; nothing new is asserted about
+them.
