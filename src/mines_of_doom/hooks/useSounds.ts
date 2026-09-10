@@ -148,6 +148,27 @@ export function useSounds(
     };
   }, [swingSoundUri]);
 
+  // The web build must NOT call play() before any user gesture: the
+  // browser blocks autoplay and the rejection surfaces as an unhandled
+  // "play() failed because the user didn't interact…" (expo-audio's web
+  // implementation leaks the native media.play() promise — nothing
+  // upstream can catch it). Gate the bed on the first pointer/key input;
+  // after one gesture the browser's sticky activation allows the bed.
+  // On native this only delays the bed from boot to the first tap.
+  const [gestureSeen, setGestureSeen] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.addEventListener) {
+      return;
+    }
+    const onFirst = () => setGestureSeen(true);
+    window.addEventListener("pointerdown", onFirst, { once: true });
+    window.addEventListener("keydown", onFirst, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", onFirst);
+      window.removeEventListener("keydown", onFirst);
+    };
+  }, []);
+
   // A looping bed must not keep playing behind the app: track foreground
   // state and pause the bed when backgrounded. (SFX players don't need
   // this — their clips are ~0.2 s and end on their own.)
@@ -174,12 +195,16 @@ export function useSounds(
     if (p == null) {
       return;
     }
-    if (!appActive || muted || !music) {
+    if (!appActive || muted || !music || !gestureSeen) {
       p.pause();
     } else {
-      void p.play();
+      // Gesture-gated above, but still swallow: a blocked play() rejects
+      // (not just no-ops) and the rejection used to escape as an
+      // unhandled pageerror. (expo-audio types play() as void though it
+      // returns a Promise — adopt it via resolve.)
+      void Promise.resolve(p.play()).catch(() => undefined);
     }
-  }, [appActive, muted, music]);
+  }, [appActive, muted, music, gestureSeen]);
 
   // Runs after the creation effect (declaration order), so on mount it
   // lands on the freshly created players; on later settings changes it
@@ -212,15 +237,23 @@ export function useSounds(
 // mid-play call was a no-op; expo-audio's play() never rewinds. Re-create
 // that "cancel + restart" behavior explicitly: pause, seek to 0, play.
 function replay(player: AudioPlayer) {
+  // play() can reject while the browser blocks autoplay (no user
+  // gesture yet) — that just means "silent this time", never a crash.
   if (player.playing) {
     player.pause();
-    void player.seekTo(0).then(() => player.play());
+    void player
+      .seekTo(0)
+      .then(() => Promise.resolve(player.play()))
+      .catch(() => undefined);
     return;
   }
   if (player.currentTime > 0) {
     // Finished but the position hasn't reset yet — rewind first.
-    void player.seekTo(0).then(() => player.play());
+    void player
+      .seekTo(0)
+      .then(() => Promise.resolve(player.play()))
+      .catch(() => undefined);
     return;
   }
-  player.play();
+  void Promise.resolve(player.play()).catch(() => undefined);
 }

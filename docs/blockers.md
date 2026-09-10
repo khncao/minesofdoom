@@ -288,3 +288,28 @@ IN-BROWSER legs (the GIS Google button in a real browser; web Apple
 doesn't exist yet — needs a domain-verified service id, `docs/backlog.md`)
 still need a manual look, but the deployed server half that was in doubt
 now answers the full round-trip.
+
+**Sign-in e2e verification landed (2026-09-31):** the hermetic web e2e
+covers the full web sign-in round-trip with a REAL RS256 signature
+(`e2e/web/signin.spec.ts`): a GSI ID-client script stub delivers a
+JWT signed with a per-run key pair, and the stub sidecar verifies
+signature + iss + aud + exp exactly like production does — so the
+production failure shape (sidecar 401 "malformed google token") is
+regression-tested end to end, along with silent consent dismissal
+(`popup_closed` → no inline error). An opt-in LIVE mode
+(`E2E_LIVE_GSI=1 npx playwright test …`, never in CI) drives the REAL
+`accounts.google.com` GSI script: it asserts the ID-client surface
+stands up, the click round-trip is crash-free (pageerrors baseline-
+diffed, so pre-existing boot noise doesn't mask sign-in-caused ones),
+and no COOP `window.closed` warning reappears. Found + fixed in the
+process: the ambient music bed called `play()` before any user gesture
+and the rejection escaped as an unhandled pageerror (web expo-audio
+leaks the native `media.play()` promise, so the fix is a gesture gate —
+the bed starts on first tap; native delays by the same tap). OPEN
+(item, needs a debugging session, not a decision): the static export
+throws **Minified React error #419** (a hydration mismatch between the
+prerendered HTML and the client render) on EVERY web boot in
+production builds — pre-existing, reproducible from a plain
+`expo export` + serve, absent from the dev build; root-causing which
+prerendered node mismatches is open (the e2e baseline-diffs around it
+for now).
