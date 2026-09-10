@@ -122,11 +122,13 @@ repo is not equipped to make.
     kid-skewed audience argues strongly. High-contrast /
     color-independence (gem-pocket discovery currently reads mostly
     from canvas color) is the follow-on step on the same settings row.
- 3. **`web-ambient-unlock`** (pass 22, F22.4(b)) — probably a live
-    bug, not a feature: the ambient bed's `play()` fires from a mount
-    effect with no user gesture, so on web it is likely permanently
-    silent. First step: confirm with a manual web check; fix is a
-    one-time gesture unlock (or an explicit "native only" scope note).
+ 3. ~~**`web-ambient-unlock`**~~ (pass 22, F22.4(b)) — **DONE 2026-09-10**
+    (landed as a bug-fix inside the web sign-in e2e work, commit
+    `49c472f`): `useSounds.ts` gesture-gates the ambient bed — web
+    `play()` never fires before the first user gesture (`gestureSeen`
+    state + first-tap listener; a blocked `play()` rejection is
+    swallowed), and native delays the bed from boot to the first tap.
+    The proposed "one-time gesture unlock" is exactly what shipped.
  4. **Keyboard operability check** (pass 13) — verify first with a
     keyboard only on the shipped web build, then standard
     focus/tab-order props on the holes. Load-bearing: web is the
@@ -221,7 +223,10 @@ repo is not equipped to make.
     doesn't make the clock trustworthy anyway.
 17. **`iap:anchor-bundle`** (pass 29, F29.3) — the IAP ladder is
     compressed (4 points, $0.99–$3.99) and has no anchor: the top tier
-    is the *best* $/gem and the whole catalogue is 25 bare items. The
+    is the *best* $/gem and the whole catalogue is bare single items —
+    26 rows since `packSkin` landed (the 26th, a $3.99 non-gem feature
+    line, sits *at* the $3.99 top, not above it, so it anchors nothing;
+    all 25 gem-bearing rows remain bare). The
     gap is the missing high anchor — an honest bundle tier (per-line
     "full set" or a collection pack) whose price sits above $3.99 so
     the bare items read as the cheap path. Trigger-gated on the same
@@ -232,7 +237,8 @@ repo is not equipped to make.
     converter keeps that floor automatic); price stays band-derived
     from gem cost so store and shop can't drift. Note the structural
     ceiling that motivates it: one-time-only packs cap IAP revenue at
-    $59.75 per player, so the mix is ad-weighted by design (F29.4).
+    $63.74 per player ($59.75 at the pass-29 audit, before `packSkin`'s
+    $3.99 row), so the mix is ad-weighted by design (F29.4).
 18. **`share:clipboard-opt-in`** (pass 30, F30.3) — the game's single
     user-facing share surface (achievement badge share) is a silent
     no-op in any browser without the Web Share API (Firefox desktop
@@ -265,6 +271,8 @@ repair (it.19), day-7 bonus spike (it.15), `cosmetics:analytics`
 (it.17), the Collection view (it.23), `offline:active-clock` (it.13),
 `math:zero-operand` (it.13), `offline:streak-grace` (it.14),
 `math:pending-gain` readout (it.21), number-notation setting (it.20),
+`web-ambient-unlock` (2026-09-10, gesture-gate bug-fix in `useSounds.ts`,
+commit `49c472f` — Tier 1 #3 is done, see the struck-through entry),
 weekly contract, equation of the day, gem pocket, idle reminder, share
 images, SFX/music volume controls, music bed, reduce-effects toggle,
 statistics detail, cosmetic compendium. All the "deliberately absent" items (interstitials,
@@ -276,7 +284,8 @@ ranking.
 the guardrail-5 obligation, and they convert the Tier 1 items from
 research into a data-ordered queue. Among the real features,
 top-of-queue on impact-per-line: **Tier 1 #1 adaptive math, #2 text
-scaling, #3 the web audio fix, #7 listing localization**; the
+scaling, #7 listing localization** (#3, the web audio fix, landed
+2026-09-10 as part of the web sign-in e2e bug-fixes); the
 endgame tail (Tier 1 #8) stays held until Tier 0 #3 lands its
 time-to-t5 number.
 
@@ -806,7 +815,7 @@ these are the numbers to compare that data to):
   cohorts explain the drop, and FTUE difficulty spikes are a named D1
   driver (the onboarding overlay + skip is the current FTUE surface).
   Cheap habit: when a cohort drops, read the review window of the
-  release that shipped before it (`npm run play` covers listings,
+  release that shipped before it (`pnpm run play` covers listings,
   not reviews — that leg is manual until the CLI gains it).
 
 ### FTUE / first session (pass 7 — the D1 driver the benchmarks named)
@@ -1101,7 +1110,7 @@ number, exactly as pass 4 did for retention.
 Passes 7–9 audited everything from install onward; this pass audits the
 segment before the funnel: how a player finds the game, whether the
 listing converts the browse, and the rating cold start a brand-new app
-carries. Live audit (2026-09-11, `npm run play` against the Console +
+carries. Live audit (2026-09-11, `pnpm run play` against the Console +
 `src/`): the production track is **empty** (internal 1.0.8 only), the
 en-US listing is **title only** — no short description, no full
 description, no screenshots at any size, no other language — and the
@@ -3109,12 +3118,16 @@ the AppState pause.
 **Candidates (documented, not planned)** — in rough order of value per
 line:
 
-+ `web-ambient-unlock` — a one-time user-gesture audio unlock for web
-  (first interaction re-fires the bed effect), or, if the bed is a
-  non-goal on web, an explicit "ambient music: native only" scope note.
-  First step: confirm the F22.4(b) silence with a manual web check;
-  if the bed ever needs player reachability, add the audio-state event
-  (guardrail 5). No guardrail interaction either way.
++ ~~`web-ambient-unlock`~~ — **DONE 2026-09-10** (bug-fix inside the web
+  sign-in e2e work, commit `49c472f`): `useSounds.ts` gesture-gates the
+  ambient bed — web `play()` is held until the first user gesture
+  (`gestureSeen` state; a blocked `play()` rejection is swallowed
+  rather than leaking as an unhandled pageerror), and native delays the
+  bed from boot to the first tap. The F22.4(b) hypothesis (permanently
+  silent on web) was right: the fix is exactly the one-time gesture
+  unlock this item proposed. Remaining residue, if it ever matters: the
+  audio-state event for guardrail-5 visibility (no longer needed to
+  make the bed play).
 + `reward-sfx-set` — dedicated one-shot SFX for the reward moments that
   ride generic clips today: combo tier-up, the depth-milestone toasts,
   the gem pocket (synthesized, same deterministic-script family —
@@ -4330,10 +4343,19 @@ revenue and per-install split by surface — against which the canon's
 *this* game. Until then the mix exists only as design intent. One
 structural fact that will frame that data: with one-time packs and no
 repurchasable surface, the IAP side has a hard per-player ceiling
-($59.75), so the mix is structurally ad-weighted relative to a
-consumables catalog. That is consistent with the 30/70 slot (puzzle-
+($59.75 as of this pass), so the mix is structurally ad-weighted
+relative to a consumables catalog. That is consistent with the 30/70
+slot (puzzle-
 leaning), documented here so the first real split is read against intent
 rather than surprise.
+
+*Sync (post-pass, 2026-09-10):* the `packSkin` feature row landed after
+this pass — the catalogue is now 26 rows (25 bare gem-bearing items +
+`packSkin`, a $3.99 non-gem feature line). The per-player full-buy
+ceiling is now **$63.74** (59.75 + 3.99); the ladder's shape findings
+(F29.3) are unchanged — `packSkin` sits at, not above, the $3.99 top, so
+the anchor gap and the "top tier is the best buy" gradient over the gem
+rows stand as audited.
 
 **Source quality (pass 29).** Exa was 429 at write time; per the
 documented re-pull convention this pass used DuckDuckGo. All three

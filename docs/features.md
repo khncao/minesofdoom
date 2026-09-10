@@ -348,6 +348,6 @@ of Pressable so rapid tapping doesn't double-render).
   `data-adbreak-test` test mode, and a guard route fails the suite on any
   request that would become a live impression or sidecar call; pass 12 of
   `docs/gap-ranking.md` is the design context, `docs/store-integration.md`
-  §2.7 the spec-by-spec contract), Play Console CLI helper (`npm run play`), static-export-safe
+  §2.7 the spec-by-spec contract), Play Console CLI helper (`pnpm run play`), static-export-safe
   routing (AGENTS.md).
 - **Support** — in-app mailto inquiries button (`components/InquiriesButton.tsx`).
