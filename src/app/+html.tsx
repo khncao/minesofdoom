@@ -32,6 +32,57 @@ export default function Html({ children }: { children: React.ReactNode }) {
                     content="Mines of Idle Doomath — an idle math-mining game. Solve equations, earn minerals, buy miners, sink new shafts."
                 />
                 <meta name="theme-color" content="#2f2f2f" />
+                {/* SEO / social (docs/todo.md: improve seo): canonical + Open Graph +
+                    Twitter card so the game renders with a title, description and
+                    image when shared. og-image.png is copied from public/ into the
+                    static export root (app-icons/icon.png — kept out of public/ for
+                    the build, like the favicon source). Single-route static app, so
+                    the head is shared by every exported page. */}
+                <link rel="canonical" href="https://minesofdoom.pages.dev/" />
+                <meta property="og:type" content="website" />
+                <meta property="og:site_name" content="Mines of Idle Doomath" />
+                <meta property="og:title" content="Mines of Idle Doomath" />
+                <meta
+                    property="og:description"
+                    content="An idle math-mining game. Solve equations, earn minerals, buy miners, sink new shafts."
+                />
+                <meta
+                    property="og:url"
+                    content="https://minesofdoom.pages.dev/"
+                />
+                <meta
+                    property="og:image"
+                    content="https://minesofdoom.pages.dev/og-image.png"
+                />
+                <meta name="twitter:card" content="summary" />
+                <meta name="twitter:title" content="Mines of Idle Doomath" />
+                <meta
+                    name="twitter:description"
+                    content="An idle math-mining game. Solve equations, earn minerals, buy miners, sink new shafts."
+                />
+                <meta
+                    name="twitter:image"
+                    content="https://minesofdoom.pages.dev/og-image.png"
+                />
+                {/* Minimal JSON-LD so search engines know what the site is (free
+                    web game) — no og-image dependency, one small block. */}
+                <script type="application/ld+json">
+                    {`
+                        {
+                            "@context": "https://schema.org",
+                            "@type": "WebApplication",
+                            "name": "Mines of Idle Doomath",
+                            "url": "https://minesofdoom.pages.dev/",
+                            "description": "An idle math-mining game. Solve equations, earn minerals, buy miners, sink new shafts.",
+                            "applicationCategory": "GameApplication",
+                            "operatingSystem": "Web, Android, iOS",
+                            "offers": {
+                                "@type": "Offer",
+                                "price": "0",
+                                "priceCurrency": "USD"
+                            }
+                        }`}
+                </script>
                 {/* AdSense loader (docs/todo.md #2): emitted ONLY when the
             publisher client is configured (empty config = hidden no-op —
             zero ad-network traffic until it lands). This single loader

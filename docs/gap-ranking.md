@@ -710,6 +710,30 @@ candidates, all Tier 2: `release:wrangler-pin` (F35.1),
 `app:route-only-net` (F35.2), `release:version-doc` (F35.3). Items
 adopted into a tier list move into `docs/todo.md`.
 
+2026-09 pass 36: the web discoverability / search layer — how a
+player who does NOT yet have the app finds it (the search-engine &
+ad-network contract the static export presents: ads.txt, robots.txt,
+sitemap, canonical, Open Graph, JSON-LD), and what that surface is
+netted by. Passes 30/32/33/35 touched this layer from the *inside*
+(serving the web platform, settings, session, deploy pipeline) but
+none audited the *outward contract* a crawler or ad network sees. Internal
+audit by construction (the same class as passes 30–35): F36.1–F36.3
+are properties of this repo's web export as of this commit (`public/`,
+`src/app/+html.tsx`, the exported `dist/`, `app.config.ts`) — no
+external sources, no external claims. Headline: the one-off "add an
+ads.txt" and "improve seo" todo items LANDED this pass (ads.txt at the
+export root; canonical/OG/Twitter/JSON-LD in `+html.tsx`; robots.txt +
+sitemap.xml + og-image.png at the export root) — all verified in the
+exported `dist/`. The remaining gaps are the ones the repo CANNOT net
+alone (console/account verification in Google & Bing Search, the
+AdSense approval — human, out of jest) plus one shape-net the export
+lacks: nothing asserts the export root ships a well-formed ads.txt /
+robots.txt / sitemap.xml (F36.2). No new Tier 1: discoverability is a
+pre-install lever that only pays after there is something to find (no
+search traffic exists before the release), so it stays Tier 2,
+trigger-gated on the first production web release. Items adopted into a
+tier list move into `docs/todo.md`.
+
 ## The gap layers (formerly `docs/features.md` §7)
 
 Cross-checked against the idle/clicker genre roundups and math-game
@@ -5052,3 +5076,82 @@ deploy wiring as of this commit, verified against `package.json`,
 `app.config.ts`, `wrangler.toml`, `pnpm-lock.yaml`,
 `.github/workflows/`, `scripts/`, `plugins/`, `e2e/web/`, and
 `docs/store-integration.md`.
+
+### The web discoverability / search layer (pass 36 — how a crawler sees the site, written 2026-09-10)
+
+Pass 35 walked the export out to the deploy step; this pass audits
+what the deployed static export *presents* to the things that find a
+site before a player does: search crawlers (Google, Bing) and the
+ad network (AdSense/Google). Internal audit by construction (the same
+class as passes 30–35): every statement below is a property of this
+repo's web export as of this commit — `public/`, `src/app/+html.tsx`,
+`app.config.ts`, and the exported `dist/` — no external sources, no
+external claims.
+
+**What this pass landed (the two one-off todo items, closed 2026-09-10):**
+
++ `public/ads.txt` — the AdSense/Google-ads requirement for a first-party
+  publisher site: one line, `google.com, pub-2101316086878618, DIRECT,
+  f08c47fec0942fa0` (publisher id derived from `storeConfig.adsense.client`
+  — the same value the loader tag in `+html.tsx` is gated on; `DIRECT`
+  because the site runs the ads itself; the hash is Google's standard
+  cert-hash for first-party Google rows). `public/` copies verbatim into
+  the static export root, so it ships at `https://<site>/ads.txt` with no
+  build-config change (verified in the exported `dist/`).
++ SEO head in `src/app/+html.tsx` — canonical link (`https://minesofdoom.
+  pages.dev/`), Open Graph + Twitter card meta (title/description/image),
+  and a minimal `WebApplication` JSON-LD block (`price: 0` — the free
+  guardrail-1 stance is machine-readable too). Shared by every exported
+  page because the app is a single route.
++ `public/robots.txt` (allow-all + the sitemap ref), `public/sitemap.xml`
+  (the single route + the two legal pages — the only other real URLs the
+  export ships), and `public/og-image.png` (the 22KB `app-icons/icon.png`,
+  1024×1024 — the logo.jpg stays out of `public/` as before, per the
+  existing favicon note in `app.config.ts`). All verified in the exported
+  `dist/` (files at the root, head tags present in `index.html`).
+
+**Candidates (documented, not planned):**
+
++ **F36.1 — `search:console-verify` (Tier 2, trigger-gated; mostly
+  out-of-repo).** Nothing the repo can do: Google Search Console and
+  Bing Webmaster verification are account actions (a DNS TXT or an HTML
+  meta token for the verified domain), and the AdSense site approval is
+  Google-side. Recorded so the next release pass doesn't rediscover that
+  a sitemap.xml and ads.txt are the *repo* half of the "Google sees the
+  site" checklist, not the whole of it. Trigger: the first production
+  web release (guardrail 5's measure-first batch is the natural owner —
+  the same operator session that starts the Search Console property
+  should paste in the verification). Zero code; the repo side is done.
++ **F36.2 — `export:seo-shape-net` (Tier 2).** The export is netted for
+  *shape* on the app side (the e2e boot spec runs against the real
+  `expo export` build) but nothing asserts the *discoverability files*
+  ship and are well-formed: a rename or delete of `public/ads.txt` /
+  `public/robots.txt` / `public/sitemap.xml` passes every gate in the
+  repo, and AdSense approval and search indexing would just not happen
+  (the failure is silent, like F35.2's stray-route class but outward).
+  Cheap: one jest test that reads the three files from `public/` and
+  asserts (a) ads.txt has exactly one row naming `google.com` + the
+  `pub-` form of `storeConfig.adsense.client` (the two values already
+  live in `storeConfig.test.ts`'s pinned world, so this is the same
+  "can't drift" net, not a new one), (b) robots.txt points at a
+  sitemap that (c) exists and is parseable XML with the site root in it.
+  Trigger: rides the F36.1 release session (the net is only useful once
+  the files matter, i.e. once the domain is verified).
++ **F36.3 — `seo:installability` (candidate, alias for the existing
+  Tier 1 #14).** Installable-on-web (PWA manifest + install prompt) is
+  already Tier 1 #14 (`web:pwa`); it sits in *this* layer too —
+  discoverability's ceiling is the install, not the search result.
+  Recorded once so the layer is complete; no separate scope, no
+  separate trigger.
+
+**Not audited:** per-page metadata (impossible on the single-route SPA
+without routing — F36.3's install is the lever instead), international
+metadata (the es-market is Tier 1 #14's trigger, not this layer's), and
+the social-graph side (share-badge candidates are in the gap layers'
+trigger-gated list, deliberately low priority per their sources).
+
+**Source quality (pass 36).** Internal audit by construction: no
+external sources, no external claims — every statement above is a
+property of this repo's web export as of this commit, verified against
+`public/`, `src/app/+html.tsx`, `app.config.ts`, the exported `dist/`,
+and `docs/store-integration.md` for the domain.
