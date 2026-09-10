@@ -266,6 +266,7 @@ the console follows the code, not the other way around.
 | `pack_ashen` | Ashen Depths Theme | $3.99 | `ashen` theme (130 💎) |
 | `pack_gothic` | Mist & Lantern Theme | $3.99 | `gothic` theme (150 💎) |
 | `pack_cherry` | Cherry & Indigo Theme | $3.99 | `cherry` theme (170 💎) |
+| `pack_skin` | Custom Skin | $3.99 | custom-skin upload slot (250 💎) |
 
 Every row's blurb in the purchase panel says plainly what it does and
 that the game stays fully free without it (guardrail 4), and shows the

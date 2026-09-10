@@ -11,13 +11,17 @@ API key for the sidecar (`docs/backlog.md`, iOS section), and (2) the
 Stripe **`sk_live` flip at launch** (`todo.md` — step-6 test purchase
 is **done 2026-09-08**: `scripts/stripe/checkoutTest.mjs` confirmed the
 redirect grant + the webhook's idempotent backup mint for the same
-(device, product) row via a no-cost hosted-Checkout order); (3) the `packSkin` leg — the **price part LANDED 2026-09-10**
-(`syncStripe.mjs products` created `prod_VEghKLcgCPNKkB` /
-`price_1UEDJqDPxWoXhXF8WYfaEDSe`, pasted into storeConfig.ts, `verify`
-26/26 clean); the remaining external step is the pack_skin **Play
-Billing SKU** (`docs/store-integration.md` §2) — until it lands, only
-packSkin *native* purchases are impossible (web checkout is wired) —
-see `docs/todo.md`. The web
+(device, product) row via a no-cost hosted-Checkout order). The
+`packSkin` leg is **LANDED 2026-09-10** — both external halves: the
+Stripe test price (`syncStripe.mjs products` created
+`prod_VEghKLcgCPNKkB` / `price_1UEDJqDPxWoXhXF8WYfaEDSe`, pasted into
+storeConfig.ts, `verify` 26/26 clean) and the pack_skin **Play Billing
+SKU** (`create-product --sku=pack_skin --price=3.99 --auto-convert-prices`,
+`products-check` 27/27 clean — the §2.1 table row added the same day).
+What remains on the in-repo queue (`docs/todo.md`) is the native image/
+audio picker + prebuild and the ad-hoc/e2e re-runs — neither blocks a
+purchase: pack_skin checkouts work on web now, and the native path needs
+the on-device picker before a tester can complete it on an emulator. The web
 Stripe + AdSense console side that used to sit here has LANDED: Stripe
 test mode is fully configured (`syncStripe.mjs products` + `webhook`,
 sidecar `/healthz` → `configured.web: true` +
