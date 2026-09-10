@@ -115,7 +115,10 @@ repo is not equipped to make.
     constraint: challenge, never replace, hand-solved math; the
     player-set range stays the ceiling. Of its smaller companion fixes,
     `math:zero-operand` (it.13) and `math:pending-gain` (it.21) are DONE;
-    `math:ladder` (a stepped number range) is the one still riding along.
+    `math:ladder` (a stepped number range) is the one still riding
+    along. Pass 32 adds a control-surface companion: `settings:min-floor`
+    (F32.3) — the range has a model floor (`minNumber`, fixed at 0) but
+    no UI writer; only the ceiling is exposed.
  2. **Text size / UI scaling** (+ high-contrast second step) (pass 3,
     accessibility) — "the cheapest high-impact item in the playbooks":
     `styles.ts` hard-codes `fontSize: 11–12` with no OS scaling; a
@@ -252,7 +255,31 @@ repo is not equipped to make.
     share-badge/cosmetics demand signal already recorded in
     `docs/todo.md` (or any web-growth bet that raises the desktop-web
     share audience): no share demand signal, no copy button.
-19. **`art:cave-crisp` + `art:pixel-crisp`** (pass 31, F31.1/F31.2) —
+19. **`settings:commit-model`** (pass 32, F32.1) — 20 of the 23
+    player-writable controls are staged in React state until an explicit
+    "Save" button on the *Save* tab (a different tab) is tapped; there is
+    no dirty indicator, and closing the app without tapping it reverts
+    every settings change silently on the next launch. The three
+    remaining controls (mute, keypad, onboarding) persist per change via
+    their own `useLocalStorage` keys, and the panel's own comments already
+    distinguish the two patterns ("applies immediately (no Save tap) … the
+    keypad toggle persists itself") — the codebase knows both models, the
+    UI presents them identically. The repo solves exactly this for *save
+    data* (the save pill's dirty dot) but not for settings. Fix: per-change
+    persistence (the AsyncStorage writers and the merge-over-defaults load
+    already exist) or a dirty dot reusing the save-pill pattern. Cheap;
+    a silent revert is a bug-adjacent failure, not a taste call.
+20. **`settings:portability`** (pass 32, F32.2) — both settings stores are
+    explicitly excluded from `SaveData` (the game.ts note: "must NOT be
+    folded into this object"), so save-code transfer, cloud restore, and a
+    fresh install all start from defaults: operator mix, hard mode, symbol
+    choice, range ceiling, keypad, volumes, notation, autosave interval.
+    The parse side is already defensive (clamps + merge-over-defaults), so
+    this is an omission, not a trust issue (pass 21). Fix shape: additive
+    optional fields on the save-code payload (decode already routes
+    through `migrateSaveData`/`buildSaveData`, so absent/unknown fields
+    are safe both ways); the cloud backup rides the same decision.
+21. **`art:cave-crisp` + `art:pixel-crisp`** (pass 31, F31.1/F31.2) —
     the web surface (the first-class monetization surface, Tier 1 #4's
     framing) ships the full-bleed cave as 288 px rows smoothly stretched
     up to ~5× on a desktop monitor, and the same unpinned scaling
@@ -587,6 +614,24 @@ browser-supported since 2020, so F31.1's fix is a property pin, not a
 compat bet). New candidates: `art:cave-crisp` + `art:pixel-crisp`
 (F31.1/F31.2) → Tier 1, item 19; `art:style-decision` (F31.3) and
 `art:contrast-audit` (F31.4) stay candidates, trigger-gated.
+
+2026-09 pass 32: the settings / player-control layer — the set of things
+the player can tune about their own experience, and what happens to a
+changed control (pass 3 audited the accessibility gaps *in* this surface,
+pass 13 the input methods *around* it, pass 27 where features sit on
+screen; none audited the *lifecycle of a control change*: what "the player
+changed it" means for durability and portability). Internal audit by
+construction (F32.1–F32.4 are properties of this repo's settings stores
+as of this commit; the stores are small enough that every cell was
+verified against `src/`). The one external anchor is the pattern shape:
+the `formdraft` README (a vendor package — the stock form-draft
+persistence stack: per-change localStorage persistence + restore-on-mount
+
++ status indicator; used for F32.1's fix shape, not as a claim about this
+game). New candidates: `settings:commit-model` (F32.1) → Tier 1, item 20;
+`settings:portability` (F32.2) → Tier 1, item 21; `settings:min-floor`
+(F32.3) rides along on Tier 1 #1. Items adopted from that list move into
+`docs/todo.md`.
 
 ## The gap layers (formerly `docs/features.md` §7)
 
