@@ -4,10 +4,7 @@ import Button from "src/components/Button";
 import ConfirmableButton from "src/components/ConfirmableButton";
 import IntegerInput from "src/components/IntegerInput";
 import { useT } from "src/hooks/useI18n";
-import {
-  formatAgo,
-  type CloudSaveSettingsProps,
-} from "../hooks/useCloudSave";
+import { formatAgo, type CloudSaveSettingsProps } from "../hooks/useCloudSave";
 import { SettingsData } from "../game";
 import { styles } from "../styles";
 
@@ -62,7 +59,10 @@ const SaveTab = memo(function SaveTab({
           {t("settings.saveCode")}
         </Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
-          <Button title={t("settings.export")} onPress={() => setExportedCode(onExportSaveCode())} />
+          <Button
+            title={t("settings.export")}
+            onPress={() => setExportedCode(onExportSaveCode())}
+          />
           <Button
             title={t("settings.import")}
             disabled={importCode.trim().length === 0}
@@ -129,7 +129,11 @@ const SaveTab = memo(function SaveTab({
  * points). A dev build labels itself "(simulated)" (transparency
  * guardrail: the in-memory simulation is not a durable backup).
  */
-function CloudSaveSection({ cloudSave }: { cloudSave: CloudSaveSettingsProps }) {
+function CloudSaveSection({
+  cloudSave,
+}: {
+  cloudSave: CloudSaveSettingsProps;
+}) {
   const t = useT();
   if (!cloudSave.available) return null;
   const { lastSync } = cloudSave;
@@ -137,18 +141,21 @@ function CloudSaveSection({ cloudSave }: { cloudSave: CloudSaveSettingsProps }) 
     lastSync.state === "failed"
       ? t("settings.cloudLastSyncFailed")
       : lastSync.state === "ok" && lastSync.at != null
-        ? t("settings.cloudLastSyncOk", { when: formatAgo(lastSync.at, Date.now()) })
+        ? t("settings.cloudLastSyncOk", {
+            when: formatAgo(lastSync.at, Date.now()),
+          })
         : t("settings.cloudNeverSynced");
   return (
     <View style={{ gap: 6, marginTop: 10 }} testID="cloud-save-section">
-      <View
-        style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
-      >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
         <Text style={{ ...styles.text, fontWeight: "bold" }}>
           {t("settings.cloudSave")}
           {cloudSave.isDevSim ? t("settings.cloudSim") : ""}
         </Text>
-        <Switch value={cloudSave.enabled} onValueChange={cloudSave.setEnabled} />
+        <Switch
+          value={cloudSave.enabled}
+          onValueChange={cloudSave.setEnabled}
+        />
       </View>
       <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
         {t("settings.cloudSaveHelp")}

@@ -1,5 +1,6 @@
 import {
   SAVE_CODE_PREFIX,
+  SAVE_CODE_PREFIX_LEN,
   base64Decode,
   base64Encode,
   decodeSaveCode,
@@ -151,7 +152,9 @@ describe("encodeSaveCode / decodeSaveCode", () => {
     expect(decodeSaveCode("", NOW)).toBeNull();
     expect(decodeSaveCode("not a save code", NOW)).toBeNull();
     // Valid base64 of non-JSON:
-    expect(decodeSaveCode(`${SAVE_CODE_PREFIX}.${base64Encode("hello")}`, NOW)).toBeNull();
+    expect(
+      decodeSaveCode(`${SAVE_CODE_PREFIX}.${base64Encode("hello")}`, NOW),
+    ).toBeNull();
     // Valid JSON but not a plain object:
     expect(
       decodeSaveCode(`${SAVE_CODE_PREFIX}.${base64Encode("[1,2,3]")}`, NOW),
@@ -174,5 +177,63 @@ describe("encodeSaveCode / decodeSaveCode", () => {
     expect(decoded).not.toBeNull();
     expect(decoded!.ownedCosmetics).toEqual([...DEFAULT_OWNED]);
     expect(decoded!.selectedOutfit).toBe(DEFAULT_OUTFIT);
+  });
+});
+
+describe("settings ride-along (settings portability)", () => {
+  it("round-trips settings + equation settings through a save code", () => {
+    const save = createEmptySaveData();
+    const settings = { haptics: false, soundVolume: 30, autosave: 90 };
+    const equationSettings = {
+      maxNumber: 99,
+      hardMode: true,
+      multiplySymbol: "letter" as const,
+    };
+    const decoded = decodeSaveCode(
+      encodeSaveCode(save, settings, equationSettings),
+      NOW,
+    );
+    expect(decoded).not.toBeNull();
+    expect(decoded!.settings).toEqual(settings);
+    expect(decoded!.equationSettings).toEqual(equationSettings);
+    // The game save itself is untouched by the ride-along fields.
+    expect(decoded!.minerals).toBe(save.minerals);
+    expect(decoded!.gems).toBe(save.gems);
+  });
+
+  it("omits absent ride-along fields (legacy-shaped payload)", () => {
+    const save = createEmptySaveData();
+    const code = encodeSaveCode(save);
+    // No settings keys in the serialized JSON at all — old codes are
+    // byte-identical to the pre-portability format.
+    const json = base64Decode(code.slice(SAVE_CODE_PREFIX_LEN))!;
+    expect(JSON.parse(json)).not.toHaveProperty("settings");
+    expect(JSON.parse(json)).not.toHaveProperty("equationSettings");
+    const decoded = decodeSaveCode(code, NOW);
+    expect(decoded).not.toBeNull();
+    expect(decoded!.settings).toBeUndefined();
+    expect(decoded!.equationSettings).toBeUndefined();
+  });
+
+  it("drops corrupt/unknown ride-along fields, keeps the good ones", () => {
+    const save = createEmptySaveData();
+    const base = base64Decode(
+      encodeSaveCode(save).slice(SAVE_CODE_PREFIX_LEN),
+    )!;
+    const payload = {
+      ...JSON.parse(base),
+      settings: {
+        haptics: true, // valid
+        soundVolume: "loud", // wrong type -> dropped
+        inventedField: 123, // unknown key -> dropped
+        autosave: Number.NaN, // non-finite number -> dropped
+      },
+      equationSettings: "not an object",
+    };
+    const code = `${SAVE_CODE_PREFIX}.${base64Encode(JSON.stringify(payload))}`;
+    const decoded = decodeSaveCode(code, NOW);
+    expect(decoded).not.toBeNull();
+    expect(decoded!.settings).toEqual({ haptics: true });
+    expect(decoded!.equationSettings).toBeUndefined();
   });
 });

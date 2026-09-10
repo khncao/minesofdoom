@@ -97,7 +97,10 @@ const OnboardingOverlay = memo(function OnboardingOverlay({
       {Array.from({ length: TOTAL_STEPS }, (_, i) => (
         <View
           key={i}
-          style={[styles.onboardingDot, i === step && styles.onboardingDotActive]}
+          style={[
+            styles.onboardingDot,
+            i === step && styles.onboardingDotActive,
+          ]}
         />
       ))}
     </View>
@@ -153,9 +156,7 @@ const OnboardingOverlay = memo(function OnboardingOverlay({
         // across its bottom on Android (the Start tap landed on the
         // backdrop instead of the button).
         <View style={styles.onboardingCard} testID="onboarding-setup">
-          <Text style={styles.onboardingTitle}>
-            {t("onboarding.4.title")}
-          </Text>
+          <Text style={styles.onboardingTitle}>{t("onboarding.4.title")}</Text>
           <Text style={styles.onboardingBody}>{t("onboarding.4.body")}</Text>
           <SetupControls
             equationSettings={equationSettings}
@@ -260,13 +261,8 @@ function SetupControls({
         onPress={() => onKeypadChange(!onScreenKeypad)}
         style={styles.setupRow}
       >
-        <Text style={styles.setupRowLabel}>
-          {t("settings.onScreenKeypad")}
-        </Text>
-        <Switch
-          value={onScreenKeypad}
-          onValueChange={onKeypadChange}
-        />
+        <Text style={styles.setupRowLabel}>{t("settings.onScreenKeypad")}</Text>
+        <Switch value={onScreenKeypad} onValueChange={onKeypadChange} />
       </Pressable>
     </View>
   );

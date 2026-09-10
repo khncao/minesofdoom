@@ -49,7 +49,13 @@ import {
   isOutfitId,
   isPickaxeId,
 } from "../cosmetics";
-import { decodeSaveCode, encodeSaveCode } from "../saveCode";
+import {
+  decodeSaveCode,
+  encodeSaveCode,
+  parseSaveCodeSettings,
+  SaveCodePayload,
+  SaveCodeSettings,
+} from "../saveCode";
 import type { CosmeticLine, CosmeticPurchasePath } from "../analytics";
 
 /**
@@ -951,44 +957,58 @@ export function useGameEngine(
   // callback stays stable; import validates through the same defensive
   // builder the storage loader uses, and pays out the imported save's
   // offline earnings up front (like a cold load would on next launch).
-  const exportSaveCode = useCallback((): string => {
-    return encodeSaveCode(gameStateRef.current);
-  }, []);
+  // The optional settings ride-along args (settings portability): the
+  // caller (MinesOfDoom) threads the live settings stores in; the engine
+  // itself stays settings-agnostic.
+  const exportSaveCode = useCallback(
+    (
+      settings?: Partial<SaveCodeSettings["settings"]>,
+      equationSettings?: Partial<SaveCodeSettings["equationSettings"]>,
+    ): string => {
+      return encodeSaveCode(gameStateRef.current, settings, equationSettings);
+    },
+    [],
+  );
 
-  const importSaveCode = useCallback((code: string): boolean => {
-    if (!loadedRef.current) return false;
+  // Returns the decoded payload (game save + optional settings ride-along)
+  // or null; falsy = rejected, so `if (!importSaveCode(code))` still reads.
+  const importSaveCode = useCallback((code: string): SaveCodePayload | null => {
+    if (!loadedRef.current) return null;
     const now = Date.now();
     const decoded = decodeSaveCode(code, now);
-    if (decoded == null) return false;
+    if (decoded == null) return null;
+    const { settings, equationSettings, ...save } = decoded;
+    void settings;
+    void equationSettings;
     const offline = computeOfflineMinerals(
-      decoded.miners,
-      decoded.minerPower,
-      decoded.fastMiners,
-      decoded.saveTime,
+      save.miners,
+      save.minerPower,
+      save.fastMiners,
+      save.saveTime,
       now,
-      getPrestigeMultiplier(decoded.prestigeLevel),
-      decoded.legendaryMiners,
+      getPrestigeMultiplier(save.prestigeLevel),
+      save.legendaryMiners,
     );
     const topUp = computeOfflineTopUpMinerals(
-      decoded.miners,
-      decoded.minerPower,
-      decoded.fastMiners,
-      decoded.saveTime,
+      save.miners,
+      save.minerPower,
+      save.fastMiners,
+      save.saveTime,
       now,
-      getPrestigeMultiplier(decoded.prestigeLevel),
-      decoded.legendaryMiners,
+      getPrestigeMultiplier(save.prestigeLevel),
+      save.legendaryMiners,
     );
     setGameState({
-      ...decoded,
-      minerals: decoded.minerals + offline,
-      lifetimeMinerals: decoded.lifetimeMinerals + offline,
+      ...save,
+      minerals: save.minerals + offline,
+      lifetimeMinerals: save.lifetimeMinerals + offline,
     });
-    playSecondsRef.current = decoded.playSeconds;
+    playSecondsRef.current = save.playSeconds;
     if (topUp > 0n) {
       offlineTopUpRef.current = topUp;
       setOfflineTopUp(topUp);
     }
-    return true;
+    return decoded;
   }, []);
 
   // Cloud-backup restore (docs/store-integration.md §3):
@@ -997,53 +1017,75 @@ export function useGameEngine(
   // loader uses — JSON parse, versioned migration, clamping build, then
   // the imported save's offline earnings paid up front. Returns false for
   // an unparseable blob so the caller can toast a failure; the caller
-  // (useCloudSave) is the only consumer.
-  const restoreFromBlob = useCallback((blob: string): boolean => {
-    if (!loadedRef.current) return false;
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(blob);
-    } catch {
-      return false;
-    }
-    if (parsed == null || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return false;
-    }
-    const now = Date.now();
-    const data = buildSaveData(
-      migrateSaveData(parsed as Record<string, unknown>),
-      now,
-    );
-    const offline = computeOfflineMinerals(
-      data.miners,
-      data.minerPower,
-      data.fastMiners,
-      data.saveTime,
-      now,
-      getPrestigeMultiplier(data.prestigeLevel),
-      data.legendaryMiners,
-    );
-    const topUp = computeOfflineTopUpMinerals(
-      data.miners,
-      data.minerPower,
-      data.fastMiners,
-      data.saveTime,
-      now,
-      getPrestigeMultiplier(data.prestigeLevel),
-      data.legendaryMiners,
-    );
-    setGameState({
-      ...data,
-      minerals: data.minerals + offline,
-      lifetimeMinerals: data.lifetimeMinerals + offline,
-    });
-    playSecondsRef.current = data.playSeconds;
-    if (topUp > 0n) {
-      offlineTopUpRef.current = topUp;
-      setOfflineTopUp(topUp);
-    }
-    return true;
-  }, []);
+  // (useCloudSave) is the only consumer. `onSettings` receives the
+  // validated settings ride-along (settings portability) when the blob
+  // carries one, so the settings owner (MinesOfDoom) can apply it without
+  // the engine touching the settings stores.
+  const restoreFromBlob = useCallback(
+    (
+      blob: string,
+      onSettings?: (settings: SaveCodeSettings) => void,
+    ): boolean => {
+      if (!loadedRef.current) return false;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(blob);
+      } catch {
+        return false;
+      }
+      if (
+        parsed == null ||
+        typeof parsed !== "object" ||
+        Array.isArray(parsed)
+      ) {
+        return false;
+      }
+      const now = Date.now();
+      const data = buildSaveData(
+        migrateSaveData(parsed as Record<string, unknown>),
+        now,
+      );
+      const rideAlong = parseSaveCodeSettings(
+        parsed as Record<string, unknown>,
+      );
+      if (
+        onSettings != null &&
+        (rideAlong.settings != null || rideAlong.equationSettings != null)
+      ) {
+        onSettings(rideAlong);
+      }
+      const offline = computeOfflineMinerals(
+        data.miners,
+        data.minerPower,
+        data.fastMiners,
+        data.saveTime,
+        now,
+        getPrestigeMultiplier(data.prestigeLevel),
+        data.legendaryMiners,
+      );
+      const topUp = computeOfflineTopUpMinerals(
+        data.miners,
+        data.minerPower,
+        data.fastMiners,
+        data.saveTime,
+        now,
+        getPrestigeMultiplier(data.prestigeLevel),
+        data.legendaryMiners,
+      );
+      setGameState({
+        ...data,
+        minerals: data.minerals + offline,
+        lifetimeMinerals: data.lifetimeMinerals + offline,
+      });
+      playSecondsRef.current = data.playSeconds;
+      if (topUp > 0n) {
+        offlineTopUpRef.current = topUp;
+        setOfflineTopUp(topUp);
+      }
+      return true;
+    },
+    [],
+  );
 
   const resetGame = useCallback(() => {
     setGameState(createEmptySaveData());

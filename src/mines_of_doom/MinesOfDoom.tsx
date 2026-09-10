@@ -36,7 +36,6 @@ import {
   ALL_PURCHASE_IDS,
   defaultSettingsData,
   saveVersion,
-  serializeSaveData,
   getComboMultiplier,
   getComboRetention,
   getDepthTier,
@@ -82,6 +81,7 @@ import {
   type CosmeticPurchaseEventInput,
 } from "./hooks/useGameEngine";
 import { useSettings } from "./hooks/useSettings";
+import { serializeSavePayload, SaveCodeSettings } from "./saveCode";
 import { useSounds } from "./hooks/useSounds";
 import { useCustomSkin } from "./hooks/useCustomSkin";
 import {
@@ -403,27 +403,59 @@ export default function MinesOfDoom() {
   const tokenStore = useMemo(() => selectTokenStore(), []);
   const account = useAccount({ provider: authProvider, tokenStore });
   const { getSessionToken: accountSessionToken } = account;
+  // Settings ride-along application (settings portability): merge the
+  // validated partials over the current stores — the same merge-over-
+  // existing shape the per-key stores load with, and a full encode always
+  // carries every key, so nothing is ever reset to a default.
+  const applyImportedSettings = useCallback(
+    (imported: SaveCodeSettings) => {
+      if (imported.settings != null) {
+        updateSettingsData((prev) => ({ ...prev, ...imported.settings }));
+      }
+      if (imported.equationSettings != null) {
+        updateEquationSettings((prev) => ({
+          ...prev,
+          ...imported.equationSettings,
+        }));
+      }
+    },
+    [updateSettingsData, updateEquationSettings],
+  );
+
+  // Cloud-restore wrapper: same settings application as save-code import;
+  // useCloudSave's `restore` contract stays (blob) => boolean.
+  const restoreBlob = useCallback(
+    (blob: string) => restoreFromBlob(blob, applyImportedSettings),
+    [restoreFromBlob, applyImportedSettings],
+  );
+
   // Snapshot source: the latest state read from a ref so getCloudSnapshot
   // stays stable while always serializing the current save (the engine's
   // own saveGame does the same ref dance). updatedAt is the push time —
   // the server's last-write-wins key is the client clock by design.
   const cloudStateRef = useRef(gameState);
   cloudStateRef.current = gameState;
-  const getCloudSnapshot = useCallback(
-    () => ({
-      blob: serializeSaveData({
-        ...cloudStateRef.current,
-        saveTime: Date.now(),
-      }),
+  // Settings ride along with the cloud snapshot (settings portability —
+  // "the cloud backup rides the same decision" as save codes): a ref so
+  // the stable snapshot callback always serializes the current stores.
+  const cloudSettingsRef = useRef({ settingsData, equationSettings });
+  cloudSettingsRef.current = { settingsData, equationSettings };
+  const getCloudSnapshot = useCallback(() => {
+    const { settingsData: s, equationSettings: e } = cloudSettingsRef.current;
+    return {
+      blob: serializeSavePayload(
+        { ...cloudStateRef.current, saveTime: Date.now() },
+        s,
+        e,
+      ),
       saveVersion,
       updatedAt: Date.now(),
-    }),
-    [],
-  );
+    };
+  }, []);
   const cloudSave = useCloudSave({
     provider: cloudProvider,
     getSnapshot: getCloudSnapshot,
-    restore: restoreFromBlob,
+    restore: restoreBlob,
     isLoaded,
     saveLoadFailed,
     displayMessage,
@@ -1021,20 +1053,31 @@ export default function MinesOfDoom() {
   }, [saveGame, displayMessage, t]);
 
   // Save-code export/import (plan §4.3): the engine handles the state;
-  // this layer only adds the toasts. The imported save persists via the
-  // normal autosave / background-save path (saving immediately here would
-  // serialize the pre-import state, since the state ref updates on render).
+  // this layer adds the toasts and the settings ride-along (export reads
+  // the live stores; import merges them back in). The imported save
+  // persists via the normal autosave / background-save path (saving
+  // immediately here would serialize the pre-import state, since the
+  // state ref updates on render).
+  const handleExportSaveCode = useCallback(
+    () => exportSaveCode(settingsData, equationSettings),
+    [exportSaveCode, settingsData, equationSettings],
+  );
+
   const handleImportSaveCode = useCallback(
     (code: string): boolean => {
-      if (!importSaveCode(code)) {
+      const imported = importSaveCode(code);
+      if (imported == null) {
         displayMessage(t("toast.invalidSaveCode"), 3000);
         return false;
+      }
+      if (imported.settings != null || imported.equationSettings != null) {
+        applyImportedSettings(imported);
       }
       displayMessage(t("toast.saveImported"), 3000);
       noteCrashEvent("save imported");
       return true;
     },
-    [importSaveCode, displayMessage, t],
+    [importSaveCode, applyImportedSettings, displayMessage, t],
   );
 
   // Daily bonus / login streak (plan §4.2): minerals flow through the
@@ -1435,7 +1478,7 @@ export default function MinesOfDoom() {
               showMessage={showMessage}
               onSave={handleSaveSettings}
               onReset={handleReset}
-              onExportSaveCode={exportSaveCode}
+              onExportSaveCode={handleExportSaveCode}
               onImportSaveCode={handleImportSaveCode}
               mute={mute}
               onMuteChange={handleMuteChange}

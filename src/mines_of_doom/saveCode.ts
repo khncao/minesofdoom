@@ -1,9 +1,32 @@
 import {
+  EquationSettings,
+  defaultEquationSettings,
+} from "src/utils/math/equations";
+import {
   SaveData,
+  SettingsData,
+  defaultSettingsData,
   buildSaveData,
   migrateSaveData,
   serializeSaveData,
 } from "./game";
+
+/**
+ * Additive, OPTIONAL settings fields on a save payload (plan: settings
+ * portability). They travel alongside a SaveData record in save codes and
+ * cloud snapshot blobs — they are NEVER part of the SaveData type or the
+ * `save` AsyncStorage key (equation settings keep their own per-key store;
+ * see the note next to SettingsData in game.ts). Absent on every legacy
+ * code/blob, dropped by buildSaveData on the way in, so old and new
+ * payloads interoperate both ways.
+ */
+export type SaveCodeSettings = {
+  settings?: Partial<SettingsData>;
+  equationSettings?: Partial<EquationSettings>;
+};
+
+/** A save record (SaveData) plus the optional settings ride-along fields. */
+export type SaveCodePayload = SaveData & SaveCodeSettings;
 
 /**
  * Shareable save codes (plan §4.3): encode the whole save as a base64
@@ -36,7 +59,9 @@ export function base64Encode(input: string): string {
     const b2 = i + 2 < bytes.length ? bytes[i + 2] : NaN;
     out += B64_ALPHABET[b0 >> 2];
     out += B64_ALPHABET[((b0 & 3) << 4) | (Number.isNaN(b1) ? 0 : b1 >> 4)];
-    out += Number.isNaN(b1) ? "=" : B64_ALPHABET[((b1 & 15) << 2) | (Number.isNaN(b2) ? 0 : b2 >> 6)];
+    out += Number.isNaN(b1)
+      ? "="
+      : B64_ALPHABET[((b1 & 15) << 2) | (Number.isNaN(b2) ? 0 : b2 >> 6)];
     out += Number.isNaN(b2) ? "=" : B64_ALPHABET[b2 & 63];
   }
   return out;
@@ -116,11 +141,7 @@ function utf8Encode(str: string): number[] {
     } else if (cp < 0x800) {
       bytes.push(0xc0 | (cp >> 6), 0x80 | (cp & 63));
     } else if (cp < 0x10000) {
-      bytes.push(
-        0xe0 | (cp >> 12),
-        0x80 | ((cp >> 6) & 63),
-        0x80 | (cp & 63),
-      );
+      bytes.push(0xe0 | (cp >> 12), 0x80 | ((cp >> 6) & 63), 0x80 | (cp & 63));
     } else {
       bytes.push(
         0xf0 | (cp >> 18),
@@ -133,11 +154,82 @@ function utf8Encode(str: string): number[] {
   return bytes;
 }
 
-
+/**
+ * Serialize a save record plus its optional settings ride-along fields
+ * (settings portability) into one JSON string. `undefined` fields are
+ * omitted, so a legacy-shaped code stays byte-identical to before.
+ */
+export function serializeSavePayload(
+  data: SaveData,
+  settings?: Partial<SettingsData>,
+  equationSettings?: Partial<EquationSettings>,
+): string {
+  const payload: SaveCodePayload = { ...data };
+  if (settings != null) payload.settings = settings;
+  if (equationSettings != null) payload.equationSettings = equationSettings;
+  return serializeSaveData(payload);
+}
 
 /** Serialize the save into a prefixed base64 code. */
-export function encodeSaveCode(data: SaveData): string {
-  return `${SAVE_CODE_PREFIX}.${base64Encode(serializeSaveData(data))}`;
+export function encodeSaveCode(
+  data: SaveData,
+  settings?: Partial<SettingsData>,
+  equationSettings?: Partial<EquationSettings>,
+): string {
+  return `${SAVE_CODE_PREFIX}.${base64Encode(
+    serializeSavePayload(data, settings, equationSettings),
+  )}`;
+}
+
+/**
+ * Pick the known, type-correct fields out of an untrusted record, keyed
+ * off the defaults object (the same merge-over-defaults shape the
+ * settings stores load with). Returns undefined when nothing valid came
+ * through, so callers can keep a payload legacy-shaped instead of
+ * emitting empty objects.
+ */
+function pickPartial<T extends Record<string, unknown>>(
+  defaults: T,
+  candidate: unknown,
+): Partial<T> | undefined {
+  if (
+    candidate == null ||
+    typeof candidate !== "object" ||
+    Array.isArray(candidate)
+  ) {
+    return undefined;
+  }
+  const out: Partial<T> = {};
+  let any = false;
+  for (const key of Object.keys(defaults) as (keyof T)[]) {
+    const fallback = defaults[key];
+    const value = (candidate as Record<string, unknown>)[String(key)];
+    if (value == null || typeof value !== typeof fallback) continue;
+    if (typeof fallback === "number" && !Number.isFinite(value)) continue;
+    // SAFETY: `value` passed the same-typeof check against `defaults`' own
+    // key, so only `defaults`' keys ever reach `out` and every stored value
+    // matches that key's declared type (both records are flat primitives).
+    out[key] = value as T[keyof T];
+    any = true;
+  }
+  return any ? out : undefined;
+}
+
+/**
+ * Validate the optional settings ride-along fields of a parsed save
+ * payload (absent/unknown/corrupt → dropped, never thrown). Keyed off the
+ * defaults objects, so a future new field is picked up automatically.
+ */
+export function parseSaveCodeSettings(
+  parsed: Record<string, unknown>,
+): SaveCodeSettings {
+  return {
+    settings: pickPartial(defaultSettingsData, parsed.settings),
+    equationSettings: pickPartial(
+      defaultEquationSettings,
+      parsed.equationSettings,
+    ),
+  };
 }
 
 /**
@@ -146,7 +238,10 @@ export function encodeSaveCode(data: SaveData): string {
  * The same permissive, clamping field handling as the storage loader
  * applies, so a valid-but-partial or older save still imports.
  */
-export function decodeSaveCode(code: string, now: number): SaveData | null {
+export function decodeSaveCode(
+  code: string,
+  now: number,
+): SaveCodePayload | null {
   const trimmed = code.trim();
   const body = trimmed.startsWith(`${SAVE_CODE_PREFIX}.`)
     ? trimmed.slice(SAVE_CODE_PREFIX_LEN)
@@ -162,6 +257,16 @@ export function decodeSaveCode(code: string, now: number): SaveData | null {
   if (parsed == null || typeof parsed !== "object" || Array.isArray(parsed)) {
     return null;
   }
-  const migrated = migrateSaveData(parsed as Record<string, unknown>);
-  return buildSaveData(migrated, now);
+  const asRecord = parsed as Record<string, unknown>;
+  // Extract + validate the settings ride-along BEFORE the build (which
+  // drops unknown fields); legacy payloads simply come back with none.
+  const rideAlong = parseSaveCodeSettings(asRecord);
+  const migrated = migrateSaveData(asRecord);
+  const save = buildSaveData(migrated, now);
+  const payload: SaveCodePayload = save;
+  if (rideAlong.settings != null) payload.settings = rideAlong.settings;
+  if (rideAlong.equationSettings != null) {
+    payload.equationSettings = rideAlong.equationSettings;
+  }
+  return payload;
 }

@@ -1,6 +1,4 @@
-import {
-  useAsyncStorage,
-} from "@react-native-async-storage/async-storage";
+import { useAsyncStorage } from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "src/hooks/useI18n";
 import {
@@ -107,23 +105,21 @@ export function useSettings({
     settingsTouchedRef.current = true;
     settingsDataRef.current = value;
     setSettingsData(value);
-    setStoredSettingsDataRef.current(JSON.stringify(value)).catch((e) =>
-      console.warn("Failed to save settings", e),
-    );
+    setStoredSettingsDataRef
+      .current(JSON.stringify(value))
+      .catch((e) => console.warn("Failed to save settings", e));
   }, []);
 
   const updateEquationSettings = useCallback(
     (next: Updater<EquationSettings>) => {
       const value =
-        typeof next === "function"
-          ? next(equationSettingsRef.current)
-          : next;
+        typeof next === "function" ? next(equationSettingsRef.current) : next;
       equationTouchedRef.current = true;
       equationSettingsRef.current = value;
       setEquationSettings(value);
-      setEquationSettingsStoreRef.current(JSON.stringify(value)).catch((e) =>
-        console.warn("Failed to save equation settings", e),
-      );
+      setEquationSettingsStoreRef
+        .current(JSON.stringify(value))
+        .catch((e) => console.warn("Failed to save equation settings", e));
     },
     [],
   );

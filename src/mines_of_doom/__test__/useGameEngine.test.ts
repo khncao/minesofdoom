@@ -42,8 +42,8 @@ jest.mock("@react-native-async-storage/async-storage", () => {
     setItem: jest.fn(async (k: string, v: string) => {
       store.set(k, v);
     }),
-    getItem: jest.fn(
-      async (k: string) => (store.has(k) ? (store.get(k) as string) : null),
+    getItem: jest.fn(async (k: string) =>
+      store.has(k) ? (store.get(k) as string) : null,
     ),
     removeItem: jest.fn(async (k: string) => {
       store.delete(k);
@@ -67,9 +67,11 @@ jest.mock("@react-native-async-storage/async-storage", () => {
 
 import * as AsyncStorageMock from "@react-native-async-storage/async-storage";
 
-const mockStore: Map<string, string> = (AsyncStorageMock as unknown as {
-  __store: Map<string, string>;
-}).__store;
+const mockStore: Map<string, string> = (
+  AsyncStorageMock as unknown as {
+    __store: Map<string, string>;
+  }
+).__store;
 
 /** Render the engine and wait until the stored save has loaded.
  *  Pass `rawSave` to seed an arbitrary (e.g. corrupt) stored string, and
@@ -154,7 +156,15 @@ describe("useGameEngine — load & save", () => {
       saveTime,
     );
     const base = computeOfflineMinerals(1, 1, 0, saveTime, Date.now(), 1, 0);
-    const topUp = computeOfflineTopUpMinerals(1, 1, 0, saveTime, Date.now(), 1, 0);
+    const topUp = computeOfflineTopUpMinerals(
+      1,
+      1,
+      0,
+      saveTime,
+      Date.now(),
+      1,
+      0,
+    );
     expect(topUp).toBeGreaterThan(0n);
     expect(result.current.gameState.minerals).toBe(base);
     expect(result.current.offlineDouble).toBe(base);
@@ -162,7 +172,10 @@ describe("useGameEngine — load & save", () => {
   });
 
   it("survives a corrupt stored save by starting fresh", async () => {
-    const { result, displayMessage } = await renderEngine(undefined, "{not json!!");
+    const { result, displayMessage } = await renderEngine(
+      undefined,
+      "{not json!!",
+    );
     expect(result.current.gameState.minerals).toBe(0n);
     // The corrupt raw data is backed up, not destroyed.
     expect(mockStore.get(saveDataKey + ".corrupt")).toBe("{not json!!");
@@ -229,9 +242,7 @@ describe("useGameEngine — earning", () => {
 
   it("applyAnswerReward pays value × click power × combo and updates the combo", async () => {
     const { result } = await renderEngine();
-    const random = jest
-      .spyOn(Math, "random")
-      .mockReturnValue(0.99); // no gem roll
+    const random = jest.spyOn(Math, "random").mockReturnValue(0.99); // no gem roll
     let gem = false;
     await act(async () => {
       gem = result.current.applyAnswerReward(10, 3, 3);
@@ -599,9 +610,7 @@ describe("useGameEngine — prestige & offline offers", () => {
     });
     const s = result.current.gameState;
     expect(s.minerals).toBe(base + (offer ?? 0n) + (topUp ?? 0n));
-    expect(s.lifetimeMinerals).toBe(
-      result.current.gameState.lifetimeMinerals,
-    );
+    expect(s.lifetimeMinerals).toBe(result.current.gameState.lifetimeMinerals);
     expect(result.current.offlineDouble).toBeNull();
     expect(result.current.offlineTopUp).toBeNull();
     // Claiming again pays nothing.
@@ -644,7 +653,7 @@ describe("useGameEngine — cloud restore", () => {
       result.current.addTapGain(3n);
       await Promise.resolve();
     });
-    for (const blob of ["!!!not json!!!", "[1,2,3]", "\"a string\""] as const) {
+    for (const blob of ["!!!not json!!!", "[1,2,3]", '"a string"'] as const) {
       let ok = true;
       await act(async () => {
         ok = result.current.restoreFromBlob(blob as string);
@@ -666,50 +675,52 @@ describe("useGameEngine — save codes", () => {
     const code = result.current.exportSaveCode();
     expect(typeof code).toBe("string");
     expect(code.length).toBeGreaterThan(0);
-    let ok = false;
+    let imported: unknown = null;
     await act(async () => {
-      ok = result.current.importSaveCode(code);
+      imported = result.current.importSaveCode(code);
       await Promise.resolve();
     });
-    expect(ok).toBe(true);
+    expect(imported).not.toBeNull();
     expect(result.current.gameState.minerals).toBe(42n);
     expect(result.current.gameState.clickPower).toBe(3);
   });
 
   it("importSaveCode rejects garbage", async () => {
     const { result } = await renderEngine();
-    let ok = true;
+    let imported: unknown = {};
     await act(async () => {
-      ok = result.current.importSaveCode("!!!not-a-save-code!!!");
+      imported = result.current.importSaveCode("!!!not-a-save-code!!!");
       await Promise.resolve();
     });
-    expect(ok).toBe(false);
+    expect(imported).toBeNull();
   });
 });
 
 describe("useGameEngine — buy-all", () => {
   // Full PurchaseAffordability straight from a save (unlock flags
   // parameterized — the engine applies plans; gating lives in the UI).
-  const affordFrom = (s: SaveData, o = {}): Parameters<typeof computeBuyAll>[1] =>
-    ({
-      minerals: s.minerals,
-      gems: s.gems,
-      clickPower: s.clickPower,
-      minerPower: s.minerPower,
-      miners: s.miners,
-      fastMiners: s.fastMiners,
-      legendaryMiners: s.legendaryMiners,
-      gemChanceLevels: s.gemChanceLevels,
-      clickBoostLevels: s.clickBoostLevels,
-      comboResistLevels: s.comboResistLevels,
-      prestigeLevel: s.prestigeLevel,
-      lifetimeMinerals: s.lifetimeMinerals,
-      minerPowerUnlocked: true,
-      fastMinerUnlocked: true,
-      legendaryMinerUnlocked: true,
-      prestigeUnlocked: true,
-      ...o,
-    });
+  const affordFrom = (
+    s: SaveData,
+    o = {},
+  ): Parameters<typeof computeBuyAll>[1] => ({
+    minerals: s.minerals,
+    gems: s.gems,
+    clickPower: s.clickPower,
+    minerPower: s.minerPower,
+    miners: s.miners,
+    fastMiners: s.fastMiners,
+    legendaryMiners: s.legendaryMiners,
+    gemChanceLevels: s.gemChanceLevels,
+    clickBoostLevels: s.clickBoostLevels,
+    comboResistLevels: s.comboResistLevels,
+    prestigeLevel: s.prestigeLevel,
+    lifetimeMinerals: s.lifetimeMinerals,
+    minerPowerUnlocked: true,
+    fastMinerUnlocked: true,
+    legendaryMinerUnlocked: true,
+    prestigeUnlocked: true,
+    ...o,
+  });
 
   it("applies a minerals plan with exact per-level costs", async () => {
     const minerals = 50_000n;
@@ -749,7 +760,10 @@ describe("useGameEngine — buy-all", () => {
       minerals: 100_000n,
       lifetimeMinerals: 100_000n,
     });
-    const plan = computeBuyAll("minerals", affordFrom(rich.result.current.gameState));
+    const plan = computeBuyAll(
+      "minerals",
+      affordFrom(rich.result.current.gameState),
+    );
     expect(plan.clickPower + plan.minerPower).toBeGreaterThan(10);
     // ...applied to a state with only 98 minerals (1+16+81 = exactly three
     // power levels from clickPower 1).
