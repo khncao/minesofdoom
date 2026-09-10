@@ -308,7 +308,7 @@ of Pressable so rapid tapping doesn't double-render).
   compact strip, pulse suppressed under reduce-motion; autosave still runs
   in the background — the pill makes saving a first-class visible action
   rather than a menu dig (`components/SavePill.tsx`).
-- **Quality** — Jest suites over the pure modules (1082 tests), Maestro
+- **Quality** — Jest suites over the pure modules (1124 tests), Maestro
   e2e flows, **hermetic Playwright web e2e** (`pnpm run test:e2e:web`:
   boot / rewarded-ads / IAP specs against stubbed ad + Stripe/Pocketbase
   backends from `e2e/web/` — the boot spec doubles as the zero-backend
