@@ -326,6 +326,43 @@ repo is not equipped to make.
     upsert for `entitlements`, `linkDeviceRows` iterating the device's
     rows, and a two-product regression test against a
     production-faithful fake.
+24. **`web:stripe-script-retry-hang`** (pass 41, F41.1) — a real bug on the
+    web money path: `loadStripe()` caches its failure badly. When the
+    `js.stripe.com/v3` script tag fails once (CDN blip, adblock, flaky
+    connection), the error path clears the promise cache but leaves the
+    dead script element in `document.head`; the *next* `loadStripe()` call
+    finds that same element via `querySelector("script[data-stripe-v3]")`
+    and attaches `load`/`error` listeners to a script that has already
+    settled — neither event ever fires again, so the promise never
+    resolves. `purchase()` hangs at `await loadStripe()` *inside*
+    `useIap`'s in-flight guard, whose `.finally` never runs, so the
+    in-flight flag stays set and **every subsequent purchase attempt
+    returns silently and instantly** — the shop is dead for the page
+    session (a reload is the only recovery). The repo already contains
+    the correct pattern a file away: `loadGsiScript` (signinSdks.ts)
+    creates a fresh element per attempt, sets a load timeout, and rejects
+    (never hangs). Fix: mirror it — remove the failed element on error
+    (or create fresh per attempt) and add a load timeout. No test can
+    catch this today (the web e2e stubs the loader; the unit tests stub
+    `window.Stripe` present).
+25. **`account:me-network-wipes-token`** (pass 41, F41.2) — a real bug on
+    the account path, same class as F39.1 (a destructive local action
+    taken on an ambiguous remote result): `storeAuthProvider.me()` returns
+    `null` for both "the server said 401, this session is dead" and "the
+    network round-trip itself failed" (offline, DNS, the 20 s timeout,
+    a dead VPS) — `postJsonWithStatus` folds every transport failure into
+    the same `null` as a 401. `useAccount`'s mount-time restore reads
+    that `null` as "dead session" and **clears the stored 30-day token**.
+    A cold start while offline (or through one VPS blip) silently signs
+    the player out on that device — no toast, no way to tell, and the
+    server session that was still alive is now unreachable from the
+    client until a full re-sign-in. Every other ambiguous-result site in
+    this layer is non-destructive (cloud `pull` → "no backup", IAP verify
+    → queue, leaderboard → "unavailable"); this is the one place a `null`
+    deletes local state. Fix is small: make `me()` tri-state (dead /
+    unknown / account — `postJsonWithStatus` already has the status to
+    tell them apart) and wipe the token only on `dead` (an explicit 401);
+    a 200-with-malformed-body should also stop wiping (recorded, F41.5).
 
 **Context — closed since the passes ran** (so the ranking isn't
 re-derived from stale reads): streak grace (it.14), streak freezes +
@@ -5730,3 +5767,159 @@ of this commit — no external sources, no external claims. The platform
 freeze semantics are the standard RN-`AppState` / browser-tab behavior
 the repo's own comments already rely on; nothing new is asserted about
 them.
+
+### The external-code & ambiguous-result layer (pass 41 — code that doesn't come from this repo, and the local state that reacts to its ambiguous results, written 2026-09-10)
+
+Pass 38 audited the *bundled* dependency substrate (lockfile, pinnings,
+audit); this pass audits the code the shipped build executes from
+*outside* the bundle — the third-party scripts the web build injects or
+emits — and the local state that reacts to ambiguous remote results from
+the VPS. Live audit (2026-09-10): the two runtime script loaders
+(`loadStripe` in `iapProvider.web.ts`, `loadGsiScript`/
+`mintGoogleIdTokenWeb` in `signinSdks.ts`), the statically-emitted
+AdSense loader tag (`+html.tsx`), `postJsonWithStatus` + the
+`storeAuthProvider` outcome mapping in `auth.ts`, and the
+mount-time session restore in `hooks/useAccount.ts` (the one local
+consumer that acts destructively on an ambiguous `me()` result).
+
+**The inventory is three external origins, two of them
+runtime-injected:**
+
++ `js.stripe.com/v3` — injected at first web purchase (`loadStripe`),
+  cached in a module-level promise, retry-on-error by design ("let a
+  later purchase retry the load").
++ `accounts.google.com/gsi/client` — injected at first web sign-in tap
+  (`loadGsiScript`), fresh element per attempt, 15 s load timeout,
+  rejects on failure.
++ `pagead2.googlesyndication.com` — the AdSense loader tag is *emitted
+  statically into `+html.tsx`* at export time, not injected at runtime:
+  no loader promise, no retry surface, out of scope for this pass's
+  loader findings (its boot timing is pass 36/39's territory).
+
+**The non-defect invariants (audited, hold):**
+
++ *The GSI loader is the repo's correct pattern* and the fix template
+  for F41.1: fresh element per attempt (a failed element is never
+  re-attached to), an explicit load timeout that *rejects*, and a cancel
+  modeled as a typed result (`SignInCancelledError`) rather than an
+  error. It never hangs and never leaves a promise unresolved.
++ *Every other ambiguous-result site in the layer is non-destructive:*
+  cloud `pull` on a transport failure → "no backup found" (local save
+  untouched), IAP verify on failure → the pending-verify *queue*
+  (`enqueueVerify` is additive, replayed later), leaderboard on failure
+  → "unavailable", IAP `postJson` (which folds every non-2xx *and* every
+  transport failure into null) → null maps to "retry later / error
+  outcome", never to a local-state wipe. The session-restore `me()`
+  below is the one site where a `null` deletes local state.
++ *The fix machinery already exists:* `postJsonWithStatus` (auth.ts) is
+  the one fetch wrapper that keeps the HTTP status precisely because
+  "409/401 are distinct outcomes, not failure" — `me()`'s fix (F41.2)
+  only has to use the status it already receives.
+
+**F41.1 — `web:stripe-script-retry-hang` (Tier 1, #24 — real bug).**
+The Stripe loader's retry design is broken on the exact path it was
+written for. `loadStripe()` resolves its failure by clearing the
+promise cache (`stripePromise = null`) but leaving the dead `<script
+data-stripe-v3>` element in `document.head`. The next purchase calls
+`loadStripe()` again, `querySelector` finds that dead element, and the
+new promise attaches `load`/`error` listeners to a script that has
+*already settled* — a settled script never fires either event again, so
+the promise never resolves, and (unlike the GSI loader) there is no
+timeout to reject it. Consequences, all verified in
+`hooks/useIap.ts`: the hang is at `await loadStripe()` inside
+`provider.purchase`, so the in-flight guard's `.finally` never runs —
+`inFlightRef.current` stays true and `setPurchasing(id)` stays set, so
+*every subsequent purchase attempt returns silently and instantly* and
+the UI is stuck in the purchasing state. The shop is dead for the rest
+of the page session; a reload (which resets the module cache) is the
+only recovery. Trigger is one transient failure of a single CDN script
+(CDN blip, adblocker, flaky mobile connection) — on the web money
+path, the most traffic-sensitive surface in the app (Tier 1 #4's
+framing). No test can catch it today: the unit suite stubs
+`window.Stripe` present with `querySelector: () => null` (exactly the
+branch the bug lives in is never exercised), and the web e2e stubs the
+loader at the network layer. Fix: mirror the GSI loader one file away —
+on `error`, remove the element (or create fresh per attempt) and add a
+load timeout; keep the promise-cache reset. Small, web-only.
+
+**F41.2 — `account:me-network-wipes-token` (Tier 1, #25 — real bug).**
+Same defect class as F39.1 (a destructive local action on an ambiguous
+remote result), on the account path: `storeAuthProvider.me()` maps
+three distinct outcomes to the same `null` — an explicit 401 (the
+session *is* dead), *any* other non-2xx (500/502/503/504: the VPS
+restarted, is mid-deploy, or is down — the session is still alive), and
+a transport-level failure (offline, DNS, the 20 s abort — the
+round-trip never happened). `useAccount`'s mount-time restore reads the
+`null` as "dead/expired session: drop the stored token" and calls
+`clearToken()`. So a cold start while the device is offline — or through
+one 5-second VPS blip — silently destroys the stored 30-day token, the
+server-side session outlives the client's knowledge of it, and the
+player is signed out with no toast and no way to tell; recovery is a
+full re-sign-in, and a password-account player who can't recall the
+password is locked out of the *linked* Google/Apple session too (the
+claim rows survive — the server never copied anything — but the token
+is gone). Every other ambiguous-result site in this layer is
+non-destructive (the invariant above); this is the one place a `null`
+deletes local state. Fix: make `me()` tri-state (dead / unknown /
+account — `postJsonWithStatus` already returns the status to tell them
+apart) and wipe only on `dead` (an explicit 401); on `unknown`, keep the
+stored token, stay `loading`/`out` for this run, and re-attempt `me()`
+on the next launch or on a connectivity return. Small; touches `auth.ts`
+(the interface + store/dev-sim/noop providers), `useAccount`'s restore
+branch, and the `useAccount.test.ts` fakes.
+
+**F41.3 — `web:gsi-dead-element-accumulation` (Tier 3, recorded).** The
+GSI loader's one hygiene gap: on `onerror`/timeout it rejects but
+leaves the dead (or still-downloading, in the timeout case) script
+element in the head, and the *next* attempt injects a *second* element
+(rather than reusing or cleaning up) — so N consecutive failed sign-in
+attempts with a blocked/broken `accounts.google.com` leave N orphaned
+script tags. No functional impact: each attempt is independent, the
+`w.google?.accounts` short-circuit makes any later success skip
+injection entirely, and a backgrounded late-arriving load just sets
+`w.google` for the next read. Fix is two lines (remove the element in
+`onerror`/timeout cleanup); recorded, fold into the F41.1 fix if that
+touch runs anyway.
+
+**F41.4 — `web:stripe-null-cache` (Tier 3, recorded).** The sibling of
+F41.1's hang, on the other two branches of `loadStripe`: when
+`window.Stripe` exists but `safeConstruct` returns/throws to `null`, or
+the script's `load` event fires but the global is still undefined (a
+partial block that lets the tag "load" without executing), the promise
+resolves to `null` *and the module-level `stripePromise` cache keeps
+that null for the page's lifetime* — unlike the error branch, which
+resets the cache for a retry. Same "one bad load bricks the shop for
+the session" family, but the trigger is a hostile/partial loader
+environment rather than a plain network blip, and the player-visible
+outcome is the milder repeated `"error"` (the in-flight guard's
+`.finally` still runs, so the shop re-enables) rather than a hang.
+Fold into the F41.1 fix (reset the cache on a null resolve too).
+
+**F41.5 — `account:malformed-200-wipes-token` (recorded, sibling of
+F41.2).** Third of the three `me()` `null`s, named for the fix: a 200
+reply whose body fails `parseAccount` (a sidecar mid-deploy returning a
+partial shape, a response-body truncation) also wipes the stored token
+— a *successful* transport with a *live* session, deleted locally.
+Already covered by the F41.2 fix shape (parse failure maps to
+`unknown`, not `dead`); recorded separately so the fix's test matrix
+includes a 200-with-malformed-body case and not just the network/401
+split.
+
+**Not audited this pass:** the bundled-dependency substrate (pass 38 —
+lockfile, pinnings, the audit posture), the server-side sidecar code
+itself (pass 39 — `pb_hooks`/Stripe confirmation), the AdSense loader's
+*runtime* behavior (static tag; pass 36), and the native SDKs
+`google-signin`/`expo-apple-authentication` (their cancel/timeout
+contracts are the documented SDK behavior the module header pins; the
+lazy-`require` import-time safety is pass 30's platform-parity
+finding).
+
+**Source quality (pass 41).** Internal audit by construction (the same
+class as passes 30–40): F41.1–F41.5 are properties of this repo's
+`iapProvider.web.ts`, `signinSdks.ts`, `auth.ts`, and
+`hooks/useAccount.ts` as of this commit — no external sources, no
+external claims. The one non-repo fact relied on is the browser
+guarantee that a settled `<script>` element fires its `load`/`error`
+exactly once and never re-fires for late-attached listeners — the
+standard DOM script-element contract the fix template (fresh element
+per attempt) already assumes.
