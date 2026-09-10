@@ -671,6 +671,26 @@ endpoint contract) — no external sources, no external claims. New:
 and `cloud:stale-notice` F33.4 companions) → Tier 1, item 22;
 `account:web-value` (F33.1) stays a candidate, trigger-gated.
 
+2026-09 pass 34: the content & data-authoring layer — what
+"adding one thing" (a pack, a cosmetic, a string, a save) actually
+touches. Internal audit by construction (the same class as passes
+30–33): F34.1–F34.3 are properties of this repo's authoring / sync /
+persistence wiring as of this commit (`iaps.ts` + `stripe/price_sync.mjs`
++ `scripts/stripe/catalog.json`, `i18n/en.ts`/`es.ts`/`i18n.ts`,
+`useLocalStorage.ts`, the custom-skin store, `analytics.ts`) — no
+external sources, no external claims. Headline: the content-authoring
+path is one of the best-netted surfaces in the repo — the catalog is
+pinned five ways, the i18n tables exactly, the cosmetic-name i18n, the
+sound-asset naming + existence, and the save migration; the gaps are
+the one catalog copy that lives in a markdown ops table and the one
+placeholder price that passes every shape check. New candidates, both
+Tier 2 and both riding the pending `pack_skin` release step:
+`docs:sku-table-sync` (F34.1) and `release:price-placeholder-net`
+(F34.3). F34.2 is not a defect but the rule the pass found (version
+what crosses a process boundary, normalize what doesn't) — recorded so
+the next cross-boundary state makes the call consciously. Items adopted
+into a tier list move into `docs/todo.md`.
+
 ## The gap layers (formerly `docs/features.md` §7)
 
 Cross-checked against the idle/clicker genre roundups and math-game
@@ -4803,3 +4823,113 @@ F33.1–F33.4 are properties of this repo's account / data-plane wiring
 class as passes 30–32): no external sources, no external claims —
 every statement above is a property of the wiring as of this commit,
 verified against `src/` and `pb_hooks/`.
+
+### The content & data-authoring layer (pass 34 — what “adding one thing” actually touches, written 2026-09-10)
+
+Every pass before this one audited a layer the player *experiences*; none
+audited the *authoring* surface — the set of files that must change
+together when a piece of content is added, and the nets that catch the
+drift when one of them is forgotten. The stress test is the IAP catalog
+(26 products, mirrored across five surfaces); the wide shot is the local-
+state inventory (16 keys). The result: the content-authoring path is one
+of the best-netted parts of the repo — the gaps are in the one copy that
+lives in a markdown table and the one placeholder value that passes every
+shape check.
+
+**Fully-netted surfaces (verified against `src/` this pass).**
+Catalog ↔ `cosmetics.ts`: `iaps.test.ts` pins *exactly one pack per paid
+cosmetic, in catalog order per line* (both directions: a new paid
+`costGems > 0` cosmetic without a pack fails, an orphan pack fails), and
+blurbs/price labels resolve from the gem shop (`getIapPackCosmetic`), so
+the “also earnable in-game” half of the F2P-viability claim is
+mechanical, not a promise. Catalog ↔ `scripts/stripe/catalog.json`:
+`stripeCatalog.test.ts` pins ids, store ids, names, price tiers *and*
+blurbs. Catalog ↔ `pb_hooks` `PRODUCTS`: `logic.test.js` pins an exact
+equality against `IAP_STORE_IDS`. Catalog ↔ `storeConfig.stripe.prices`:
+key coverage (every product id, once) + shape. Content names ↔ i18n:
+`content.test.ts` walks nine data modules (depth tiers, goal tiers +
+goals, achievements, records, IAP products, outfits, pickaxes, cave
+themes, legal docs) and pins the Spanish table exactly — key set,
+`detail`/`body` presence, non-empty — while the English side *is* the
+data modules (no EN table by design), so a name cannot drift without the
+item; `i18n.test.ts` pins the `es.ts` key set against `en.ts` plus
+per-key `{placeholder}` sets. Pickaxe swing sounds: `cosmetics.test.ts`
+pins the `audio/pickaxe-<id>.wav` naming convention *and* file
+existence. Save schema: `game.test.ts` walks `migrateSaveData` (legacy
+no-version, junk version, field-level clamps) — and the one cross-process
+coupling in that schema is pinned too (F34.2).
+
+**F34.1 — `docs:sku-table-sync` (candidate; rides the pack_skin release
+step).** `docs/store-integration.md` §2.1 is titled “The product table
+(create these)” — it is the ops instruction sheet for creating the store
+products — and it is the ONLY catalog copy no test reads. The other five
+surfaces all moved when the 26th row (`packSkin`) landed 2026-09-10:
+`PACK_SPECS` (26), `catalog.json` (26), `pb_hooks` `PRODUCTS` (26),
+`storeConfig.stripe.prices` (26 keys), the content-i18n tables (`iap:
+packSkin`, pinned) — the §2.1 table still has 25 rows, and the missing
+one is exactly the SKU the pending release step (“create the pack_skin
+Play Billing SKU”) exists to create; the instruction sheet under-creates
+the catalog by one product. The two documents also disagree on the
+maintenance model: `iaps.ts` asserts the table “is generated from this
+catalog”, §2.1 asserts manual sync (“Adjust the tiers in `iaps.ts` and
+update this table”) — the drift proves the manual claim is the true one.
+Fix: add the 26th row and either pin the table with a small test (parse
+the markdown table, diff against `IAP_PRODUCT_LIST`) or correct the
+`iaps.ts` docstring so the next author knows the table is a claim, not a
+fact.
+
+**F34.2 — The versioning posture is bimodal, and strictness tracks the
+process boundary — which is the right rule, stated here for the next
+author.** Of the 16 local state keys (`save`, `settings`,
+`equationSettings`, `analytics`, `crashLog`, `adRewards`, `dailyBonus`,
+`dailyEquation`, `weeklyChallenge`, `iap` entitlements, `customSkin`,
+`cloudSaveEnabled`, `cloudSaveLastSync`, `iapDeviceId`, the auth token,
+the i18n preference) exactly ONE is versioned: `save` (`saveVersion` 11,
+the key-0→11 migration walk, each step lenient and clamped) — and it is
+the only one that crosses a process boundary: `pb_hooks`
+`validateCloudPush` rejects any blob whose `saveVersion` exceeds
+`MAX_SAVE_VERSION`, and `MAX_SAVE_VERSION` (11) is pinned to the client’s
+`saveVersion` by `logic.test.js`, so a client bump that outruns the
+deploy fails *safe* (push rejected, nothing stored the server can’t
+understand) rather than corrupt. Every other key is unversioned by
+deliberate leniency — `customSkin` re-validates its 256 cells on every
+load, `analytics`/`crashLog` default new fields in, the save code never
+bumps its `MOD1` prefix (the F32.2 ride-alongs are optional fields;
+legacy codes stay byte-identical). Companion note on that walk itself: `migrateSaveData` keys the migration map on the numeric version and advances by `version++`, so the keys must be consecutive 0..10 — and the literal defines key 7 *after* 8/9/10 (order-independent today, but a readability trap: the "add a migration entry here" instruction reads as append, and a future author who skips a version number silently under-migrates via the `migrate == null` warn-and-break). Not a defect: the risk it documents is
+that the next piece of state to cross a boundary (the F33.x erasure
+path’s audit trail, a cohort upload if `telemetry:opt-in-cohort` ever
+lands) must make the versioning decision consciously, and the rule to
+apply is the one this pass found: **version what crosses a boundary,
+normalize what doesn’t.**
+
+**F34.3 — `release:price-placeholder-net` (candidate; rides the same
+release step).** `storeConfig.stripe.prices.packSkin` is
+`"price_PENDINGPACKSKIN"` (the known pending release step), and every
+net in the repo lets it through: the value shape regex
+`/^price_[A-Za-z0-9]+$/` matches the placeholder, the key-coverage pin
+passes (the key exists), and `syncStripeVerify.test.ts` builds its mock
+Stripe from the same `storeConfig` — so `verify` passes *against
+itself*. The first net that would actually see the placeholder is the
+live Stripe checkout. A three-line test (no price value carries a
+placeholder marker) closes the hole at the cost of the one release step
+it shadows. Companion note: `syncStripe.mjs`’s repo parser reads only
+the FIRST `prices:` block (the test-mode one); the `stripeProd` block is
+populated by a manual paste at the launch flip, and nothing in-repo
+validates that a pasted `--live` snippet parses — the flip step is
+“paste and run `verify`”, which is adequate for a one-time launch action
+and noted here only so the bimodal rule of F34.2 doesn’t get applied to
+the wrong block.
+
+**Not re-audited:** equation shapes & difficulty content (pass 15), the
+cosmetic economy (16), the goal / achievement content itself (23),
+telemetry label taxonomy (26), the pacing curves the content sits on
+(19), and the out-of-repo ops state (the live Play / Stripe consoles —
+`syncStripe verify` is the net for the Stripe half, the Play half is
+`play.mjs` + console, by design out of jest). Play listings are
+console-managed with no repo surface, so they are not a sync axis.
+
+**Source quality (pass 34).** Internal audit by construction (the same
+class as passes 30–33): no external sources, no external claims —
+every statement above is a property of the authoring / sync /
+persistence wiring as of this commit, verified against `src/`,
+`scripts/stripe/`, `stripe/`, and `pb_hooks/`.
