@@ -36,15 +36,10 @@ describe("providerKindsForPlatform (hidden until ready)", () => {
     expect(providerKindsForPlatform("web")).toEqual(["google"]);
   });
   it("android: Google only (Sign in with Apple is iOS-only)", () => {
-    expect(providerKindsForPlatform("android")).toEqual([
-      "google",
-    ]);
+    expect(providerKindsForPlatform("android")).toEqual(["google"]);
   });
   it("ios: Google and Apple side by side", () => {
-    expect(providerKindsForPlatform("ios")).toEqual([
-      "google",
-      "apple",
-    ]);
+    expect(providerKindsForPlatform("ios")).toEqual(["google", "apple"]);
   });
 });
 
@@ -82,9 +77,7 @@ describe("mintIdToken: google", () => {
 
   it("a cancelled response (v16 resolves, not throws) is a SignInCancelledError", async () => {
     (GoogleSignin.signIn as jest.Mock).mockResolvedValue({ type: "cancelled" });
-    await expect(mintIdToken("google")).rejects.toThrow(
-      SignInCancelledError,
-    );
+    await expect(mintIdToken("google")).rejects.toThrow(SignInCancelledError);
   });
 
   it("a success without an idToken is a real failure", async () => {
@@ -96,9 +89,7 @@ describe("mintIdToken: google", () => {
   });
 
   it("an SDK rejection propagates as a real failure", async () => {
-    (GoogleSignin.signIn as jest.Mock).mockRejectedValue(
-      new Error("boom"),
-    );
+    (GoogleSignin.signIn as jest.Mock).mockRejectedValue(new Error("boom"));
     await expect(mintIdToken("google")).rejects.toThrow("boom");
   });
 });
@@ -115,9 +106,7 @@ describe("mintIdToken: apple", () => {
     });
     await expect(mintIdToken("apple")).resolves.toBe("a-id-token");
     expect(AppleAuthentication.signInAsync).toHaveBeenCalledWith({
-      requestedScopes: [
-        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-      ],
+      requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME],
     });
   });
 
@@ -127,18 +116,14 @@ describe("mintIdToken: apple", () => {
         code: "ERR_REQUEST_CANCELED",
       }),
     );
-    await expect(mintIdToken("apple")).rejects.toThrow(
-      SignInCancelledError,
-    );
+    await expect(mintIdToken("apple")).rejects.toThrow(SignInCancelledError);
   });
 
   it("a cancel without a code (message only) is still recognized", async () => {
     (AppleAuthentication.signInAsync as jest.Mock).mockRejectedValue(
       new Error("ERR_REQUEST_CANCELED"),
     );
-    await expect(mintIdToken("apple")).rejects.toThrow(
-      SignInCancelledError,
-    );
+    await expect(mintIdToken("apple")).rejects.toThrow(SignInCancelledError);
   });
 
   it("an SDK rejection that is NOT a cancel propagates", async () => {
@@ -153,46 +138,51 @@ describe("mintIdToken: apple", () => {
       identityToken: null,
       user: null,
     });
-    await expect(mintIdToken("apple")).rejects.toThrow(
-      "no identityToken",
-    );
+    await expect(mintIdToken("apple")).rejects.toThrow("no identityToken");
   });
 });
 
 // -- the web Google path (Google Identity Services) -------------------------
 
+/** The fake's captured initialize() options + prompt handle, as the
+ *  ID-client flow drives them: the module registers the callbacks, then
+ *  calls prompt(), and the test decides which callback fires. */
 type GsiCaptured = {
   opts?: {
-    callback: (r: { access_token?: unknown } | null) => void;
+    client_id?: unknown;
+    callback: (r: { credential?: unknown }) => void;
     error_callback: (e: unknown) => void;
   };
 };
 
 describe("mintGoogleIdTokenWeb (Google Identity Services)", () => {
   let fake: {
-    initTokenClient: jest.Mock;
+    initialize: jest.Mock;
+    prompt: jest.Mock;
     window: Record<string, unknown>;
   };
   let captured: GsiCaptured;
 
-  /** Expose the fake GSI oauth2 API on the current fake window (the
-   *  initTokenClient mock from beforeEach is already capturing). */
+  /** Expose the fake GSI id API on the current fake window (the
+   *  initialize mock from beforeEach is already capturing). */
   function installGsi() {
-    fake.window.google = { accounts: { oauth2: fake } };
+    fake.window.google = { accounts: { id: fake } };
   }
 
   beforeEach(() => {
-    fake = { initTokenClient: jest.fn(), window: {} };
+    fake = { initialize: jest.fn(), prompt: jest.fn(), window: {} };
     captured = {};
-    fake.initTokenClient = jest.fn(
-      (opts: NonNullable<GsiCaptured["opts"]>) => {
-        captured.opts = {
-          callback: opts.callback,
-          error_callback: opts.error_callback,
-        };
-        return { requestAccessToken: jest.fn() };
-      },
-    );
+    fake.initialize = jest.fn((opts: NonNullable<GsiCaptured["opts"]>) => {
+      captured.opts = {
+        client_id: opts.client_id,
+        callback: opts.callback,
+        error_callback: opts.error_callback as (e: unknown) => void,
+      };
+      // `initialize` returns the client AND the namespace exposes
+      // prompt() — the module calls the documented namespace form, so
+      // that's what the fake carries on the window side too.
+      return { prompt: () => {} };
+    });
     (globalThis as Record<string, unknown>).window = fake.window;
   });
 
@@ -200,36 +190,50 @@ describe("mintGoogleIdTokenWeb (Google Identity Services)", () => {
     delete (globalThis as Record<string, unknown>).window;
   });
 
-  it("resolves the JWT the token-client flow hands back (the openid-scope access_token IS the idToken)", async () => {
+  it("resolves the signed idToken credential (the ID-client flow, not the token API)", async () => {
     installGsi();
     const promise = mintGoogleIdTokenWeb();
-    // Pin the client id the sidecar's GOOGLE_CLIENT_ID must match.
-    expect(fake.initTokenClient).toHaveBeenCalledWith(
+    // Pin the client id the sidecar's GOOGLE_CLIENT_ID must match, and
+    // pin the flow: initialize + prompt (namespace form).
+    expect(fake.initialize).toHaveBeenCalledWith(
       expect.objectContaining({
         client_id:
           "94426274846-7vsqc2habc84b0upion6clsdnl5cqj1f.apps.googleusercontent.com",
-        scope: "openid email profile",
       }),
     );
-    captured.opts?.callback({ access_token: "web-id-jwt" });
+    expect(fake.prompt).toHaveBeenCalledTimes(1);
+    captured.opts?.callback({ credential: "web-id-jwt" });
     await expect(promise).resolves.toBe("web-id-jwt");
   });
 
-  it("popup_closed_by_user is a SignInCancelledError (the UI stays quiet)", async () => {
+  it("the legacy string cancel code is a SignInCancelledError (the UI stays quiet)", async () => {
     installGsi();
     const promise = mintGoogleIdTokenWeb();
     captured.opts?.error_callback("popup_closed_by_user");
     await expect(promise).rejects.toThrow(SignInCancelledError);
   });
 
+  it("the object-shape cancel ({ type: 'popup_closed' }) is a cancel too", async () => {
+    installGsi();
+    const promise = mintGoogleIdTokenWeb();
+    captured.opts?.error_callback({
+      type: "popup_closed",
+      message: "The popup was closed by the user.",
+    });
+    await expect(promise).rejects.toThrow(SignInCancelledError);
+  });
+
   it("any other GSI error is a real failure", async () => {
     installGsi();
     const promise = mintGoogleIdTokenWeb();
-    captured.opts?.error_callback("access_denied");
-    await expect(promise).rejects.toThrow("access_denied");
+    captured.opts?.error_callback({
+      type: "popup_failed_to_open",
+      message: "blocked",
+    });
+    await expect(promise).rejects.toThrow("popup_failed_to_open");
   });
 
-  it("a callback with no usable token is a real failure", async () => {
+  it("a callback with no usable credential is a real failure", async () => {
     installGsi();
     const promise = mintGoogleIdTokenWeb();
     captured.opts?.callback({});
@@ -251,17 +255,18 @@ describe("mintGoogleIdTokenWeb (Google Identity Services)", () => {
       createElement: () => fakeScript,
       head: {
         appendChild: () => {
-          fake.window.google = { accounts: { oauth2: fake } };
+          fake.window.google = { accounts: { id: fake } };
           (fakeScript.onload as () => void)();
         },
       },
     };
     const promise = mintGoogleIdTokenWeb();
     expect(fakeScript.src).toBe("https://accounts.google.com/gsi/client");
-    // initTokenClient runs after the script-load await resolves.
+    // initialize runs after the script-load await resolves.
     await flushMicrotasks();
     expect(captured.opts).toBeDefined();
-    captured.opts?.callback({ access_token: "web-id-jwt-2" });
+    expect(fake.prompt).toHaveBeenCalledTimes(1);
+    captured.opts?.callback({ credential: "web-id-jwt-2" });
     await expect(promise).resolves.toBe("web-id-jwt-2");
   });
 });
