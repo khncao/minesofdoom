@@ -1,4 +1,11 @@
-import { memo, MutableRefObject, RefObject, useEffect, useRef, useState } from "react";
+import {
+  memo,
+  MutableRefObject,
+  RefObject,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Animated, Easing, Image, Text, View } from "react-native";
 import { useT } from "src/hooks/useI18n";
 import Miner from "./Miner";
@@ -7,11 +14,12 @@ import DebrisParticles, {
 } from "src/components/DebrisParticles";
 import BlockBreak, { BlockBreakRef } from "src/components/BlockBreak";
 import CaveBackground from "src/components/CaveBackground";
-import FloatingTextLayer, {
-  FloatingTextRef,
-} from "./FloatingTextLayer";
+import FloatingTextLayer, { FloatingTextRef } from "./FloatingTextLayer";
 import { formatNumber } from "src/utils/format";
-import { gemSpriteUri, mineralChunkSpriteUri } from "src/utils/graphics/pixelArt";
+import {
+  gemSpriteUri,
+  mineralChunkSpriteUri,
+} from "src/utils/graphics/pixelArt";
 import { emojis } from "src/utils/graphics/emojis";
 import { rosterSeed } from "../cosmetics";
 import { styles } from "../styles";
@@ -222,10 +230,7 @@ const MiningCanvas = memo(function MiningCanvas({
               {emojis.gem}
             </Text>
           ) : (
-            <Image
-              source={{ uri: gemSpriteUri() }}
-              style={CURRENCY_ICON}
-            />
+            <Image source={{ uri: gemSpriteUri() }} style={CURRENCY_ICON} />
           )}
           <Text style={{ ...styles.text, alignSelf: "center" }}>
             {formatNumber(gems)}
@@ -244,7 +249,11 @@ const MiningCanvas = memo(function MiningCanvas({
             reduceMotion={reduceMotion}
             emojiArt={emojiArt}
           />
-          <DebrisParticles ref={debrisRef} reduceMotion={reduceMotion} emojiArt={emojiArt} />
+          <DebrisParticles
+            ref={debrisRef}
+            reduceMotion={reduceMotion}
+            emojiArt={emojiArt}
+          />
           <BlockBreak ref={blockBreakRef} />
         </View>
         <View

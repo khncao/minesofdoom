@@ -147,13 +147,19 @@ describe("mined path + easter eggs", () => {
 
   test("dark wall edges flank the path in every strip", () => {
     const edge = pathEdgeColor(TINT);
-    const leftX =
-      (CAVE_PATH_TILES[0] - 1) * CAVE_TILE_PX + CAVE_TILE_PX - 3;
+    const leftX = (CAVE_PATH_TILES[0] - 1) * CAVE_TILE_PX + CAVE_TILE_PX - 3;
     const rightX =
       (CAVE_PATH_TILES[CAVE_PATH_TILES.length - 1] + 1) * CAVE_TILE_PX;
     for (const grid of allRows()) {
       for (const row of grid) {
-        for (const x of [leftX, leftX + 1, leftX + 2, rightX, rightX + 1, rightX + 2]) {
+        for (const x of [
+          leftX,
+          leftX + 1,
+          leftX + 2,
+          rightX,
+          rightX + 1,
+          rightX + 2,
+        ]) {
           expect(row[x]).toBe(edge);
         }
       }
@@ -206,17 +212,16 @@ describe("continuous descent (background rework)", () => {
         CAVE_TILE_PX,
     );
 
-  test("rowStart floors the descent into rows; meters-per-row is a whole row",
-    () => {
-      expect(CAVE_METERS_PER_ROW).toBe(CAVE_TILE_PX / CAVE_PX_PER_METER);
-      expect(CAVE_METERS_PER_ROW % 1).toBe(0);
-      expect(caveRowStartForDepth(0)).toBe(0);
-      expect(caveRowStartForDepth(3)).toBe(0);
-      expect(caveRowStartForDepth(4)).toBe(1);
-      expect(caveRowStartForDepth(7)).toBe(1);
-      expect(caveRowStartForDepth(8)).toBe(2);
-      expect(caveRowStartForDepth(500)).toBe(125);
-    });
+  test("rowStart floors the descent into rows; meters-per-row is a whole row", () => {
+    expect(CAVE_METERS_PER_ROW).toBe(CAVE_TILE_PX / CAVE_PX_PER_METER);
+    expect(CAVE_METERS_PER_ROW % 1).toBe(0);
+    expect(caveRowStartForDepth(0)).toBe(0);
+    expect(caveRowStartForDepth(3)).toBe(0);
+    expect(caveRowStartForDepth(4)).toBe(1);
+    expect(caveRowStartForDepth(7)).toBe(1);
+    expect(caveRowStartForDepth(8)).toBe(2);
+    expect(caveRowStartForDepth(500)).toBe(125);
+  });
 
   test("translate stays within one row of the rowStart top", () => {
     for (const d of [0, 1, 2, 3, 4, 5, 9, 49, 50, 1000, 1234567]) {
@@ -226,63 +231,65 @@ describe("continuous descent (background rework)", () => {
     }
   });
 
-  test("the row visible at a screen line equals floor of the world pixel",
-    () => {
-      // Screen line y shows cave row floor((CAVE_PX_PER_METER * depth + y)
-      // / CAVE_TILE_PX) — the camera sits exactly at depth's world pixel.
-      for (const d of [0, 1, 3, 4, 5, 10, 50, 999]) {
-        for (const y of [0, 12, 23, 24, 57, 300]) {
-          expect(topRowAt(d, y)).toBe(
-            Math.floor((CAVE_PX_PER_METER * d + y) / CAVE_TILE_PX),
-          );
-        }
-      }
-    });
-
-  test("content only ever moves up as depth grows (monotone descent)", () => {
-      for (let d = 0; d < 400; d++) {
-        for (const y of [0, 13, 287, 600]) {
-          expect(topRowAt(d + 1, y)).toBeGreaterThanOrEqual(topRowAt(d, y));
-        }
-      }
-    });
-
-  test("a full row of descent re-indexes exactly one strip row (seamless)", () => {
-      // Crossing CAVE_METERS_PER_ROW meters: rowStart +1, and the
-      // compensation (target + delta) is exactly one row below the new
-      // rowStart top — same content the old rows showed, then the slide.
-      const delta = CAVE_PX_PER_METER * CAVE_METERS_PER_ROW; // one row
-      for (const d of [0, 1, 2, 3, 5, 100]) {
-        const before = { s: caveRowStartForDepth(d), t: caveTranslateForDepth(d, caveRowStartForDepth(d)) };
-        const d2 = d + CAVE_METERS_PER_ROW;
-        const s2 = caveRowStartForDepth(d2);
-        const t2 = caveTranslateForDepth(d2, s2);
-        expect(s2).toBe(before.s + 1);
-        // Continuity: value advanced by the re-indexed row (target + delta)
-        // shows the SAME content as the old (rowStart, translate) pair.
-        const compensated = t2 + delta;
-        expect(compensated).toBe(before.t + 1 * CAVE_TILE_PX);
-      }
-    });
-
-  test("rows are addressed by absolute depth: strip cycle starts at 0", () => {
-      // The strip renders rows rowStart*4, +1, +2, … so the top row's
-      // texture cycle position is always 0 (as in the old depth+i model),
-      // and the next tier's rock is visible below before the tint flips.
-      for (const d of [0, 4, 8, 10, 52, 200]) {
-        const s = caveRowStartForDepth(d);
-        expect((s * CAVE_METERS_PER_ROW) % CAVE_STRIPS_PER_TIER).toBe(0);
-      }
-    });
-
-  test("bigint and number inputs agree (depth arrives as bigint)", () => {
-      for (const d of [0n, 3n, 4n, 1999n, 123456n]) {
-        expect(caveRowStartForDepth(d)).toBe(caveRowStartForDepth(Number(d)));
-        expect(caveTranslateForDepth(d, caveRowStartForDepth(d))).toBe(
-          caveTranslateForDepth(Number(d), caveRowStartForDepth(Number(d))),
+  test("the row visible at a screen line equals floor of the world pixel", () => {
+    // Screen line y shows cave row floor((CAVE_PX_PER_METER * depth + y)
+    // / CAVE_TILE_PX) — the camera sits exactly at depth's world pixel.
+    for (const d of [0, 1, 3, 4, 5, 10, 50, 999]) {
+      for (const y of [0, 12, 23, 24, 57, 300]) {
+        expect(topRowAt(d, y)).toBe(
+          Math.floor((CAVE_PX_PER_METER * d + y) / CAVE_TILE_PX),
         );
       }
-    });
+    }
+  });
+
+  test("content only ever moves up as depth grows (monotone descent)", () => {
+    for (let d = 0; d < 400; d++) {
+      for (const y of [0, 13, 287, 600]) {
+        expect(topRowAt(d + 1, y)).toBeGreaterThanOrEqual(topRowAt(d, y));
+      }
+    }
+  });
+
+  test("a full row of descent re-indexes exactly one strip row (seamless)", () => {
+    // Crossing CAVE_METERS_PER_ROW meters: rowStart +1, and the
+    // compensation (target + delta) is exactly one row below the new
+    // rowStart top — same content the old rows showed, then the slide.
+    const delta = CAVE_PX_PER_METER * CAVE_METERS_PER_ROW; // one row
+    for (const d of [0, 1, 2, 3, 5, 100]) {
+      const before = {
+        s: caveRowStartForDepth(d),
+        t: caveTranslateForDepth(d, caveRowStartForDepth(d)),
+      };
+      const d2 = d + CAVE_METERS_PER_ROW;
+      const s2 = caveRowStartForDepth(d2);
+      const t2 = caveTranslateForDepth(d2, s2);
+      expect(s2).toBe(before.s + 1);
+      // Continuity: value advanced by the re-indexed row (target + delta)
+      // shows the SAME content as the old (rowStart, translate) pair.
+      const compensated = t2 + delta;
+      expect(compensated).toBe(before.t + 1 * CAVE_TILE_PX);
+    }
+  });
+
+  test("rows are addressed by absolute depth: strip cycle starts at 0", () => {
+    // The strip renders rows rowStart*4, +1, +2, … so the top row's
+    // texture cycle position is always 0 (as in the old depth+i model),
+    // and the next tier's rock is visible below before the tint flips.
+    for (const d of [0, 4, 8, 10, 52, 200]) {
+      const s = caveRowStartForDepth(d);
+      expect((s * CAVE_METERS_PER_ROW) % CAVE_STRIPS_PER_TIER).toBe(0);
+    }
+  });
+
+  test("bigint and number inputs agree (depth arrives as bigint)", () => {
+    for (const d of [0n, 3n, 4n, 1999n, 123456n]) {
+      expect(caveRowStartForDepth(d)).toBe(caveRowStartForDepth(Number(d)));
+      expect(caveTranslateForDepth(d, caveRowStartForDepth(d))).toBe(
+        caveTranslateForDepth(Number(d), caveRowStartForDepth(Number(d))),
+      );
+    }
+  });
 });
 
 describe("caveRowUri", () => {

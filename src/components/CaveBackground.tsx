@@ -1,4 +1,10 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Animated, Image, StyleSheet, View } from "react-native";
 import {
   CAVE_METERS_PER_ROW,
@@ -152,7 +158,11 @@ const styles = StyleSheet.create({
   container: {
     // RN 0.86 removed StyleSheet.absoluteFillObject; keep the literal
     // instead (absoluteFill is an opaque array, not spreadable).
-    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     overflow: "hidden",
     opacity: 0.35,
   },

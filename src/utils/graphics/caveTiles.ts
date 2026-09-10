@@ -111,11 +111,7 @@ function toHexColor(r: number, g: number, b: number): string {
 export function mixHex(a: string, b: string, t: number): string {
   const [ar, ag, ab] = hexToRgb(a);
   const [br, bg, bb] = hexToRgb(b);
-  return toHexColor(
-    ar + (br - ar) * t,
-    ag + (bg - ag) * t,
-    ab + (bb - ab) * t,
-  );
+  return toHexColor(ar + (br - ar) * t, ag + (bg - ag) * t, ab + (bb - ab) * t);
 }
 
 /** The three rock shades derived from a tier tint. */
@@ -142,7 +138,7 @@ function drawRockTile(
       const r = rng();
       const shade = r < 0.3 ? dark : r < 0.8 ? base : light;
       // Slight vertical falloff so strips read as strata, not static.
-      const color = mixHex(shade, "#000000", (by * 2) / CAVE_TILE_PX * 0.35);
+      const color = mixHex(shade, "#000000", ((by * 2) / CAVE_TILE_PX) * 0.35);
       setPixel(grid, x0 + bx * 2, by * 2, color);
       setPixel(grid, x0 + bx * 2 + 1, by * 2, color);
       setPixel(grid, x0 + bx * 2, by * 2 + 1, color);
@@ -279,10 +275,7 @@ export function buildCaveRow(
   tint: string,
 ): PixelGrid {
   const t = Math.max(0, Math.min(tier, GEM_CHANCE.length - 1));
-  const grid = createGrid(
-    CAVE_TILES_PER_ROW * CAVE_TILE_PX,
-    CAVE_TILE_PX,
-  );
+  const grid = createGrid(CAVE_TILES_PER_ROW * CAVE_TILE_PX, CAVE_TILE_PX);
   const shades = rockShades(tint);
   const gem = gemColor(tint);
   const egg = eggForStrip(t, strip);
