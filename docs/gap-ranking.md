@@ -734,6 +734,26 @@ search traffic exists before the release), so it stays Tier 2,
 trigger-gated on the first production web release. Items adopted into a
 tier list move into `docs/todo.md`.
 
+2026-09 pass 37: the numeric ledger layer — where a value crosses a
+Number/BigInt boundary and what happens to its precision. Pass 19 audited
+the cost curves as pacing, pass 21 audited the save blob as persistence;
+neither asked which number TYPE carries the value. Internal audit by
+construction (the same class as passes 30–36): F37.1–F37.3 are
+properties of this repo's economy code as of this commit (`game.ts`,
+`useGameEngine.ts`, `saveCode.ts`, `utils/format.ts`, `freePath.ts`) —
+no external sources, no external claims. Headline: the design is
+strong and no player-visible defect — three bigint counters (minerals,
+lifetimeMinerals, maxDepth; minerals went bigint at save migration v10)
+with ONE exact float bridge (`mulFloats`, scale-100 half-up), shared
+decimal-string serialization across the three persistence surfaces, and
+exact-integer bigint formatting in both notation modes. The gaps are
+nets, not bugs: the bridge's multiple-of-0.01 invariant is asserted
+nowhere (F37.1), the one unclamped field in `buildSaveData` is the gem
+wallet (F37.3), and the number-typed quartic costs cross 2^53 at level
+9742 — internally consistent, recorded for a future content pass
+(F37.2). No new Tier 1. Items adopted into a tier list move into
+`docs/todo.md`.
+
 ## The gap layers (formerly `docs/features.md` §7)
 
 Cross-checked against the idle/clicker genre roundups and math-game
@@ -5155,3 +5175,131 @@ external sources, no external claims — every statement above is a
 property of this repo's web export as of this commit, verified against
 `public/`, `src/app/+html.tsx`, `app.config.ts`, the exported `dist/`,
 and `docs/store-integration.md` for the domain.
+
+### The numeric ledger layer (pass 37 — where a value crosses a Number/BigInt boundary, written 2026-09-10)
+
+Pass 19 audited the cost curves as pacing and pass 21 audited the save
+blob as persistence; neither asked which number TYPE carries the value
+at each boundary — and this game deliberately splits: three counters
+are `bigint`, everything else is `number`. This pass audits every
+Number↔BigInt crossing in the economy. Internal audit by construction
+(the same class as passes 30–36): every statement below is a property
+of this repo's economy code as of this commit (`game.ts`,
+`useGameEngine.ts`, `saveCode.ts`, `utils/format.ts`, `freePath.ts`,
+`game.test.ts`) — no external sources, no external claims.
+
+**The design is strong; the boundaries are deliberate:**
+
++ Exactly three `bigint` fields on `SaveData` — `minerals`,
+  `lifetimeMinerals`, `maxDepth` (minerals went bigint at save
+  migration v10; `buildSaveData.mineral()` still accepts a legacy
+  pre-v10 number, flooring it — "the value is what the player last
+  saw, nothing can be recovered", as the comment says). Every other
+  economic field (gems, counts, levels, costs' *inputs*) is `number`.
++ Every float × bigint multiplication in the game goes through ONE
+  bridge, `mulFloats` (game.ts: `FLOAT_SCALE = 100n`, half-up final
+  division, zero short-circuit). Callers: passive income
+  (× prestige), answer payout (× depth-tier clickBonus, × prestige),
+  the offline haul and its top-up (× the same prestige multiplier).
+  The engine composes INTEGER factors first —
+  `BigInt(value) * BigInt(clickPower) * BigInt(comboMultiplier) *
+  BigInt(clickBoost)` — and only then passes the float factors through
+  `mulFloats`; the combo multiplier is *designed* integer
+  (`1 + floor(combo / 10)`), which is exactly what makes that first
+  product exact.
++ Both persistence surfaces share one JSON-safe stringify
+  (`serializeSaveData`, bigint → decimal string) — the AsyncStorage
+  save, the save-code encoder, and the cloud snapshot all ride it,
+  and the decode side (`mineral()`) parse-guards the strings
+  (corrupt → fallback, never thrown). So a bigint can only ever
+  re-enter the ledger as an exact integer.
++ The display side is exact too: `format.ts` has a dedicated bigint
+  path in BOTH notation modes (compact scales by exact `1000n **
+  tier` integer division; plain is a regex over the digit string —
+  no float round-trip at any magnitude), mirroring the number path's
+  value law so the two modes never disagree.
++ The guardrail-1 free-path benchmark (`freePath.ts`) already runs
+  its cost-side arithmetic in `BigInt` (verified in
+  `freePath.test.ts`), so the benchmark is unaffected by every
+  boundary below.
+
+**F37.1 — `ledger:mulfloats-net` (Tier 2).** The bridge's exactness
+rests on an invariant that is asserted nowhere: every float fed to
+`mulFloats` must be an exact multiple of 0.01 (scale 100). Today that
+holds — `DEPTH_TIERS` clickBonus `{1, 1.1, 1.25, 1.5, 2}`,
+`PRESTIGE_LEVELS` multipliers `{1, 1.5, 2, 2.5, 3.5, 5}`, and the
+offline path's `1`/`2` — but (a) `mulFloats` has no direct unit test
+(the only mention in `game.test.ts` is a comment at its
+`getPendingAnswerGain` site), and (b) nothing checks the two tables
+against the scale-100 rule, so a future ×1.15 or ×1.05 line would
+silently introduce a 1/20000–1/100 rounding error, visible only as a
+suspicious gain. The half-up rule's comment ("minerals are an idle
+counter, never a currency ledger, so a half mineral is worth the
+determinism") documents the intent in prose only. The net is cheap:
+direct `mulFloats` unit tests (exact cases incl. the `1n × [1.1, 1.5]`
+half-up example from its own doc, the zero short-circuit) + table tests
+asserting every caller-fed value satisfies `f * 100` is integral
+(same "can't drift" class as `storeConfig.test.ts`, not a new net).
+
+**F37.2 — `ledger:number-boundary` (recorded, not a defect).** The
+quartic-family cost functions (`level⁴` click/miner curves,
+`1000·current²` miner power, the `n²` gem lines) and
+`getMineralsPerSec` (a `miners × minerPower`-class product) stay
+`number` even though the balance they're compared against is bigint.
+The quartic cost crosses `Number.MAX_SAFE_INTEGER` at level 9742
+(cost ≈ 9.007e15); beyond that it is a ROUNDED float — but every
+consumer (the display, the affordability flag, the deduction,
+`buyAllCumulativeCost`'s float sum, which also carries an
+`isFinite` break) reads the SAME number, so the ledger stays
+internally consistent: a purchase can never cost a different amount
+than it displays. `perSec` loses relative precision around
+3.4e8 × 3.4e8 miners × power, where the miner cost itself is ≈ 1e35 —
+unreachable. Recorded (like F34.2's versioning rule) so a future
+content pass that ever pushes miner counts toward 10⁵+ knows the
+cost/perSec pair should be promoted to bigint the way minerals was at
+v10, and that no test needs to net the 2^53 boundary today.
+
+**F37.3 — `ledger:buildclamp-gaps` (Tier 2, low).**
+`buildSaveData`'s clamping is asymmetric, and the one unclamped field
+is a wallet. The three bigint counters go through `mineral()` (floor,
+≥ 0 clamp, guarded `BigInt` parse); the count/level fields get
+`Math.max(0, Math.floor(...))` + cap; but `gems`, `lifetimeCorrect`,
+`maxCombo`, `minersOwnedEver`, `totalGemsMinted/Spent`,
+`totalPrestiges`, `startTime`, `saveTime` pass through bare `num()`
+(only a `Number.isFinite` check). A CRAFTED save code (the `MOD1` +
+dot + base64 prefix is trivial to forge) can therefore import
+`gems: -5` or `gems: 3.7`: the engine floors *increments*
+(`grantGems`) but never the balance, so a fractional or negative gem
+wallet persists through the load pipeline that pass 21 documented and
+renders as-is (`formatNumber` floors for display only). Blast radius
+is benign — every engine purchase guard is `n.gems < cost → return n`
+(verified at all six gem-buy sites), so nothing debits below zero and
+the mint path is store-verdict-gated (pass 28) — but pass 28's
+"clamped levels" claim overstates the net: the gem wallet is a
+clamped-adjacent field that isn't. The fix is the same one-liner the
+count fields already get: floor + `Math.max(0, …)` on the wallet
+(and, while there, the lifetime counters' family). Trigger: rides any
+save-import hardening session; not standalone.
+
+**Recorded, not a defect (gem-rate saturation).** `rollGem` pays
+`Math.random() < chance × comboMultiplier` with an UNBOUNDED
+multiplier (`1 + floor(combo/10)`), so past combo ≈ 30 (chance at cap:
+5% base + 20 × 1% = 25%) every correct answer mints a gem, and the
+higher the combo the faster the mint line compounds. That is a
+balance property of the combo line, not a ledger defect — the mint
+stays exact (`lifetimeDelta` books it) and the caps clamp the *chance*
+line, not the combo — but it belongs to pass 29's monetization-mix
+question (is the gem faucet combo-gated enough?) more than to this
+layer's.
+
+**Not audited:** the equation operand magnitudes (pass 15's difficulty
+domain — integers generated within configured bounds, never crossing a
+boundary), the analytics counters (pass 26), and the clock surfaces
+(passes 17/28 — the offline tick math is bigint-exact at its one
+crossing: `BigInt(perSec) * BigInt(elapsed)` before `mulFloats`).
+
+**Source quality (pass 37).** Internal audit by construction: no
+external sources, no external claims — every statement above is a
+property of this repo's economy code as of this commit, verified
+against `game.ts`, `useGameEngine.ts`, `saveCode.ts`,
+`utils/format.ts`, `freePath.ts`, and `game.test.ts`.
