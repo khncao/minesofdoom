@@ -246,6 +246,18 @@ repo is not equipped to make.
     share-badge/cosmetics demand signal already recorded in
     `docs/todo.md` (or any web-growth bet that raises the desktop-web
     share audience): no share demand signal, no copy button.
+19. **`art:cave-crisp` + `art:pixel-crisp`** (pass 31, F31.1/F31.2) —
+    the web surface (the first-class monetization surface, Tier 1 #4's
+    framing) ships the full-bleed cave as 288 px rows smoothly stretched
+    up to ~5× on a desktop monitor, and the same unpinned scaling
+    softens every 16×16 sprite at its 2.75× default render size. Fix is
+    a property pin (web `image-rendering: pixelated` / native
+    `resizeMode: "nearest"`) plus re-baking the cave rows at the measured
+    viewport width; web-first, cheap. Trigger-gated on the same
+    web-growth bets as #14 (PWA / installability, es-market, any
+    desktop-cohort signal): until then the stretch is a taste call, not
+    a defect. Companion `art:contrast-audit` (F31.4) is a Tier 1 #2
+    input, not a separate ranking item.
 
 **Context — closed since the passes ran** (so the ranking isn't
 re-derived from stale reads): streak grace (it.14), streak freezes +
@@ -554,6 +566,18 @@ compat table did not render on fetch, so the browser matrix is
 context, not load-bearing). New candidate: `share:clipboard-opt-in`
 (F30.3) → Tier 1, item 18. Items adopted from that list move into
 `docs/todo.md`.
+2026-09 pass 31: the visual / presentation layer — the image itself as
+a system (every earlier pass audited a channel *around* the pixels —
+inputs 13, cost 20, sound 22 — none the channel the player looks at
+constantly). Internal audit by construction (F31.1–F31.5 are live-code
+as of this commit), so the external anchors are yardsticks, not claims:
+WCAG 2.2 contrast criteria (w3.org TR + Understanding pages — the F31.4
+measurement yardstick, nothing in the repo is measured against it yet)
+and MDN/W3C pixel-art scaling guidance (`image-rendering: pixelated` is
+browser-supported since 2020, so F31.1's fix is a property pin, not a
+compat bet). New candidates: `art:cave-crisp` + `art:pixel-crisp`
+(F31.1/F31.2) → Tier 1, item 19; `art:style-decision` (F31.3) and
+`art:contrast-audit` (F31.4) stay candidates, trigger-gated.
 
 ## The gap layers (formerly `docs/features.md` §7)
 
@@ -4458,3 +4482,149 @@ covers real desktop browsers" — rests on the repo's own test-pinned
   recorded in `docs/todo.md`, or any web-growth bet (es-market
   listing, PWA installability) that raises the desktop-web share
   audience. Tier 1, item 18.
+
+### The visual / presentation layer (pass 31 — what the player actually sees, written 2026-09-10)
+
+Passes 13, 20, and 22 audited the channels *around* the image — inputs,
+cost, sound. The image itself, the one channel the player looks at
+constantly, was never audited as a system: how the pixels are made,
+scaled, tinted, and laid out. That is this pass. Every cell verified
+against `src/` as of this commit.
+
+**F31.1 — every image on screen is a fixed-pixel baked-PNG data URI,
+stretched to fixed point sizes; no scaling algorithm is pinned.** The
+pipeline is hand-placed color grids (16×16 miner/pickaxe bodies in
+`pixelArt.ts`, 288×24 cave rows in `caveTiles.ts`, 5×7 badge font in
+`shareBadge.ts`, currency icons 20–34 px) baked once per cache key by
+`gridToPngDataUri` and displayed by RN `Image` at fixed pt sizes (Miner
+body 44/24, pickaxe 36/20) or `resizeMode: "stretch"` (cave rows,
+`CaveBackground.tsx`). Neither `imageResizingMode` (native) nor
+`image-rendering` (web CSS) appears anywhere in the repo — so a 16×16
+source rendered at 44 px (2.75×) takes whatever scaling the host
+compositor defaults to (browser smooth upscaling on web, GPU sampling
+on native). For a pixel-art identity, the crispness of the art the
+player sees is a property of the platform, not the game. Browser
+support for pinning it (`image-rendering: pixelated`) is universal
+since 2020 (MDN / caniuse `css-crisp-edges`), so this is a property
+pin, not a compat bet.
+
+**F31.2 — the full-bleed cave rework made the cave row the most
+stretched image on the page (new, surfaced by the wide-web work).**
+Rows are baked 288 px wide (12 tiles × 24 px) and stretch
+horizontally to the canvas. On phones the stretch is ≤ ~1.3× (phones
+never reach the 640 px column cap). Since the wide-screen rework
+(`styles.canvasFullBleed` — the cave spans 100vw on web while content
+stays capped at 640), the cave is the only full-viewport image: at a
+1440 px desktop viewport the 288 px row stretches ~5× with default
+smooth filtering — the cave softens proportionally to the monitor
+while the capped content column next to it is DOM-sharp, making the
+crisp-vs-soft seam *more* visible the wider the screen. The stretch was
+deliberate (rows are addressed by absolute cave depth and re-baked per
+(tier, strip, tint) — cheap), so this is the un-audited cost of the
+rework, not an oversight to revert; the fix is re-baking at measured
+viewport width (width as a fourth cache-key dimension) and/or pinning
+nearest-neighbor, both small.
+
+**F31.3 — four generated art styles are drafted, tested, and
+deliberately unwired; the decision is open and zero-code.**
+`stylePasses.ts` (flat baseline / mono 1-bit woodcut / retro16
+console-palette / outline cartoon-cel — pure `PixelGrid -> PixelGrid`,
+deterministic, tested) composes at a single hook point before
+`gridToPngDataUri` (the adoption notes in `docs/art-styles.md`); sample
+sheets re-render via `scripts/generate-art-style-samples.mjs`. This is
+the game's only art-direction surface, and it is frozen at `flat` by
+omission, not by choice. Two design questions are deliberately deferred
+to greenlight, not here: global style vs. an "art style" setting (a
+setting is cheap with this design but fans out the cache keys), and
+what the chosen pass does to a user-uploaded custom skin (F31.3's fresh
+angle — pass the user's grid through the pass for cohesion, or leave
+uploads raw out of respect for the upload; the custom-skin line shipped
+with no precedent either way).
+
+**F31.4 — color and contrast are hand-tuned once and measured nowhere.**
+The cave overlay is pinned at opacity 0.35 over the `#2f1f1f` canvas
+(`CaveBackground.tsx`); each of the five depth tiers and the nine cave
+themes re-tints the cave (`cosmetics.ts`), and whatever text/UI sits
+over the cave inherits whatever that pairing is; body `fontSize` is
+hard-coded 11–12 (the text-scaling gap is pass 3 / Tier 1 #2 —
+recorded there, not re-audited here). Nothing in the repo measures
+contrast — no lint, test, or script. The natural yardstick is WCAG 2.2
+SC 1.4.3 (4.5:1 normal / 3:1 large text) and SC 1.4.11 (3:1 non-text
+UI) — and the repo already knows one color-dependent affordance: the
+gem pocket "reads mostly from canvas color" (pass 3's high-contrast
+step names it), so a contrast audit would start from a known suspect,
+not a blank slate.
+
+**F31.5 — layout is hand-tuned portrait for one device class, by
+choice.** `orientation: "portrait"` is pinned in `app.config.ts` and
+the Android manifest; density is hand-tuned to phones (640 px column
+cap, 140 px canvas floor, 56→44 px keypad key floors, drawer overlays
+the canvas instead of pushing it). No landscape (deliberately absent —
+guardrails list), no zoom or text scaling (Tier 1 #2), and no
+breakpoint between phone and the 640 cap: a portrait tablet simply
+gets the capped column. Recorded so a future "make it feel big-screen"
+pass starts from here instead of re-deriving the layout inventory.
+
+**Source quality (pass 31).** Internal audit by construction (the same
+class as pass 30): F31.1–F31.5 are properties of this repo's rendering
+pipeline — verified against `src/` as of this commit
+(`pixelArt.ts`, `caveTiles.ts`, `CaveBackground.tsx`, `Miner.tsx`,
+`MiningCanvas.tsx`, `styles.ts`, `MinesOfDoom.tsx`, `app.config.ts`,
+`customSkin.ts`, `stylePasses.ts`), not sourced claims. The external
+anchors are yardsticks only: WCAG 2.2 (the F31.4 measurement standard —
+nothing here is measured against it yet) and MDN/W3C pixel-art scaling
+(browser support for the F31.1 property pin). No retention or
+conversion claim is made, because none is needed: the gaps below are
+quality and decision-state observations.
+
+**Research sources (pass 31):**
+
++ W3C, "Web Content Accessibility Guidelines (WCAG) 2.2" (TR) +
+  "Understanding SC 1.4.3 Contrast Minimum" / SC 1.4.11 (w3.org) — the
+  4.5:1 / 3:1 / 3:1 thresholds F31.4 would measure against; cited as
+  the yardstick, not as a claim about this game.
++ MDN, "image-rendering" reference + "Crisp pixel art look" (web games
+  techniques) — `image-rendering: pixelated` scaling-hint support
+  (2020+, cross-browser; caniuse `css-crisp-edges` as the dataset
+  cross-check) — the F31.1/F31.2 fix is a property pin, not a
+  compat bet; the native counterpart is RN `Image`
+  `resizeMode: "nearest"` (no fetch needed — API is stable).
++ (context, not cited) Android "Adapt your layout" / large-screen
+  guidance — resizability and multi-window arguments for F31.5's
+  "portrait-lock is fine" call; the game already locks orientation, so
+  the platform asks for a posture the game deliberately declines.
+
+**Candidates (documented, not planned):**
+
++ `art:cave-crisp` (+ the sprite half `art:pixel-crisp`) (pass 31,
+  F31.1/F31.2) — pin nearest-neighbor scaling on the baked art (web:
+  `image-rendering: pixelated` via the `+html.ts` document or web-only
+  styles; native: `resizeMode: "nearest"` on the sprite `Image`s) and
+  re-bake the cave rows at the measured viewport width on web (width
+  joins the existing (tier, strip, tint) cache key — the rows are
+  deterministic in it, so a fourth dimension is the whole change).
+  Web-first; cheap. Trigger-gated on the same web-growth bets as
+  Tier 1 #14 (PWA / installability, es-market listing, any
+  desktop-cohort signal): until then the stretch is a taste call, not a
+  defect. Tier 1, item 19.
++ `art:style-decision` (pass 31, F31.3) — pick one of the four drafted
+  passes (or affirm `flat`), and decide global vs. setting; if
+  setting, `art:style-picker` is the wiring (one hook point + a
+  settings row + the i18n key, cache-key fan-out already scoped in
+  `docs/art-styles.md`). The decision itself is zero-code (a taste
+  call, human) — the candidate is the *state* of being undecided: the
+  draft has sat since the art-style pass with no decision recorded
+  anywhere. Trigger-gated on a store-listing refresh (new screenshots
+  are a pre-install lever — pass 10) or a player art request; the
+  custom-skin pass-through question is part of this decision, not a
+  separate candidate.
++ `art:contrast-audit` (pass 31, F31.4) — measurement only, not a
+  feature: a script that enumerates every (depth-tier tint × cave theme
+  × 0.35 overlay × text color) pair the game can actually render and
+  computes the WCAG ratios, recording failures in this layer. It is the
+  INPUT to the Tier 1 #2 high-contrast step, so that step gets
+  greenlit against a failure list instead of a hunch — the
+  gem-pocket-from-color affordance (pass 3) is the expected first
+  hit. Trigger-gated on the Tier 1 #2 high-contrast greenlight
+  (un-scopable without the list, which is why it's a candidate, not a
+  ranking item of its own).

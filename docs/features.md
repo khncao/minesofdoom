@@ -160,7 +160,12 @@ of Pressable so rapid tapping doesn't double-render).
 - **Programmatic pixel art** — player, roster miners, currency icons,
   debris, cave strips are generated sprites (seeded per player); **emoji
   fallback** setting for low-end devices (`utils/graphics/*`,
-  `game.ts: SettingsData.emojiArt`).
+  `game.ts: SettingsData.emojiArt`). Art-style DRAFT pending a decision:
+  four pure `PixelGrid -> PixelGrid` passes (flat baseline / mono 1-bit
+  woodcut / retro16 console palette / outline cartoon cel) over the same
+  base grids, tested, sample sheets in `docs/art-styles/` — NOT wired in;
+  adopting one is a single hook point before `gridToPngDataUri`
+  (`utils/graphics/stylePasses.ts`, `docs/art-styles.md`).
 - **Cosmetic shop** (gem prices; earnable, F2P-viable) — outfits, pickaxes
   (each with a unique swing sound), and **cave themes** (background
   recolors); the IAP cosmetic pack sells the *same* items
@@ -178,7 +183,31 @@ of Pressable so rapid tapping doesn't double-render).
   equipping, the shop keeps its single-surface contract. No migration
   (nothing new is stored); "Cosmetic compendium", DONE iteration 23 in
   `docs/gap-ranking.md`.
-  (`collection.ts`, `components/CollectionPanel.tsx`).
+  `collection.ts`, `components/CollectionPanel.tsx`).
+- **Custom skinning** — the player's own avatar: a one-time unlock
+  (250 gems OR the `packSkin` IAP — the 26th catalog row, the priciest
+  "skin" feature-tier line) opens an upload UI where the player sets
+  their own 16×16 body sprite (any PNG → `pngBytesToGrid` → nearest-
+  neighbor downscale, web picker `customSkinPicker.web.ts`) and/or their
+  own pickaxe-swing sound (data URI ≤ 300 KB; `useSounds` swaps the
+  player's swing clip to it). Equipped, the grid overrides the outfit
+  miner's body sprite (`Miner.tsx: bodyOverrideUri` — the pickaxe and the
+  emoji fallback are unaffected); uploads are stored DEVICE-LOCAL in their
+  own AsyncStorage key (like IAP entitlements, never in `SaveData`, so
+  save codes / cloud restores never carry user-uploaded files),
+  normalized on read with corrupt-slot degradation to "locked look"
+  (`customSkin.ts`, `hooks/useCustomSkin.ts`); the IAP grant rides the
+  entitlement path (`IAP_PACK_GRANTS.customSkin`). Upload is **web-only
+  for now** — native is a no-op stub with a "web only" note in the panel
+  (`IapPanel.tsx` skin row; native picker pending, `docs/todo.md`).
+- **Wide-screen layout** — portrait-only (`orientation: "portrait"`),
+  but the game column caps at 640 px and centers on wider surfaces, and
+  on web the cave breaks OUT of the cap to span the full viewport
+  (`styles.contentColumn` + `styles.canvasFullBleed` — a `100vw` string
+  RN web passes through to the DOM, applied web-only since phones never
+  hit the 640 cap); full-bleed overlays (toasts, onboarding backdrops)
+  deliberately stay outside the capped column so their dim backdrops
+  still cover the whole screen (`MinesOfDoom.tsx`).
 - **Juice** — debris bursts, pickaxe swings, floating "+N" text, screen
   shake on errors; magnitude log-scales with the mined amount
   (`juice.ts`, `hooks/useJuiceWaves.ts`, `components/FloatingTextLayer.tsx`,
@@ -217,8 +246,11 @@ of Pressable so rapid tapping doesn't double-render).
 
 ## 4. Economy & monetization
 
-- **One-time IAP catalogue** (25 products — one pack per paid cosmetic
-  catalog line; no gem/currency packs, by design — pass 16 rejection (1)),
+- **One-time IAP catalogue** (26 products — one pack per paid cosmetic
+  catalog line, plus the custom-skinning feature pack `packSkin` (the
+  26th row, "skin" line — the only non-cosmetic line; unlocks the
+  upload feature, see §3), no gem/currency packs, by design —
+  pass 16 rejection (1)),
   one shared provider abstraction with per-platform backends — Play Billing /
   App Store (expo-iap) on native, **hosted Stripe Checkout** on web, a
   dev-sim provider in dev builds, and clean no-ops until configured
@@ -308,10 +340,10 @@ of Pressable so rapid tapping doesn't double-render).
   compact strip, pulse suppressed under reduce-motion; autosave still runs
   in the background — the pill makes saving a first-class visible action
   rather than a menu dig (`components/SavePill.tsx`).
-- **Quality** — Jest suites over the pure modules (1124 tests), Maestro
+- **Quality** — Jest suites over the pure modules (1151 tests), Maestro
   e2e flows, **hermetic Playwright web e2e** (`pnpm run test:e2e:web`:
-  boot / rewarded-ads / IAP specs against stubbed ad + Stripe/Pocketbase
-  backends from `e2e/web/` — the boot spec doubles as the zero-backend
+  boot / rewarded-ads / IAP / Google-sign-in specs against stubbed ad +
+  Stripe/Pocketbase backends from `e2e/web/` — the boot spec doubles as the zero-backend
   offline-resilience check, ads run in Google's documented
   `data-adbreak-test` test mode, and a guard route fails the suite on any
   request that would become a live impression or sidecar call; pass 12 of
