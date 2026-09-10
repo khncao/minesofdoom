@@ -307,8 +307,11 @@ Play Console **billing permissions** ("Manage orders and subscriptions" +
    (the API equivalent of the console's one-time step) — `products-check`
    flags anything not live.
 2. **App Store Connect** (if/when iOS ships — §5): create the same
-   products by the same `storeId` (App Store product ids accept the
-   same slug).
+   products, but with the App Store id space: `com.minus4kelvin.minesofdoom.<productId>` (the
+   `{ios.bundleId}.{productId}` convention, `IAP_IOS_STORE_IDS` in
+   `iaps.ts`) — NOT the Play `storeId`. The app maps both id spaces
+   back to the same catalog, so a device's store record — whichever
+   id space it carries — resolves to one product.
 3. **Service accounts / credentials** (server-side only — never in
    the repo, never in the app bundle):
    - **Play**: a service account with "Manage apps (full access)" (or at

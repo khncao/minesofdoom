@@ -97,6 +97,11 @@ So test/source files import like `import ... from "src/mines_of_doom/game"` or
 - **Tests:** Jest via `jest-expo`, `testMatch: **/*.test.[jt]s?(x)`. Pure-logic tests
   live in `__test__/` dirs or next to their source (`utils/format.test.ts`). Only test
   pure logic; no component tests currently exist.
+- **Player-facing strings are i18n:** English lives in
+  `src/utils/i18n/en.ts` (the `content()` keys used via `useI18n`/`useContent`),
+  Spanish in `src/utils/i18n/es.ts`. Add any new player-visible string to
+  **both** files (keys are type-checked against `en.ts`, so a missing `es.ts`
+  entry fails typecheck). `docs/` is intentionally not i18n.
 - **E2E:** Maestro flows in `maestro/flows/` (config: `maestro/maestro.config.yaml`,
   appId must match `android.package` in `app.config.ts`). Selectors use `testID`s
   added to the components (e.g. `equation-display`, `depth-banner`, `onboarding-skip`)

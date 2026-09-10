@@ -52,11 +52,19 @@ registerHooks({
 });
 
 const { crc32 } = await import("../src/utils/graphics/pixelArt.ts");
-const { buildMinerGrid, buildPickaxeGrid, buildGemGrid, buildMineralChunkGrid } =
-  await import("../src/utils/graphics/pixelArt.ts");
+const {
+  buildMinerGrid,
+  buildPickaxeGrid,
+  buildGemGrid,
+  buildMineralChunkGrid,
+} = await import("../src/utils/graphics/pixelArt.ts");
 const { buildCaveRow } = await import("../src/utils/graphics/caveTiles.ts");
-const { applyStyle, STYLE_IDS } = await import("../src/utils/graphics/stylePasses.ts");
-const { createGrid, hexToRgb } = await import("../src/utils/graphics/pixelArt.ts");
+const { applyStyle, STYLE_IDS } = await import(
+  "../src/utils/graphics/stylePasses.ts"
+);
+const { createGrid, hexToRgb } = await import(
+  "../src/utils/graphics/pixelArt.ts"
+);
 
 // --- sample set (fixed, representative — pools in cosmetics.ts) -----------
 // Two humans + two critters so every body type is visible, one look each
@@ -160,7 +168,12 @@ function composeSheet(styleId) {
     place(s, scaleGrid(pass(buildPickaxeGrid(theme)), 3), row2x + i * 54, 88);
   });
   place(s, scaleGrid(pass(buildGemGrid()), 3), row2x + 4 * 54 - 18 + 6, 88 + 6);
-  place(s, scaleGrid(pass(buildMineralChunkGrid()), 3), row2x + 4 * 54 + 6, 88 + 6);
+  place(
+    s,
+    scaleGrid(pass(buildMineralChunkGrid()), 3),
+    row2x + 4 * 54 + 6,
+    88 + 6,
+  );
   // Row 3: one full cave row (288px wide) at 1× — Deep Grotto tint.
   place(s, pass(buildCaveRow(1, 0, "#8fa8b8")), 26, 148);
   return s;
@@ -206,7 +219,11 @@ function gridToPngBuffer(grid) {
       u32(data.length),
       Buffer.from(type, "ascii"),
       data,
-      u32(crc32(new Uint8Array(Buffer.concat([Buffer.from(type, "ascii"), data])))),
+      u32(
+        crc32(
+          new Uint8Array(Buffer.concat([Buffer.from(type, "ascii"), data])),
+        ),
+      ),
     ]);
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
