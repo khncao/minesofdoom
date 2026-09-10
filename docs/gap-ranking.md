@@ -650,7 +650,6 @@ as of this commit; the stores are small enough that every cell was
 verified against `src/`). The one external anchor is the pattern shape:
 the `formdraft` README (a vendor package — the stock form-draft
 persistence stack: per-change localStorage persistence + restore-on-mount
-
 + status indicator; used for F32.1's fix shape, not as a claim about this
 game). New candidates: `settings:commit-model` (F32.1) → Tier 1, item 20;
 `settings:portability` (F32.2) → Tier 1, item 21; `settings:min-floor`
@@ -690,6 +689,26 @@ Tier 2 and both riding the pending `pack_skin` release step:
 what crosses a process boundary, normalize what doesn't) — recorded so
 the next cross-boundary state makes the call consciously. Items adopted
 into a tier list move into `docs/todo.md`.
+
+2026-09 pass 35: the release / distribution pipeline — the layer the
+build passes through to reach a player: `expo export` (web) / prebuild +
+gradle (AAB) → version bump → gates → deploy (`wrangler` / the Play
+Developer API). Passes 10 and 12 audited *around* it (store presence,
+the web platform); none walked the pipeline itself. Internal audit by
+construction (the same class as passes 30–34): F35.1–F35.3 are
+properties of this repo's build / gate / deploy wiring as of this
+commit (`package.json` scripts, `app.config.ts`, `wrangler.toml`,
+`pnpm-lock.yaml`, `.github/workflows/`, `scripts/play/` +
+`scripts/stripe/`, `plugins/withDebugSigning`, `e2e/web/`) — no external
+sources, no external claims. Headline: the gates are well-netted where
+they exist (the web e2e runs against the REAL `expo export` build, the
+prebuild input is byte-for-byte reproducible, store-critical config is
+pinned by `storeConfig.test.ts`, the disabled gates are labelled and
+tracked); the gaps are the one unpinned deploy binary, the one
+doc-only shape rule, and one self-contradicting bump instruction. New
+candidates, all Tier 2: `release:wrangler-pin` (F35.1),
+`app:route-only-net` (F35.2), `release:version-doc` (F35.3). Items
+adopted into a tier list move into `docs/todo.md`.
 
 ## The gap layers (formerly `docs/features.md` §7)
 
@@ -4933,3 +4952,103 @@ class as passes 30–33): no external sources, no external claims —
 every statement above is a property of the authoring / sync /
 persistence wiring as of this commit, verified against `src/`,
 `scripts/stripe/`, `stripe/`, and `pb_hooks/`.
+
+### The release / distribution pipeline layer (pass 35 — build → version → gate → deploy, written 2026-09-10)
+
+Every layer so far was one the player *experiences*; this one is the
+path a release takes to get there, and it is internal by construction:
+`expo export -p web` (the static web build) and `expo prebuild` + gradle
+(the AAB) → the version pair (`version` + `android.versionCode` in
+`app.config.ts`) → the gates (typecheck / lint / test, the e2e harnesses)
+→ the two deploys (`wrangler pages deploy dist` for the web static site,
+the Play Developer API via `pnpm run play` for Android). The stress test
+is “what must be true for a release to be reproducible by someone who
+only has this repo”.
+
+**Fully-netted surfaces (verified against the repo this pass).**
+The web e2e runs against the *real* production build: `test:e2e:web`
+is `expo export -p web` + serve `dist/` + Playwright, so a dev-only
+(`pnpm run web`) behavior drift would be caught; the ad test-mode flag
+(`data-adbreak-test`) is injected at serve time by `e2e/web/server.mjs`,
+and the IAP round-trip is stubbed at the network layer — no live ad
+impressions, no live Stripe / Pocketbase traffic. The native build input
+is reproducible: the `withDebugSigning` config plugin re-applies the
+debug-bundle + upload-signing patches on every prebuild and its unit
+test (`plugins/__test__/`) asserts the committed `android/app/build.gradle`
+is byte-for-byte what a clean prebuild produces; the keystore is
+root-anchored and gitignored with a documented re-download path.
+Store-critical config is pinned from `app.config.ts` by
+`storeConfig.test.ts` (version / versionCode, the release-keystore
+properties, the ad units, the IAP units, the play config) — a release-
+config drift breaks a test, not just the store. The release CLIs are
+offline-testable (`scripts/__test__`, `scripts/stripe/__test__`,
+`pb_hooks/__test__` — no live API calls in jest). The disabled gates
+are labelled, not forgotten: both `.github/workflows/*.disabled` files
+state their rename-to-re-enable in a header comment, and the release-
+gate todo item tracks them.
+
+**F35.1 — `release:wrangler-pin` (Tier 2).** The web deploy path
+(`predeploy` / `deploy` scripts) ends in a *bare* `wrangler pages deploy
+dist` — and `wrangler` is in neither `package.json` nor
+`pnpm-lock.yaml` (verified by grep), so the deploy runs with whatever
+CLI version the machine happens to have, while `wrangler.toml` is a
+v4-shaped config (`[pages]` block + a `wrangler.jsonc` alias). A
+v3-only machine errors on the config parse; two different v4 minors can
+behave differently on asset upload. Deploy reproducibility is a
+property of the dev machine, not of the repo, and nothing tests it —
+the disabled CI runs typecheck / lint / test and never deploys, and a
+fresh clone cannot reproduce the deploy without knowing which `wrangler`
+to install first. Fix: `pnpm add -D wrangler` (the v4 major the config
+is written against), route the scripts through the local binary, and
+add the three-line test that `wrangler` is a direct devDependency
+(the `storeConfig.test.ts` shape — read `package.json`, assert).
+
+**F35.2 — `app:route-only-net` (Tier 2).** “ONLY route files belong
+under `src/app/`” (AGENTS.md gotcha) is doc-enforced only. Because the
+web static export emits an HTML page **per route**, any stray non-route
+file placed there (a `helpers.ts` next to the screens, a co-located
+`.test.ts`, a stray `.d.ts`) silently becomes a public URL — a broken
+`/helpers.html` shipped to Cloudflare — and a 404 screen in the native
+builds; the export itself *succeeds*, so nothing fails. The route table
+is three roots today (/, /settings, /store) plus the special files
+(+html), so the blast radius is small — but the guard is discipline,
+and the failure mode is “shipped a broken public page” rather than
+“a build broke”. Fix: a jest test that enumerates `src/app/**` and
+asserts the set equals the known routes + special files (+html,
++not-found when it lands) — a route addition becomes an intentional,
+test-visible change (updating the test is the ritual).
+
+**F35.3 — `release:version-doc` (Tier 2, low).** The version-bump rule
+is doc-only, and the doc contradicts itself: `docs/store-integration.md`
+says every future upload bumps `version` + `android.versionCode` in
+`app.config.ts` **and** `versionCode` / `versionName` in
+`android/app/build.gradle` in sync — but that file is prebuild-
+GENERATED (AGENTS.md: don't edit generated files there), prebuild
+re-injects the versions from `app.config.ts` on the next prebuild, and
+the committed tree is already at `8`/`1.0.8` while `app.config.ts` is
+at `32`/`1.5.4` — expected for a generated tree, but an operator who
+follows the doc's double-bump will hand-edit a file prebuild silently
+rewrites, and the two sources of truth disagree in the committed tree.
+The one net that exists is good but indirect: `storeConfig.test.ts`
+pins the *current* value, so a forgotten bump fails typecheck-adjacent
+tests — a “bumps are deliberate” net, not a shape net. Fix is
+ doc-only + one small test: state in the doc that `app.config.ts` is
+the single source of truth (prebuild syncs `build.gradle`; the committed
+`android/` is generated and expected to be stale until the next
+prebuild), and add a cheap test that `version` is semver-shaped and
+`versionCode` is a positive integer (shape, not value).
+
+**Not re-audited:** the e2e flows' *content* (what the flows assert is
+the e2e layer's own surface; only the harness wiring is in scope here),
+the sidecar deploy path (pass 28's deploy axis), and the out-of-repo ops
+state (the live Play / Cloudflare consoles — `play.mjs`'s
+`products-check` and the `verify` commands are the nets for those,
+by design out of jest).
+
+**Source quality (pass 35).** Internal audit by construction (the same
+class as passes 30–34): no external sources, no external claims —
+every statement above is a property of this repo's build / gate /
+deploy wiring as of this commit, verified against `package.json`,
+`app.config.ts`, `wrangler.toml`, `pnpm-lock.yaml`,
+`.github/workflows/`, `scripts/`, `plugins/`, `e2e/web/`, and
+`docs/store-integration.md`.
