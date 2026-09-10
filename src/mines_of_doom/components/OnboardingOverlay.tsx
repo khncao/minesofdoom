@@ -28,9 +28,9 @@ import { styles } from "../styles";
  * The setup step reuses the settings panel's i18n keys (settings.opName.*
  * names, the symbol-display label, the keypad label) so the choices made
  * here are recognizable later in the menu. Changes flow straight into the
- * live settings state; the PARENT persists them on dismiss (the equation
- * settings have no other writer except the menu's Save button, and this
- * overlay has none — see the onDismiss wiring in MinesOfDoom).
+ * live settings state AND persist per change (useSettings writes each
+ * change to AsyncStorage), so a setup choice sticks even if the player
+ * never opens the menu again.
  */
 const TIP_KEYS = [
   { icon: "🧮", titleKey: "onboarding.1.title", bodyKey: "onboarding.1.body" },

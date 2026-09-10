@@ -46,7 +46,6 @@ import {
   COMBO_TIER_SIZE,
   getVisiblePurchases,
   hasAffordablePurchase,
-  SettingsData,
   mulFloats,
 } from "./game";
 import {
@@ -280,17 +279,11 @@ export default function MinesOfDoom() {
   );
   const {
     settingsData,
-    setSettingsData,
+    updateSettingsData,
     equationSettings,
-    setEquationSettings,
+    updateEquationSettings,
     handleSaveSettings,
   } = useSettings({ saveGame, displayMessage });
-
-  // Stable so the memoized SettingsPanel doesn't re-render every tick.
-  const handleSettingsDataChange = useCallback(
-    (newSettings: SettingsData) => setSettingsData(newSettings),
-    [setSettingsData],
-  );
 
   // Number-notation mode (settings.notation): push the settings value into
   // format.ts's live store and subscribe, so a settings flip re-renders the
@@ -1436,9 +1429,9 @@ export default function MinesOfDoom() {
               top-row button's settings and to save/account/goals. */}
             <MenuPanel
               settingsData={settingsData}
-              onChangeSettingsData={handleSettingsDataChange}
+              onChangeSettingsData={updateSettingsData}
               equationSettings={equationSettings}
-              onChangeEquationSettings={setEquationSettings}
+              onChangeEquationSettings={updateEquationSettings}
               showMessage={showMessage}
               onSave={handleSaveSettings}
               onReset={handleReset}
@@ -1769,18 +1762,13 @@ export default function MinesOfDoom() {
         {!onboardingLoading && onboardingDone !== true && (
           <OnboardingOverlay
             onDismiss={() => {
-              // Persist the setup step's choices: the equation settings
-              // (operator toggles, symbol display) have no other writer
-              // than the menu's Save button, which this overlay has no
-              // access to — and a player who unticks division in setup
-              // expects it to stick. The keypad toggle persists itself
-              // (useLocalStorage). The "Settings saved" toast is the
-              // honest confirmation that the choices were written.
-              handleSaveSettings();
+              // The setup step's choices persist themselves on change
+              // (useSettings writes each change to AsyncStorage), so
+              // dismissal only needs to persist the onboarding flag.
               setOnboardingDone(true);
             }}
             equationSettings={equationSettings}
-            onEquationSettingsChange={setEquationSettings}
+            onEquationSettingsChange={updateEquationSettings}
             onScreenKeypad={onScreenKeypad}
             onKeypadChange={handleKeypadSettingChange}
           />

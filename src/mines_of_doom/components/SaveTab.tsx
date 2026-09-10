@@ -15,8 +15,9 @@ import { styles } from "../styles";
  * Menu "Save" tab (todo: "reorganize menus with clean reimplementation"):
  * everything about the SAVE DATA — the autosave interval, the manual
  * export/import code, the Save + Reset actions, and the cloud backup
- * section. The gameplay preferences moved to the Settings tab, so this
- * tab is where the "Save" button that applies them lives.
+ * section. The gameplay preferences moved to the Settings tab and persist
+ * per change; the Save button here saves the game and confirms with a
+ * toast.
  */
 const SaveTab = memo(function SaveTab({
   settingsData,
