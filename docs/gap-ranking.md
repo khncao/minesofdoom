@@ -4983,7 +4983,13 @@ apply is the one this pass found: **version what crosses a boundary,
 normalize what doesn’t.**
 
 **F34.3 — `release:price-placeholder-net` (candidate; rides the same
-release step).** `storeConfig.stripe.prices.packSkin` is
+release step).** *Status 2026-09-10: the shadowed release step LANDED —
+`packSkin` now holds the real test-mode price
+`price_1UEDJqDPxWoXhXF8WYfaEDSe` (`syncStripe.mjs verify` 26/26 clean),
+so the placeholder no longer exists; the net gap below is unchanged and
+the three-line test (no price value carries a placeholder marker) still
+closes it for any future pending-price row.* The finding as written:
+`storeConfig.stripe.prices.packSkin` was
 `"price_PENDINGPACKSKIN"` (the known pending release step), and every
 net in the repo lets it through: the value shape regex
 `/^price_[A-Za-z0-9]+$/` matches the placeholder, the key-coverage pin
