@@ -650,6 +650,7 @@ as of this commit; the stores are small enough that every cell was
 verified against `src/`). The one external anchor is the pattern shape:
 the `formdraft` README (a vendor package — the stock form-draft
 persistence stack: per-change localStorage persistence + restore-on-mount
+
 + status indicator; used for F32.1's fix shape, not as a claim about this
 game). New candidates: `settings:commit-model` (F32.1) → Tier 1, item 20;
 `settings:portability` (F32.2) → Tier 1, item 21; `settings:min-floor`
@@ -675,6 +676,7 @@ and `cloud:stale-notice` F33.4 companions) → Tier 1, item 22;
 touches. Internal audit by construction (the same class as passes
 30–33): F34.1–F34.3 are properties of this repo's authoring / sync /
 persistence wiring as of this commit (`iaps.ts` + `stripe/price_sync.mjs`
+
 + `scripts/stripe/catalog.json`, `i18n/en.ts`/`es.ts`/`i18n.ts`,
 `useLocalStorage.ts`, the custom-skin store, `analytics.ts`) — no
 external sources, no external claims. Headline: the content-authoring
@@ -5303,3 +5305,152 @@ external sources, no external claims — every statement above is a
 property of this repo's economy code as of this commit, verified
 against `game.ts`, `useGameEngine.ts`, `saveCode.ts`,
 `utils/format.ts`, `freePath.ts`, and `game.test.ts`.
+
+### The dependency / supply-chain layer (pass 38 — the third-party code the app is built on, how it's pinned, and what a version move touches, written 2026-09-10)
+
+Passes 30–37 audited the code the game writes; none asked what the
+app is *built on*. This pass audits the substrate: the 21 direct
+runtime + 39 dev dependencies (≈570 packages, `lockfileVersion 9.0`),
+their pinning discipline, the native/SDK config files that ride beside
+them, and what a version move would actually touch. Internal audit by
+construction (same class as passes 30–37): every structural claim is a
+property of `package.json`, `pnpm-lock.yaml`, `app.config.ts`,
+`tsconfig.json`, `metro.config.js`, `jest.config.js`, and `AGENTS.md`
+as of this commit. The only external tool run was `pnpm audit`
+(count, not chased — see F38.3). No external claims.
+
+**The substrate is healthier than its prose suggests:**
+
++ The Expo/React core stack is **tilde-locked** — `expo ~57`,
+  `react-native ~0.86`, `react 19.1.0` exact, `metro ~56` via
+  `jest-expo ~57` — so a fresh install cannot float the framework past
+  Expo's major without an explicit edit. That is the load-bearing part,
+  and it is done right.
++ The lockfile (`pnpm-lock.yaml`, v9.0) is committed and intact, so the
+  *reproducible* story exists; the gaps below are about *future drift*
+  and *unenforced prose*, not a broken lockfile.
++ The test leg of the dependency story is clean: the store-config suite
+  imports the bare `assets/` alias and runs hermetic in 0.35s
+  (no live Stripe/Pocketbase/Google — pass 32's IAP-test isolation
+  holds at the dependency layer too), and the one pure crypto leaf
+  (`pako ^3`, save-code compression, used at runtime in `game.ts`) is
+  tiny and well-established. No keychain/native-secret dependency
+  anywhere in the tree.
+
+**F38.1 — `dep:pin-drift` (Tier 2).** The pinning discipline is
+inconsistent exactly at the dangerous boundary. The Expo core is
+locked to Expo's major (above), but the third-party *leaf* deps that
+carry the real native surface area are **caret-pinned**, and a caret
+floats MINOR versions on the next `pnpm install`/`add`:
+`expo-admob ^14.4.x`, `expo-av ^15.x`, `react-native-purchases ^8.x`,
+`react-native-mmkv ^3.x`, `expo-updates ^29.x`,
+`react-native-qrcode-svg ^6.x`, `@expo/google-maps-android ^29`,
+`@react-native-community/cookies ^7.0.x`, `expo-splash-screen ^0.40.x`.
+The cost of such a float is asymmetric and invisible to every gate in
+this repo: an admob/av/purchases minor can ship a **native** ABI or
+runtime change that only surfaces on a device/emulator, and all three
+local gates (typecheck, lint, jest) are JS-only and will not see it
+(the hermetic e2e web suite, pass 36, also never compiles native
+modules). The lockfile already records the exact installed versions,
+so flipping these carets to tildes/exact changes *future drift
+behavior only* — a fresh install can no longer move them without an
+explicit choice. Low blast radius, cheap. (Recorded, not a defect: a
+minor float of a native lib is usually *wanted* — bugfix minors — so
+this is about making the choice explicit and enforced, not about carets
+being wrong.)
+
+**F38.2 — `dep:pnpm-major` (Tier 3).** There is no `packageManager`
+field and no `engines` in `package.json`; the only pnpm-major signal is
+the `lockfileVersion 9.0` line in the lockfile (pnpm 9). A pnpm-major
+switch silently changes the tree: pnpm 8 reads a 9.0 lockfile as
+incompatible and regenerates; a different pnpm 9.x/10 can resolve
+differently. Nothing in the repo names the authoritative pnpm major,
+and with CI currently disabled there is no gate that would catch a
+contributor (or a re-enabled pipeline) building with the wrong major.
+This matters *more* than usual here because `AGENTS.md` documents that
+`.npmrc` sets `node-linker=hoisted` and that **Metro and the
+"jest-in-dependencies" setup require a flat npm-like `node_modules`**
+— i.e. the build depends on pnpm-specific layout behavior, which is
+exactly what a pnpm-major change can perturb. Fix is one line:
+`"packageManager": "pnpm@9.x"` (enforced by corepack's
+`packageManager` check). Record: the dependency layer's reproducibility
+rests on a lockfile version string, not a declared contract.
+
+**F38.3 — `dep:advisory-gate` (recorded).** `pnpm audit` currently
+reports **4 vulnerabilities (2 high, 2 moderate)**. This pass does NOT
+chase those specific advisories (out of scope, and advisory state is
+volatile — the count itself is the finding). The layer's real gap is
+that there is **no automated advisory gate at all**: CI is disabled, so
+the only advisory signal is a manual `pnpm audit`, and there is no
+recorded policy on (a) `--prod` vs the full tree, (b) a severity
+threshold that would block a release, or (c) where an advisory check
+sits in the (currently `.disabled`) pipeline. Most of the tree is
+dev-chain (jest/expo/prettier/eslint dev tooling) with no reachable
+surface in a shipped idle game, which is why "2 high" is almost
+certainly not a product risk — but that's an inference, not a checked
+fact. Recorded so pass 35's successor (the release-pipeline pass) has a
+concrete decision: advisory threshold + prod-only scope + a CI step.
+
+**F38.4 — `dep:prose-contracts` (Tier 2).** Several load-bearing
+dependency relationships exist **only in prose** (`AGENTS.md`) with no
+machine check, and this pass found one of them weaker than documented.
+  (a) *The alias contract* — "keep `src/*`, `components/*`, `hooks/*`,
+  `assets/*` in sync across `tsconfig` ↔ `metro` ↔ `jest`". In fact
+  `jest.config.js` explicitly maps **only** `^src/(.*)$`; the bare
+  `assets/` alias resolves in tests with no explicit mapping (so
+  `jest-expo` 57 is honoring the tsconfig `paths` directly), and
+  `components/`/`hooks/` are **imported by no test at all** (verified
+  by grep) — so that leg of the "keep 3 configs in sync" rule is
+  unexercised, and its working-today-ness is a *version property of
+  jest-expo 57*, not pinned config. A future test that imports
+  `components/X` will work only as long as jest-expo keeps auto-honoring
+  tsconfig paths. (b) *The prebuild contract* — "don't edit
+  `android/app/build.gradle`; the `plugins/withDebugSigning` config
+  plugin re-applies the debug-bundle + release-signing patches on every
+  prebuild; `expo prebuild --clean` reproduces the committed dir
+  byte-for-byte." That plugin is **first-party JS, not a pnpm
+  dependency** — it is invisible to `pnpm audit` and the lockfile, yet
+  it is the single most load-bearing thing on native boot (the committed
+  `android/` dir matching a fresh prebuild). The unit test
+  (`plugins/__test__/withDebugSigning.test.js`) tests the plugin's
+  *logic*, not that its output matches the **current Expo SDK's**
+  actual prebuild output — so a major Expo bump (the one thing the
+  tilde pins *do* allow, within Expo's major) could change prebuild
+  output and silently break the "byte-for-byte" claim with no net. (c)
+  *The versionCode coupling* — `App.tsx` reads `android.versionCode`
+  from `app.config.ts`; "bump both" is prose, no net. Fix is a small set
+of cheap nets: a test asserting the three alias maps (tsconfig paths,
+  metro aliases, jest moduleNameMapper) resolve the same four roots;
+  a test that the `withDebugSigning` patch output byte-matches a fresh
+  `expo prebuild --clean` for the *pinned* SDK; a warning when
+  `versionCode` lags `version`. None is standalone-critical; the theme
+is that the dependency layer's reproducibility currently rests on
+prose + a first-party plugin, with no check tying it to the pinned
+versions.
+
+**Recorded, not a defect.** The native/SDK config files are
+version-independent by design and correctly outside the lockfile:
+`android/key.properties`, `ios/GoogleService-Info.plist`,
+`android/google-services.json` (all required-at-prebuild, none in
+`.env`/gitignored secrets), the `com.google.android.gms.ads.APPLICATION_ID`
+meta-data constant, and `play-service-account.json` (gitignored,
+Play-Console side). These are *credentials/config*, not dependencies —
+no finding. Also recorded: the Expo-managed Android SDK matrix
+(`play-services-ads 24.1.0`, `firebase-auth 23.2.0`, etc. in
+`app.config.ts`) is Expo's choice, not the app's — auditing it is
+pass 30/32 (platform/account) territory, not the dependency layer.
+
+**Not audited:** the *content* of the 4 advisories (F38.3 — deliberately
+not chased this pass), the 570-package transitive tree package-by-package
+(full transitive audit is out of scope for a layer pass), the wrangler /
+Cloudflare deploy toolchain (pass 35), and the Play-Console API contract
+(`play-service-account.json`, pass 33's cloud layer).
+
+**Source quality (pass 38).** Internal audit by construction: no
+external sources, no external claims — every structural statement is a
+property of `package.json`, `pnpm-lock.yaml`, `app.config.ts`,
+`tsconfig.json`, `metro.config.js`, `jest.config.js`, and `AGENTS.md`
+as of this commit. The single external tool run was `pnpm audit`
+(vulnerability count only, not chased, per F38.3); the single external
+empirical check was running the hermetic `storeConfig` jest suite to
+confirm bare-alias resolution (F38.4a).
