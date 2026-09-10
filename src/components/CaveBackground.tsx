@@ -1,30 +1,36 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Animated, Image, StyleSheet, View } from "react-native";
-import { caveRowUri } from "src/utils/graphics/caveTiles";
+import {
+  CAVE_METERS_PER_ROW,
+  CAVE_PX_PER_METER,
+  CAVE_TILE_PX,
+  caveRowStartForDepth,
+  caveRowUri,
+  caveTranslateForDepth,
+} from "src/utils/graphics/caveTiles";
 
-const TILE_HEIGHT = 24;
-const ROWS = 12;
+/** Fallback window height (px) before the first onLayout. */
+const INITIAL_HEIGHT = 13 * CAVE_TILE_PX;
+/** Slide duration per descent step (px are small — keep it snappy). */
+const SLIDE_MS = 300;
 
 /**
- * Cave background (plan §4.5): each row is a pre-rendered tile strip
- * (`caveTiles.ts`) stretched to full width. Strips are memoized PNG data URIs
- * keyed by (tint, depth band, row cycle position), so a depth change only
- * swaps cached `<Image>` sources — no per-frame React or PNG work.
- *
- * Scroll: the strip is ROWS+1 tiles tall in a ROWS-tile window. While the
- * player mines WITHIN a depth tier it slides down gradually (`progress`,
- * 0..1) and at each tier threshold the rows re-index exactly one tile, so
- * the descent is continuous instead of a jump every tier.
+ * Cave background (plan §4.5, reworked for "digging deeper"): a vertical
+ * run of pre-rendered tile rows (`caveTiles.ts`) stretched to full width,
+ * covering the whole canvas (the row count follows the measured height).
+ * The strip descends PROPORTIONAL to absolute depth — every meter mined
+ * pushes the rock down CAVE_PX_PER_METER px, so the cave keeps sliding
+ * while the player mines, faster as they earn faster. The rows re-index
+ * one row per CAVE_METERS_PER_ROW meters (exactly one full row of slide),
+ * and the animated value is advanced by the same row in the same commit,
+ * so the descent is continuous instead of the old one-tile-per-tier nudge.
+ * Depth is lifetime-mining based (it only ever climbs), which is what
+ * makes "content only moves up" safe.
  */
 interface CaveBackgroundProps {
   depth: bigint;
   /** Tint for the current depth tier (theme-aware, see `cosmetics.ts`). */
   tint?: string;
-  /**
-   * Progress toward the next depth tier, 0..1 (game.ts
-   * `getDepthTierProgress`). Drives the gradual slide inside a tier.
-   */
-  progress?: number;
   /** Low-end fallback (plan §4.5): flat tinted rows, no PNG strips. */
   emojiArt?: boolean;
 }
@@ -32,38 +38,61 @@ interface CaveBackgroundProps {
 function CaveBackground({
   depth,
   tint = "#a0856a",
-  progress = 0,
   emojiArt = false,
 }: CaveBackgroundProps) {
   const scrollAnim = useRef(new Animated.Value(0)).current;
   const scrollAnimRunRef = useRef<Animated.CompositeAnimation | null>(null);
-  const scrollOffset = useRef(0);
-  const prevDepth = useRef(depth);
+  const prevDescendPx = useRef(0);
+  const [height, setHeight] = useState(0);
 
-  useEffect(() => {
-    if (depth !== prevDepth.current) {
-      // Crossed a tier threshold: the rows re-indexed exactly one tile, so
-      // the base offset continues one tile further — seamless hand-off.
-      // (A big depth jump — offline earnings, a streak of answers — just
-      // lands further into the strip; the clamp below keeps the window
-      // covered.)
-      prevDepth.current = depth;
-      scrollOffset.current += TILE_HEIGHT;
+  const rowStart = caveRowStartForDepth(depth);
+  const descendPx = CAVE_PX_PER_METER * Number(depth);
+  const target = caveTranslateForDepth(depth, rowStart);
+
+  // Rows needed to cover the window + one row of slide headroom. The count
+  // (not the URIs) only changes when the container resizes or a full row
+  // of descent lands, so fast mining re-renders only when content changes.
+  const rowCount = Math.ceil((height || INITIAL_HEIGHT) / CAVE_TILE_PX) + 1;
+
+  // Skipped entirely in emoji mode — no PNG baking either, not just no
+  // render. Rows are addressed by ABSOLUTE cave depth (rowStart + i), so
+  // a row re-index lands exactly when the slide completes one row.
+  const rows = useMemo(
+    () =>
+      emojiArt
+        ? []
+        : Array.from({ length: rowCount }, (_, i) =>
+            caveRowUri({ depth: rowStart * CAVE_METERS_PER_ROW + i, tint }),
+          ),
+    [rowStart, rowCount, tint, emojiArt],
+  );
+
+  useLayoutEffect(() => {
+    const delta = descendPx - prevDescendPx.current;
+    prevDescendPx.current = descendPx;
+    if (delta > 0) {
+      // Crossed a full row of descent: the rows re-indexed by N rows in
+      // the same commit — advance the animated value by exactly the rows
+      // it previously showed so the swap is content-continuous, then
+      // slide the sub-row fraction. (setValue before paint via
+      // useLayoutEffect, so even a big jump never shows a pop.)
+      if (delta >= CAVE_TILE_PX) {
+        scrollAnim.setValue(target + delta);
+      }
+      scrollAnimRunRef.current?.stop();
+      scrollAnimRunRef.current = Animated.timing(scrollAnim, {
+        toValue: target,
+        duration: SLIDE_MS,
+        useNativeDriver: true,
+      });
+      scrollAnimRunRef.current.start();
+    } else {
+      // Depth can only fall on a save switch to a shallower state — snap
+      // (no upward "digging up" animation).
+      scrollAnimRunRef.current?.stop();
+      scrollAnim.setValue(target);
     }
-    // Clamp the base so the strip (ROWS+1 tiles) always covers the window
-    // after repeated tier crossings (depth is lifetime-mining based, so it
-    // only ever climbs).
-    const base = Math.min(scrollOffset.current, 2 * TILE_HEIGHT);
-    // Cancel the in-flight scroll so depth changes during fast mining
-    // don't stack competing animations on the same value.
-    scrollAnimRunRef.current?.stop();
-    scrollAnimRunRef.current = Animated.timing(scrollAnim, {
-      toValue: base + progress * TILE_HEIGHT,
-      duration: 400,
-      useNativeDriver: true,
-    });
-    scrollAnimRunRef.current.start();
-  }, [depth, progress, scrollAnim]);
+  }, [depth, descendPx, target, rowStart, scrollAnim]);
 
   useEffect(
     () => () => {
@@ -72,32 +101,36 @@ function CaveBackground({
     [],
   );
 
-  // Skipped entirely in emoji mode — no PNG baking either, not just no render.
-  const rows = useMemo(
-    () =>
-      emojiArt
-        ? []
-        : Array.from({ length: ROWS + 1 }, (_, i) =>
-            caveRowUri({ depth: Number(depth) + i, tint }),
-          ),
-    [depth, tint, emojiArt],
-  );
-
   const translateY = scrollAnim.interpolate({
     inputRange: [-1e6, 1e6],
     outputRange: [-1e6, 1e6],
   });
 
   return (
-    <View style={styles.container} pointerEvents="none">
+    <View
+      style={styles.container}
+      pointerEvents="none"
+      onLayout={(e) => {
+        const h = e.nativeEvent.layout.height;
+        if (h > 0) setHeight(h);
+      }}
+    >
       <Animated.View style={{ transform: [{ translateY }] }}>
         {emojiArt
-          ? // Flat tinted rows (alternating lightness) — same scroll animation,
-            // zero image decode (plan §4.5 low-end fallback).
-            Array.from({ length: ROWS + 1 }, (_, i) => (
+          ? // Flat tinted rows (alternating lightness) — same descent
+            // animation, zero image decode (plan §4.5 low-end fallback).
+            // Parity keyed on the ABSOLUTE row index (rowStart + i) so a
+            // re-index never flashes the alternating pattern.
+            Array.from({ length: rowCount }, (_, i) => (
               <View
                 key={i}
-                style={[styles.row, { backgroundColor: tint, opacity: i % 2 === 0 ? 0.9 : 0.45 }]}
+                style={[
+                  styles.row,
+                  {
+                    backgroundColor: tint,
+                    opacity: (rowStart + i) % 2 === 0 ? 0.9 : 0.45,
+                  },
+                ]}
               />
             ))
           : rows.map((uri, i) => (
@@ -125,6 +158,6 @@ const styles = StyleSheet.create({
   },
   row: {
     width: "100%",
-    height: TILE_HEIGHT,
+    height: CAVE_TILE_PX,
   },
 });

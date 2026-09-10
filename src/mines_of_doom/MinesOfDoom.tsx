@@ -40,7 +40,6 @@ import {
   getComboMultiplier,
   getComboRetention,
   getDepthTier,
-  getDepthTierProgress,
   getPrestigeMultiplier,
   getResistantComboReset,
   getClickBoostMultiplier,
@@ -1519,7 +1518,6 @@ export default function MinesOfDoom() {
             <View style={styles.canvasWrap}>
               <MiningCanvas
                 depth={depth}
-                depthProgress={getDepthTierProgress(gameState.lifetimeMinerals)}
                 tint={caveTint}
                 minerals={gameState.minerals}
                 gems={gameState.gems}

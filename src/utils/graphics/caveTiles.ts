@@ -55,6 +55,48 @@ export function caveTierForDepth(depth: number): number {
   return tier;
 }
 
+// ---------------------------------------------------------------------------
+// Continuous descent (background rework — "feel as if digging deeper"):
+// the cave no longer slides one tile per tier; it descends PROPORTIONAL to
+// absolute depth. The top of the window sits at world pixel
+// `CAVE_PX_PER_METER * depth`, so every meter mined pushes the whole strip
+// down; the strip re-indexes exactly one row per CAVE_METERS_PER_ROW meters
+// (one full row of slide), so the descent reads as one continuous sink
+// that speeds up as the player earns faster. Because rows are addressed by
+// absolute depth, the next depth tier's rock is already sliding in from
+// the bottom of the window before the tint changes.
+// ---------------------------------------------------------------------------
+
+/** How far (px) the cave descends per meter of depth. */
+export const CAVE_PX_PER_METER = 6;
+
+/** Meters of depth per full row of strip (CAVE_TILE_PX / CAVE_PX_PER_METER). */
+export const CAVE_METERS_PER_ROW = CAVE_TILE_PX / CAVE_PX_PER_METER;
+
+/**
+ * The absolute cave-row index that lands at the top of the window once the
+ * player has descended to `depth` (the window's rows are then
+ * `caveRowStartForDepth(d), +1, +2, …` — deeper rows lower on screen).
+ */
+export function caveRowStartForDepth(depth: number | bigint): number {
+  const d = BigInt(Math.floor(Number(depth)));
+  return Number(d / BigInt(CAVE_METERS_PER_ROW));
+}
+
+/**
+ * The strip's target translateY so the window top sits exactly at `depth`
+ * (∈ [-CAVE_TILE_PX, 0]). Negative = the strip is shifted up against the
+ * `rowStart` top, exposing the sub-row fraction of the descent. Pair with
+ * `caveRowStartForDepth`; see CaveBackground.tsx for the animation
+ * hand-off at row re-indexes.
+ */
+export function caveTranslateForDepth(
+  depth: number | bigint,
+  rowStart: number,
+): number {
+  return rowStart * CAVE_TILE_PX - CAVE_PX_PER_METER * Number(depth);
+}
+
 function toHexByte(n: number): string {
   return Math.max(0, Math.min(255, Math.round(n)))
     .toString(16)

@@ -643,14 +643,15 @@ export const FINAL_TIER_PROGRESS_SPAN = 350;
 /**
  * Progress toward the next depth tier, 0..1, linear in depth.
  *
- * Drives the cave background's continuous scroll: the rock slides down
- * slowly while the player mines within a tier and hands off seamlessly at
- * each threshold (one tile of slide per tier, matching the row shift).
+ * General tier-progress helper (e.g. a depth-banner progress line).
+ * The cave background's descent itself runs on ABSOLUTE depth — the rock
+ * slides proportionally to every meter mined (`caveTiles.ts`
+ * `caveRowStartForDepth` / `caveTranslateForDepth`), not on this.
  * The final tier advances across a fixed virtual span and caps at 1.
  *
  * Takes LIFETIME mined minerals (not the balance): spending minerals must
- * never slide the cave back up (todo: depth & scroll are lifetime-mining
- * based, so both only ever advance).
+ * never regress depth (depth is lifetime-mining based, so it only ever
+ * advances).
  */
 export function getDepthTierProgress(
   lifetimeMinerals: number | bigint,

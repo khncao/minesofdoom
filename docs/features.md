@@ -56,6 +56,17 @@ of Pressable so rapid tapping doesn't double-render).
   add a click bonus; the depth banner announces tier changes
   (`game.ts: DEPTH_TIERS, getDepthTierProgress`,
   `components/DepthBanner.tsx`).
+- **Cave descent** — the cave background descends PROPORTIONAL to absolute
+  depth (rework: "feel as if digging deeper"): every meter mined pushes the
+  rock strip down 6 px (one full row per 4 m), so the cave keeps sliding
+  while the player mines — faster as they earn faster — and the next tier's
+  rock is already sliding in from the bottom of the window before the tint
+  changes. The strip covers the whole canvas (row count follows the
+  measured height), rows are addressed by absolute cave depth, and the
+  re-index at each full row is compensated in the same commit so the
+  descent reads as one continuous sink (`utils/graphics/caveTiles.ts:
+  caveRowStartForDepth, caveTranslateForDepth, CAVE_PX_PER_METER`,
+  `components/CaveBackground.tsx`).
 - **Prestige ("sink a new shaft")** — resets the run (miners, upgrades,
   minerals) for a **banked permanent multiplier** (6 levels, ×1 → ×5 on
   lifetime-mineral thresholds) (`game.ts: PRESTIGE_LEVELS,

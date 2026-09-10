@@ -6,7 +6,15 @@ Only work on continuous tasks after other tasks are completed
 
 - [ ] draft a few different generated art styles for characters and cosmetics
 - [ ] add a one time purchase that enables custom skinning (user uploaded images and audio)
-- [ ] rework mine background. Player should feel as if they are digging deeper based on depth
+- [o] rework mine background. Player should feel as if they are digging deeper based on depth
+  — IMPLEMENTED (2026-09): the cave strip now descends proportionally to
+  absolute depth (6 px/m, one full row per 4 m) instead of one tile per
+tier, covers the full canvas height, and the next tier's rock slides in
+  from the bottom before the tint flips (`caveTiles.ts:
+  caveRowStartForDepth/caveTranslateForDepth`, `CaveBackground.tsx`,
+  descent invariants unit-tested in `caveTiles.test.ts`). Remaining: visual
+  pass on a device/emulator (feel + speed tuning of CAVE_PX_PER_METER /
+  SLIDE_MS) — remove this item once that looks right.
 
 - [ ] continuous task (do not complete): document feature map and fill out feature gaps and potential product improvements. Do not implement any feature gaps until greenlit
 
