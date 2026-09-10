@@ -291,6 +291,26 @@ repo is not equipped to make.
     desktop-cohort signal): until then the stretch is a taste call, not
     a defect. Companion `art:contrast-audit` (F31.4) is a Tier 1 #2
     input, not a separate ranking item.
+22. **`account:web-erasure`** (pass 33, F33.2) — the only
+    "delete my data" surface in the app is the SaveTab cloud-backup
+    section, which renders only while the *cloud* provider is available
+    — never on web — while accounts are a three-platform surface (web
+    sign-in is live, and web purchases tag accounts). A web account can
+    be created, carry purchases, and yet have no in-app erasure path:
+    the server supports account-scope delete from any client, only the
+    native client can trigger it. The compliance floor (security-audit
+    S4/S6 assumes in-app erasure), and the store-integration release
+    gate still cites the button at a component that does not hold it
+    ("LegalSection 'delete my data'" — the button is in SaveTab). Fix:
+    render the erasure in the *account* surface (gated on the auth
+    provider, not the cloud provider); the plain wordings are already
+    i18n'd, and the release-gate line needs the stale component name
+    corrected. Same-pass companions: `account:erase-signout` (F33.3 —
+    a successful account-scope delete leaves the client signed in with
+    the dead token until the next launch; sign out after the delete)
+    and `cloud:stale-notice` (F33.4 — the stale-push import path
+    replaces local progress with the other device's save and no toast,
+    unlike the two restore paths that do).
 
 **Context — closed since the passes ran** (so the ranking isn't
 re-derived from stale reads): streak grace (it.14), streak freezes +
@@ -302,7 +322,11 @@ repair (it.19), day-7 bonus spike (it.15), `cosmetics:analytics`
 commit `49c472f` — Tier 1 #3 is done, see the struck-through entry),
 weekly contract, equation of the day, gem pocket, idle reminder, share
 images, SFX/music volume controls, music bed, reduce-effects toggle,
-statistics detail, cosmetic compendium. All the "deliberately absent" items (interstitials,
+statistics detail, cosmetic compendium, `settings:commit-model`
+(F32.1 — landed 2026-09-10, per-change settings persistence,
+commit `4af0a08`), `settings:portability` (F32.2 — landed 2026-09-10,
+settings ride-along on save codes + cloud snapshots, commit
+`43cb08d`). All the "deliberately absent" items (interstitials,
 fake scarcity, pay-to-win gates, device-motion input, landscape,
 voice/social input) are guardrails, not gaps, and stay out of this
 ranking.
@@ -631,7 +655,21 @@ persistence stack: per-change localStorage persistence + restore-on-mount
 game). New candidates: `settings:commit-model` (F32.1) → Tier 1, item 20;
 `settings:portability` (F32.2) → Tier 1, item 21; `settings:min-floor`
 (F32.3) rides along on Tier 1 #1. Items adopted from that list move into
-`docs/todo.md`.
+`docs/todo.md`. (Both settings items landed 2026-09-10 — see the
+"Context — closed" list in the ranking.)
+
+2026-09 pass 33: the account / session layer — the surface passes 21,
+24, 26 and 28 each audited one axis of (local persistence,
+leaderboard, telemetry, adversarial posture), and the account surface
+itself got a single pass-30 matrix row (the sign-in mechanisms) —
+none audited the *session lifecycle* or the data plane a session
+tags. Internal audit by construction: F33.1–F33.4 are properties of
+this repo's account / data-plane wiring as of this commit (`auth.ts`,
+`useAccount.ts`, `useCloudSave.ts`, `SaveTab.tsx`, the `pb_hooks`
+endpoint contract) — no external sources, no external claims. New:
+`account:web-erasure` (F33.2, with the `account:erase-signout` F33.3
+and `cloud:stale-notice` F33.4 companions) → Tier 1, item 22;
+`account:web-value` (F33.1) stays a candidate, trigger-gated.
 
 ## The gap layers (formerly `docs/features.md` §7)
 
@@ -4695,3 +4733,73 @@ quality and decision-state observations.
   hit. Trigger-gated on the Tier 1 #2 high-contrast greenlight
   (un-scopable without the list, which is why it's a candidate, not a
   ranking item of its own).
+
+### The account & cloud layer (pass 33 — what a signed-in session owns, written 2026-09-10)
+
+Pass 21 (local persistence), pass 24 (leaderboard), pass 26
+(telemetry), pass 28 (adversarial) and pass 30 (the platform-parity
+sign-in matrix row) each audited one axis of the account surface —
+this pass audits the *session lifecycle* and the data plane a session
+tags: what a signed-in client owns, what it can erase, and what
+hens to its save while it plays. Internal audit by construction:
+F33.1–F33.4 are properties of this repo's account / data-plane wiring
+(`auth.ts`, `useAccount.ts`, `useCloudSave.ts`, `cloudSave.ts`,
+`SaveTab.tsx`, the `pb_hooks` endpoint contract).
+
++ **F33.1 — `account:web-value` (candidate, trigger-gated).** Web
+  sign-in is live (the ID-client flow, e2e-verified) and web purchases
+  tag accounts — but the cloud provider is a no-op on web *by
+  construction* (`cloudSave.ts`: "no-op on web — save codes cover web
+  backup"; `selectCloudSaveProvider` returns the no-op provider when
+  the target is web). So a web account's one durable value today is
+  entitlement restore across devices/reinstalls; it gets no save sync
+  and (F33.2) no erasure path. Whether that is worth carrying the web
+  sign-in surface is a growth bet, not a defect: candidate,
+  trigger-gated on the same web-growth bets as Tier 1 #14 (PWA /
+  installability, es-market listing, any desktop-cohort signal).
++ **F33.2 — `account:web-erasure` (→ Tier 1, item 22).** The app's
+  only "delete my data" surface is the SaveTab cloud-backup section
+  (`SaveTab.tsx` `CloudSaveSection`), which returns null when
+  `cloudSave.available` is false — and it is never true on web (the
+  no-op provider above). Accounts are a three-platform surface (web
+  sign-in is live, web purchases tag accounts), so a web account can be
+  created, carry purchases, and yet have no in-app erasure path. The
+  server side already supports account-scope delete from any client
+  (`pb_hooks` `/api/app/delete` takes `{ deviceId, sessionToken? }`
+  and returns `deletedAccount`); only the client surface is missing.
+  The compliance floor is affected (the security-audit S4/S6 posture
+  assumes in-app erasure), and the store-integration release gate is
+  stale on two counts: `docs/store-integration.md` still cites the
+  "LegalSection 'delete my data'" button (the LegalSection has no
+  delete link — the button is in SaveTab) and the endpoint table still
+  uses the old `/api/app/gdpr/delete` name (the route is
+  `/api/app/delete`, per the client and `pb_hooks`). Fix: render the
+  erasure in the *account* surface, gated on the auth provider
+  (available on all three platforms once signed in) rather than the
+  cloud provider; the plain wordings are already i18n'd, and the
+  release-gate line gets the component name and route name corrected.
++ **F33.3 — `account:erase-signout` (F33.2 companion).**
+  `useCloudSave.deleteMyData` round-trips `provider.delete(token())`
+  and toasts the outcome — but never signs out. A successful
+  *account-scope* delete removes the account server-side, leaving the
+  client holding a session on a dead token until the next launch
+  (`useAccount.signOut` exists and clears the token store, but nothing
+  in the delete path calls it). Fix: sign out after a successful
+  account-scope delete (device-scope deletes keep the session — the
+  account still exists).
++ **F33.4 — `cloud:stale-notice` (F33.2 companion).** The cloud has
+  three import paths and only two of them speak. Launch-recovery and
+  the manual restore both toast `toast.cloudRestored` after importing
+  a blob; the third path — the `stale` branch of `requestPush` (the
+  last-write-wins conflict: the server kept a NEWER snapshot than the
+  one just pushed, so the client refreshes its local view from the
+  stored one) — calls the same import pipeline with no toast at all.
+  A background push silently replacing the player's live progress with
+  the other device's save is exactly the moment a notice is owed; the
+  silent path is the odd one out. Fix: toast on the stale import
+  (reusing or varianting the existing restored wording).
+
+**Source quality (pass 33).** Internal audit by construction (the same
+class as passes 30–32): no external sources, no external claims —
+every statement above is a property of the wiring as of this commit,
+verified against `src/` and `pb_hooks/`.
