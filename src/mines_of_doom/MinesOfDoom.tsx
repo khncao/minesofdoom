@@ -84,6 +84,14 @@ import {
 } from "./hooks/useGameEngine";
 import { useSettings } from "./hooks/useSettings";
 import { useSounds } from "./hooks/useSounds";
+import { useCustomSkin } from "./hooks/useCustomSkin";
+import {
+  CUSTOM_SKIN_UNLOCK_COST_GEMS,
+  customSkinGridToUri,
+  hasCustomSkinPixels,
+} from "./customSkin";
+import { gridToPngDataUri, type PixelGrid } from "src/utils/graphics/pixelArt";
+import { pickCustomSkinAudio, pickCustomSkinImage } from "./customSkinPicker";
 import { useHaptics } from "./hooks/useHaptics";
 import { useCombo } from "./hooks/useCombo";
 import { useShakeInput } from "./hooks/useShakeInput";
@@ -216,6 +224,7 @@ export default function MinesOfDoom() {
     completeTiers,
     completeAchievements,
     buyCosmetic,
+    buyCustomSkin,
     selectCosmetic,
     rerollPlayerSeed,
     buyCaveTheme,
@@ -555,12 +564,37 @@ export default function MinesOfDoom() {
   // looping cave-ambience bed (on by default) at the independent
   // settings.musicVolume level (default 50, the pass-3 accessibility
   // fix — no longer half the SFX level).
+  // Custom skin (todo: "Custom skinning"): a device-local slot in its own
+  // AsyncStorage key (not in the save model), unlocked by a one-time gem
+  // spend or the IAP pass; uploads are web-only for now (native = later).
+  const {
+    skin: customSkin,
+    unlock: unlockCustomSkin,
+    setEquipped: setCustomSkinEquipped,
+    setGrid: setCustomSkinGrid,
+    setAudio: setCustomSkinAudio,
+    clear: clearCustomSkin,
+  } = useCustomSkin();
+  // The equipped skin as a PNG data URI (cached per grid) — the player
+  // miner's body override. An empty-grid skin keeps the outfit body.
+  const customSkinBodyUri = useMemo(() => {
+    const grid = customSkin.grid;
+    if (customSkin.equipped && grid != null && hasCustomSkinPixels(grid)) {
+      // SAFETY: a 16×16 (string|null)[][] IS a PixelGrid — the readonly
+      // grid type is the same cells, so this is a shape assertion only.
+      return customSkinGridToUri(grid, (g) =>
+        gridToPngDataUri(g as unknown as PixelGrid),
+      );
+    }
+    return null;
+  }, [customSkin.equipped, customSkin.grid]);
   const { play } = useSounds(
     mute,
     gameState.selectedPickaxe,
     settingsData.soundVolume,
     settingsData.music,
     settingsData.musicVolume,
+    customSkin.equipped ? customSkin.audio : null,
   );
   // Haptic feedback (settings toggle, on by default): same stable-callback
   // pattern as `play` so the memoized tap/answer handlers can use it.
@@ -1203,7 +1237,9 @@ export default function MinesOfDoom() {
   // The owned-list refs (not per-tick fields) are the effect deps: they
   // change on buy/import/reset/load, never on the 1s tick.
   useEffect(() => {
-    const { cosmetics, caveThemes } = iapGrantCosmeticIds(iap.entitlements);
+    const { cosmetics, caveThemes, customSkin } = iapGrantCosmeticIds(
+      iap.entitlements,
+    );
     // The grant's analytics events: only for ids the save DOESN'T already
     // own (the engine grant below is the source of truth — "iap" path,
     // gems unchanged by a pack). The closure's gameState is the
@@ -1236,9 +1272,16 @@ export default function MinesOfDoom() {
     if (cosmetics.length > 0 || caveThemes.length > 0) {
       grantIapCosmetics(cosmetics, caveThemes);
     }
+    if (customSkin) {
+      // Idempotent: only writes when not already unlocked; never touches
+      // the player's uploads. (No analytics event: the pass grants a slot,
+      // not a catalog cosmetic.)
+      unlockCustomSkin();
+    }
   }, [
     iap.entitlements,
     grantIapCosmetics,
+    unlockCustomSkin,
     gameState.ownedCosmetics,
     gameState.ownedCaveThemes,
     gameState.gems,
@@ -1299,14 +1342,52 @@ export default function MinesOfDoom() {
   // purchase shop"): the pack's grant decides the engine action; both are
   // idempotent no-ops when unaffordable / already owned. Stable callbacks
   // so the memoized panel's props don't churn.
+  const handleSkinImageUpload = useCallback(async () => {
+    const res = await pickCustomSkinImage();
+    if (res.kind === "image") {
+      setCustomSkinGrid(res.grid);
+      displayMessage(t("toast.skinImageSaved"), 2000);
+    } else if (res.kind === "invalid") {
+      displayMessage(t("toast.skinImageInvalid"), 3000);
+    } else if (res.kind === "unsupported") {
+      displayMessage(t("toast.skinUnsupported"), 3000);
+    }
+  }, [displayMessage, t, setCustomSkinGrid]);
+  const handleSkinAudioUpload = useCallback(async () => {
+    const res = await pickCustomSkinAudio();
+    if (res.kind === "audio") {
+      setCustomSkinAudio(res.uri);
+      displayMessage(t("toast.skinAudioSaved"), 2000);
+    } else if (res.kind === "invalid") {
+      displayMessage(t("toast.skinAudioInvalid"), 3000);
+    } else if (res.kind === "unsupported") {
+      displayMessage(t("toast.skinUnsupported"), 3000);
+    }
+  }, [displayMessage, t, setCustomSkinAudio]);
+
   const handleShopBuyGems = useCallback(
     (id: IapProductId) => {
       const grant = IAP_PACK_GRANTS[id];
-      if (grant.kind === "caveTheme") buyCaveTheme(grant.id);
+      if (grant.kind === "customSkin") {
+        // One-time gem unlock of the custom-skin slot: unlock + equip so
+        // the player's already-uploaded pixels come to life. No grant —
+        // the skin pixels are the player's own uploads, never a cosmetic.
+        if (buyCustomSkin(CUSTOM_SKIN_UNLOCK_COST_GEMS)) {
+          unlockCustomSkin();
+          setCustomSkinEquipped(true);
+        }
+      } else if (grant.kind === "caveTheme") buyCaveTheme(grant.id);
       else buyCosmetic(grant.id);
       haptic("success");
     },
-    [buyCosmetic, buyCaveTheme, haptic],
+    [
+      buyCosmetic,
+      buyCaveTheme,
+      buyCustomSkin,
+      unlockCustomSkin,
+      setCustomSkinEquipped,
+      haptic,
+    ],
   );
   const handleShopSelect = useCallback(
     (id: IapProductId) => {
@@ -1453,6 +1534,17 @@ export default function MinesOfDoom() {
               themesLocked={
                 !gameState.completedTiers.includes(CAVE_THEME_UNLOCK_TIER)
               }
+              customSkin={customSkin}
+              onUploadSkinImage={
+                Platform.OS === "web" ? handleSkinImageUpload : undefined
+              }
+              onUploadSkinAudio={
+                Platform.OS === "web" ? handleSkinAudioUpload : undefined
+              }
+              onClearSkin={() => {
+                clearCustomSkin();
+                displayMessage(t("toast.skinCleared"), 2000);
+              }}
               onBuyGems={handleShopBuyGems}
               onPurchase={handleIapPurchase}
               onSelect={handleShopSelect}
@@ -1515,7 +1607,16 @@ export default function MinesOfDoom() {
             and the keypad strip below renders only while the on-screen
             keypad setting is on. */}
           <View style={styles.playArea}>
-            <View style={styles.canvasWrap}>
+            {/* The cave breaks out of the width-capped column on wide
+              web screens (styles.canvasFullBleed) — full-bleed cave,
+              capped content (todo: "background canvas should still
+              cover whole screen"). */}
+            <View
+              style={[
+                styles.canvasWrap,
+                Platform.OS === "web" && styles.canvasFullBleed,
+              ]}
+            >
               <MiningCanvas
                 depth={depth}
                 tint={caveTint}
@@ -1534,6 +1635,7 @@ export default function MinesOfDoom() {
                 playerSeed={gameState.playerSeed}
                 outfitId={gameState.selectedOutfit}
                 pickaxeId={gameState.selectedPickaxe}
+                playerBodyUri={customSkinBodyUri}
                 reduceMotion={reduceMotion}
                 emojiArt={settingsData.emojiArt}
               />

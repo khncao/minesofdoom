@@ -28,6 +28,21 @@ test.describe("web build — boot & free path", () => {
     await expect(page.getByTestId("equation-display")).toBeVisible();
     await expect(page.getByTestId("mining-canvas")).toBeVisible();
 
+    // Wide-screen layout (todo: capped content, full-bleed cave): at
+    // desktop width the cave spans the viewport while the content column
+    // stays capped at 640px (styles.contentColumn / canvasFullBleed).
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(page.getByTestId("mining-canvas")).toBeVisible();
+    const caveBox = await page.getByTestId("mining-canvas").boundingBox();
+    if (caveBox === null) throw new Error("cave not laid out");
+    expect(
+      caveBox.width,
+      "the cave is full-bleed across the viewport",
+    ).toBeGreaterThan(1400);
+    const eqBox = await page.getByTestId("equation-display").boundingBox();
+    if (eqBox === null) throw new Error("equation display not laid out");
+    expect(eqBox.width, "content stays width-capped").toBeLessThanOrEqual(640);
+
     // The served build carries the AdSense loader tag in Google TEST MODE
     // (server.mjs injects it) — assert on the DOM, no network needed.
     const loader = page.locator("script[src*='adsbygoogle']");

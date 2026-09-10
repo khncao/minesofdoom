@@ -45,6 +45,24 @@ export const styles = StyleSheet.create({
     // screens (plan "Adjust" — canvas always visible).
     minHeight: 140,
   },
+  // Full-bleed cave on wide screens (todo: "add max width for all content
+  // containers ... background canvas should still cover whole screen"): the
+  // game column caps at 640px, but the cave stretches across the full
+  // viewport width behind the capped content. Web-only — on native the
+  // column never reaches the cap (phones are narrower than 640) and
+  // "100vw" isn't a native length, so the base style stands alone there.
+  // (RN's DimensionValue type predates viewport units; RN web passes
+  // string lengths through to the DOM untouched — react-native-web's
+  // dangerousStyleValue copies non-numeric style values verbatim — and
+  // this style is only applied on web anyway, so native never sees it.)
+  canvasFullBleed: {
+    // SAFETY: "100vw" is a valid CSS length; RN web passes string style
+    // values through to the DOM untouched (dangerousStyleValue), and this
+    // style is applied on web only, so the number-typed slot never holds
+    // it at runtime.
+    width: "100vw" as unknown as number,
+    alignSelf: "center",
+  },
   canvas: {
     flex: 1,
     backgroundColor: "#2f1f1f",
@@ -395,7 +413,7 @@ export const styles = StyleSheet.create({
     width: 18,
     textAlign: "center",
   },
-  // Symbol-display chips (the two literal previews, "7 * 2 · 7 / 2" / 
+  // Symbol-display chips (the two literal previews, "7 * 2 · 7 / 2" /
   // "7 x 2 · 7 ÷ 2") — same look as the settings panel's toggle.
   setupChip: {
     paddingHorizontal: 8,
