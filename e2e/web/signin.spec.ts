@@ -29,9 +29,7 @@ interface GsiPageState {
   delivered: string | null;
 }
 
-const readGsiPageState = (
-  page: Page,
-): Promise<GsiPageState> =>
+const readGsiPageState = (page: Page): Promise<GsiPageState> =>
   page.evaluate(() => {
     const w = window as unknown as { __e2eGsi?: GsiPageState };
     return w.__e2eGsi ?? { initializedWith: null, prompts: 0, delivered: null };
@@ -106,16 +104,14 @@ test.describe("web Google sign-in (stubbed GSI + sidecar, real RS256 JWT)", () =
     await googleBtn.click();
 
     // prompt() fired and delivered the documented popup_closed error…
-    await expect.poll(async () => (await readGsiPageState(page)).prompts).toBe(
-      1,
-    );
+    await expect
+      .poll(async () => (await readGsiPageState(page)).prompts)
+      .toBe(1);
     // …the sidecar never saw an auth request, and the UI stayed quiet:
     // no inline error, still on the sign-in branch.
     expect(gsi.authCalls).toEqual([]);
     await expect(googleBtn).toBeVisible();
-    await expect(
-      page.getByText("Sign-in failed — try again."),
-    ).toBeHidden();
+    await expect(page.getByText("Sign-in failed — try again.")).toBeHidden();
   });
 
   test("sidecar 401 (refused token) → the single inline error", async ({
@@ -140,9 +136,9 @@ test.describe("web Google sign-in (stubbed GSI + sidecar, real RS256 JWT)", () =
     await expect(googleBtn).toBeVisible();
     await googleBtn.click();
     // The single inline error, and the app stays on the sign-in branch.
-    await expect(
-      page.getByText("Sign-in failed — try again."),
-    ).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Sign-in failed — try again.")).toBeVisible({
+      timeout: 20_000,
+    });
     await expect(googleBtn).toBeVisible();
   });
 });
@@ -204,20 +200,26 @@ test.describe("web Google sign-in — LIVE GSI (E2E_LIVE_GSI=1 only)", () => {
     // popup (FedCM: empty account list) — that leg stays manual — but the
     // app's contract here is: it drives the REAL surface, doesn't crash.
     await expect
-      .poll(async () => {
-        const w = await page.evaluate(() => {
-          const w2 = window as unknown as {
-            google?: { accounts?: { id?: { initialize?: unknown; prompt?: unknown } } };
-          };
-          const id = w2.google?.accounts?.id;
-          return {
-            hasId: id !== undefined,
-            hasInit: typeof id?.initialize === "function",
-            hasPrompt: typeof id?.prompt === "function",
-          };
-        });
-        return w.hasId && w.hasInit && w.hasPrompt;
-      }, { timeout: 30_000 }).toBe(true);
+      .poll(
+        async () => {
+          const w = await page.evaluate(() => {
+            const w2 = window as unknown as {
+              google?: {
+                accounts?: { id?: { initialize?: unknown; prompt?: unknown } };
+              };
+            };
+            const id = w2.google?.accounts?.id;
+            return {
+              hasId: id !== undefined,
+              hasInit: typeof id?.initialize === "function",
+              hasPrompt: typeof id?.prompt === "function",
+            };
+          });
+          return w.hasId && w.hasInit && w.hasPrompt;
+        },
+        { timeout: 30_000 },
+      )
+      .toBe(true);
 
     // Give GSI time to settle (it either errors out or waits for a
     // consent that can't happen in this profile), then assert the app

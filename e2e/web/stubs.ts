@@ -452,8 +452,7 @@ function verifyIdToken(
   if (!sigOk) return "bad signature";
   const now = Math.floor(Date.now() / 1000);
   if (claims.iss !== GOOGLE_ISS) return `iss ${String(claims.iss)}`;
-  if (claims.aud !== GOOGLE_WEB_CLIENT_ID)
-    return `aud ${String(claims.aud)}`;
+  if (claims.aud !== GOOGLE_WEB_CLIENT_ID) return `aud ${String(claims.aud)}`;
   const exp = Number(claims.exp);
   const iat = Number(claims.iat);
   if (!Number.isFinite(exp) || exp <= now) return "expired token";
