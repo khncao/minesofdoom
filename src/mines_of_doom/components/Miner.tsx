@@ -1,4 +1,10 @@
-import React, { MutableRefObject, useContext, useEffect, useMemo, useRef } from "react";
+import React, {
+  MutableRefObject,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { Animated, Easing, Image, Text } from "react-native";
 import { Context } from "../Context";
 import { getPickaxe, getPickaxeFeel, rollMinerLook } from "../cosmetics";
@@ -26,6 +32,12 @@ export interface MinerProps {
   windingUp?: boolean;
   /** Low-end fallback (plan §4.5): emoji instead of pixel sprites. */
   emojiArt?: boolean;
+  /**
+   * Custom-skin body (todo: "Custom skinning"): a PNG data URI of the
+   * player's own 16×16 pixels — replaces the outfit body when present
+   * (player-only; the roster keeps the outfit look).
+   */
+  bodyOverrideUri?: string | null;
 }
 
 // Emoji bodies for the low-end fallback (plan §4.5): seeded so a miner keeps
@@ -110,9 +122,12 @@ function Miner({ scale = 1, ...props }: MinerProps) {
     activeAnimRef.current.start();
   };
 
-  useEffect(() => () => {
-    activeAnimRef.current?.stop();
-  }, []);
+  useEffect(
+    () => () => {
+      activeAnimRef.current?.stop();
+    },
+    [],
+  );
 
   const spin = pickaxeAnim.interpolate({
     inputRange: [0, 90],
@@ -160,10 +175,12 @@ function Miner({ scale = 1, ...props }: MinerProps) {
   // there, so "" is a safe placeholder.
   const bodyUri = useMemo(
     () =>
-      props.emojiArt
-        ? ""
-        : minerSpriteUri(rollMinerLook(props.seed, props.outfitId)),
-    [props.seed, props.outfitId, props.emojiArt],
+      props.emojiArt || props.bodyOverrideUri == null
+        ? props.emojiArt
+          ? ""
+          : minerSpriteUri(rollMinerLook(props.seed, props.outfitId))
+        : props.bodyOverrideUri,
+    [props.seed, props.outfitId, props.emojiArt, props.bodyOverrideUri],
   );
   const pickaxeUri = useMemo(
     () =>

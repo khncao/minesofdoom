@@ -52,6 +52,14 @@ export const en = {
   "toast.tierComplete": "🏆 {tier} complete! +{bonus} 🪨 — unlocks: {unlock}",
   "toast.achievement": "🏅 {label}! +{bonus} 🪨",
   "toast.vein": "You struck a vein! +1 💎",
+  "toast.skinImageSaved": "Custom skin image saved",
+  "toast.skinImageInvalid":
+    "That image couldn't be used — try a simpler, smaller image",
+  "toast.skinAudioSaved": "Custom swing sound saved",
+  "toast.skinAudioInvalid":
+    "That sound file couldn't be used (keep it under 3 seconds)",
+  "toast.skinUnsupported": "Uploads are available on web for now",
+  "toast.skinCleared": "Custom skin uploads cleared",
   "toast.comboUp": "Combo x{mult}!",
   "toast.comboDropped": "Combo dropped to {combo}!",
   "toast.comboLost": "Combo lost!",
@@ -514,11 +522,19 @@ export const en = {
   "iap.alsoEarnable":
     "Also earnable in-game for {count} 💎 — buying is convenience, not " +
     "access.",
+  "iap.oneTime": "One-time purchase: {price}",
   "iap.groupPickaxes": "Pickaxes",
   "iap.groupOutfits": "Outfits",
   "iap.groupThemes": "Cave themes",
   "iap.equip": "Equip",
   "iap.equipped": "✓ Equipped",
+  "iap.groupSkin": "Custom skin",
+  "iap.groupSkinDetail":
+    "Your own pixels: upload a body image and a swing sound (one-time unlock).",
+  "iap.skinUploadImage": "Upload image",
+  "iap.skinUploadAudio": "Upload sound",
+  "iap.skinClear": "Clear uploads",
+  "iap.skinUploadsWebOnly": "Uploads are available on web for now",
 
   // --- Shared UI ---------------------------------------------------------------
   "ui.close": "Close",

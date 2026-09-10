@@ -8,12 +8,15 @@
 import * as IAP from "expo-iap";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { storeConfig, isPocketbaseConfigured } from "../storeConfig";
-import { IAP_STORE_IDS } from "../iaps";
+import { IAP_STORE_IDS, IAP_IOS_STORE_IDS } from "../iaps";
 import { storeIapProvider, PENDING_VERIFY_KEY } from "../iapProvider";
 import { IAP_DEVICE_ID_KEY } from "../iapDeviceId";
 
 const BASE = "https://pb.example.test";
 const STORE_ID = IAP_STORE_IDS.packGold;
+// jest runs with Platform.OS = "ios", so the purchase flow in these tests
+// uses the App Store product id ({ios.bundleId}.{productId}).
+const IOS_STORE_ID = IAP_IOS_STORE_IDS.packGold;
 
 type PurchaseEvent = {
   productId: string;
@@ -30,9 +33,7 @@ function resetMocks() {
   updateCb = null;
   errorCb = null;
   (IAP.initConnection as jest.Mock).mockResolvedValue(undefined);
-  (IAP.requestPurchase as jest.Mock).mockImplementation(
-    async () => undefined,
-  );
+  (IAP.requestPurchase as jest.Mock).mockImplementation(async () => undefined);
   (IAP.finishTransaction as jest.Mock).mockResolvedValue(undefined);
   (IAP.purchaseUpdatedListener as jest.Mock).mockImplementation((cb) => {
     updateCb = cb;
@@ -80,9 +81,7 @@ describe("storeIapProvider: gating", () => {
 
   it("purchase resolves 'error' (never rejects) while unconfigured", async () => {
     storeConfig.pocketbaseUrl = "";
-    await expect(storeIapProvider.purchase("packGold")).resolves.toBe(
-      "error",
-    );
+    await expect(storeIapProvider.purchase("packGold")).resolves.toBe("error");
     expect(IAP.initConnection).not.toHaveBeenCalled();
   });
 
@@ -108,15 +107,21 @@ describe("storeIapProvider: purchase round-trip", () => {
     const pending = storeIapProvider.purchase("packGold");
     await settle();
     expect(IAP.initConnection).toHaveBeenCalledTimes(1);
+    // Platform is "ios" in this test environment, so BOTH request fields carry
+    // the iOS store id (the purchase sheet only uses the active platform's
+    // field, the other one is inert).
     expect(IAP.requestPurchase).toHaveBeenCalledWith({
-      request: { apple: { sku: STORE_ID }, google: { skus: [STORE_ID] } },
+      request: {
+        apple: { sku: IOS_STORE_ID },
+        google: { skus: [IOS_STORE_ID] },
+      },
       type: "in-app",
     });
     expect(updateCb).not.toBeNull();
 
     // The store emits the completed purchase.
     const purchase: PurchaseEvent = {
-      productId: STORE_ID,
+      productId: IOS_STORE_ID,
       purchaseState: "purchased",
       purchaseToken: "tok-123",
     };
@@ -149,7 +154,7 @@ describe("storeIapProvider: purchase round-trip", () => {
     const pending = storeIapProvider.purchase("packGold");
     await settle();
     expect(errorCb).not.toBeNull();
-    errorCb!({ code: "user-cancelled", productId: STORE_ID });
+    errorCb!({ code: "user-cancelled", productId: IOS_STORE_ID });
     await expect(pending).resolves.toBe("cancelled");
     expect(fetchMock).not.toHaveBeenCalled();
     expect(IAP.finishTransaction).not.toHaveBeenCalled();
@@ -162,7 +167,7 @@ describe("storeIapProvider: purchase round-trip", () => {
     const pending = storeIapProvider.purchase("packGold");
     await settle();
     updateCb!({
-      productId: STORE_ID,
+      productId: IOS_STORE_ID,
       purchaseState: "purchased",
       purchaseToken: "tok-456",
     });
@@ -195,7 +200,10 @@ describe("storeIapProvider: purchase round-trip", () => {
       packGold: true,
     });
     // First the queued verify, then the restore itself.
-    expect(calls).toEqual([`${BASE}/api/app/verify`, `${BASE}/api/app/restore`]);
+    expect(calls).toEqual([
+      `${BASE}/api/app/verify`,
+      `${BASE}/api/app/restore`,
+    ]);
     // The queue is now empty (the verify succeeded).
     const raw = await AsyncStorage.getItem(PENDING_VERIFY_KEY);
     expect(JSON.parse(raw as string)).toEqual([]);
@@ -226,11 +234,23 @@ describe("storeIapProvider: launch reconcile (reconcileStore)", () => {
     configure(BASE);
     const storeIds = IAP_STORE_IDS as Record<string, string>;
     (IAP.getAvailablePurchases as jest.Mock).mockResolvedValue([
-      { productId: STORE_ID, purchaseState: "purchased", purchaseToken: "tok-r1" },
+      {
+        productId: STORE_ID,
+        purchaseState: "purchased",
+        purchaseToken: "tok-r1",
+      },
       // A purchase for a product we don't sell: dropped.
-      { productId: "someone.elses.product", purchaseState: "purchased", purchaseToken: "tok-x" },
+      {
+        productId: "someone.elses.product",
+        purchaseState: "purchased",
+        purchaseToken: "tok-x",
+      },
       // Not a completed purchase: skipped entirely.
-      { productId: storeIds.packFrost, purchaseState: "pending", purchaseToken: "tok-p" },
+      {
+        productId: storeIds.packFrost,
+        purchaseState: "pending",
+        purchaseToken: "tok-p",
+      },
     ]);
     const calls: string[] = [];
     fetchMock.mockImplementation(async (url: string) => {
@@ -259,7 +279,11 @@ describe("storeIapProvider: launch reconcile (reconcileStore)", () => {
   it("keeps the tokens queued when the re-verify fails (they replay on a later restore)", async () => {
     configure(BASE);
     (IAP.getAvailablePurchases as jest.Mock).mockResolvedValue([
-      { productId: STORE_ID, purchaseState: "purchased", purchaseToken: "tok-r2" },
+      {
+        productId: STORE_ID,
+        purchaseState: "purchased",
+        purchaseToken: "tok-r2",
+      },
     ]);
     fetchMock.mockResolvedValue({ ok: false, json: async () => ({}) });
 

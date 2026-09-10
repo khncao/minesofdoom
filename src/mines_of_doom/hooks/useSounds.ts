@@ -33,10 +33,18 @@ export function useSounds(
   music: boolean,
   /** Music volume in percent (0–100, settings.musicVolume, default 50). */
   musicVolume: number,
+  /**
+   * Custom-skin swing sound (todo: "Custom skinning"): when set, a
+   * "pickaxe" swing plays the player's own data-URI clip instead of the
+   * pickaxe's unique sound. Web upload path only for now (native uploads
+   * are "later") — native passes null.
+   */
+  swingSoundUri: string | null,
 ) {
   const pickaxeRef = useRef<AudioPlayer | null>(null);
   const stoneRef = useRef<AudioPlayer | null>(null);
   const musicRef = useRef<AudioPlayer | null>(null);
+  const swingOverrideRef = useRef<AudioPlayer | null>(null);
   const pickaxeSoundsRef = useRef<Partial<Record<string, AudioPlayer>>>({});
   // Ref (not a hook dep) so `play` keeps a stable identity across
   // pickaxe switches — it is memoized into useMineTaps etc.
@@ -60,11 +68,18 @@ export function useSounds(
       }
       let player: AudioPlayer | null;
       if (key === "pickaxe") {
-        const id = pickaxeIdRef.current;
-        player =
-          (id != null && pickaxeSoundsRef.current[id] != null
-            ? pickaxeSoundsRef.current[id]
-            : pickaxeRef.current) ?? null;
+        // The equipped custom-skin swing sound overrides the pickaxe's
+        // unique sound (the player chose this clip — it IS the swing).
+        const override = swingOverrideRef.current;
+        if (override != null) {
+          player = override;
+        } else {
+          const id = pickaxeIdRef.current;
+          player =
+            (id != null && pickaxeSoundsRef.current[id] != null
+              ? pickaxeSoundsRef.current[id]
+              : pickaxeRef.current) ?? null;
+        }
       } else {
         player = stoneRef.current;
       }
@@ -110,6 +125,28 @@ export function useSounds(
       musicRef.current = null;
     };
   }, []);
+
+  // The custom-skin swing clip: one player per URI, recreated when the
+  // upload changes (a re-upload is a new data URI). Volume is set at
+  // creation from the live level (the volume effect below covers the
+  // players that existed when it last ran; a fresh override picks up the
+  // current level here). Data-URI audio is the web upload path — native
+  // always passes null (uploads are web-only for now).
+  useEffect(() => {
+    if (swingSoundUri == null) {
+      swingOverrideRef.current = null;
+      return;
+    }
+    const p = createAudioPlayer(swingSoundUri);
+    p.volume = volumeRef.current / 100;
+    swingOverrideRef.current = p;
+    return () => {
+      p.pause();
+      if (swingOverrideRef.current === p) {
+        swingOverrideRef.current = null;
+      }
+    };
+  }, [swingSoundUri]);
 
   // A looping bed must not keep playing behind the app: track foreground
   // state and pause the bed when backgrounded. (SFX players don't need

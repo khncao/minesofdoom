@@ -20,31 +20,32 @@
 // removed product (remove_ads) are dropped by the allowlist, exactly like
 // an unknown store id.
 const PRODUCTS = {
-  packGold: "pack_gold",
-  packFrost: "pack_frost",
-  packShadow: "pack_shadow",
-  packNight: "pack_night",
-  packGoldrush: "pack_goldrush",
-  packCrystal: "pack_crystal",
-  packMagma: "pack_magma",
-  packBlocky: "pack_blocky",
-  packSurface: "pack_surface",
-  packKnight: "pack_knight",
-  packHunter: "pack_hunter",
-  packOni: "pack_oni",
-  packMarmot: "pack_marmot",
-  packFox: "pack_fox",
-  packOtter: "pack_otter",
-  packDamsel: "pack_damsel",
-  packAmethyst: "pack_amethyst",
-  packVerdant: "pack_verdant",
-  packSolar: "pack_solar",
-  packVoid: "pack_void",
-  packVoxel: "pack_voxel",
-  packWilds: "pack_wilds",
-  packAshen: "pack_ashen",
-  packGothic: "pack_gothic",
-  packCherry: "pack_cherry",
+ packGold: "pack_gold",
+ packFrost: "pack_frost",
+ packShadow: "pack_shadow",
+ packNight: "pack_night",
+ packGoldrush: "pack_goldrush",
+ packCrystal: "pack_crystal",
+ packMagma: "pack_magma",
+ packBlocky: "pack_blocky",
+ packSurface: "pack_surface",
+ packKnight: "pack_knight",
+ packHunter: "pack_hunter",
+ packOni: "pack_oni",
+ packMarmot: "pack_marmot",
+ packFox: "pack_fox",
+ packOtter: "pack_otter",
+ packDamsel: "pack_damsel",
+ packAmethyst: "pack_amethyst",
+ packVerdant: "pack_verdant",
+ packSolar: "pack_solar",
+ packVoid: "pack_void",
+ packVoxel: "pack_voxel",
+ packWilds: "pack_wilds",
+ packAshen: "pack_ashen",
+ packGothic: "pack_gothic",
+ packCherry: "pack_cherry",
+ packSkin: "pack_skin",
 };
 
 // Highest save version this server will store. Keep in sync with
@@ -94,42 +95,42 @@ const CONTROL_CHARS = /[\u0000-\u001f\u007f]/g;
 /** UTF-8 byte length of a JS string (Buffer-free so this module stays
  *  portable between the Pocketbase runtime and the jest node env). */
 function utf8ByteLength(str) {
-  let n = 0;
-  for (let i = 0; i < str.length; i++) {
-    const code = str.codePointAt(i);
-    if (code > 0xffff) i++; // a surrogate pair counts as one 4-byte char
-    n += code < 0x80 ? 1 : code < 0x800 ? 2 : code < 0x10000 ? 3 : 4;
-  }
-  return n;
+ let n = 0;
+ for (let i = 0; i < str.length; i++) {
+  const code = str.codePointAt(i);
+  if (code > 0xffff) i++; // a surrogate pair counts as one 4-byte char
+  n += code < 0x80 ? 1 : code < 0x800 ? 2 : code < 0x10000 ? 3 : 4;
+ }
+ return n;
 }
 
 function validDeviceId(v) {
-  return typeof v === "string" && DEVICE_ID_RE.test(v);
+ return typeof v === "string" && DEVICE_ID_RE.test(v);
 }
 
 /** Strip control chars + whitespace, cap at 16, fall back to the
  *  default — the board must never show a blank or invisible name.
  *  Mirrors sanitizeDisplayName in src/mines_of_doom/leaderboard.ts. */
 function sanitizeDisplayName(raw) {
-  const cleaned = String(raw == null ? "" : raw)
-    .replace(CONTROL_CHARS, "")
-    .trim()
-    .slice(0, NAME_MAX);
-  return cleaned.length > 0 ? cleaned : DEFAULT_NAME;
+ const cleaned = String(raw == null ? "" : raw)
+  .replace(CONTROL_CHARS, "")
+  .trim()
+  .slice(0, NAME_MAX);
+ return cleaned.length > 0 ? cleaned : DEFAULT_NAME;
 }
 
 function isIntIn(v, lo, hi) {
-  return Number.isInteger(v) && v >= lo && v <= hi;
+ return Number.isInteger(v) && v >= lo && v <= hi;
 }
 
 /** Non-negative integer strictly below the cap — at/above the cap is a
  *  corrupt save, so the range is exclusive. */
 function isIntBelowCap(v, cap) {
-  return Number.isInteger(v) && v >= 0 && v < cap;
+ return Number.isInteger(v) && v >= 0 && v < cap;
 }
 
 function badResult(error) {
-  return { ok: false, error };
+ return { ok: false, error };
 }
 
 /**
@@ -138,43 +139,43 @@ function badResult(error) {
  * server knows and a client timestamp in a sane range.
  */
 function validateCloudPush(body) {
-  const b = body || {};
-  if (!validDeviceId(b.deviceId)) return badResult("invalid deviceId");
-  if (typeof b.blob !== "string" || b.blob.length === 0) {
-    return badResult("blob must be a non-empty string");
-  }
-  if (utf8ByteLength(b.blob) > CLOUD_BLOB_MAX_BYTES) {
-    return badResult("blob exceeds the 16KB cap");
-  }
-  let parsed;
-  try {
-    parsed = JSON.parse(b.blob);
-  } catch {
-    return badResult("blob is not valid JSON");
-  }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    return badResult("blob must be a JSON object");
-  }
-  if (!isIntIn(b.saveVersion, 0, MAX_SAVE_VERSION)) {
-    return badResult("saveVersion out of range");
-  }
-  if (
-    typeof b.updatedAt !== "number" ||
-    !Number.isFinite(b.updatedAt) ||
-    b.updatedAt <= 0 ||
-    b.updatedAt > TIMESTAMP_CAP
-  ) {
-    return badResult("updatedAt out of range");
-  }
-  return {
-    ok: true,
-    value: {
-      deviceId: b.deviceId,
-      blob: b.blob,
-      saveVersion: b.saveVersion,
-      updatedAt: b.updatedAt,
-    },
-  };
+ const b = body || {};
+ if (!validDeviceId(b.deviceId)) return badResult("invalid deviceId");
+ if (typeof b.blob !== "string" || b.blob.length === 0) {
+  return badResult("blob must be a non-empty string");
+ }
+ if (utf8ByteLength(b.blob) > CLOUD_BLOB_MAX_BYTES) {
+  return badResult("blob exceeds the 16KB cap");
+ }
+ let parsed;
+ try {
+  parsed = JSON.parse(b.blob);
+ } catch {
+  return badResult("blob is not valid JSON");
+ }
+ if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+  return badResult("blob must be a JSON object");
+ }
+ if (!isIntIn(b.saveVersion, 0, MAX_SAVE_VERSION)) {
+  return badResult("saveVersion out of range");
+ }
+ if (
+  typeof b.updatedAt !== "number" ||
+  !Number.isFinite(b.updatedAt) ||
+  b.updatedAt <= 0 ||
+  b.updatedAt > TIMESTAMP_CAP
+ ) {
+  return badResult("updatedAt out of range");
+ }
+ return {
+  ok: true,
+  value: {
+   deviceId: b.deviceId,
+   blob: b.blob,
+   saveVersion: b.saveVersion,
+   updatedAt: b.updatedAt,
+  },
+ };
 }
 
 /**
@@ -185,8 +186,8 @@ function validateCloudPush(body) {
  * with it so a stale client learns it lost.
  */
 function cloudPushReply(storedUpdatedAt, pushedUpdatedAt) {
-  if (storedUpdatedAt == null) return pushedUpdatedAt;
-  return storedUpdatedAt > pushedUpdatedAt ? storedUpdatedAt : pushedUpdatedAt;
+ if (storedUpdatedAt == null) return pushedUpdatedAt;
+ return storedUpdatedAt > pushedUpdatedAt ? storedUpdatedAt : pushedUpdatedAt;
 }
 
 /**
@@ -196,33 +197,37 @@ function cloudPushReply(storedUpdatedAt, pushedUpdatedAt) {
  * ids, capped in count and per-id length.
  */
 function validateLeaderboardSubmit(body) {
-  const b = body || {};
-  if (!validDeviceId(b.deviceId)) return badResult("invalid deviceId");
-  if (!isIntBelowCap(b.bestDepth, BEST_DEPTH_CAP)) {
-    return badResult("bestDepth out of range");
-  }
-  if (!isIntBelowCap(b.maxCombo, MAX_COMBO_CAP)) {
-    return badResult("maxCombo out of range");
-  }
-  if (!isIntBelowCap(b.lifetimeMinerals, LIFETIME_MINERALS_CAP)) {
-    return badResult("lifetimeMinerals out of range");
-  }
-  const rawIds = Array.isArray(b.achievementIds) ? b.achievementIds : [];
-  const achievementIds = [...new Set(rawIds.filter((id) => typeof id === "string" && id.length > 0 && id.length <= ACHIEVEMENT_ID_MAX))].slice(
-    0,
-    ACHIEVEMENT_IDS_MAX,
-  );
-  return {
-    ok: true,
-    value: {
-      deviceId: b.deviceId,
-      displayName: sanitizeDisplayName(b.displayName),
-      bestDepth: b.bestDepth,
-      maxCombo: b.maxCombo,
-      lifetimeMinerals: b.lifetimeMinerals,
-      achievementIds,
-    },
-  };
+ const b = body || {};
+ if (!validDeviceId(b.deviceId)) return badResult("invalid deviceId");
+ if (!isIntBelowCap(b.bestDepth, BEST_DEPTH_CAP)) {
+  return badResult("bestDepth out of range");
+ }
+ if (!isIntBelowCap(b.maxCombo, MAX_COMBO_CAP)) {
+  return badResult("maxCombo out of range");
+ }
+ if (!isIntBelowCap(b.lifetimeMinerals, LIFETIME_MINERALS_CAP)) {
+  return badResult("lifetimeMinerals out of range");
+ }
+ const rawIds = Array.isArray(b.achievementIds) ? b.achievementIds : [];
+ const achievementIds = [
+  ...new Set(
+   rawIds.filter(
+    (id) =>
+     typeof id === "string" && id.length > 0 && id.length <= ACHIEVEMENT_ID_MAX,
+   ),
+  ),
+ ].slice(0, ACHIEVEMENT_IDS_MAX);
+ return {
+  ok: true,
+  value: {
+   deviceId: b.deviceId,
+   displayName: sanitizeDisplayName(b.displayName),
+   bestDepth: b.bestDepth,
+   maxCombo: b.maxCombo,
+   lifetimeMinerals: b.lifetimeMinerals,
+   achievementIds,
+  },
+ };
 }
 
 /**
@@ -232,50 +237,58 @@ function validateLeaderboardSubmit(body) {
  * push a row backwards; a device can't farm a fresh row by resetting.
  */
 function mergeLeaderboard(existing, submitted) {
-  return {
-    displayName: submitted.displayName,
-    bestDepth: Math.max(existing.bestDepth, submitted.bestDepth),
-    maxCombo: Math.max(existing.maxCombo, submitted.maxCombo),
-    lifetimeMinerals: Math.max(existing.lifetimeMinerals, submitted.lifetimeMinerals),
-    achievementIds: [...new Set([...existing.achievementIds, ...submitted.achievementIds])],
-  };
+ return {
+  displayName: submitted.displayName,
+  bestDepth: Math.max(existing.bestDepth, submitted.bestDepth),
+  maxCombo: Math.max(existing.maxCombo, submitted.maxCombo),
+  lifetimeMinerals: Math.max(
+   existing.lifetimeMinerals,
+   submitted.lifetimeMinerals,
+  ),
+  achievementIds: [
+   ...new Set([...existing.achievementIds, ...submitted.achievementIds]),
+  ],
+ };
 }
 
 /** `achievementIds` is stored as a JSON string (a text field); parse
  *  it defensively back to an array of strings. */
 function parseAchievementIds(stored) {
-  if (Array.isArray(stored)) {
-    return stored.filter((id) => typeof id === "string");
+ if (Array.isArray(stored)) {
+  return stored.filter((id) => typeof id === "string");
+ }
+ if (typeof stored === "string" && stored.length > 0) {
+  try {
+   const parsed = JSON.parse(stored);
+   return Array.isArray(parsed)
+    ? parsed.filter((id) => typeof id === "string")
+    : [];
+  } catch {
+   return [];
   }
-  if (typeof stored === "string" && stored.length > 0) {
-    try {
-      const parsed = JSON.parse(stored);
-      return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : [];
-    } catch {
-      return [];
-    }
-  }
-  return [];
+ }
+ return [];
 }
 
 function fieldOf(record, key) {
-  if (record == null) return null;
-  // A live Pocketbase record model (v0.4x) exposes record.get(key);
-  // tests pass plain objects.
-  if (typeof record.get === "function") return record.get(key);
-  return record[key];
+ if (record == null) return null;
+ // A live Pocketbase record model (v0.4x) exposes record.get(key);
+ // tests pass plain objects.
+ if (typeof record.get === "function") return record.get(key);
+ return record[key];
 }
 
 /** One top-N row in the exact shape the client parses (leaderboard.ts
  *  parseRow): rank, displayName, bestDepth, maxCombo, achievementCount. */
 function shapeTopRow(record, rank) {
-  return {
-    rank,
-    displayName: fieldOf(record, "displayName"),
-    bestDepth: fieldOf(record, "bestDepth"),
-    maxCombo: fieldOf(record, "maxCombo"),
-    achievementCount: parseAchievementIds(fieldOf(record, "achievementIds")).length,
-  };
+ return {
+  rank,
+  displayName: fieldOf(record, "displayName"),
+  bestDepth: fieldOf(record, "bestDepth"),
+  maxCombo: fieldOf(record, "maxCombo"),
+  achievementCount: parseAchievementIds(fieldOf(record, "achievementIds"))
+   .length,
+ };
 }
 
 /**
@@ -286,7 +299,7 @@ function shapeTopRow(record, rank) {
  * This pure function maps the recent-window row count to a verdict.
  */
 function writeBudgetExceeded(recentCount) {
-  return Number(recentCount) >= WRITE_LIMIT_PER_HOUR;
+ return Number(recentCount) >= WRITE_LIMIT_PER_HOUR;
 }
 
 // -- accounts / optional login (docs/store-integration.md) ---------------
@@ -300,7 +313,7 @@ function writeBudgetExceeded(recentCount) {
 // backfill so a signed-in session can reach every device that has linked.
 
 const EMAIL_RE =
-  /^[a-z0-9._%+-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\.[a-z]{2,}$/;
+ /^[a-z0-9._%+-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\.[a-z]{2,}$/;
 
 const PASSWORD_MIN_LENGTH = 8;
 const PASSWORD_MAX_LENGTH = 72; // the sha256 pre-image bound is arbitrary; 72 is a sane cap
@@ -313,28 +326,30 @@ const ACCOUNT_ID_BYTES = 16;
 const PASSWORD_SALT_BYTES = 16;
 
 function normalizeEmail(v) {
-  return String(v == null ? "" : v).trim().toLowerCase();
+ return String(v == null ? "" : v)
+  .trim()
+  .toLowerCase();
 }
 
 function validEmail(v) {
-  const e = normalizeEmail(v);
-  return e.length >= 6 && e.length <= 254 && EMAIL_RE.test(e);
+ const e = normalizeEmail(v);
+ return e.length >= 6 && e.length <= 254 && EMAIL_RE.test(e);
 }
 
 function validPassword(v) {
-  return (
-    typeof v === "string" &&
-    v.length >= PASSWORD_MIN_LENGTH &&
-    v.length <= PASSWORD_MAX_LENGTH
-  );
+ return (
+  typeof v === "string" &&
+  v.length >= PASSWORD_MIN_LENGTH &&
+  v.length <= PASSWORD_MAX_LENGTH
+ );
 }
 
 /** Validate a register/login body. Returns the normalized email (the
  *  account key) + the raw password (never returned by the handlers). */
 function validateEmailCredentials(email, password) {
-  if (!validEmail(email)) return badResult("invalid email");
-  if (!validPassword(password)) return badResult("invalid password");
-  return { ok: true, value: { email: normalizeEmail(email), password } };
+ if (!validEmail(email)) return badResult("invalid email");
+ if (!validPassword(password)) return badResult("invalid password");
+ return { ok: true, value: { email: normalizeEmail(email), password } };
 }
 
 // Iterated-SHA-256 KDF. The goja runtime has no PBKDF2/scrypt/argon2 —
@@ -353,9 +368,9 @@ const PASSWORD_KDF_ITERATIONS = 100000;
  * `sha256`.
  */
 function kdfSha256(password, salt, iterations, sha256) {
-  let h = sha256(salt + ":" + password);
-  for (let i = 1; i < iterations; i++) h = sha256(h + ":" + password);
-  return h;
+ let h = sha256(salt + ":" + password);
+ for (let i = 1; i < iterations; i++) h = sha256(h + ":" + password);
+ return h;
 }
 
 /**
@@ -365,14 +380,14 @@ function kdfSha256(password, salt, iterations, sha256) {
  * still accepts and the login handler transparently upgrades.
  */
 function hashPassword(password, salt, sha256) {
-  return (
-    "pbkdf2-sha256:" +
-    PASSWORD_KDF_ITERATIONS +
-    ":" +
-    salt +
-    ":" +
-    kdfSha256(password, salt, PASSWORD_KDF_ITERATIONS, sha256)
-  );
+ return (
+  "pbkdf2-sha256:" +
+  PASSWORD_KDF_ITERATIONS +
+  ":" +
+  salt +
+  ":" +
+  kdfSha256(password, salt, PASSWORD_KDF_ITERATIONS, sha256)
+ );
 }
 
 /**
@@ -380,39 +395,39 @@ function hashPassword(password, salt, sha256) {
  * transparent upgrade to the KDF on the next successful login).
  */
 function passwordNeedsUpgrade(stored) {
-  return String(stored == null ? "" : stored).split(":")[0] === "sha256";
+ return String(stored == null ? "" : stored).split(":")[0] === "sha256";
 }
 
 function constantTimeEqual(a, b) {
-  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) {
-    return false;
-  }
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
+ if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) {
+  return false;
+ }
+ let diff = 0;
+ for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+ return diff === 0;
 }
 
 function verifyPassword(password, stored, sha256) {
-  const parts = String(stored == null ? "" : stored).split(":");
-  // Legacy: "sha256:<salt>:<hash>" (1 iteration).
-  if (parts.length === 3 && parts[0] === "sha256" && parts[1].length > 0) {
-    return constantTimeEqual(sha256(parts[1] + ":" + password), parts[2]);
-  }
-  // KDF: "pbkdf2-sha256:<iterations>:<salt>:<hash>".
-  if (
-    parts.length === 4 &&
-    parts[0] === "pbkdf2-sha256" &&
-    parts[2].length > 0 &&
-    parts[3].length > 0
-  ) {
-    const iterations = Number(parts[1]);
-    if (!Number.isInteger(iterations) || iterations < 1) return false;
-    return constantTimeEqual(
-      kdfSha256(password, parts[2], iterations, sha256),
-      parts[3],
-    );
-  }
-  return false;
+ const parts = String(stored == null ? "" : stored).split(":");
+ // Legacy: "sha256:<salt>:<hash>" (1 iteration).
+ if (parts.length === 3 && parts[0] === "sha256" && parts[1].length > 0) {
+  return constantTimeEqual(sha256(parts[1] + ":" + password), parts[2]);
+ }
+ // KDF: "pbkdf2-sha256:<iterations>:<salt>:<hash>".
+ if (
+  parts.length === 4 &&
+  parts[0] === "pbkdf2-sha256" &&
+  parts[2].length > 0 &&
+  parts[3].length > 0
+ ) {
+  const iterations = Number(parts[1]);
+  if (!Number.isInteger(iterations) || iterations < 1) return false;
+  return constantTimeEqual(
+   kdfSha256(password, parts[2], iterations, sha256),
+   parts[3],
+  );
+ }
+ return false;
 }
 
 /**
@@ -424,31 +439,39 @@ function verifyPassword(password, stored, sha256) {
  * (docs/security-audit.md S1). This is the pure, test-friendly fallback.
  */
 function randomHex(byteCount, rand) {
-  const r = typeof rand === "function" ? rand : Math.random;
-  let out = "";
-  for (let i = 0; i < byteCount; i++) {
-    out += ("0" + Math.floor(r() * 256).toString(16)).slice(-2);
-  }
-  return out;
+ const r = typeof rand === "function" ? rand : Math.random;
+ let out = "";
+ for (let i = 0; i < byteCount; i++) {
+  out += ("0" + Math.floor(r() * 256).toString(16)).slice(-2);
+ }
+ return out;
 }
 
 function validSessionToken(v) {
-  return typeof v === "string" && v.length >= 16 && v.length <= 128 && /^[A-Za-z0-9_-]+$/.test(v);
+ return (
+  typeof v === "string" &&
+  v.length >= 16 &&
+  v.length <= 128 &&
+  /^[A-Za-z0-9_-]+$/.test(v)
+ );
 }
 
 /** A session row is live while now < expiresAt (the row itself must
  *  exist — the handler checks that). */
 function sessionValid(session, nowMs) {
-  if (!session) return false;
-  // Live goja Records only expose fields through .get() — a raw
-  // .expiresAt reads undefined on the server (the unit-test mocks are
-  // plain objects, so support both shapes).
-  const exp = typeof session.get === "function" ? session.get("expiresAt") : session.expiresAt;
-  return Number(exp) > Number(nowMs);
+ if (!session) return false;
+ // Live goja Records only expose fields through .get() — a raw
+ // .expiresAt reads undefined on the server (the unit-test mocks are
+ // plain objects, so support both shapes).
+ const exp =
+  typeof session.get === "function"
+   ? session.get("expiresAt")
+   : session.expiresAt;
+ return Number(exp) > Number(nowMs);
 }
 
 function sessionExpiresAt(createdAtMs, ttlMs) {
-  return Number(createdAtMs) + Number(ttlMs == null ? SESSION_TTL_MS : ttlMs);
+ return Number(createdAtMs) + Number(ttlMs == null ? SESSION_TTL_MS : ttlMs);
 }
 
 const PROVIDERS = ["google", "apple"];
@@ -456,15 +479,15 @@ const PROVIDERS = ["google", "apple"];
 /** Index key for a provider's subject-id lookups (the `index` shape
  *  resolveProviderAccount consumes: { byGoogleId, byAppleId, byEmail }). */
 function providerIndexKey(provider) {
-  if (provider === "google") return "byGoogleId";
-  if (provider === "apple") return "byAppleId";
-  return null;
+ if (provider === "google") return "byGoogleId";
+ if (provider === "apple") return "byAppleId";
+ return null;
 }
 
 function providerIdField(provider) {
-  if (provider === "google") return "googleId";
-  if (provider === "apple") return "appleId";
-  return null;
+ if (provider === "google") return "googleId";
+ if (provider === "apple") return "appleId";
+ return null;
 }
 
 /**
@@ -476,15 +499,16 @@ function providerIdField(provider) {
  * including privacy-proxy addresses).
  */
 function normalizeProviderClaims(provider, claims) {
-  const c = claims || {};
-  const field = providerIdField(provider);
-  if (!field) return null;
-  if (typeof c.sub !== "string" || !/^[A-Za-z0-9._|:-]{1,256}$/.test(c.sub)) return null;
-  let email = "";
-  if (provider === "apple" || c.emailVerified === true) {
-    if (validEmail(c.email)) email = normalizeEmail(c.email);
-  }
-  return { provider: provider, sub: c.sub, email: email };
+ const c = claims || {};
+ const field = providerIdField(provider);
+ if (!field) return null;
+ if (typeof c.sub !== "string" || !/^[A-Za-z0-9._|:-]{1,256}$/.test(c.sub))
+  return null;
+ let email = "";
+ if (provider === "apple" || c.emailVerified === true) {
+  if (validEmail(c.email)) email = normalizeEmail(c.email);
+ }
+ return { provider: provider, sub: c.sub, email: email };
 }
 
 /**
@@ -503,20 +527,20 @@ function normalizeProviderClaims(provider, claims) {
  * Returns { action: "signin" | "create", account }.
  */
 function resolveProviderAccount(index, { provider, sub, email }) {
-  const field = providerIdField(provider);
-  if (!field) return null;
-  const idx = index || {};
-  const byProvider = idx[providerIndexKey(provider)] || {};
-  if (byProvider[sub]) return { action: "signin", account: byProvider[sub] };
-  const byEmail = idx.byEmail || {};
-  const normalizedEmail = normalizeEmail(email);
-  if (normalizedEmail && byEmail[normalizedEmail]) {
-    return { action: "signin", account: byEmail[normalizedEmail] };
-  }
-  const created = {};
-  created[field] = sub;
-  created.email = email || "";
-  return { action: "create", account: created };
+ const field = providerIdField(provider);
+ if (!field) return null;
+ const idx = index || {};
+ const byProvider = idx[providerIndexKey(provider)] || {};
+ if (byProvider[sub]) return { action: "signin", account: byProvider[sub] };
+ const byEmail = idx.byEmail || {};
+ const normalizedEmail = normalizeEmail(email);
+ if (normalizedEmail && byEmail[normalizedEmail]) {
+  return { action: "signin", account: byEmail[normalizedEmail] };
+ }
+ const created = {};
+ created[field] = sub;
+ created.email = email || "";
+ return { action: "create", account: created };
 }
 
 /**
@@ -533,66 +557,75 @@ function resolveProviderAccount(index, { provider, sub, email }) {
  *   3. claimed by another → "error" (NEVER steal or merge accounts)
  */
 function resolveProviderLink(ownerId, currentId) {
-  if (!ownerId) return { action: "link" };
-  if (ownerId === currentId) return { action: "noop" };
-  return { action: "error", error: "provider-taken" };
+ if (!ownerId) return { action: "link" };
+ if (ownerId === currentId) return { action: "noop" };
+ return { action: "error", error: "provider-taken" };
 }
 
 /** The public shape of an account in API replies — nothing the client
  *  can act on beyond its own email; provider id links only. */
 function accountShape(account) {
-  const a = account || {};
-  return {
-    email: typeof a.email === "string" ? a.email : "",
-    providers: [
-      { name: "email", linked: typeof a.passwordHash === "string" && a.passwordHash.length > 0 },
-      { name: "google", linked: typeof a.googleId === "string" && a.googleId.length > 0 },
-      { name: "apple", linked: typeof a.appleId === "string" && a.appleId.length > 0 },
-    ],
-  };
+ const a = account || {};
+ return {
+  email: typeof a.email === "string" ? a.email : "",
+  providers: [
+   {
+    name: "email",
+    linked: typeof a.passwordHash === "string" && a.passwordHash.length > 0,
+   },
+   {
+    name: "google",
+    linked: typeof a.googleId === "string" && a.googleId.length > 0,
+   },
+   {
+    name: "apple",
+    linked: typeof a.appleId === "string" && a.appleId.length > 0,
+   },
+  ],
+ };
 }
 
 /** Union of entitlement lists (cross-device restore): deduped, order of
  *  first appearance, non-strings dropped. */
 function unionEntitlements(lists) {
-  const flat = [];
-  for (const list of lists || []) {
-    if (Array.isArray(list)) for (const item of list) flat.push(item);
-  }
-  return [...new Set(flat.filter((v) => typeof v === "string" && v.length > 0))];
+ const flat = [];
+ for (const list of lists || []) {
+  if (Array.isArray(list)) for (const item of list) flat.push(item);
+ }
+ return [...new Set(flat.filter((v) => typeof v === "string" && v.length > 0))];
 }
 
 /** Newest row by numeric updatedAt (cloud pull across linked devices).
  *  Ties keep the FIRST row (the device's own row comes first, so a stale
  *  account copy never shadows the local device). */
 function newestByUpdatedAt(rows) {
-  let best = null;
-  let bestTs = -Infinity;
-  for (const row of rows || []) {
-    const ts = Number(row && row.updatedAt);
-    if (!Number.isFinite(ts)) continue;
-    if (best === null || ts > bestTs) {
-      best = row;
-      bestTs = ts;
-    }
+ let best = null;
+ let bestTs = -Infinity;
+ for (const row of rows || []) {
+  const ts = Number(row && row.updatedAt);
+  if (!Number.isFinite(ts)) continue;
+  if (best === null || ts > bestTs) {
+   best = row;
+   bestTs = ts;
   }
-  return best;
+ }
+ return best;
 }
 
 /** The account's best leaderboard row across linked devices (max
  *  bestDepth; ties keep the first = the device's own row). */
 function bestLeaderboardRow(rows) {
-  let best = null;
-  let bestDepth = -Infinity;
-  for (const row of rows || []) {
-    const depth = Number(row && row.bestDepth);
-    if (!Number.isFinite(depth)) continue;
-    if (best === null || depth > bestDepth) {
-      best = row;
-      bestDepth = depth;
-    }
+ let best = null;
+ let bestDepth = -Infinity;
+ for (const row of rows || []) {
+  const depth = Number(row && row.bestDepth);
+  if (!Number.isFinite(depth)) continue;
+  if (best === null || depth > bestDepth) {
+   best = row;
+   bestDepth = depth;
   }
-  return best;
+ }
+ return best;
 }
 
 /** The only Stripe webhook event type that mints an entitlement. */
@@ -611,88 +644,109 @@ const STRIPE_EVENT_ID_MAX = 128;
  * never mint, so accepting an unauthenticated event body is safe.
  */
 function validateStripeWebhookEvent(event) {
-  if (!event || typeof event !== "object") {
-    return { ok: false, error: "event is not an object" };
-  }
-  if (typeof event.id !== "string" || event.id.length < 1 || event.id.length > STRIPE_EVENT_ID_MAX) {
-    return { ok: false, error: "invalid event id" };
-  }
-  if (event.type !== STRIPE_WEBHOOK_EVENT_TYPE) {
-    return { ok: false, error: "unhandled event type" };
-  }
-  const session =
-    event.data && typeof event.data === "object" && typeof event.data.object === "object"
-      ? event.data.object
-      : null;
-  if (!session || typeof session.id !== "string" || session.id.length < 1 || session.id.length > 128) {
-    return { ok: false, error: "missing checkout session" };
-  }
-  const meta = session.metadata && typeof session.metadata === "object" ? session.metadata : {};
-  const productId = typeof meta.mdoomProductId === "string" ? meta.mdoomProductId : "";
-  if (productId.length < 1 || !PRODUCTS[productId]) {
-    return { ok: false, error: "unknown productId in metadata" };
-  }
-  const deviceId = typeof meta.mdoomDeviceId === "string" ? meta.mdoomDeviceId : "";
-  if (!validDeviceId(deviceId)) {
-    return { ok: false, error: "invalid deviceId in metadata" };
-  }
-  return { ok: true, sessionId: session.id, productId: productId, deviceId: deviceId };
+ if (!event || typeof event !== "object") {
+  return { ok: false, error: "event is not an object" };
+ }
+ if (
+  typeof event.id !== "string" ||
+  event.id.length < 1 ||
+  event.id.length > STRIPE_EVENT_ID_MAX
+ ) {
+  return { ok: false, error: "invalid event id" };
+ }
+ if (event.type !== STRIPE_WEBHOOK_EVENT_TYPE) {
+  return { ok: false, error: "unhandled event type" };
+ }
+ const session =
+  event.data &&
+  typeof event.data === "object" &&
+  typeof event.data.object === "object"
+   ? event.data.object
+   : null;
+ if (
+  !session ||
+  typeof session.id !== "string" ||
+  session.id.length < 1 ||
+  session.id.length > 128
+ ) {
+  return { ok: false, error: "missing checkout session" };
+ }
+ const meta =
+  session.metadata && typeof session.metadata === "object"
+   ? session.metadata
+   : {};
+ const productId =
+  typeof meta.mdoomProductId === "string" ? meta.mdoomProductId : "";
+ if (productId.length < 1 || !PRODUCTS[productId]) {
+  return { ok: false, error: "unknown productId in metadata" };
+ }
+ const deviceId =
+  typeof meta.mdoomDeviceId === "string" ? meta.mdoomDeviceId : "";
+ if (!validDeviceId(deviceId)) {
+  return { ok: false, error: "invalid deviceId in metadata" };
+ }
+ return {
+  ok: true,
+  sessionId: session.id,
+  productId: productId,
+  deviceId: deviceId,
+ };
 }
 
 module.exports = {
-  PRODUCTS,
-  STRIPE_WEBHOOK_EVENT_TYPE,
-  STRIPE_EVENT_ID_MAX,
-  validateStripeWebhookEvent,
-  MAX_SAVE_VERSION,
-  CLOUD_BLOB_MAX_BYTES,
-  NAME_MAX,
-  DEFAULT_NAME,
-  BEST_DEPTH_CAP,
-  MAX_COMBO_CAP,
-  LIFETIME_MINERALS_CAP,
-  TIMESTAMP_CAP,
-  WRITE_LIMIT_PER_HOUR,
-  WRITE_WINDOW_MS,
-  utf8ByteLength,
-  validDeviceId,
-  sanitizeDisplayName,
-  validateCloudPush,
-  cloudPushReply,
-  validateLeaderboardSubmit,
-  mergeLeaderboard,
-  parseAchievementIds,
-  shapeTopRow,
-  writeBudgetExceeded,
-  // accounts / optional login
-  EMAIL_RE,
-  PASSWORD_MIN_LENGTH,
-  PASSWORD_MAX_LENGTH,
-  SESSION_TTL_MS,
-  SESSION_TOKEN_BYTES,
-  ACCOUNT_ID_BYTES,
-  PASSWORD_SALT_BYTES,
-  PROVIDERS,
-  normalizeEmail,
-  validEmail,
-  validPassword,
-  validateEmailCredentials,
-  providerIndexKey,
-  PASSWORD_KDF_ITERATIONS,
-  kdfSha256,
-  hashPassword,
-  verifyPassword,
-  passwordNeedsUpgrade,
-  randomHex,
-  validSessionToken,
-  sessionValid,
-  sessionExpiresAt,
-  providerIdField,
-  normalizeProviderClaims,
-  resolveProviderAccount,
-  resolveProviderLink,
-  accountShape,
-  unionEntitlements,
-  newestByUpdatedAt,
-  bestLeaderboardRow,
+ PRODUCTS,
+ STRIPE_WEBHOOK_EVENT_TYPE,
+ STRIPE_EVENT_ID_MAX,
+ validateStripeWebhookEvent,
+ MAX_SAVE_VERSION,
+ CLOUD_BLOB_MAX_BYTES,
+ NAME_MAX,
+ DEFAULT_NAME,
+ BEST_DEPTH_CAP,
+ MAX_COMBO_CAP,
+ LIFETIME_MINERALS_CAP,
+ TIMESTAMP_CAP,
+ WRITE_LIMIT_PER_HOUR,
+ WRITE_WINDOW_MS,
+ utf8ByteLength,
+ validDeviceId,
+ sanitizeDisplayName,
+ validateCloudPush,
+ cloudPushReply,
+ validateLeaderboardSubmit,
+ mergeLeaderboard,
+ parseAchievementIds,
+ shapeTopRow,
+ writeBudgetExceeded,
+ // accounts / optional login
+ EMAIL_RE,
+ PASSWORD_MIN_LENGTH,
+ PASSWORD_MAX_LENGTH,
+ SESSION_TTL_MS,
+ SESSION_TOKEN_BYTES,
+ ACCOUNT_ID_BYTES,
+ PASSWORD_SALT_BYTES,
+ PROVIDERS,
+ normalizeEmail,
+ validEmail,
+ validPassword,
+ validateEmailCredentials,
+ providerIndexKey,
+ PASSWORD_KDF_ITERATIONS,
+ kdfSha256,
+ hashPassword,
+ verifyPassword,
+ passwordNeedsUpgrade,
+ randomHex,
+ validSessionToken,
+ sessionValid,
+ sessionExpiresAt,
+ providerIdField,
+ normalizeProviderClaims,
+ resolveProviderAccount,
+ resolveProviderLink,
+ accountShape,
+ unionEntitlements,
+ newestByUpdatedAt,
+ bestLeaderboardRow,
 };

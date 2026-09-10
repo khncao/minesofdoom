@@ -139,7 +139,8 @@ export const contentEs: ContentTable = {
   },
   "outfit:otter": {
     title: "Nutria del río",
-    detail: "la mejor del río — acumula tesoros brillantes en un nido de piedras",
+    detail:
+      "la mejor del río — acumula tesoros brillantes en un nido de piedras",
   },
   "outfit:damsel": {
     title: "Dama de las profundidades",
@@ -341,6 +342,13 @@ export const contentEs: ContentTable = {
       "sobre la noche índigo, oro en el fondo — un homenaje de la era " +
       "samurái). Puramente cosmético.",
   },
+  "iap:packSkin": {
+    title: "Piel personalizada",
+    detail:
+      "Compra única. Desbloquea la Piel Personalizada: sube tu propio " +
+      "sprite de minero 16×16 y tu sonido de balanceo. Puramente " +
+      "cosmético.",
+  },
 
   // --- Legal docs (LEGAL_DOCS in legal.ts) -------------------------------
   // Titles, section headings AND bodies are localized here.
@@ -349,48 +357,39 @@ export const contentEs: ContentTable = {
 
   "legalSection:privacy:Short version": {
     title: "Versión corta",
-    body:
-      "Mines of Idle Doomath es un juego idle gratuito. Por defecto, tu progreso vive solo en tu dispositivo: no se necesita cuenta. Si eliges crear una cuenta, tu progreso se copia en el servidor del desarrollador para que puedas restaurarlo en otro dispositivo, y puedes (opcionalmente, con un nombre de pantalla que elijas) publicar puntuaciones en la clasificación. La publicidad es mínima por diseño: tanto en móvil como en la web, solo anuncios a pantalla completa que tú inicias (con recompensa): tú pulsas «ver», terminas el anuncio y recibes la recompensa dentro del juego. No creamos perfiles publicitarios a partir de tus datos de juego, no compartimos tus datos con nadie y no los vendemos.",
+    body: "Mines of Idle Doomath es un juego idle gratuito. Por defecto, tu progreso vive solo en tu dispositivo: no se necesita cuenta. Si eliges crear una cuenta, tu progreso se copia en el servidor del desarrollador para que puedas restaurarlo en otro dispositivo, y puedes (opcionalmente, con un nombre de pantalla que elijas) publicar puntuaciones en la clasificación. La publicidad es mínima por diseño: tanto en móvil como en la web, solo anuncios a pantalla completa que tú inicias (con recompensa): tú pulsas «ver», terminas el anuncio y recibes la recompensa dentro del juego. No creamos perfiles publicitarios a partir de tus datos de juego, no compartimos tus datos con nadie y no los vendemos.",
   },
   "legalSection:privacy:What we store on your device": {
     title: "Qué guardamos en tu dispositivo",
-    body:
-      "Todo lo que el juego guarda localmente vive en el almacenamiento privado de tu dispositivo (Android/iOS: el almacenamiento privado de la app vía AsyncStorage; web: el almacenamiento local de tu navegador para este sitio). Incluye:\n\n• Tus datos de juego (minerales, mejoras, cosméticos, metas, logros, ajustes).\n• Un pequeño registro de estadísticas locales (cuándo abriste la app por primera vez, días de uso, primer visionado de anuncio, número de compras, número de prestigios). Se usa solo para nuestras propias decisiones de desarrollo, se puede leer en el dispositivo en Ajustes → «Estadísticas locales (depuración)» y se puede borrar allí en cualquier momento.\n• Un breve registro de errores (solo mensajes de error recientes, nunca tus datos de juego ni nada personal), visible y borrable en Ajustes → «Errores recientes (depuración)».\n• Si tienes una cuenta: un token de sesión local para esa cuenta (tu contraseña nunca se guarda en el dispositivo).\n• Si aceptaste ver publicidad: el identificador publicitario de la plataforma (el ID publicitario de Google Play Services en Android; el aviso de App Tracking Transparency en iOS) lo usa la red publicitaria, no nosotros, para los fines que su propia política describe.\n\nAdemás, puedes borrar los datos de juego locales de una vez con Ajustes → Restablecer.",
+    body: "Todo lo que el juego guarda localmente vive en el almacenamiento privado de tu dispositivo (Android/iOS: el almacenamiento privado de la app vía AsyncStorage; web: el almacenamiento local de tu navegador para este sitio). Incluye:\n\n• Tus datos de juego (minerales, mejoras, cosméticos, metas, logros, ajustes).\n• Un pequeño registro de estadísticas locales (cuándo abriste la app por primera vez, días de uso, primer visionado de anuncio, número de compras, número de prestigios). Se usa solo para nuestras propias decisiones de desarrollo, se puede leer en el dispositivo en Ajustes → «Estadísticas locales (depuración)» y se puede borrar allí en cualquier momento.\n• Un breve registro de errores (solo mensajes de error recientes, nunca tus datos de juego ni nada personal), visible y borrable en Ajustes → «Errores recientes (depuración)».\n• Si tienes una cuenta: un token de sesión local para esa cuenta (tu contraseña nunca se guarda en el dispositivo).\n• Si aceptaste ver publicidad: el identificador publicitario de la plataforma (el ID publicitario de Google Play Services en Android; el aviso de App Tracking Transparency en iOS) lo usa la red publicitaria, no nosotros, para los fines que su propia política describe.\n\nAdemás, puedes borrar los datos de juego locales de una vez con Ajustes → Restablecer.",
   },
   "legalSection:privacy:Accounts and cloud sync (optional)": {
     title: "Cuentas y copia en la nube (opcional)",
-    body:
-      "Crear una cuenta es opcional; el juego es completamente jugable sin una. Si te registras, el servidor del desarrollador (minesofdoom.minus4kelvin.com — un único servidor operado por el desarrollador) guarda:\n\n• Tu dirección de correo electrónico. Tu contraseña, si has definido una, se guarda solo como un hash con sal: nosotros no podríamos recuperarla, ni un atacante que robara la base de datos.\n• Si inicias sesión con Google o Apple: solo el identificador que ese proveedor nos da. El token de inicio de sesión se verifica directamente con el proveedor; nunca vemos ni guardamos tu contraseña ni nada más de esa cuenta, y ningún dato de juego se comparte jamás con el proveedor.\n• Tu copia de juego en la nube: un instantáneo de tu progreso (los mismos datos que ves en el juego), enviado automáticamente cada pocos minutos mientras juegas, usado para restaurar en un dispositivo nuevo o después de un restablecimiento de fábrica.\n• Tus entradas en la clasificación, si las publicas: el nombre de pantalla que elegiste (por defecto, uno genérico: tu correo nunca se muestra) y la puntuación.\n\nTodo esto está en el único servidor anterior. No lo procesa, almacena ni ve ningún tercero.",
+    body: "Crear una cuenta es opcional; el juego es completamente jugable sin una. Si te registras, el servidor del desarrollador (minesofdoom.minus4kelvin.com — un único servidor operado por el desarrollador) guarda:\n\n• Tu dirección de correo electrónico. Tu contraseña, si has definido una, se guarda solo como un hash con sal: nosotros no podríamos recuperarla, ni un atacante que robara la base de datos.\n• Si inicias sesión con Google o Apple: solo el identificador que ese proveedor nos da. El token de inicio de sesión se verifica directamente con el proveedor; nunca vemos ni guardamos tu contraseña ni nada más de esa cuenta, y ningún dato de juego se comparte jamás con el proveedor.\n• Tu copia de juego en la nube: un instantáneo de tu progreso (los mismos datos que ves en el juego), enviado automáticamente cada pocos minutos mientras juegas, usado para restaurar en un dispositivo nuevo o después de un restablecimiento de fábrica.\n• Tus entradas en la clasificación, si las publicas: el nombre de pantalla que elegiste (por defecto, uno genérico: tu correo nunca se muestra) y la puntuación.\n\nTodo esto está en el único servidor anterior. No lo procesa, almacena ni ve ningún tercero.",
   },
   "legalSection:privacy:What we do NOT collect": {
     title: "Qué NO recopilamos",
-    body:
-      "Ni nombre (salvo el nombre de pantalla de la clasificación que tú elijas), ni ubicación, ni contactos, ni SDK de análisis de terceros, ni intermediarios de datos, ni intercambio de datos de ningún tipo. Nada en este juego se usa para crear un perfil publicitario de ti.\n\nLa función «Código de guardado» (Ajustes → Código de guardado) genera un código que contiene tus datos de juego. Compartir ese código es compartir tu progreso: no lo compartas con personas de quien no te fíes. Nunca te lo pediremos.",
+    body: "Ni nombre (salvo el nombre de pantalla de la clasificación que tú elijas), ni ubicación, ni contactos, ni SDK de análisis de terceros, ni intermediarios de datos, ni intercambio de datos de ningún tipo. Nada en este juego se usa para crear un perfil publicitario de ti.\n\nLa función «Código de guardado» (Ajustes → Código de guardado) genera un código que contiene tus datos de juego. Compartir ese código es compartir tu progreso: no lo compartas con personas de quien no te fíes. Nunca te lo pediremos.",
   },
   "legalSection:privacy:In-app purchases": {
     title: "Compras en la aplicación",
-    body:
-      "Las compras opcionales (packs cosméticos) las procesa la plataforma en la que las compraste: Google Play o la App Store de Apple en móvil, o Stripe Checkout en la versión web. Los datos de pago los gestiona la tienda o Stripe, no nosotros: solo sabemos que una compra tuvo éxito, para que el juego pueda entregar el artículo, y vinculamos ese hecho a tu dispositivo (y a tu cuenta, si has iniciado sesión). Ninguna información de tarjeta o de pago llega jamás a esta app ni al servidor del desarrollador.",
+    body: "Las compras opcionales (packs cosméticos) las procesa la plataforma en la que las compraste: Google Play o la App Store de Apple en móvil, o Stripe Checkout en la versión web. Los datos de pago los gestiona la tienda o Stripe, no nosotros: solo sabemos que una compra tuvo éxito, para que el juego pueda entregar el artículo, y vinculamos ese hecho a tu dispositivo (y a tu cuenta, si has iniciado sesión). Ninguna información de tarjeta o de pago llega jamás a esta app ni al servidor del desarrollador.",
   },
   "legalSection:privacy:Advertising": {
     title: "Publicidad",
-    body:
-      "Móvil: anuncios de vídeo con recompensa (Google AdMob), estrictamente opcionales e iniciados por el jugador. Tú mismo pulsas «ver», y solo recibes la recompensa dentro del juego si terminas el vídeo; no hay intersticiales ni banners. El anuncio con recompensa da un artículo dentro del juego (minerales), nunca un producto del mundo real.\n\nWeb: igualmente opcionales e iniciados por el jugador (Google AdSense): tú mismo pulsas «ver» y solo recibes la recompensa dentro del juego si terminas el anuncio. No hay intersticiales ni banners en ninguna parte.\n\nSi un proveedor de anuncios con recompensa está activo, puede procesar los datos que su propia política de privacidad describe para servir esos anuncios; no le transmitimos ninguna información personal sobre ti, y ningún anuncio afecta jamás al juego fuera de la recompensa que pediste explícitamente. Los ajustes de anuncio y el opt-out se gestionan a través de los controles de anuncios de la tienda/plataforma, y simplemente no pulsar «ver» desactiva por completo los anuncios de móvil. Somos un desarrollador independiente y no tenemos afiliación con Google, Apple ni ninguna red de publicidad.",
+    body: "Móvil: anuncios de vídeo con recompensa (Google AdMob), estrictamente opcionales e iniciados por el jugador. Tú mismo pulsas «ver», y solo recibes la recompensa dentro del juego si terminas el vídeo; no hay intersticiales ni banners. El anuncio con recompensa da un artículo dentro del juego (minerales), nunca un producto del mundo real.\n\nWeb: igualmente opcionales e iniciados por el jugador (Google AdSense): tú mismo pulsas «ver» y solo recibes la recompensa dentro del juego si terminas el anuncio. No hay intersticiales ni banners en ninguna parte.\n\nSi un proveedor de anuncios con recompensa está activo, puede procesar los datos que su propia política de privacidad describe para servir esos anuncios; no le transmitimos ninguna información personal sobre ti, y ningún anuncio afecta jamás al juego fuera de la recompensa que pediste explícitamente. Los ajustes de anuncio y el opt-out se gestionan a través de los controles de anuncios de la tienda/plataforma, y simplemente no pulsar «ver» desactiva por completo los anuncios de móvil. Somos un desarrollador independiente y no tenemos afiliación con Google, Apple ni ninguna red de publicidad.",
   },
   "legalSection:privacy:Children": {
     title: "Menores",
-    body:
-      "El juego está pensado para un público general y no contiene chat, ni enlaces externos, ni contenido generado por usuarios. En consecuencia, la publicidad (donde exista) se configura para el tratamiento de contenido dirigido a menores y las recompensas son siempre artículos dentro del juego: nunca bienes del mundo real. El juego no está dirigido a menores de la edad mínima de las plataformas donde se ofrece, y no recopilamos a sabiendas información personal de menores. Si crees que un menor ha creado una cuenta, escríbenos y la borraremos.",
+    body: "El juego está pensado para un público general y no contiene chat, ni enlaces externos, ni contenido generado por usuarios. En consecuencia, la publicidad (donde exista) se configura para el tratamiento de contenido dirigido a menores y las recompensas son siempre artículos dentro del juego: nunca bienes del mundo real. El juego no está dirigido a menores de la edad mínima de las plataformas donde se ofrece, y no recopilamos a sabiendas información personal de menores. Si crees que un menor ha creado una cuenta, escríbenos y la borraremos.",
   },
   "legalSection:privacy:Deletion": {
     title: "Borrado",
-    body:
-      "Datos de juego locales: Ajustes → Restablecer (los datos del dispositivo y las estadísticas locales/el registro de errores se pueden limpiar individualmente en Ajustes). Datos de la cuenta (cuenta, copia en la nube, entradas en la clasificación): escríbenos a la dirección con la que te registraste y se borrarán, incluida la base de datos y las copias de seguridad. Los datos que Google o Apple guardan en tu nombre se gestionan con sus propios ajustes y políticas.",
+    body: "Datos de juego locales: Ajustes → Restablecer (los datos del dispositivo y las estadísticas locales/el registro de errores se pueden limpiar individualmente en Ajustes). Datos de la cuenta (cuenta, copia en la nube, entradas en la clasificación): escríbenos a la dirección con la que te registraste y se borrarán, incluida la base de datos y las copias de seguridad. Los datos que Google o Apple guardan en tu nombre se gestionan con sus propios ajustes y políticas.",
   },
   "legalSection:privacy:Changes to this policy": {
     title: "Cambios de esta política",
-    body:
-      "Los cambios importantes se indicarán aquí con una nueva versión y fecha, y en la copia web publicada de esta política. Seguir usando el juego tras un cambio implica que aceptas la política actualizada; si no estás de acuerdo, borra los datos de tu cuenta como se describe arriba.",
+    body: "Los cambios importantes se indicarán aquí con una nueva versión y fecha, y en la copia web publicada de esta política. Seguir usando el juego tras un cambio implica que aceptas la política actualizada; si no estás de acuerdo, borra los datos de tu cuenta como se describe arriba.",
   },
   "legalSection:privacy:Contact": {
     title: "Contacto",
@@ -399,33 +398,27 @@ export const contentEs: ContentTable = {
 
   "legalSection:terms:The game": {
     title: "El juego",
-    body:
-      "Mines of Idle Doomath («el juego») es un juego idle de minería gratuito. «Gratuito» significa que puedes llegar al juego completo y a todo su contenido de final sin gastar dinero; algunos artículos cosméticos también se pueden comprar con dinero real, y todo lo comprable también se puede obtener jugando.",
+    body: "Mines of Idle Doomath («el juego») es un juego idle de minería gratuito. «Gratuito» significa que puedes llegar al juego completo y a todo su contenido de final sin gastar dinero; algunos artículos cosméticos también se pueden comprar con dinero real, y todo lo comprable también se puede obtener jugando.",
   },
   "legalSection:terms:Virtual goods": {
     title: "Bienes virtuales",
-    body:
-      "Los minerales, las gemas y todos los demás artículos del juego son solo virtuales. No tienen valor en el mundo real, no pueden canjearse por dinero o bienes y no pueden transferirse entre jugadores excepto mediante la función de código de guardado, que usas bajo tu propia responsabilidad (importar un código reemplaza tu guardado actual).",
+    body: "Los minerales, las gemas y todos los demás artículos del juego son solo virtuales. No tienen valor en el mundo real, no pueden canjearse por dinero o bienes y no pueden transferirse entre jugadores excepto mediante la función de código de guardado, que usas bajo tu propia responsabilidad (importar un código reemplaza tu guardado actual).",
   },
   "legalSection:terms:In-app purchases": {
     title: "Compras en la aplicación",
-    body:
-      "Las compras se cargan en tu cuenta de la tienda de apps (móvil) o en tu método de pago en Stripe Checkout (web) y están sujetas a los propios términos y la política de devoluciones de esa plataforma. Los artículos comprados se entregan en el dispositivo en el que los compraste, y una compra de un pack cosmético es definitiva una vez que el artículo se ha entregado o usado. Al comprar confirmas que aceptas los términos de servicio de la tienda.",
+    body: "Las compras se cargan en tu cuenta de la tienda de apps (móvil) o en tu método de pago en Stripe Checkout (web) y están sujetas a los propios términos y la política de devoluciones de esa plataforma. Los artículos comprados se entregan en el dispositivo en el que los compraste, y una compra de un pack cosmético es definitiva una vez que el artículo se ha entregado o usado. Al comprar confirmas que aceptas los términos de servicio de la tienda.",
   },
   "legalSection:terms:Your save data": {
     title: "Tus datos de guardado",
-    body:
-      "Tu progreso se guarda en tu dispositivo (ver la Política de privacidad). Borrar los datos locales de la app, reinstalarla o usar Ajustes → Restablecer lo borrará de ese dispositivo. Si creaste una cuenta, tu progreso se guarda también en la copia en la nube del desarrollador, que puedes restaurar en el mismo u otro dispositivo; sin cuenta, no guardamos copia de tu guardado y no podemos restaurarlo si se pierde. La función de código de guardado se ofrece como copia de seguridad/medio de intercambio y funciona igual con o sin cuenta.",
+    body: "Tu progreso se guarda en tu dispositivo (ver la Política de privacidad). Borrar los datos locales de la app, reinstalarla o usar Ajustes → Restablecer lo borrará de ese dispositivo. Si creaste una cuenta, tu progreso se guarda también en la copia en la nube del desarrollador, que puedes restaurar en el mismo u otro dispositivo; sin cuenta, no guardamos copia de tu guardado y no podemos restaurarlo si se pierde. La función de código de guardado se ofrece como copia de seguridad/medio de intercambio y funciona igual con o sin cuenta.",
   },
   "legalSection:terms:No affiliation": {
     title: "Sin afiliación",
-    body:
-      "El juego es un producto independiente. No está afiliado, respaldado ni patrocinado por Apple Inc., Google LLC ni ninguna red de publicidad. «Apple», el logotipo de Apple, «iPhone», «iOS» y «App Store» son marcas registradas de Apple Inc.; «Google Play» y «Android» son marcas registradas de Google LLC. Todas las marcas son propiedad de sus respectivos titulares.",
+    body: "El juego es un producto independiente. No está afiliado, respaldado ni patrocinado por Apple Inc., Google LLC ni ninguna red de publicidad. «Apple», el logotipo de Apple, «iPhone», «iOS» y «App Store» son marcas registradas de Apple Inc.; «Google Play» y «Android» son marcas registradas de Google LLC. Todas las marcas son propiedad de sus respectivos titulares.",
   },
   "legalSection:terms:Disclaimer": {
     title: "Descargo de responsabilidad",
-    body:
-      "El juego se proporciona «tal cual», sin garantía de ningún tipo, expresa o implícita, incluyendo, sin limitación, la aptitud para un propósito concreto, la comerciabilidad y la no infracción. No garantizamos que el juego sea ininterrumpido, libre de errores o disponible en un momento concreto. En la máxima medida permitida por la ley, no nos hacemos responsables de ninguna pérdida de progreso, de artículos virtuales ni de otros daños derivados del uso del juego.",
+    body: "El juego se proporciona «tal cual», sin garantía de ningún tipo, expresa o implícita, incluyendo, sin limitación, la aptitud para un propósito concreto, la comerciabilidad y la no infracción. No garantizamos que el juego sea ininterrumpido, libre de errores o disponible en un momento concreto. En la máxima medida permitida por la ley, no nos hacemos responsables de ninguna pérdida de progreso, de artículos virtuales ni de otros daños derivados del uso del juego.",
   },
   "legalSection:terms:Changes": {
     title: "Cambios",

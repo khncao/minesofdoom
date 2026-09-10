@@ -29,6 +29,55 @@ export const CUSTOM_SKIN_AUDIO_MAX_URI_LENGTH = 300_000;
 export type CustomSkinGrid = readonly (readonly (string | null)[] | null)[];
 
 /**
+ * The custom-skin save slot. It lives in a DEVICE-LOCAL AsyncStorage key
+ * (`customSkin`, see hooks/useCustomSkin.ts) — deliberately NOT in the
+ * SaveData model, for the same reason IAP entitlements are device-local
+ * rather than save fields:
+ *
+ *   { unlocked: boolean; equipped: boolean; grid: CustomSkinGrid | null;
+ *     audio: string | null }
+ *
+ * Device-local means an uploaded sprite/sound never travels through
+ * save-code imports or cloud-save restores (a save code is someone
+ * else's progress — not a carrier for a user-uploaded file), and the
+ * ~2 KB blob never inflates the save blob or the cloud row.
+ */
+export interface CustomSkinSave {
+ /** One-time-purchase gate (IAP packSkin or the gem buy). */
+ unlocked: boolean;
+ /** Equip the skin's pixels/sound over the outfit miner (visual). */
+ equipped: boolean;
+ /** The uploaded 16×16 body, or null for no image (body sprite shows). */
+ grid: CustomSkinGrid | null;
+ /** data:audio URI for the swing sound, or null (pickaxe sound plays). */
+ audio: string | null;
+}
+
+export function defaultCustomSkin(): CustomSkinSave {
+ return { unlocked: false, equipped: false, grid: null, audio: null };
+}
+
+/**
+ * Normalize any parsed slot (a cold AsyncStorage read, a dev-tool edit)
+ * into a valid CustomSkinSave: booleans coerced, the grid re-validated
+ * (null on corruption), the audio re-checked as a data URI (null on
+ * anything else) — so a corrupt slot degrades to "locked look, no skin"
+ * instead of crashing the sprite pipeline or the audio layer.
+ */
+export function normalizeCustomSkinSave(value: unknown): CustomSkinSave {
+ const v =
+  value != null && typeof value === "object"
+   ? (value as Record<string, unknown>)
+   : {};
+ return {
+  unlocked: v.unlocked === true,
+  equipped: v.equipped === true,
+  grid: normalizeCustomSkinGrid(v.grid),
+  audio: normalizeCustomSkinAudio(v.audio),
+ };
+}
+
+/**
  * Coerce unknown JSON (save round-trip, cloud merge, save-code import)
  * into a valid grid, or null. Rejects: wrong shape, wrong size, non-string
  * cells, and colors that are not 3/6/8-digit hex (a corrupt save must
@@ -66,8 +115,8 @@ export function hasCustomSkinPixels(
  if (grid == null) {
   return false;
  }
- return grid.some((row) =>
-  Array.isArray(row) && row.some((cell) => cell !== null),
+ return grid.some(
+  (row) => Array.isArray(row) && row.some((cell) => cell !== null),
  );
 }
 
@@ -109,9 +158,7 @@ export function customSkinGridToUri(
  * (native file URIs are not — a file path in the save is a security
  * smell and breaks on reinstall), audio-ish, under the size cap.
  */
-export function normalizeCustomSkinAudio(
- v: unknown,
-): string | null {
+export function normalizeCustomSkinAudio(v: unknown): string | null {
  if (
   typeof v !== "string" ||
   !v.startsWith("data:audio/") ||

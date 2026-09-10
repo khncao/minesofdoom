@@ -31,8 +31,18 @@ describe("normalizeCustomSkinGrid", () => {
     ["not an array", 42],
     ["wrong size (15 rows)", goodGrid().slice(0, 15)],
     ["wrong row width", goodGrid().map((r) => r.slice(0, 15))],
-    ["non-string cell", goodGrid().map((r, i) => (i === 0 ? ["zz"] as unknown as (string | null)[] : r))],
-    ["non-hex cell", goodGrid().map((r, i) => (i === 0 ? ["not-a-color"] as unknown as (string | null)[] : r))],
+    [
+      "non-string cell",
+      goodGrid().map((r, i) =>
+        i === 0 ? (["zz"] as unknown as (string | null)[]) : r,
+      ),
+    ],
+    [
+      "non-hex cell",
+      goodGrid().map((r, i) =>
+        i === 0 ? (["not-a-color"] as unknown as (string | null)[]) : r,
+      ),
+    ],
   ])("rejects %s", (_name, grid) => {
     expect(normalizeCustomSkinGrid(grid)).toBeNull();
   });
@@ -43,8 +53,24 @@ describe("normalizeCustomSkinGrid", () => {
   });
 
   it("supports a custom size (the slot is 16 today)", () => {
-    expect(normalizeCustomSkinGrid([[ "#fff", null ], [ null, "#000" ]], 2)).toHaveLength(2);
-    expect(normalizeCustomSkinGrid([[ "#fff", null ], [ null, "#000" ]], 16)).toBeNull();
+    expect(
+      normalizeCustomSkinGrid(
+        [
+          ["#fff", null],
+          [null, "#000"],
+        ],
+        2,
+      ),
+    ).toHaveLength(2);
+    expect(
+      normalizeCustomSkinGrid(
+        [
+          ["#fff", null],
+          [null, "#000"],
+        ],
+        16,
+      ),
+    ).toBeNull();
   });
 });
 
@@ -69,7 +95,12 @@ describe("normalizeCustomSkinAudio", () => {
     expect(normalizeCustomSkinAudio("file:///sdcard/a.mp3")).toBeNull();
     expect(normalizeCustomSkinAudio("https://x/y.mp3")).toBeNull();
     expect(normalizeCustomSkinAudio("data:image/png;base64,AA==")).toBeNull();
-    expect(normalizeCustomSkinAudio("data:audio/wav;base64," + "A".repeat(CUSTOM_SKIN_AUDIO_MAX_URI_LENGTH + 1))).toBeNull();
+    expect(
+      normalizeCustomSkinAudio(
+        "data:audio/wav;base64," +
+          "A".repeat(CUSTOM_SKIN_AUDIO_MAX_URI_LENGTH + 1),
+      ),
+    ).toBeNull();
     expect(normalizeCustomSkinAudio(42)).toBeNull();
   });
 });
@@ -88,13 +119,17 @@ describe("customSkinGridToUri", () => {
   });
 
   it("a different grid re-encodes", () => {
-    const toDataUri = jest.fn((g) => `data:image/png;base64,${JSON.stringify(g).length}`);
+    const toDataUri = jest.fn(
+      (g) => `data:image/png;base64,${JSON.stringify(g).length}`,
+    );
     const c = "#deadbe";
     const g1 = Array.from({ length: CUSTOM_SKIN_GRID_SIZE }, () =>
       Array.from({ length: CUSTOM_SKIN_GRID_SIZE }, () => c),
     );
     const g2 = Array.from({ length: CUSTOM_SKIN_GRID_SIZE }, (_, i) =>
-      Array.from({ length: CUSTOM_SKIN_GRID_SIZE }, (_, j) => (i === 0 && j === 0 ? null : c)),
+      Array.from({ length: CUSTOM_SKIN_GRID_SIZE }, (_, j) =>
+        i === 0 && j === 0 ? null : c,
+      ),
     );
     const a = customSkinGridToUri(g1, toDataUri);
     const b = customSkinGridToUri(g2, toDataUri);

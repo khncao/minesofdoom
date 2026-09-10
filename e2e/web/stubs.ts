@@ -206,6 +206,12 @@ const PRODUCT_STORE_ID: Record<string, string> = {
   packVerdant: "pack_verdant",
   packSolar: "pack_solar",
   packVoid: "pack_void",
+  packVoxel: "pack_voxel",
+  packWilds: "pack_wilds",
+  packAshen: "pack_ashen",
+  packGothic: "pack_gothic",
+  packCherry: "pack_cherry",
+  packSkin: "pack_skin",
 };
 
 export async function installIapStubs(

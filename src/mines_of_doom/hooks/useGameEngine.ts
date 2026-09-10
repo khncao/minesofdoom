@@ -727,6 +727,28 @@ export function useGameEngine(
     }
   }, []);
 
+  // Custom-skin gem buy (todo: "Custom skinning" — one-time
+  // 250-gem unlock, the priciest line): spends the gems and reports
+  // success so the caller — the device-local skin slot in useCustomSkin,
+  // which the engine deliberately does not own — can unlock. Mirror-
+  // guarded like the other buys; the updater re-checks the balance
+  // against the live state (fast taps).
+  const buyCustomSkin = useCallback((cost: number): boolean => {
+    if (gameStateRef.current.gems < cost) {
+      return false;
+    }
+    setGameState((n: SaveData) =>
+      n.gems < cost
+        ? n
+        : {
+            ...n,
+            gems: n.gems - cost,
+            totalGemsSpent: n.totalGemsSpent + cost,
+          },
+    );
+    return true;
+  }, []);
+
   // Switch to an already-owned cave theme.
   const selectCaveTheme = useCallback((id: string) => {
     setGameState((n: SaveData) => {
@@ -1079,6 +1101,7 @@ export function useGameEngine(
     selectCosmetic,
     rerollPlayerSeed,
     buyCaveTheme,
+    buyCustomSkin,
     selectCaveTheme,
     grantIapCosmetics,
     sinkNewShaft,

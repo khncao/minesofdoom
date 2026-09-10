@@ -2,8 +2,11 @@ import {
   IAP_PACK_GRANTS,
   IAP_PRODUCTS,
   IAP_PRODUCT_LIST,
+  IAP_IOS_STORE_IDS,
   IAP_STORE_IDS,
+  IapPackGrant,
   IapProductId,
+  IOS_BUNDLE_ID,
   devSimIapProvider,
   emptyIapEntitlements,
   getIapPackCosmetic,
@@ -23,6 +26,7 @@ import { isPocketbaseConfigured } from "../storeConfig";
 import {
   CAVE_THEMES,
   COSMETIC_PREVIEW_SEED,
+  DEFAULT_OUTFIT,
   OUTFITS,
   PICKAXES,
   getCaveTheme,
@@ -53,12 +57,25 @@ describe("store product ids (docs/store-integration.md table)", () => {
     }
     expect(Object.keys(IAP_STORE_IDS)).toHaveLength(ALL_PRODUCT_IDS.length);
   });
+
+  it("App Store product ids use the {ios.bundleId}.{productId} convention", () => {
+    // The bundle id that will ship on iOS (same reverse-domain id as
+    // android.package — docs/store-integration.md §1; the
+    // app.config ios.bundleIdentifier is filled when iOS ships, §5).
+    expect(IOS_BUNDLE_ID).toBe("com.minus4kelvin.minesofdoom");
+    for (const id of ALL_PRODUCT_IDS) {
+      expect(IAP_IOS_STORE_IDS[id]).toBe(`${IOS_BUNDLE_ID}.${id}`);
+    }
+    expect(Object.keys(IAP_IOS_STORE_IDS)).toHaveLength(ALL_PRODUCT_IDS.length);
+  });
 });
 
 describe("IAP catalog (plan §5.2)", () => {
   it("every product has a plain label, a display price, and a blurb", () => {
     for (const p of IAP_PRODUCT_LIST) {
       expect(p.id).toBeDefined();
+      // "app: item" naming (matches the Stripe catalog names).
+      expect(p.label).toMatch(/^Mines of Doom: /);
       expect(p.label.length).toBeGreaterThan(0);
       // $0.99–$3.99 band per plan §5.2 cosmetic packs.
       const price = Number.parseFloat(p.priceLabel.replace("$", ""));
@@ -78,7 +95,7 @@ describe("cosmetic packs (plan §5.2)", () => {
   it("every pack grants a real catalog cosmetic", () => {
     const grantIds = Object.entries(IAP_PACK_GRANTS) as [
       IapProductId,
-      { kind: "cosmetic" | "caveTheme"; id: string },
+      IapPackGrant,
     ][];
     expect(grantIds.length).toBeGreaterThan(0);
     for (const [productId, grant] of grantIds) {
@@ -87,6 +104,10 @@ describe("cosmetic packs (plan §5.2)", () => {
       expect(info).toBeDefined();
       if (grant.kind === "caveTheme") {
         expect(CAVE_THEMES.some((t) => t.id === grant.id)).toBe(true);
+      } else if (grant.kind === "customSkin") {
+        // The skin pass unlocks the device-local custom-skin slot
+        // (useCustomSkin) — it grants no catalog item.
+        expect(grant.id).toBe("customSkin");
       } else {
         expect(
           OUTFITS.some((o) => o.id === grant.id) ||
@@ -115,18 +136,17 @@ describe("cosmetic packs (plan §5.2)", () => {
     const paidThemes = CAVE_THEMES.filter((t) => t.costGems > 0);
     const packs = IAP_PRODUCT_LIST; // the catalog is packs only
     // Free defaults (steel / classic / natural) stay out of the catalog.
+    // The +1 is the custom-skin feature pack (todo: "Custom skinning") —
+    // the catalog's one non-cosmetic line.
     expect(packs).toHaveLength(
-      paidPickaxes.length + paidOutfits.length + paidThemes.length,
+      paidPickaxes.length + paidOutfits.length + paidThemes.length + 1,
     );
     const byLine = (line: string) =>
       packs.filter((p) => p.line === line).map((p) => p.storeId);
-    expect(byLine("pickaxe")).toEqual(
-      paidPickaxes.map((p) => "pack_" + p.id),
-    );
+    expect(byLine("pickaxe")).toEqual(paidPickaxes.map((p) => "pack_" + p.id));
     expect(byLine("outfit")).toEqual(paidOutfits.map((o) => "pack_" + o.id));
-    expect(byLine("caveTheme")).toEqual(
-      paidThemes.map((t) => "pack_" + t.id),
-    );
+    expect(byLine("caveTheme")).toEqual(paidThemes.map((t) => "pack_" + t.id));
+    expect(byLine("skin")).toEqual(["pack_skin"]);
   });
 
   it("pack blurbs and prices resolve from the gem shop (no drift)", () => {
@@ -158,7 +178,16 @@ describe("cosmetic packs (plan §5.2)", () => {
     for (const p of packs) {
       const grant = IAP_PACK_GRANTS[p.id]!;
       const preview = getIapProductPreview(p.id);
-      if (grant.kind === "caveTheme") {
+      if (grant.kind === "customSkin") {
+        // The skin pass previews the default-outfit miner — the body the
+        // uploaded 16×16 sprite replaces once the slot is unlocked.
+        expect(preview).toEqual({
+          kind: "sprite",
+          uri: minerSpriteUri(
+            rollMinerLook(COSMETIC_PREVIEW_SEED, DEFAULT_OUTFIT),
+          ),
+        });
+      } else if (grant.kind === "caveTheme") {
         // Swatch strip == the theme's depth palette, exactly.
         expect(preview).toEqual({
           kind: "swatches",
@@ -201,6 +230,7 @@ describe("cosmetic packs (plan §5.2)", () => {
     expect(iapGrantCosmeticIds(emptyIapEntitlements())).toEqual({
       cosmetics: [],
       caveThemes: [],
+      customSkin: false,
     });
     const e = grantIapEntitlement(
       grantIapEntitlement(emptyIapEntitlements(), "packShadow"),
@@ -209,6 +239,14 @@ describe("cosmetic packs (plan §5.2)", () => {
     expect(iapGrantCosmeticIds(e)).toEqual({
       cosmetics: ["shadow"],
       caveThemes: ["cherry"],
+      customSkin: false,
+    });
+    // The skin pass is a flag, not a save-list grant.
+    const e2 = grantIapEntitlement(e, "packSkin");
+    expect(iapGrantCosmeticIds(e2)).toEqual({
+      cosmetics: ["shadow"],
+      caveThemes: ["cherry"],
+      customSkin: true,
     });
   });
 });
@@ -243,9 +281,7 @@ describe("entitlements", () => {
   it("merge returns the original reference when nothing changes", () => {
     const stored = grantIapEntitlement(emptyIapEntitlements(), "packGold");
     expect(mergeIapEntitlements(stored, {})).toBe(stored);
-    expect(
-      mergeIapEntitlements(stored, { packGold: false }),
-    ).toBe(stored);
+    expect(mergeIapEntitlements(stored, { packGold: false })).toBe(stored);
   });
 
   it("merge adds newly restored entitlements (every product)", () => {
@@ -380,9 +416,9 @@ describe("unified shop rows (isIapProductOwned / isIapProductEquipped)", () => {
 
   it("equipped tracks the save's selected outfit/pickaxe/theme", () => {
     // Default selections: classic outfit, steel pickaxe, natural theme.
-    expect(
-      isIapProductEquipped("packGold", "classic", "gold", "natural"),
-    ).toBe(true);
+    expect(isIapProductEquipped("packGold", "classic", "gold", "natural")).toBe(
+      true,
+    );
     expect(
       isIapProductEquipped("packShadow", "classic", "gold", "natural"),
     ).toBe(false);

@@ -38,6 +38,14 @@ export const es: Record<TranslationKey, string> = {
     "🏆 ¡{tier} completado! +{bonus} 🪨 — desbloquea: {unlock}",
   "toast.achievement": "🏅 {label}! +{bonus} 🪨",
   "toast.vein": "¡Encontraste una veta! +1 💎",
+  "toast.skinImageSaved": "Imagen de piel personalizada guardada",
+  "toast.skinImageInvalid":
+    "Esa imagen no se pudo usar: prueba una imagen más simple y pequeña",
+  "toast.skinAudioSaved": "Sonido de balanceo guardado",
+  "toast.skinAudioInvalid":
+    "Ese archivo de sonido no se pudo usar (máximo 3 segundos)",
+  "toast.skinUnsupported": "Las subidas están disponibles en web por ahora",
+  "toast.skinCleared": "Subidas de piel personalizada borradas",
   "toast.comboUp": "¡Combo x{mult}!",
   "toast.comboDropped": "¡El combo bajó a {combo}!",
   "toast.comboLost": "¡Combo perdido!",
@@ -522,11 +530,19 @@ export const es: Record<TranslationKey, string> = {
   "iap.alsoEarnable":
     "También se puede conseguir en el juego por {count} 💎 — comprar es " +
     "comodidad, no acceso.",
+  "iap.oneTime": "Compra única: {price}",
   "iap.groupPickaxes": "Picos",
   "iap.groupOutfits": "Trajes",
   "iap.groupThemes": "Temas de cueva",
   "iap.equip": "Equipar",
   "iap.equipped": "✓ Equipado",
+  "iap.groupSkin": "Piel personalizada",
+  "iap.groupSkinDetail":
+    "Tus propios píxeles: sube una imagen de cuerpo y un sonido de balanceo (desbloqueo único).",
+  "iap.skinUploadImage": "Subir imagen",
+  "iap.skinUploadAudio": "Subir sonido",
+  "iap.skinClear": "Borrar subidas",
+  "iap.skinUploadsWebOnly": "Las subidas están disponibles en web por ahora",
 
   // --- UI compartida ------------------------------------------------------------
   "ui.close": "Cerrar",

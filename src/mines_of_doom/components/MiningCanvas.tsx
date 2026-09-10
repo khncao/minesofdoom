@@ -55,6 +55,7 @@ const MiningCanvas = memo(function MiningCanvas({
   playerSeed,
   outfitId,
   pickaxeId,
+  playerBodyUri,
   reduceMotion,
   emojiArt,
   pocket,
@@ -76,6 +77,12 @@ const MiningCanvas = memo(function MiningCanvas({
   playerSeed: number;
   outfitId: string;
   pickaxeId: string;
+  /**
+   * Custom-skin body for the PLAYER miner only (todo: "Custom skinning"):
+   * a PNG data URI of the player's own 16×16 pixels. Roster miners keep
+   * the outfit look. null/undefined = the normal seeded outfit body.
+   */
+  playerBodyUri?: string | null;
   /** OS reduce-motion preference: suppresses decorative effects. */
   reduceMotion: boolean;
   /** Low-end fallback (plan §4.5): emoji instead of pixel sprites. */
@@ -248,6 +255,7 @@ const MiningCanvas = memo(function MiningCanvas({
             pickaxeId={pickaxeId}
             reduceMotion={reduceMotion}
             emojiArt={emojiArt}
+            bodyOverrideUri={playerBodyUri}
           />
           <DebrisParticles
             ref={debrisRef}

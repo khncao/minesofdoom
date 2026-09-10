@@ -20,80 +20,87 @@ import { bootApp } from "./helpers";
 import { createIapStubState, installAdStubs, installIapStubs } from "./stubs";
 
 test.describe("web IAP — purchase round-trip", () => {
-  test("cash buy → hosted checkout → return visit → verify → owned in shop", async ({
-    page,
-    context,
-  }) => {
-    const iap = createIapStubState();
-    await installAdStubs(context);
-    await installIapStubs(context, iap);
+   test("cash buy → hosted checkout → return visit → verify → owned in shop", async ({
+      page,
+      context,
+   }) => {
+      const iap = createIapStubState();
+      await installAdStubs(context);
+      await installIapStubs(context, iap);
 
-    await bootApp(page);
+      await bootApp(page);
 
-    // The web provider has no launch reconcile (that's native-store only;
-    // see useIap.ts) — the first sidecar IAP traffic is the purchase itself.
-    expect(iap.checkoutCalls).toEqual([]);
+      // The web provider has no launch reconcile (that's native-store only;
+      // see useIap.ts) — the first sidecar IAP traffic is the purchase itself.
+      expect(iap.checkoutCalls).toEqual([]);
 
-    // Open the unified shop (🛍️) — the single place cosmetics are bought.
-    await page.locator('[aria-label="Shop"]').click();
-    // exact: the description line also mentions the pickaxe by name.
-    await expect(page.getByText("Gold Pickaxe", { exact: true })).toBeVisible();
+      // Open the unified shop (🛍️) — the single place cosmetics are bought.
+      await page.locator('[aria-label="Shop"]').click();
+      // exact: the description line also mentions the pickaxe by name.
+      // "app: item" naming (the same title the Stripe catalog shows).
+      await expect(
+         page.getByText("Mines of Doom: Gold Pickaxe", { exact: true }),
+      ).toBeVisible();
 
-    // packGold is the first catalog row (pickaxe group first); its cash
-    // button is the first "$0.99" price label in the panel.
-    const cash = page.getByRole("button", { name: /^\$0\.99$/ }).first();
-    await expect(cash).toBeEnabled();
-    await cash.click();
+      // packGold is the first catalog row (pickaxe group first); its cash
+      // button is the first "$0.99" price label in the panel.
+      const cash = page.getByRole("button", { name: /^\$0\.99$/ }).first();
+      await expect(cash).toBeEnabled();
+      await cash.click();
 
-    // The provider POSTs /stripe/checkout, loads the (stubbed)
-    // js.stripe.com, and redirectToCheckout sends the browser to the
-    // success return URL — a real navigation (fresh document).
-    await page.waitForURL(/iap=success&iap_product=packGold&iap_sid=cs_e2e_/);
+      // The provider POSTs /stripe/checkout, loads the (stubbed)
+      // js.stripe.com, and redirectToCheckout sends the browser to the
+      // success return URL — a real navigation (fresh document).
+      await page.waitForURL(/iap=success&iap_product=packGold&iap_sid=cs_e2e_/);
 
-    // The return-visit effect: noteCheckoutSuccess enqueues, then
-    // restore() replays the queue (verify POST, mint) and fetches the
-    // entitlement list. Poll the recorded call bodies.
-    await expect
-      .poll(() => iap.verifyCalls.length, { timeout: 20_000 })
-      .toBe(1);
-    await expect.poll(() => iap.restoreCalls.length).toBeGreaterThanOrEqual(1);
+      // The return-visit effect: noteCheckoutSuccess enqueues, then
+      // restore() replays the queue (verify POST, mint) and fetches the
+      // entitlement list. Poll the recorded call bodies.
+      await expect
+         .poll(() => iap.verifyCalls.length, { timeout: 20_000 })
+         .toBe(1);
+      await expect
+         .poll(() => iap.restoreCalls.length)
+         .toBeGreaterThanOrEqual(1);
 
-    // The verify body is the app's contract with the sidecar: platform
-    // "web", the catalog product id, and the checkout session token.
-    expect(iap.verifyCalls[0]).toMatchObject({
-      platform: "web",
-      productId: "packGold",
-      token: iap.lastSession?.sessionId,
-    });
-    expect(iap.lastSession?.productId).toBe("packGold");
+      // The verify body is the app's contract with the sidecar: platform
+      // "web", the catalog product id, and the checkout session token.
+      expect(iap.verifyCalls[0]).toMatchObject({
+         platform: "web",
+         productId: "packGold",
+         token: iap.lastSession?.sessionId,
+      });
+      expect(iap.lastSession?.productId).toBe("packGold");
 
-    // The one-shot flags must be stripped from the URL (no re-verify on
-    // refresh — the return visit ran exactly once).
-    await expect(page).not.toHaveURL(/iap=success/);
-    await expect.poll(() => iap.verifyCalls.length, { timeout: 5_000 }).toBe(1);
+      // The one-shot flags must be stripped from the URL (no re-verify on
+      // refresh — the return visit ran exactly once).
+      await expect(page).not.toHaveURL(/iap=success/);
+      await expect
+         .poll(() => iap.verifyCalls.length, { timeout: 5_000 })
+         .toBe(1);
 
-    // Re-open the shop: the pack is owned now (✓ + Equip, no cash button).
-    await page.getByTestId("mining-canvas").waitFor({ state: "visible" });
-    await page.locator('[aria-label="Shop"]').click();
-    await expect(page.getByText(/Gold Pickaxe\s*✓/)).toBeVisible();
-    await expect(page.getByRole("button", { name: "Equip" })).toBeVisible();
-  });
+      // Re-open the shop: the pack is owned now (✓ + Equip, no cash button).
+      await page.getByTestId("mining-canvas").waitFor({ state: "visible" });
+      await page.locator('[aria-label="Shop"]').click();
+      await expect(page.getByText(/Gold Pickaxe\s*✓/)).toBeVisible();
+      await expect(page.getByRole("button", { name: "Equip" })).toBeVisible();
+   });
 
-  test("no live sidecar/Stripe traffic escapes the stubs", async ({
-    page,
-    context,
-  }) => {
-    const iap = createIapStubState();
-    await installAdStubs(context);
-    await installIapStubs(context, iap);
-    await bootApp(page);
+   test("no live sidecar/Stripe traffic escapes the stubs", async ({
+      page,
+      context,
+   }) => {
+      const iap = createIapStubState();
+      await installAdStubs(context);
+      await installIapStubs(context, iap);
+      await bootApp(page);
 
-    // Booting the web build must not touch the sidecar's IAP surface at
-    // all (no launch reconcile on web) — the first IAP traffic is the
-    // player's own purchase.
-    expect(iap.aborted).toEqual([]);
-    expect(iap.checkoutCalls).toEqual([]);
-    expect(iap.verifyCalls).toEqual([]);
-    expect(iap.restoreCalls).toEqual([]);
-  });
+      // Booting the web build must not touch the sidecar's IAP surface at
+      // all (no launch reconcile on web) — the first IAP traffic is the
+      // player's own purchase.
+      expect(iap.aborted).toEqual([]);
+      expect(iap.checkoutCalls).toEqual([]);
+      expect(iap.verifyCalls).toEqual([]);
+      expect(iap.restoreCalls).toEqual([]);
+   });
 });

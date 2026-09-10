@@ -15,10 +15,8 @@ import {
   isIapProductOwned,
 } from "../iaps";
 import { getPickaxe, rollMinerLook } from "../cosmetics";
-import {
-  minerSpriteUri,
-  pickaxeSpriteUri,
-} from "src/utils/graphics/pixelArt";
+import { CustomSkinSave } from "../customSkin";
+import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/pixelArt";
 import { emojis } from "src/utils/graphics/emojis";
 import { styles } from "../styles";
 
@@ -99,10 +97,19 @@ function IapPanel({
   entitlements,
   saveOwnedCosmeticIds,
   themesLocked,
+  /**
+   * The device-local custom-skin slot (useCustomSkin) — the packSkin row
+   * joins its unlock/equip flags (the grant is not a save field) and its
+   * uploads power the upload/clear controls below the row.
+   */
+  customSkin,
   onBuyGems,
   onPurchase,
   onSelect,
   onReroll,
+  onUploadSkinImage,
+  onUploadSkinAudio,
+  onClearSkin,
 }: {
   /** Provider is the dev simulation (dev builds only). */
   isDevSim: boolean;
@@ -130,11 +137,25 @@ function IapPanel({
   entitlements: IapEntitlements;
   /** Cosmetic/theme ids the current save already owns (any source). */
   saveOwnedCosmeticIds: string[];
+  // (customSkin, onUploadSkinImage, onUploadSkinAudio, onClearSkin:
+  //  typed inline above — the skin slot lives outside the save.)
   /** Tier-4 goal unlock (goals.ts): the GEM buy of cave themes stays
    *  locked until Crystal Kingdom (visible-but-locked rule, as the old
    *  gem shop enforced); the cash packs are store products and stay
    *  offerable as before. */
   themesLocked: boolean;
+  /**
+   * The device-local custom-skin slot (useCustomSkin) — the packSkin row
+   * joins its unlock/equip flags (the grant is not a save field) and its
+   * uploads power the upload/clear controls below the row.
+   */
+  customSkin: CustomSkinSave;
+  /** Web-only (for now): store an uploaded 16×16 body image. */
+  onUploadSkinImage?: () => void;
+  /** Web-only (for now): store an uploaded swing sound. */
+  onUploadSkinAudio?: () => void;
+  /** Clear the player's skin uploads (keeps the unlock). */
+  onClearSkin?: () => void;
   /** The engine gem buy (auto-equips; idempotent, no-op when unaffordable). */
   onBuyGems: (id: IapProductId) => void;
   /** The store purchase (provider flow). */
@@ -166,12 +187,14 @@ function IapPanel({
       product.id,
       entitlements,
       saveOwnedCosmeticIds,
+      customSkin.unlocked,
     );
     const equipped = isIapProductEquipped(
       product.id,
       selectedOutfit,
       selectedPickaxe,
       selectedCaveTheme,
+      customSkin.equipped,
     );
     const gemsAffordable = gems >= pack.costGems;
     const gemLocked = product.line === "caveTheme" && themesLocked;
@@ -190,16 +213,56 @@ function IapPanel({
             {text.detail ?? product.blurb}
           </Text>
           <Text style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}>
+            {t("iap.oneTime", { price: product.priceLabel })}
+          </Text>
+          <Text style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}>
             {t("iap.alsoEarnable", { count: pack.costGems })}
           </Text>
         </View>
         {owned ? (
-          <Button
-            tone="gem"
-            disabled={equipped}
-            title={equipped ? t("iap.equipped") : t("iap.equip")}
-            onPress={() => onSelect(product.id)}
-          />
+          <View style={{ alignItems: "flex-end", gap: 4 }}>
+            <Button
+              tone="gem"
+              disabled={equipped}
+              title={equipped ? t("iap.equipped") : t("iap.equip")}
+              onPress={() => onSelect(product.id)}
+            />
+            {/* The custom-skin row: upload controls (web for now) + a
+                clear — the slot is device-local, uploads live in the
+                customSkin save slot, not the game save. */}
+            {product.line === "skin" && (
+              <>
+                {onUploadSkinImage != null ? (
+                  <View style={{ flexDirection: "row", gap: 4 }}>
+                    <Button
+                      tone="gem"
+                      title={t("iap.skinUploadImage")}
+                      onPress={onUploadSkinImage}
+                    />
+                    {onUploadSkinAudio != null && (
+                      <Button
+                        tone="gem"
+                        title={t("iap.skinUploadAudio")}
+                        onPress={onUploadSkinAudio}
+                      />
+                    )}
+                  </View>
+                ) : (
+                  <Text style={{ ...styles.text, fontSize: 10, opacity: 0.7 }}>
+                    {t("iap.skinUploadsWebOnly")}
+                  </Text>
+                )}
+                {(customSkin.grid != null || customSkin.audio != null) &&
+                  onClearSkin != null && (
+                    <Button
+                      tone="gem"
+                      title={t("iap.skinClear")}
+                      onPress={onClearSkin}
+                    />
+                  )}
+              </>
+            )}
+          </View>
         ) : (
           <View style={{ flexDirection: "row", gap: 4 }}>
             <Button
@@ -221,7 +284,7 @@ function IapPanel({
     );
   };
 
-  const GROUP_ORDER: IapPackLine[] = ["pickaxe", "outfit", "caveTheme"];
+  const GROUP_ORDER: IapPackLine[] = ["pickaxe", "outfit", "caveTheme", "skin"];
 
   return (
     <BottomModal
@@ -259,7 +322,9 @@ function IapPanel({
 
         {/* Look preview + reroll (moved from the menu sheet's Shop view):
             the actual sprites, generated at runtime. */}
-        <View style={{ ...styles.flexCenteredRow, gap: 8, alignItems: "center" }}>
+        <View
+          style={{ ...styles.flexCenteredRow, gap: 8, alignItems: "center" }}
+        >
           <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
             <Image
               source={{ uri: playerUri }}
@@ -281,18 +346,25 @@ function IapPanel({
                 ? t("iap.groupPickaxes")
                 : line === "outfit"
                   ? t("iap.groupOutfits")
-                  : themesLocked
-                    ? t("cosmetics.themesLocked")
-                    : t("iap.groupThemes")}
+                  : line === "skin"
+                    ? t("iap.groupSkin")
+                    : themesLocked
+                      ? t("cosmetics.themesLocked")
+                      : t("iap.groupThemes")}
             </Text>
             {line === "caveTheme" && themesLocked && (
               <Text style={{ ...styles.text, fontSize: 11, color: "#999" }}>
                 {t("cosmetics.themesUnlockedAt")}
               </Text>
             )}
-            {IAP_PRODUCT_LIST.filter((p) => p.line === line).map(
-              renderProduct,
+            {line === "skin" && (
+              // The feature-tier line: the player's own pixels replace
+              // the outfit miner's body (docs/todo.md custom-skinning).
+              <Text style={{ ...styles.text, fontSize: 11, color: "#999" }}>
+                {t("iap.groupSkinDetail")}
+              </Text>
             )}
+            {IAP_PRODUCT_LIST.filter((p) => p.line === line).map(renderProduct)}
           </View>
         ))}
 

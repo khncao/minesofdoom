@@ -32,7 +32,13 @@
 import { Platform } from "react-native";
 import * as IAP from "expo-iap";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { IAP_STORE_IDS, IapProductId, IapProvider, PurchaseResult } from "./iaps";
+import {
+  IAP_STORE_IDS,
+  IAP_IOS_STORE_IDS,
+  IapProductId,
+  IapProvider,
+  PurchaseResult,
+} from "./iaps";
 import { storeConfig, isPocketbaseConfigured } from "./storeConfig";
 import { getIapDeviceId } from "./iapDeviceId";
 
@@ -54,19 +60,28 @@ const LISTENER_SETTLE_MS = 200;
 /** AsyncStorage key for the pending-verify queue. */
 export const PENDING_VERIFY_KEY = "iapPendingVerifies";
 
-/** The reverse store-id → product-id map (both stores share one canonical
- *  sku per product, see IAP_STORE_IDS). Built lazily — IAP_STORE_IDS lives
- *  in iaps.ts, which imports this module (provider selection), so a
- *  module-scope read would hit the circular import before iaps.ts
- *  initialized the const. */
+/** The reverse store-id → product-id map, covering BOTH id spaces: the
+ *  Play Billing SKUs (IAP_STORE_IDS) and the App Store product ids
+ *  (IAP_IOS_STORE_IDS, the `{ios.bundleId}.{productId}` convention) —
+ *  a purchase event or a server entitlement row can carry either. Built
+ *  lazily — the maps live in iaps.ts, which imports this module (provider
+ *  selection), so a module-scope read would hit the circular import
+ *  before iaps.ts initialized the consts. */
 let storeIdToProduct: Record<string, IapProductId> | null = null;
 function storeIdToProductMap(): Record<string, IapProductId> {
   if (!storeIdToProduct) {
-    storeIdToProduct = Object.fromEntries(
-      (Object.entries(IAP_STORE_IDS) as [IapProductId, string][]).map(
-        ([id, sid]) => [sid, id],
+    storeIdToProduct = {
+      ...Object.fromEntries(
+        (Object.entries(IAP_STORE_IDS) as [IapProductId, string][]).map(
+          ([id, sid]) => [sid, id],
+        ),
       ),
-    ) as Record<string, IapProductId>;
+      ...Object.fromEntries(
+        (Object.entries(IAP_IOS_STORE_IDS) as [IapProductId, string][]).map(
+          ([id, sid]) => [sid, id],
+        ),
+      ),
+    } as Record<string, IapProductId>;
   }
   return storeIdToProduct;
 }
@@ -154,16 +169,13 @@ async function postVerify(
   sessionToken?: string | null,
 ): Promise<boolean> {
   try {
-    const res = await postJson(
-      `${storeConfig.pocketbaseUrl}/api/app/verify`,
-      {
-        deviceId,
-        platform: Platform.OS,
-        productId,
-        token,
-        ...sessionFields(sessionToken),
-      },
-    );
+    const res = await postJson(`${storeConfig.pocketbaseUrl}/api/app/verify`, {
+      deviceId,
+      platform: Platform.OS,
+      productId,
+      token,
+      ...sessionFields(sessionToken),
+    });
     return res !== null;
   } catch {
     return false;
@@ -173,10 +185,12 @@ async function postVerify(
 /** The optional-login body field: only present while signed in (a
  *  missing token is the anonymous device default — byte-identical
  *  requests, same rule as cloudSave/leaderboard). */
-function sessionFields(
-  sessionToken?: string | null,
-): { sessionToken?: string } {
-  return sessionToken === null || sessionToken === undefined || sessionToken === ""
+function sessionFields(sessionToken?: string | null): {
+  sessionToken?: string;
+} {
+  return sessionToken === null ||
+    sessionToken === undefined ||
+    sessionToken === ""
     ? {}
     : { sessionToken };
 }
@@ -213,10 +227,10 @@ async function restoreFromServer(
   deviceId: string,
   sessionToken?: string | null,
 ): Promise<Partial<Record<IapProductId, boolean>>> {
-  const res = await postJson(
-    `${storeConfig.pocketbaseUrl}/api/app/restore`,
-    { deviceId, ...sessionFields(sessionToken) },
-  );
+  const res = await postJson(`${storeConfig.pocketbaseUrl}/api/app/restore`, {
+    deviceId,
+    ...sessionFields(sessionToken),
+  });
   const raw = res?.entitlements;
   if (!Array.isArray(raw)) return {};
   // Allowlist: only store ids we own map to a product (mirrors the
@@ -248,7 +262,10 @@ function awaitStoreOutcome(storeId: string): Promise<StoreOutcome> {
     let settled = false;
     let updated: ReturnType<typeof IAP.purchaseUpdatedListener> | null = null;
     let errored: ReturnType<typeof IAP.purchaseErrorListener> | null = null;
-    const timer = setTimeout(() => settle({ result: "error" }), PURCHASE_TIMEOUT_MS);
+    const timer = setTimeout(
+      () => settle({ result: "error" }),
+      PURCHASE_TIMEOUT_MS,
+    );
     const settle = (outcome: StoreOutcome) => {
       if (settled) return;
       settled = true;
@@ -318,7 +335,13 @@ export const storeIapProvider: IapProvider = {
     // a fresh launch heals the queue before the player even opens the
     // panel (plan: re-verify on next launch).
     await replayPendingVerifies(deviceId, sessionToken);
-    const outcome = await awaitStoreOutcome(IAP_STORE_IDS[productId]);
+    // One store id per store: the App Store product id on iOS
+    // (`{ios.bundleId}.{productId}`), the Play Billing SKU everywhere else.
+    const storeId =
+      Platform.OS === "ios"
+        ? IAP_IOS_STORE_IDS[productId]
+        : IAP_STORE_IDS[productId];
+    const outcome = await awaitStoreOutcome(storeId);
     if (outcome.result !== "purchased") return outcome.result;
     if (!outcome.purchase) return "purchased"; // AlreadyOwned path
     // Finalize the store record, then ask the server to verify.

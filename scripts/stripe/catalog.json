@@ -173,5 +173,12 @@
     "name": "Mines of Doom: Cherry & Indigo Theme",
     "blurb": "One-time purchase. Unlocks the Cherry & Indigo cave theme — blossom over indigo night, gold at the bottom — a samurai-era tribute. Purely cosmetic.",
     "amountUsd": 399
+  },
+  {
+    "id": "packSkin",
+    "storeId": "pack_skin",
+    "name": "Mines of Doom: Custom Skin",
+    "blurb": "One-time purchase. Unlocks Custom Skin — upload your own 16×16 miner sprite and swing sound. Purely cosmetic.",
+    "amountUsd": 399
   }
 ]

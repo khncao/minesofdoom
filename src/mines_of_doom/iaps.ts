@@ -25,12 +25,14 @@
 import { Platform } from "react-native";
 import {
  COSMETIC_PREVIEW_SEED,
+ DEFAULT_OUTFIT,
  getCaveTheme,
  getOutfit,
  getPickaxe,
  isOutfitId,
  rollMinerLook,
 } from "./cosmetics";
+import { CUSTOM_SKIN_UNLOCK_COST_GEMS } from "./customSkin";
 import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/pixelArt";
 // The real provider (native; a no-op on web via the .web swap). Imported
 // here (not the reverse) so the selection rules stay in one pure module;
@@ -43,8 +45,13 @@ import {
  isStripeConfigured,
 } from "./storeConfig";
 
-/** The cosmetic lines packs sell (panel grouping + blurb shape). */
-export type IapPackLine = "pickaxe" | "outfit" | "caveTheme";
+/**
+ * The cosmetic lines packs sell (panel grouping + blurb shape).
+ * "skin" is the CUSTOM SKIN feature pack — it unlocks the custom-skin
+ * save slot (docs/todo.md custom-skinning line) instead of granting a
+ * fixed catalog cosmetic; it is the catalog's one non-cosmetic line.
+ */
+export type IapPackLine = "pickaxe" | "outfit" | "caveTheme" | "skin";
 
 /**
  * One pack per PAID cosmetic (costGems > 0) in cosmetics.ts, in
@@ -80,6 +87,12 @@ const PACK_SPECS = [
  { id: "packAshen", line: "caveTheme", cosmeticId: "ashen" },
  { id: "packGothic", line: "caveTheme", cosmeticId: "gothic" },
  { id: "packCherry", line: "caveTheme", cosmeticId: "cherry" },
+ // The custom-skin feature pack (feature tier — the priciest line,
+ // price derived from the gem price via packPriceLabel). `cosmeticId`
+ // doubles as the store-slug stem (pack_skin — the store id is a
+ // Play Billing SKU, not the internal key); the GRANT id is
+ // "customSkin" (the skin save slot), resolved in IAP_PACK_GRANTS.
+ { id: "packSkin", line: "skin", cosmeticId: "skin" },
 ] as const;
 
 export type IapPackId = (typeof PACK_SPECS)[number]["id"];
@@ -136,6 +149,14 @@ function packPriceLabel(costGems: number): string {
 
 /** One catalog row per spec, resolving the cosmetic name/price/blurb from
  *  cosmetics.ts so the pack copy can never drift from the gem shop. */
+/**
+ * The brand name in store-facing product titles — the "app: item" naming
+ * (e.g. "Mines of Doom: Gold Pickaxe") that matches the Stripe catalog
+ * names in scripts/stripe/catalog.json, so the app and the stores show
+ * the same product name.
+ */
+export const APP_NAME = "Mines of Doom";
+
 function packProduct(spec: (typeof PACK_SPECS)[number]): IapProduct {
  const storeId = "pack_" + spec.cosmeticId;
  if (spec.line === "pickaxe") {
@@ -144,7 +165,7 @@ function packProduct(spec: (typeof PACK_SPECS)[number]): IapProduct {
    id: spec.id,
    line: "pickaxe",
    storeId,
-   label: `${c.name} Pickaxe`,
+   label: `${APP_NAME}: ${c.name} Pickaxe`,
    priceLabel: packPriceLabel(c.costGems),
    blurb:
     `One-time purchase. Unlocks the ${c.name} pickaxe — its own swing ` +
@@ -157,7 +178,7 @@ function packProduct(spec: (typeof PACK_SPECS)[number]): IapProduct {
    id: spec.id,
    line: "outfit",
    storeId,
-   label: `${c.name} Outfit`,
+   label: `${APP_NAME}: ${c.name} Outfit`,
    priceLabel: packPriceLabel(c.costGems),
    blurb:
     `One-time purchase. Unlocks the ${c.name} outfit` +
@@ -165,12 +186,24 @@ function packProduct(spec: (typeof PACK_SPECS)[number]): IapProduct {
     " Purely cosmetic.",
   };
  }
+ if (spec.line === "skin") {
+  return {
+   id: spec.id,
+   line: "skin",
+   storeId,
+   label: `${APP_NAME}: Custom Skin`,
+   priceLabel: packPriceLabel(CUSTOM_SKIN_UNLOCK_COST_GEMS),
+   blurb:
+    "One-time purchase. Unlocks Custom Skin — upload your own 16×16 " +
+    "miner sprite and swing sound. Purely cosmetic.",
+  };
+ }
  const c = getCaveTheme(spec.cosmeticId);
  return {
   id: spec.id,
   line: "caveTheme",
   storeId,
-  label: `${c.name} Theme`,
+  label: `${APP_NAME}: ${c.name} Theme`,
   priceLabel: packPriceLabel(c.costGems),
   blurb:
    `One-time purchase. Unlocks the ${c.name} cave theme` +
@@ -217,12 +250,33 @@ export const IAP_STORE_IDS: Record<IapProductId, string> = Object.fromEntries(
 ) as Record<IapProductId, string>;
 
 /**
+ * iOS (App Store Connect) product ids — Apple's own convention
+ * `{ios.bundleId}.{productId}` (the iOS bundle id that will ship is
+ * `com.minus4kelvin.minesofdoom`, the same reverse-domain id as
+ * android.package — docs/store-integration.md §1 lists it; the
+ * app.config `ios.bundleIdentifier` is filled when the iOS half
+ * ships, §5). Deliberately separate from the
+ * Play Billing SKUs in IAP_STORE_IDS: one id per store, created in the
+ * store consoles. The provider reverse-maps BOTH id spaces to the
+ * catalog (iapProvider.ts), so a device's store record — whatever id
+ * space it carries — still resolves to the same product.
+ */
+export const IOS_BUNDLE_ID = "com.minus4kelvin.minesofdoom";
+export const IAP_IOS_STORE_IDS: Record<IapProductId, string> =
+ Object.fromEntries(
+  (Object.keys(IAP_PRODUCTS) as IapProductId[]).map((id) => [
+   id,
+   `${IOS_BUNDLE_ID}.${id}`,
+  ]),
+ ) as Record<IapProductId, string>;
+
+/**
  * Which cosmetic each pack grants. Derived from PACK_SPECS: the grant is
  * just "add the pack's cosmetic id to the save's owned lists" (the grant
  * in the engine is idempotent).
  */
 export type IapPackGrant = {
- readonly kind: "cosmetic" | "caveTheme";
+ readonly kind: "cosmetic" | "caveTheme" | "customSkin";
  readonly id: string;
 };
 
@@ -230,11 +284,15 @@ export const IAP_PACK_GRANTS: Record<IapProductId, IapPackGrant> =
  Object.fromEntries(
   PACK_SPECS.map((spec) => [
    spec.id,
-   {
-    kind:
-     spec.line === "caveTheme" ? ("caveTheme" as const) : ("cosmetic" as const),
-    id: spec.cosmeticId,
-   },
+   spec.line === "skin"
+    ? { kind: "customSkin" as const, id: "customSkin" }
+    : {
+       kind:
+        spec.line === "caveTheme"
+         ? ("caveTheme" as const)
+         : ("cosmetic" as const),
+       id: spec.cosmeticId,
+      },
   ]),
  ) as Record<IapProductId, IapPackGrant>;
 
@@ -249,6 +307,10 @@ export function getIapPackCosmetic(productId: IapProductId): {
  costGems: number;
 } {
  const grant = IAP_PACK_GRANTS[productId];
+ if (grant.kind === "customSkin") {
+  // The gem price of the one-time skin unlock (the feature tier).
+  return { name: "Custom Skin", costGems: CUSTOM_SKIN_UNLOCK_COST_GEMS };
+ }
  if (grant.kind === "caveTheme") {
   const theme = getCaveTheme(grant.id);
   return { name: theme.name, costGems: theme.costGems };
@@ -275,6 +337,14 @@ export type IapProductPreview =
 
 export function getIapProductPreview(id: IapProductId): IapProductPreview {
  const grant = IAP_PACK_GRANTS[id];
+ if (grant.kind === "customSkin") {
+  // A default-outfit miner — the body the uploaded 16×16 sprite
+  // replaces once the slot is unlocked.
+  return {
+   kind: "sprite",
+   uri: minerSpriteUri(rollMinerLook(COSMETIC_PREVIEW_SEED, DEFAULT_OUTFIT)),
+  };
+ }
  if (grant.kind === "caveTheme") {
   return { kind: "swatches", tints: getCaveTheme(grant.id).tints };
  }
@@ -298,15 +368,19 @@ export function getIapProductPreview(id: IapProductId): IapProductPreview {
 export function iapGrantCosmeticIds(entitlements: IapEntitlements): {
  cosmetics: string[];
  caveThemes: string[];
+ /** True when the custom-skin pass is entitled (packSkin). */
+ customSkin: boolean;
 } {
  const cosmetics: string[] = [];
  const caveThemes: string[] = [];
+ let customSkin = false;
  for (const [productId, grant] of Object.entries(IAP_PACK_GRANTS)) {
   if (!hasIapEntitlement(entitlements, productId as IapProductId)) continue;
   if (grant?.kind === "cosmetic") cosmetics.push(grant.id);
   else if (grant?.kind === "caveTheme") caveThemes.push(grant.id);
+  else if (grant?.kind === "customSkin") customSkin = true;
  }
- return { cosmetics, caveThemes };
+ return { cosmetics, caveThemes, customSkin };
 }
 
 /**
@@ -538,10 +612,18 @@ export function isIapProductOwned(
  productId: IapProductId,
  entitlements: IapEntitlements,
  saveOwnedCosmeticIds: readonly string[],
+ /**
+  * The device-local custom-skin slot's unlock flag (useCustomSkin).
+  * The packSkin grant is not a save field, so the caller joins it here
+  * (default false — a stale caller just shows the row as buyable).
+  */
+ customSkinUnlocked?: boolean,
 ): boolean {
  if (hasIapEntitlement(entitlements, productId)) return true;
  const grant = IAP_PACK_GRANTS[productId];
- return grant != null && saveOwnedCosmeticIds.includes(grant.id);
+ if (grant == null) return false;
+ if (grant.kind === "customSkin") return customSkinUnlocked === true;
+ return saveOwnedCosmeticIds.includes(grant.id);
 }
 
 /**
@@ -553,8 +635,11 @@ export function isIapProductEquipped(
  selectedOutfit: string,
  selectedPickaxe: string,
  selectedCaveTheme: string,
+ /** The device-local skin slot's equip flag (useCustomSkin). */
+ customSkinEquipped?: boolean,
 ): boolean {
  const grant = IAP_PACK_GRANTS[productId];
+ if (grant.kind === "customSkin") return customSkinEquipped === true;
  if (grant.kind === "caveTheme") return selectedCaveTheme === grant.id;
  if (isOutfitId(grant.id)) return selectedOutfit === grant.id;
  return selectedPickaxe === grant.id;

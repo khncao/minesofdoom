@@ -126,6 +126,13 @@ export const storeConfig = {
    packAshen: "price_1UDH5yDPxWoXhXF8k89wYQou",
    packGothic: "price_1UDH5yDPxWoXhXF8vT8zd0Jk",
    packCherry: "price_1UDH5zDPxWoXhXF873VrwPjR",
+   // PLACEHOLDER — replaced by the real test-mode price when
+   // `node scripts/stripe/syncStripe.mjs products` syncs the new pack
+   // (the release step in the custom-skinning todo line,
+   // docs/store-integration.md §2). Until then only packSkin checkouts
+   // fail with a Stripe price error — the rest of the catalog is
+   // unaffected (Stripe resolves per price).
+   packSkin: "price_PENDINGPACKSKIN",
   },
  },
  /**
