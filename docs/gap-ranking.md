@@ -382,6 +382,34 @@ repo is not equipped to make.
     Sibling net (same class as F38.4's prose contracts): nothing checks the
     policy's claim against the config, so a future flag flip would silently
     falsify it again.
+27. **`identity:device-id-fork`** (pass 49, F49.1) — a real bug under the
+    whole server-side keying model: `getIapDeviceId()` (iapDeviceId.ts) is a
+    read-generate-write with **no module-scope memo and no chain** — every
+    call does `getItem → (null?) makeDeviceId → setItem`, and all six
+    server-facing modules call it *per round-trip*. On a fresh install the
+    first autosave fires `cloudRequestPush("autosave")` **and**
+    `leaderboardRequestSubmit()` in the same commit (the dirty→clean effect
+    in `MinesOfDoom.tsx`), both pass their independent 5-minute cadence
+    gates, and both reach `await getIapDeviceId()` while the storage key is
+    still empty: both `getItem`s dispatch before either `setItem`, both read
+    null, both mint distinct `dev-…` ids, and the last `setItem` wins the
+    key. Damage: the **first cloud backup row is keyed by the losing id** —
+    every later push/pull/restore (and the GDPR `delete`) uses the stored
+    survivor, so that row is orphaned forever and the "delete my data"
+    round-trip can never reach it; `linkDeviceRows`' backfill only ever
+    claims rows under the survivor. It sits on the canonical fresh-install
+    path in the production (pocketbase-configured) providers only — the
+    dev-sim/no-op providers never call `getIapDeviceId`, which is exactly
+    why every local gate (dev builds, jest, e2e) is blind to it;
+    `iapDeviceId.test.ts` pins only the pure `makeDeviceId` factory, not the
+    storage half. Fix shape (~8 lines, inside `iapDeviceId.ts`, copying the
+    `crashLogging` chain pattern): module-scope `cached: string | null` +
+    `pending: Promise<string> | null` — return the memo, or the one in-flight
+    promise every caller awaits — plus a net: two concurrent
+    `getIapDeviceId()` calls against a mocked store with an initially-empty
+    key must resolve the *same* id. Bounded in magnitude (the orphaned row
+    is a ~30-second-old backup) but it is an identity fork intersecting
+    GDPR completeness.
 
 **Context — closed since the passes ran** (so the ranking isn't
 re-derived from stale reads): streak grace (it.14), streak freezes +
