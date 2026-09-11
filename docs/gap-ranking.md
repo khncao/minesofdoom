@@ -5923,3 +5923,71 @@ guarantee that a settled `<script>` element fires its `load`/`error`
 exactly once and never re-fires for late-attached listeners — the
 standard DOM script-element contract the fix template (fresh element
 per attempt) already assumes.
+
+### The test & verification layer (pass 42 — the nets that catch everything else: jest, web e2e, probes, and their own gaps, written 2026-09-11)
+
+The layer is well-provisioned but has never been audited as a subject: 77 jest
+suites / 1,170 tests (src, pb_hooks, plugins) running in ~7s and hermetic (no
+network, no live Stripe/Pocketbase/Google — the store suites stub at the module
+boundary, the e2e leg stubs at the network layer), plus the Playwright web e2e
+(`e2e/web/`: boot, ads, iap, signin specs + the ad-test-mode export server +
+network stubs) and the manual probe scripts (`scripts/stripe/checkoutTest.mjs`,
+`gsiOriginProbe.mjs`). Auditing the nets:
+
+**F42.1 — `test:worker-force-exit` (Tier 2 — the full jest run survives only on
+a force-exit, and the leak source is now pinpointed).** Every full-suite run
+ends with jest's *"A worker process has failed to exit gracefully and has been
+force exited"* warning, and the stack jest dumps is the leak:
+`commitPassiveMountEffects → … → performWorkUntilDeadline [as _onImmediate]`
+in `scheduler.native.development.js` — a live react-test-renderer scheduler
+`setImmediate` chain at worker teardown. Cause: 20 `render()` calls across five
+suites — `useLeaderboard.test.ts` (×12), `useCloudSave.test.ts` (×4),
+`haptics.test.ts`, `useMineTaps.test.ts`, `useEquations.test.ts` — with **zero**
+`unmount()` / `cleanup()` anywhere (`nativeStackWiring.test.tsx` is the one
+correct suite: 2 renders, 2 unmounts). Cost: (a) any *future* genuine
+teardown/regression leak is invisible against this baseline; (b) the standard
+diagnostic — `--detectOpenHandles` on the full suite — is unreliable on this
+substrate (a 300s probe run timed out inside it this pass; a single-file
+`--detectOpenHandles` run is clean and fast, which is exactly the signature of
+leaked handles accumulating across suites); (c) the previously observed
+"full suite hangs past 300s and resists SIGKILL" is the extreme tail of the
+same leak class. Fix is mechanical: add `unmount()` after each of the 20
+renders (or a per-suite `afterEach` cleanup) and verify a full run exits with
+no worker warning. No player impact today — jest force-exits, results are
+valid, the run still finishes in 7s.
+
+**F42.2 — `tree:concurrent-mutation` (Tier 2, methodology — the working tree
+mutated under the audit).** Mid-pass, the on-disk `pb_hooks` layout changed
+from the 8-module vintage (`index.js`/`handler.js`/`pb.js`/`server.js`/
+`stripe.js`/`stripeClient.js`/`verify.js` + 6 `__test__` files) to the committed
+vintage (`app.pb.js`/`collections.js`/`endpoints.js`/`handlerLib.js`/
+`identityVerify.js`/`logic.js`/`storeVerify.js`/`sidecar/` + 10 `__test__`
+files), and 6 files sit uncommitted WIP (`customSkinPicker.ts`/`.web.ts` +
+test, `wav.ts` + test, `es.ts` — the in-flight native skin-picker release,
+HEAD `90b90e5`). Consequence for this document: file-level coverage findings
+written against the old layout (notably F39.2's untested `handleVerify` /
+`handleRestore`, and the 401-checkout gap below) must be re-verified against
+the current tree before any fix pass is greenlit. Standing caveat, not a repo
+defect.
+
+**F42.3 — `pb:checkout-401-untested` (Tier 3, re-verified on the current
+tree).** Zero occurrences of `401` in any of the 10 `pb_hooks/__test__/`
+files: the unauthenticated checkout-session path (an invalid/expired session
+id hitting the `/_stripe/checkout` route) is still untested in the restructured
+vintage — carried from the pass 39/41 coverage notes, gap persists.
+
+**Recorded, not defects:** the single-file `--detectOpenHandles` diagnostic
+works and is clean (`format.test.ts`: 10/10, 0.3s, no open handles) — the
+leak is cross-suite, not per-file. `e2e/web` gained `signin.spec.ts` since
+pass 36 (sign-in flow is now e2e-covered; the todo's "10/10" count reflects
+the four specs). A `jest-runner` API probe from the project root fails
+module resolution (`jest-runner` is not hoisted to the top level under
+`node-linker=hoisted` — consistent with pass 38's F38.4 alias/config note;
+the CLI form works fine).
+
+**Source quality (pass 42).** Internal audit by construction: properties of
+the tree as of `90b90e5` + the 6 WIP files. The leak is reproducible evidence
+from this pass's own runs (full-suite task output with the force-exit warning
+and scheduler stack; single-file probe clean), not inference. F42.2 is a
+record of observed mid-audit tree mutation, with the before/after file lists
+as stated.
