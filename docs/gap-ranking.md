@@ -6596,3 +6596,185 @@ degrade ladder, `useSounds`' play-rejection sites, the share chain
 `i18n.ts`'s locale/template fallbacks, both skin pickers' decode funnels +
 their two call sites in `MinesOfDoom.tsx`. Pass 48 made no code change;
 F48.1/F48.2 are ranked only, pending greenlit.
+
+### The concurrency / async-race layer (pass 49 — two writes to the same byte, and who wins, written 2026-09-13)
+
+Pass 40 audited the clocks; pass 47 audited the registrations; pass 48
+audited the failure paths. This pass audits the fourth axis: **two
+correct code paths writing the same bytes at the same time** — the
+read-modify-write sites over AsyncStorage, the ref-based state folds,
+the cross-hook round-trips that share an identity, and the
+cross-tab/cross-launch writers the single-process nets can't see. The
+question per site is not "is it guarded" (pass 48) but "if two of these
+run together, does the result still converge". The layer is mostly
+disciplined — the crash ring's `chainRef` and the ref-folded setters
+(analytics, daily bonus) are genuinely race-safe by construction — but
+the one un-chained read-generate-write the whole server-side identity
+rests on sits on the *canonical* fresh-install path, and it forks.
+
++ **The crash ring is the layer's model: read-modify-write serialized on
+a module-scope promise chain.** `crashLogging.ts`'s `recordCrash` keeps
+its ring in memory (always) and folds a new entry into the *stored* ring
+through `chain = chain.then(() => getItem → append → setItem)` — two fast
+crashes (the render boundary and the global handler in the same throw)
+append instead of clobbering, and the module doc states the invariant
+outright. `useCrashLog` (the settings reader) never writes, so it needs
+no share of the chain. This is the pattern the one gap below should
+copy.
+
++ **The ref-folded setters are race-safe by single-threadedness, and the
+fold happens in the callback, not the render:** `useAnalytics.persist`
+and `useDailyBonus.claim` both do `stateRef.current = next` *synchronously
+inside the callback* before `setState` — so two record calls in the same
+JS turn fold sequentially (`recordAdView` then `recordIapPurchase` see
+each other's result), not in parallel. The render-time `stateRef.current
+= state` re-assignment lands the same value. Same for `useDailyBonus`'s
+explicit "publish to the ref synchronously" fast-tap fix (the
+unlimited-claim bug, test-pinned). The one theoretical window in
+`useAnalytics`: the load effect folds `recordAppOpen(stored)` from the
+*stored* snapshot, so a record event persisted while that `getItem` is
+still in flight is overwritten by the load's write — but the window is a
+`getItem` round-trip (~ms) before any user action that could record, so
+it is recorded, not ranked.
+
++ **`useLocalStorage`'s two invariants hold under concurrency:** the
+`dirtyRef` net (a setter call while the initial load is in flight makes
+the load a no-op — the cold-start clobber class) and the setter's
+in-memory update (consumers never read the pre-load default). The only
+soft spot is the `pending` flag: with two writes in flight, the first
+`.finally` clears it while the second is still writing — a UI-only
+semantics blur (nothing gates on `pending` for correctness), recorded.
+The engine's own save bypasses the helper for the same app-open reason
+analytics cites (load must not clobber a write, *and* the load computes
+offline earnings from the stored `saveTime`), and its `loadedRef` gate
+(pass 40) is confirmed still sound from this angle: every save trigger
+(autosave tick, AppState background, pagehide, manual, cloud snapshot)
+reads a synchronously-serialized snapshot of a ref, so in-flight
+`setItem`s are FIFO-behind newer snapshots — no stale-overwrite is
+possible on either the RN bridge queue or web's synchronous
+localStorage. `resetGame`'s `removeItem` is likewise FIFO-behind any
+in-flight `setItem`, and its comment already states the convergence
+argument.
+
++ **The cloud push path is single-flight by ref, and its only concurrent
+writer (the stale-restore) degrades to the layer's known LWW:**
+`useCloudSave.requestPush`'s `pushingRef` makes overlapping pushes
+impossible, the 5-minute cadence + the dirty→clean trigger (the effect
+in `MinesOfDoom` fires *both* `cloudRequestPush("autosave")` and
+`leaderboardRequestSubmit()` in the same commit — see the finding below)
+is wall-clock-gated, and the stale→pull→restore branch re-enters the
+engine through the same `restoreFromBlob` pipeline a manual restore uses
+(pass 33's `cloud:stale-notice` remains the only un-toasted of the three
+import paths). The IAP `replayPendingVerifies` (both providers) is an
+*un-chained* RMW over `PENDING_VERIFY_KEY` — two overlapping replays
+(verify + restore in the same window) re-verify the same entries — but
+pass 39 established re-verify is idempotent and the loss window can only
+leave a pending entry pending longer (retried next replay), which is the
+safe direction.
+
+Findings:
+
++ **F49.1 `identity:device-id-fork` (Tier 1 #27 — real bug, canonical
+path):** `getIapDeviceId()` (`iapDeviceId.ts`) is a read-generate-write
+with **no module-scope memo and no chain** — every call does
+`getItem → (null?) makeDeviceId → setItem`, and all six server-facing
+modules call it *per round-trip* (cloudSave push/pull/delete,
+leaderboard submit/rank, both IAP providers' verify/restore, auth's
+three sign-in round-trips). On a fresh install the engine's first
+autosave (30 s) flips dirty→clean, and the effect at
+`MinesOfDoom.tsx:514` fires `cloudRequestPush("autosave")` **and**
+`leaderboardRequestSubmit()` in the same commit; both pass their
+independent 5-minute cadence gates (both `lastAt` refs are 0), so both
+reach `await getIapDeviceId()` while the storage key is empty: both
+`getItem`s are dispatched before either `setItem`, both read null, both
+mint distinct `dev-…` ids, and the last `setItem` wins the key. The
+concrete damage: the **first cloud backup row is keyed by the losing id**
+— every later push/pull/restore (and the GDPR `delete`) uses the stored
+survivor, so that row is orphaned forever, *and the "delete my data"
+round-trip can never reach it*; the auth `link` backfill
+(`linkDeviceRows`) likewise only ever claims rows under the survivor. It
+sits on the canonical fresh-install path in the production
+(pocketbase-configured) providers only — the dev-sim/no-op providers
+never call `getIapDeviceId`, which is exactly why every local gate
+(dev builds, jest, e2e) is blind to it; `iapDeviceId.test.ts` pins only
+the pure `makeDeviceId` factory, not the storage half. Bounded in
+magnitude (the orphaned row is a ~30-second-old backup) but it is an
+identity fork under the whole server-side keying model pass 39 audited,
+and it intersects GDPR completeness. Fix shape (~8 lines, inside
+`iapDeviceId.ts`, copying the `crashLogging` chain pattern): module-scope
+`let cached: string | null` + `let pending: Promise<string> | null` —
+return the memo, or one in-flight promise all callers await — plus a
+net: two concurrent `getIapDeviceId()` calls against a mocked
+AsyncStorage with an initially-empty key must resolve the *same* id.
+Ranked, pending greenlit.
+
++ **F49.2 `account:restore-vs-signin` (Tier 3):** `useAccount`'s
+mount-restore continuation is unconditional: it `await`s the stored
+token's `me()`, then — with no check that the world didn't move —
+either `clearToken()`s + `setStatus("out")` (dead token) or
+`setSession({token, account})` (live token). The window is mount →
+`me()` resolving; a player completing register/login *inside* it
+(pre-filled credentials on a shared device) hits (a) the new token
+**wiped** by the stale restore's `clearToken()`, with `setStatus("out")`
+stomping the just-set `"in"` while `session` state stays non-null (an
+inconsistent UI), or (b) on a 30-day-lived stored token, the
+just-completed sign-in **replaced** by the stored account — a different
+account on a family tablet. The sign-out/sign-in sibling (a
+`clearToken()` interleaved with `adoptSession`'s `setToken()`) is the
+same class with a benign worst case (re-sign-in). Fix shape (~5 lines):
+the restore continuation applies only when `sessionRef.current === null`
+(or its token equals the one being resolved) — the same "stale
+continuation must not act on moved state" rule the engine's
+`loadedRef` net states for saves. Ranked, pending greenlit.
+
++ **F49.3 `web:multitab-fork` (Tier 3):** no `storage` event listener
+anywhere in `src/` — two tabs on the same origin share every key (the
+save, `dailyBonus`, the analytics record, the entitlement log, the skin
+caches) and run independent engines over them. Each tab loads the shared
+blob, forks, and autosaves on its own clock; last write wins, and each
+tab's next load recomputes offline earnings from the surviving
+`saveTime`. The losses are bounded (a losing tab loses < one autosave
+interval of gains; offline-earnings double-crediting across two loads
+self-corrects under the same LWW) and self-inflicted — but on the public
+web surface the sharpest case is the **daily bonus**: tab A claims, the
+localStorage key updates, tab B's in-memory `dailyBonus` state still
+reads "claimable" and pays the bonus a second time (the same-day,
+same-key double-claim the synchronous ref fix inside one tab
+deliberately kills — the fix is per-process, and two processes are two
+ref worlds). Fix shapes: a `storage`-event re-import on the
+claimable-state keys, or a visibility-gated "only the visible tab
+autosaves" — either is small; ranked, pending greenlit.
+
++ **Recorded, not defects:** (1) StrictMode's double effect invocation
+is idempotent where it matters — the engine's load effect computes its
+offline haul from the *stored* blob twice to the same value, and
+`setGameState` replaces rather than increments. (2) `useCloudSave`'s
+`pushingRef` single-flight + cadence + the stale→pull LWW (pass 33) —
+unchanged by this pass. (3) The `replayPendingVerifies` un-chained RMW
+(above) — self-healing because re-verify is idempotent (pass 39). (4)
+`useLocalStorage`'s `pending` flag race — UI-only. (5) The
+analytics-app-open overwrite window — sub-user-action. (6)
+`session.ts` is pure derivation (baseline snapshot − clamped), so the
+session stats inherit the save's race profile and add none. (7)
+`useSettings`' two-table write (settings + equation settings) is
+non-atomic — a crash between the two setters leaves a mixed-version
+pair, but both tables degrade per-table to defaults on parse (pass 21
+class) and neither carries currency; the cloud snapshot's settings
+ride-along (pass 32) re-converges it on the next push anyway.
+
+Method: the layer's shape is the inventory of "same bytes, two writers"
+sites in `src/` (non-test): every module-scope or hook RMW over
+AsyncStorage (`crashLogging`'s chained ring, `iapDeviceId`, the
+`replayPendingVerifies` queue, `useAnalytics`'s load-then-fold,
+`useLocalStorage` itself), the engine's five save triggers vs its load
+(synchronous-snapshot argument, FIFO ordering argument, `resetGame`
+convergence), the ref-fold callbacks (`useAnalytics.persist`,
+`useDailyBonus.claim`), the two same-commit data round-trips at
+`MinesOfDoom`'s dirty→clean effect (cloud push + leaderboard submit —
+the F49.1 trigger pair), `useCloudSave`'s single-flight + stale
+branch, `useAccount`'s mount-restore continuation vs its sign-in
+callbacks, the `storage`-event absence grep for the cross-tab case, and
+the `getIapDeviceId` caller census across the six server-facing modules
+(including the dev-sim providers' *non*-use, which is why the fork is
+invisible locally). Pass 49 made no code change; F49.1/F49.2/F49.3 are
+ranked only, pending greenlit.
