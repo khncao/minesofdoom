@@ -106,7 +106,6 @@ export const STREAK_REPAIR_MIN_DAYS = 3;
 /** Rolling window (local days) in which a streak repair may be used once. */
 export const STREAK_REPAIR_COOLDOWN_DAYS = 30;
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Mineral grant for claiming on a streak of `streak`: the linear ladder
  *  up to day 6, then the flat day-7 milestone for 7+ (it never grows past
@@ -127,16 +126,32 @@ export function getLocalDayKey(now: number): string {
   return `${d.getFullYear()}-${m}-${day}`;
 }
 
-/** Was `lastDayKey` the local day right before the one `now` falls in?
- *  (now − 24h is DST-tolerant enough for day-boundary logic.) */
-export function isYesterdayLocal(lastDayKey: string, now: number): boolean {
-  return getLocalDayKey(now - 24 * 60 * 60 * 1000) === lastDayKey;
+/**
+ * Local `yyyy-MM-dd` key of the calendar day exactly `days` local CALENDAR
+ * days before the day containing `now`. Pure calendar arithmetic — `Date`
+ * normalizes the overflow of `d − days` across month/year boundaries — so
+ * it is exact on DST transition days (a 23 h or 25 h local day), where the
+ * old epoch-minus-N×24 h arithmetic landed on the wrong calendar day near
+ * midnight (F62.1).
+ */
+export function localDayKeyDaysAgo(now: number, days: number): string {
+  const d = new Date(now);
+  return getLocalDayKey(
+    new Date(d.getFullYear(), d.getMonth(), d.getDate() - days).getTime(),
+  );
 }
 
-/** Was `lastDayKey` exactly two local days before the one `now` falls in?
- *  (i.e. one full local day was missed since the last claim.) */
+/** Was `lastDayKey` the local calendar day right before the one `now` falls
+ *  in? Calendar-day comparison (exact across DST transitions, unlike the
+ *  old now − 24 h epoch arithmetic). */
+export function isYesterdayLocal(lastDayKey: string, now: number): boolean {
+  return localDayKeyDaysAgo(now, 1) === lastDayKey;
+}
+
+/** Was `lastDayKey` exactly two local calendar days before the one `now`
+ *  falls in? (i.e. one full local day was missed since the last claim.) */
 export function isTwoDaysAgoLocal(lastDayKey: string, now: number): boolean {
-  return getLocalDayKey(now - 2 * DAY_MS) === lastDayKey;
+  return localDayKeyDaysAgo(now, 2) === lastDayKey;
 }
 
 /** Is the once-per-window streak grace currently available (not consumed
@@ -144,8 +159,7 @@ export function isTwoDaysAgoLocal(lastDayKey: string, now: number): boolean {
 function graceAvailable(state: DailyBonusState, now: number): boolean {
   return (
     state.lastGraceDay == null ||
-    state.lastGraceDay <=
-      getLocalDayKey(now - STREAK_GRACE_WINDOW_DAYS * DAY_MS)
+    state.lastGraceDay <= localDayKeyDaysAgo(now, STREAK_GRACE_WINDOW_DAYS)
   );
 }
 
@@ -155,7 +169,7 @@ function repairAvailable(state: DailyBonusState, now: number): boolean {
   return (
     state.lastRepairDay == null ||
     state.lastRepairDay <=
-      getLocalDayKey(now - STREAK_REPAIR_COOLDOWN_DAYS * DAY_MS)
+      localDayKeyDaysAgo(now, STREAK_REPAIR_COOLDOWN_DAYS)
   );
 }
 

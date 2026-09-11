@@ -13,6 +13,7 @@ import {
   getLocalDayKey,
   isTwoDaysAgoLocal,
   isYesterdayLocal,
+  localDayKeyDaysAgo,
 } from "../dailyBonus";
 
 /** Claim-state builder for the protection tests: day d, streak s, plus
@@ -452,5 +453,128 @@ describe("applyDailyClaim", () => {
       streak: 4,
     };
     expect(applyDailyClaim(state, day(10) + 60000)).toBe(state);
+  });
+});
+
+/**
+ * DST transition boundaries (F62.1 — calendar-day arithmetic, not
+ * epoch-minus-24 h). The old `isYesterdayLocal`/`isTwoDaysAgoLocal`
+ * compared `getLocalDayKey(now − 24 h)` against the stored key: on a local
+ * day whose midnight→midnight span is 23 h (spring forward) or 25 h (fall
+ * back), that lands on the WRONG calendar day for opens near local
+ * midnight, so consecutive claims read as gaps (grace consumed / streak
+ * reset) and one-day gaps read as consecutive (a free streak day) or as
+ * two-day gaps (a hard reset where grace should bridge).
+ *
+ * The net finds REAL transition days by scanning local midnights in the
+ * running timezone (a ≠24 h midnight span = a transition). In a
+ * no-transition zone (e.g. UTC CI) the transition describes skip
+ * themselves — the misclassification can't be expressed without DST, and
+ * Node's runtime TZ can't be switched after start.
+ */
+const MIDNIGHT = (y: number, mo: number, d: number) =>
+  new Date(y, mo, d, 0, 0, 0).getTime();
+
+function findTransitionDays(): { short: number | undefined; long: number | undefined } {
+  let short: number | undefined;
+  let long: number | undefined;
+  // 2024-01-01 forward ~4 years — covers every DST regime's transitions.
+  let prev = MIDNIGHT(2024, 0, 1);
+  for (let i = 0; i < 1460; i++) {
+    const d = new Date(prev);
+    const cur = MIDNIGHT(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+    const span = cur - prev;
+    if (span < 24 * 3_600_000) short ??= prev; // `prev` opens a 23 h day
+    if (span > 24 * 3_600_000) long ??= prev; // `prev` opens a 25 h day
+    if (short !== undefined && long !== undefined) break;
+    prev = cur;
+  }
+  return { short, long };
+}
+
+const transitions = findTransitionDays();
+
+describe("localDayKeyDaysAgo (F62.1 — calendar-day subtraction)", () => {
+  it("subtracts calendar days across month and year boundaries", () => {
+    // Jan 1 → Dec 31 of the previous year (plain dates, no DST involved).
+    const jan1 = MIDNIGHT(2026, 0, 1);
+    expect(localDayKeyDaysAgo(jan1 + 3_600_000, 1)).toBe("2025-12-31");
+    expect(localDayKeyDaysAgo(jan1 + 3_600_000, 2)).toBe("2025-12-30");
+    // Mar 1 2024 → Feb 29 (leap year).
+    const mar1 = MIDNIGHT(2024, 2, 1);
+    expect(localDayKeyDaysAgo(mar1 + 3_600_000, 1)).toBe("2024-02-29");
+  });
+});
+
+const describeShort = transitions.short === undefined ? describe.skip : describe;
+describeShort("23 h local day (spring-forward shape) — F62.1", () => {
+  const s = transitions.short as number; // midnight opening the 23 h day D
+  const d = new Date(s);
+  const nextMidnight = MIDNIGHT(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+  const openNextEarly = nextMidnight + 30 * 60_000; // D+1 00:30
+  const keyD = getLocalDayKey(s);
+  const keyDMinus1 = getLocalDayKey(
+    MIDNIGHT(d.getFullYear(), d.getMonth(), d.getDate() - 1),
+  );
+
+  it("a consecutive-day claim opened in the first hour of the next day is still consecutive", () => {
+    expect(isYesterdayLocal(keyD, openNextEarly)).toBe(true);
+    expect(isTwoDaysAgoLocal(keyD, openNextEarly)).toBe(false);
+    const state: DailyBonusState = { lastClaimDay: keyD, streak: 5 };
+    const claim = computeDailyClaim(state, openNextEarly);
+    // The OLD epoch-24 h math classified this as a one-day gap and burned
+    // the grace (or reset the streak); it must be a clean consecutive claim.
+    expect(claim.claimable).toBe(true);
+    expect(claim.nextStreak).toBe(6);
+    expect(claim.bridge).toBeUndefined();
+  });
+
+  it("a one-day gap opened early the day after is still a gap (grace, not free)", () => {
+    expect(isYesterdayLocal(keyDMinus1, openNextEarly)).toBe(false);
+    expect(isTwoDaysAgoLocal(keyDMinus1, openNextEarly)).toBe(true);
+    const state: DailyBonusState = { lastClaimDay: keyDMinus1, streak: 5 };
+    const claim = computeDailyClaim(state, openNextEarly);
+    // The OLD math read this as CONSECUTIVE (a free streak day without
+    // consuming a safety net); it must bridge through the grace.
+    expect(claim.claimable).toBe(true);
+    expect(claim.nextStreak).toBe(6);
+    expect(claim.bridge).toBe("grace");
+  });
+});
+
+const describeLong = transitions.long === undefined ? describe.skip : describe;
+describeLong("25 h local day (fall-back shape) — F62.1", () => {
+  const l = transitions.long as number; // midnight opening the 25 h day D
+  const d = new Date(l);
+  const openLate = l + 23.5 * 3_600_000; // D 23:30
+  const keyDMinus1 = getLocalDayKey(
+    MIDNIGHT(d.getFullYear(), d.getMonth(), d.getDate() - 1),
+  );
+  const keyDMinus2 = getLocalDayKey(
+    MIDNIGHT(d.getFullYear(), d.getMonth(), d.getDate() - 2),
+  );
+
+  it("a consecutive-day claim opened in the last hour of a 25 h day is still consecutive", () => {
+    expect(isYesterdayLocal(keyDMinus1, openLate)).toBe(true);
+    expect(isTwoDaysAgoLocal(keyDMinus1, openLate)).toBe(false);
+    const state: DailyBonusState = { lastClaimDay: keyDMinus1, streak: 5 };
+    const claim = computeDailyClaim(state, openLate);
+    // The OLD epoch-24 h math classified this as a TWO-day gap (hard reset
+    // or grace burn); it must be a clean consecutive claim.
+    expect(claim.claimable).toBe(true);
+    expect(claim.nextStreak).toBe(6);
+    expect(claim.bridge).toBeUndefined();
+  });
+
+  it("a one-day gap opened late on a 25 h day is still a gap (grace, not reset)", () => {
+    expect(isYesterdayLocal(keyDMinus2, openLate)).toBe(false);
+    expect(isTwoDaysAgoLocal(keyDMinus2, openLate)).toBe(true);
+    const state: DailyBonusState = { lastClaimDay: keyDMinus2, streak: 5 };
+    const claim = computeDailyClaim(state, openLate);
+    // The OLD math saw neither yesterday nor two-days-ago → a hard reset;
+    // it must bridge through the grace.
+    expect(claim.claimable).toBe(true);
+    expect(claim.nextStreak).toBe(6);
+    expect(claim.bridge).toBe("grace");
   });
 });
