@@ -13,7 +13,11 @@
  * the whole point of a privacy policy. Keep it in sync when behavior
  * changes (v2.0, 2026-09-06, rewrote the policy for accounts/cloud/
  * Stripe/AdSense, which v1.0 — written before any of that shipped —
- * correctly said did not exist):
+ * correctly said did not exist; v2.1, 2026-09-16, fixed the "Children"
+ * section to match the S6 decision — teen+ (13+), NOT child-directed,
+ * tagForChildDirectedTreatment: false — see legal.test.ts):
+ *  - The "Children" section's age position must stay in sync with
+ *    storeConfig.adMob.tagForChildDirectedTreatment (F45.1 net);
  *  - local data: the AsyncStorage keys in game.ts / useLocalStorage and
  *    crashLog.ts (Settings → "Local stats (debug)" and "Recent errors
  *    (debug)" show + clear them);
@@ -45,8 +49,8 @@ export type LegalDoc = {
 const PRIVACY_POLICY: LegalDoc = {
   id: "privacy",
   title: "Privacy Policy",
-  version: "2.0",
-  effectiveDate: "2026-09-06",
+  version: "2.1",
+  effectiveDate: "2026-09-16",
   sections: [
     {
       heading: "Short version",
@@ -74,7 +78,7 @@ const PRIVACY_POLICY: LegalDoc = {
     },
     {
       heading: "Children",
-      body: "The game is intended for a general audience and contains no chat, no external links, and no user-generated content. Consistent with that, advertising (where present) is configured for child-directed treatment and rewards only in-game items — never real-world goods. The game is not directed at children under the minimum age for the platforms it is available on, and we do not knowingly collect personal information from children. If you believe a child has created an account, email us and we will delete it.",
+      body: "The game is intended for a teen audience (13 and up) and is not directed at children. It contains no chat, no external links, and no user-generated content. Consistent with that, the game — including its advertising, where present — is not treated as a child-directed service, and the optional, player-initiated rewarded ads reward only in-game items — never real-world goods. We do not knowingly collect personal information from anyone under 13. If you believe a child under 13 has created an account, email us at the address below and we will delete it.",
     },
     {
       heading: "Deletion",

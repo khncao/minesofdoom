@@ -58,7 +58,9 @@ function makeProvider(
       session: { token: "tok-provider", account: ACCOUNT },
     })),
     me: jest.fn(async (token: string) =>
-      token === "tok-dead" ? null : ACCOUNT,
+      token === "tok-dead"
+        ? { status: "dead" as const }
+        : { status: "account" as const, account: ACCOUNT },
     ),
     logout: jest.fn(async () => true),
     link: jest.fn(async () => ACCOUNT),
@@ -114,6 +116,39 @@ describe("useAccount: session restore on mount", () => {
     expect(result.current.getSessionToken()).toBeNull();
     expect(tokenStore.clearToken).toHaveBeenCalledTimes(1);
     expect(tokenStore.token()).toBeNull();
+  });
+
+  it("keeps the token when the session can't be verified (F41.2: offline cold start must not sign out)", async () => {
+    const tokenStore = makeTokenStore("tok-offline");
+    const provider = makeProvider({
+      me: jest.fn(async () => ({ status: "unknown" as const })),
+    });
+    const { result } = renderHook(() =>
+      useAccount({ provider, tokenStore }),
+    );
+    await flush();
+    // Anonymous for this run — but the stored 30-day token SURVIVES the
+    // blip, so the next launch retries instead of losing the session.
+    expect(result.current.status).toBe("out");
+    expect(result.current.getSessionToken()).toBeNull();
+    expect(tokenStore.clearToken).not.toHaveBeenCalled();
+    expect(tokenStore.token()).toBe("tok-offline");
+  });
+
+  it("treats a rejecting me() as unknown, not dead (no token wipe)", async () => {
+    const tokenStore = makeTokenStore("tok-throw");
+    const provider = makeProvider({
+      me: jest.fn(async () => {
+        throw new Error("boom");
+      }),
+    });
+    const { result } = renderHook(() =>
+      useAccount({ provider, tokenStore }),
+    );
+    await flush();
+    expect(result.current.status).toBe("out");
+    expect(tokenStore.clearToken).not.toHaveBeenCalled();
+    expect(tokenStore.token()).toBe("tok-throw");
   });
 });
 

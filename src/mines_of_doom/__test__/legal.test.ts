@@ -1,4 +1,5 @@
 import { LEGAL_DOCS, LEGAL_CONTACT_EMAIL, getLegalDoc } from "../legal";
+import { storeConfig } from "../storeConfig";
 
 /**
  * Net for the legal notices (todo: privacy policy + disclaimer at the bottom
@@ -34,6 +35,29 @@ describe("legal documents", () => {
         expect(section.heading.length).toBeGreaterThan(0);
         expect(section.body.trim().length).toBeGreaterThan(0);
       }
+    }
+  });
+
+  it("the policy's child-directed claim matches the shipped AdMob flag (F45.1)", () => {
+    // The S6 decision (security-audit.md, 2026-09-08): teen+ (13+), NOT
+    // child-directed. The published policy must not assert an ad
+    // configuration the shipped code does not have — this is the sibling
+    // net that keeps the prose and storeConfig.adMob.tagForChildDirected-
+    // Treatment in sync, so a future flag flip can't silently falsify
+    // the policy again.
+    const children = getLegalDoc("privacy").sections.find(
+      (s) => s.heading === "Children",
+    );
+    expect(children).toBeDefined();
+    const body = (children as { body: string }).body;
+    if (storeConfig.adMob.tagForChildDirectedTreatment) {
+      expect(body).toMatch(/child-directed treatment/i);
+    } else {
+      expect(body).not.toMatch(/configured for child-directed treatment/i);
+      expect(body).toMatch(/not directed at children/i);
+      // The recorded position is a concrete 13+, not a vague
+      // "platform minimum age" claim.
+      expect(body).toMatch(/13/);
     }
   });
 

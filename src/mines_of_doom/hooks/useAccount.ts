@@ -143,14 +143,25 @@ export function useAccount(opts: AccountOptions): AccountHandle {
         setStatus("out");
         return;
       }
-      const account = await providerRef.current.me(token).catch(() => null);
-      if (account === null) {
+      // F41.2: only an explicit "dead" (the server's 401) may clear the
+      // stored token. "unknown" (offline cold start, a VPS blip,
+      // malformed body) keeps the token for the next launch and stays
+      // anonymous for this run — a network hiccup must never sign the
+      // player out of a 30-day session.
+      const me = await providerRef.current.me(token).catch(() => ({
+        status: "unknown" as const,
+      }));
+      if (me.status === "dead") {
         // Dead/expired session: drop the stale token, stay anonymous.
         await tokenStoreRef.current.clearToken().catch(() => true);
         setStatus("out");
         return;
       }
-      setSession({ token, account });
+      if (me.status === "unknown") {
+        setStatus("out");
+        return;
+      }
+      setSession({ token, account: me.account });
       setStatus("in");
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps

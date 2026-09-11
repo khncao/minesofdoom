@@ -37,11 +37,39 @@ export function makeDeviceId(
  * Load the device id, creating and persisting one on first launch. Uses
  * the plain AsyncStorage object API (not the useLocalStorage hook): this
  * is a module consumed by the IAP provider, not a component.
+ *
+ * The read-generate-write is memoized + single-flight (F49.1,
+ * `identity:device-id-fork`): all six server-facing modules call this per
+ * round-trip, so on a fresh install the first autosave can fire
+ * cloud-push AND leaderboard-submit in the same commit. Without the
+ * memo, both `getItem`s would land before either `setItem`, each would
+ * mint its own id, and the losing id's first cloud backup row would be
+ * keyed by a device id the app never uses again. Sharing one in-flight
+ * promise (same class as the crashLog persistence chain) guarantees every
+ * concurrent caller resolves the SAME id.
  */
-export async function getIapDeviceId(): Promise<string> {
-  const existing = await AsyncStorage.getItem(IAP_DEVICE_ID_KEY);
-  if (typeof existing === "string" && existing.length > 0) return existing;
-  const id = makeDeviceId(Date.now());
-  await AsyncStorage.setItem(IAP_DEVICE_ID_KEY, id);
-  return id;
+let memoId: string | null = null;
+let inFlight: Promise<string> | null = null;
+
+export function getIapDeviceId(): Promise<string> {
+  if (memoId !== null) return Promise.resolve(memoId);
+  if (inFlight !== null) return inFlight;
+  inFlight = AsyncStorage.getItem(IAP_DEVICE_ID_KEY).then(
+    (existing) => {
+      if (typeof existing === "string" && existing.length > 0) {
+        memoId = existing;
+        return existing;
+      }
+      const id = makeDeviceId(Date.now());
+      return AsyncStorage.setItem(IAP_DEVICE_ID_KEY, id).then(() => {
+        memoId = id;
+        return id;
+      });
+    },
+  ).finally(() => {
+    // Reset the single-flight slot so a failed first read retries on the
+    // next call; a successful one is a no-op (memoId already set).
+    inFlight = null;
+  });
+  return inFlight;
 }

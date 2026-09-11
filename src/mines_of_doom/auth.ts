@@ -96,6 +96,23 @@ export type AuthSigninOutcome =
   | { status: "unverified" }
   | { status: "error" };
 
+/**
+ * The outcome of resolving a stored token with `me()` (F41.2):
+ *  - `account`: the token is live; this is the account it resolves to.
+ *  - `dead`: the server explicitly rejected the token (401 — expired,
+ *    signed out elsewhere, GDPR-erased). The stored token must be
+ *    cleared; the session is over.
+ *  - `unknown`: we couldn't ask (transport failure, other non-2xx,
+ *    malformed 200 body) or the provider isn't configured here. The
+ *    stored token must be KEPT and retried on the next launch —
+ *    collapsing this into "dead" is what silently signed players out on
+ *    a cold start offline.
+ */
+export type AuthMeResult =
+  | { status: "account"; account: AuthAccountInfo }
+  | { status: "dead" }
+  | { status: "unknown" };
+
 export interface AuthProvider {
   /** Stable id for logs/panels ("noop", "dev-sim", "pocketbase"). */
   readonly id: string;
@@ -111,9 +128,10 @@ export interface AuthProvider {
     kind: "google" | "apple",
     idToken: string,
   ): Promise<AuthSigninOutcome>;
-  /** Resolve a stored token to its account, or null (dead/expired
-   *  session, or a round-trip that ended in "nothing we can trust"). */
-  me(token: string): Promise<AuthAccountInfo | null>;
+  /** Resolve a stored token (F41.2): the tri-state result tells the
+   *  caller "dead" (explicit 401 — clear the stored token) apart from
+   *  "unknown" (couldn't verify — keep it, retry next launch). */
+  me(token: string): Promise<AuthMeResult>;
   /** Kill the session on the server (idempotent). Best effort: resolves
    *  true only on 2xx, but a `false` is not an error the UI should show. */
   logout(token: string): Promise<boolean>;
@@ -264,7 +282,7 @@ export const noopAuthProvider: AuthProvider = {
   register: async () => ({ status: "error" }),
   login: async () => ({ status: "error" }),
   providerSignIn: async () => ({ status: "error" }),
-  me: async () => null,
+  me: async () => ({ status: "unknown" }),
   logout: async () => false,
   link: async () => null,
   setPassword: async () => null,
@@ -334,7 +352,11 @@ export const devSimAuthProvider: AuthProvider = {
   },
   async me(token) {
     const session = devSimSessions.get(token);
-    return session ? session.account : null;
+    // The dev-sim map is the server of record for a dev build — an
+    // absent token really is dead here (its whole shape is in-memory).
+    return session
+      ? { status: "account", account: session.account }
+      : { status: "dead" };
   },
   async logout(token) {
     return devSimSessions.delete(token);
@@ -400,14 +422,21 @@ export const storeAuthProvider: AuthProvider = {
   },
 
   async me(token) {
-    if (!isPocketbaseConfigured()) return null;
+    // F41.2/F41.5: only an explicit 401 is "dead". A transport failure,
+    // a server error, or a 200 with a body we can't trust are all
+    // "unknown" — the caller must keep the stored token in those cases.
+    if (!isPocketbaseConfigured()) return { status: "unknown" };
     const res = await postJsonWithStatus(
       `${storeConfig.pocketbaseUrl}/api/app/auth/me`,
       { token },
     );
-    if (res === null) return null;
-    if (res.status < 200 || res.status >= 300) return null; // 401: dead
-    return parseAccount(res.body?.account);
+    if (res === null) return { status: "unknown" }; // offline / timeout
+    if (res.status === 401) return { status: "dead" }; // expired / erased
+    if (res.status < 200 || res.status >= 300) return { status: "unknown" };
+    const account = parseAccount(res.body?.account);
+    return account === null
+      ? { status: "unknown" } // 200 with a malformed body (F41.5)
+      : { status: "account", account };
   },
 
   async logout(token) {

@@ -103,7 +103,9 @@ describe("storeAuthProvider (gating)", () => {
     await expect(storeAuthProvider.providerSignIn("google", "x")).resolves.toEqual({
       status: "error",
     });
-    await expect(storeAuthProvider.me("token")).resolves.toBeNull();
+    await expect(storeAuthProvider.me("token")).resolves.toEqual({
+      status: "unknown",
+    });
     await expect(storeAuthProvider.logout("token")).resolves.toBe(false);
     await expect(storeAuthProvider.link("token")).resolves.toBeNull();
     await expect(storeAuthProvider.setPassword("token", "password1")).resolves.toBeNull();
@@ -205,21 +207,34 @@ describe("storeAuthProvider.providerSignIn", () => {
 
 // -- store provider: session round-trips ---------------------------------------
 
-describe("storeAuthProvider.me", () => {
+describe("storeAuthProvider.me (tri-state, F41.2)", () => {
   it("resolves the account of a live session", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ account: ACCOUNT }, 200));
-    await expect(storeAuthProvider.me("t1")).resolves.toEqual(ACCOUNT);
+    await expect(storeAuthProvider.me("t1")).resolves.toEqual({
+      status: "account",
+      account: ACCOUNT,
+    });
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ token: "t1" });
   });
 
-  it("maps a dead/expired session (401) to null", async () => {
+  it("maps a dead/expired session (401) to dead — the only case that may clear the token", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ error: "invalid session" }, 401));
-    await expect(storeAuthProvider.me("dead")).resolves.toBeNull();
+    await expect(storeAuthProvider.me("dead")).resolves.toEqual({ status: "dead" });
   });
 
-  it("maps a network failure to null (the token stays; retry next launch)", async () => {
+  it("maps a network failure to unknown (the token stays; retry next launch)", async () => {
     fetchMock.mockRejectedValue(new Error("offline"));
-    await expect(storeAuthProvider.me("t1")).resolves.toBeNull();
+    await expect(storeAuthProvider.me("t1")).resolves.toEqual({ status: "unknown" });
+  });
+
+  it("maps a server error (5xx) to unknown, not dead", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ error: "boom" }, 500));
+    await expect(storeAuthProvider.me("t1")).resolves.toEqual({ status: "unknown" });
+  });
+
+  it("maps a 200 with a malformed body to unknown, not dead (F41.5)", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ account: { email: 42, providers: "nope" } }, 200));
+    await expect(storeAuthProvider.me("t1")).resolves.toEqual({ status: "unknown" });
   });
 });
 
@@ -335,14 +350,17 @@ describe("devSimAuthProvider (the labeled simulation)", () => {
   it("me/link honor the token; logout kills it", async () => {
     const reg = await devSimAuthProvider.register("sim2@dev.co", "password1");
     if (reg.status !== "signedIn") throw new Error("unreachable");
-    await expect(devSimAuthProvider.me(reg.session.token)).resolves.toEqual(
-      reg.session.account,
-    );
+    await expect(devSimAuthProvider.me(reg.session.token)).resolves.toEqual({
+      status: "account",
+      account: reg.session.account,
+    });
     await expect(devSimAuthProvider.link(reg.session.token)).resolves.toEqual(
       reg.session.account,
     );
     await expect(devSimAuthProvider.logout(reg.session.token)).resolves.toBe(true);
-    await expect(devSimAuthProvider.me(reg.session.token)).resolves.toBeNull();
+    await expect(devSimAuthProvider.me(reg.session.token)).resolves.toEqual({
+      status: "dead",
+    });
   });
 
   it("providerSignIn issues a provider-linked account", async () => {
@@ -368,7 +386,10 @@ describe("devSimAuthProvider (the labeled simulation)", () => {
       linked: true,
     });
     // the account behind the token is the updated one
-    await expect(devSimAuthProvider.me(reg.session.token)).resolves.toEqual(updated);
+    await expect(devSimAuthProvider.me(reg.session.token)).resolves.toEqual({
+      status: "account",
+      account: updated,
+    });
   });
 
   it("linkProvider flips the provider link (upserting when absent); a dead token is null", async () => {
