@@ -133,6 +133,21 @@ describe("useEquations — basics", () => {
     await submit(result, "4");
     expect(result.onCorrect).toHaveBeenCalledWith(40);
   });
+
+  it("an empty submit is a no-op: no penalty, no roll, the input is left as-is (F53.1)", async () => {
+    eqQueue.push(eq(5));
+    const result = renderEquationsTest(settings());
+    const rollsAtMount = spy.mock.calls.length; // 1 (initial equation)
+    await submit(result, "");
+    expect(result.onIncorrect).not.toHaveBeenCalled();
+    expect(result.onCorrect).not.toHaveBeenCalled();
+    expect(spy.mock.calls.length).toBe(rollsAtMount); // no roll
+    expect(result.current.equation.answer).toBe(5);
+    // A whitespace-only answer (OS keyboard) is equally a no-op.
+    await submit(result, " ");
+    expect(result.onIncorrect).not.toHaveBeenCalled();
+    expect(spy.mock.calls.length).toBe(rollsAtMount);
+  });
 });
 
 describe("useEquations — soft-incorrect mode (equation of the day)", () => {
@@ -207,5 +222,17 @@ describe("useEquations — soft-incorrect mode (equation of the day)", () => {
     expect(result.onIncorrect).toHaveBeenCalledTimes(1);
     expect(result.onSoftIncorrect).not.toHaveBeenCalled();
     expect(result.current.equation.answer).toBe(9);
+  });
+
+  it("an empty submit in soft mode fires nothing and keeps the equation (F53.1)", async () => {
+    const result = renderSoftTest();
+    const rollsAtMount = spy.mock.calls.length; // 1 (initial equation)
+    act(() => result.current.showEquation({ op: "*", a: 3, b: 4, answer: 12 }));
+    result.soft.current = true;
+    await submit(result, "");
+    expect(result.onSoftIncorrect).not.toHaveBeenCalled();
+    expect(result.onIncorrect).not.toHaveBeenCalled();
+    expect(spy.mock.calls.length).toBe(rollsAtMount); // no roll
+    expect(result.current.equation.answer).toBe(12);
   });
 });

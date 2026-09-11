@@ -80,6 +80,11 @@ export function useEquations({
       onSoftIncorrect,
     } = latestRef.current;
 
+    // An empty answer is not a wrong one: Return in an empty box or the
+    // keypad's "=" with nothing typed must not pay the onIncorrect price
+    // (stone sound + shake + combo reset) or burn a roll (F53.1).
+    if (textInput.trim() === "") return;
+
     let value = -1;
     try {
       value = Number.parseFloat(textInput);
