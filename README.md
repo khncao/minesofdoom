@@ -35,6 +35,8 @@ Use **pnpm** (not npm) — see `pnpm-lock.yaml` and `.npmrc`.
 - [docs/backlog.md](docs/backlog.md) — deferred work
 - [docs/blockers.md](docs/blockers.md) — items needing a decision
 - [docs/gap-ranking.md](docs/gap-ranking.md) — gap analysis / prioritization
+- [docs/art-styles.md](docs/art-styles.md) — generated art style drafts (contact sheets)
+- [docs/art-detail.md](docs/art-detail.md) — detail pass drafts (more detailed generated pixel art)
 - [docs/store-integration.md](docs/store-integration.md) — Play Store, ads, and IAP setup
 - [docs/pocketbase-plan.md](docs/pocketbase-plan.md) — PocketBase backend plan
 - [docs/security-audit.md](docs/security-audit.md) — security notes

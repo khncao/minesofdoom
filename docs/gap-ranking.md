@@ -5991,3 +5991,68 @@ from this pass's own runs (full-suite task output with the force-exit warning
 and scheduler stack; single-file probe clean), not inference. F42.2 is a
 record of observed mid-audit tree mutation, with the before/after file lists
 as stated.
+
+### The asset-generation & shipped-artifact layer (pass 43 — how the shipped art and audio come to exist, written 2026-09-11)
+
+The layer answers: when a pixel or a sample changes, what actually has to
+be regenerated, and what catches a drift. Five `scripts/generate-*.mjs`
+compilers plus the in-code grid builders:
+
+| generator | artifact | net on the shipped artifact |
+| --- | --- | --- |
+| `generate-sprite-library.mjs` | `bundledSprites.ts` (data-URI module) | **strong** — `bundledSprites.test.ts` decodes every URI with the production PNG decoder, pins license/source/size/id shape |
+| `generate-pickaxe-sounds.mjs` | `public/assets/audio/pickaxe-*.wav` | none (files are checked in; a corrupt regen is caught only by ear) |
+| `generate-ambient-loop.mjs` | `public/assets/audio/cave-ambient.wav` | none (same) |
+| `generate-art-style-samples.mjs` | `docs/art-styles/samples/*.png` | none (doc artifacts) |
+| `generate-detailed-art-samples.mjs` | `docs/art-detail/samples/*.png` | none (doc artifacts) |
+
+The in-code builders (`pixelArt.ts` grids, `caveTiles.ts` rows, the
+`stylePasses.ts` / `detailPass.ts` transforms) are the well-netted half:
+determinism, size caps, and palette/immutability contracts are all tested.
+The generator half is where the layer's contract is thin.
+
+**F43.1 — `gen:regen-net` (Tier 2 — the generator→artifact reproducibility
+contract is doc-only).** No test re-runs any generator and compares the
+result to the committed artifact. The sprite-library compiler is
+deterministic by design (sorted id order, fixed base64, no rng/Date), and
+its own header says "regenerate with `node scripts/generate-sprite-library.mjs`"
+— but nothing verifies that the committed `bundledSprites.ts` is what a
+regeneration would produce today; a drifted or non-deterministic regen
+silently ships stale art. Same class as F35.2 (a doc-only contract with no
+machine check) and a sibling of F38.4's "prose contracts" finding. Cheap fix:
+a jest suite that runs each generator pointed at a temp dir (or runs it
+in-place and reads back) and byte-compares against the committed artifact —
+the scripts already print their output paths, so the net is a `spawnSync`
+per generator + `deepEqual` on the buffer/module text. Trigger: next time a
+generator or its inputs change (sprite library re-vendor, art-pass tuning).
+No player impact today — the artifacts are correct *as committed*.
+
+**F43.2 — `gen:script-dup` (Tier 3 — the sample-sheet renderers duplicate
+their substrate).** `generate-art-style-samples.mjs` and
+`generate-detailed-art-samples.mjs` each inline the same minimal zlib PNG
+writer (IHDR/IDAT/IEND, filter-None rows, `crc32` from `pixelArt.ts`) and
+the same extensionless-relative-import `registerHooks` block, and the
+detailed script's sample set is deliberately copied ("IDENTICAL to
+generate-art-style-samples.mjs") rather than shared. Two copies that must
+stay in sync by hand; a fix to one (e.g. the PNG writer hitting a pngjs-less
+edge) won't reach the other. Extract the PNG writer + resolve hook + sample
+set to a shared `scripts/lib/` helper before a third renderer appears. No
+defect today.
+
+**Recorded, not defects:** (a) the vendored CC0 source PNGs live in
+`public/assets/sprites/`, which the web export copies verbatim — so the web
+build ships the 8 source images (~90 KB) *on top of* the compiled data URIs
+the runtime actually renders. Deliberate-by-side-effect upside: `CREDITS.txt`
+and the source art are discoverable in the production build (attribution
+transparency, guardrail 4). (b) the two doc contact-sheet families
+(`docs/art-styles/samples/`, `docs/art-detail/samples/`) are git-only — the
+static export emits from `public/`, so the sheets cost repo weight, not
+bundle weight. (c) the audio generators' outputs are un-netted (as in the
+table) but audio drift is low-stakes and ear-checkable; promoted here only
+so the layer is complete, not ranked.
+
+**Source quality (pass 43).** The table is verified against the tree as of
+this pass: each generator's output path read from the script, each net claim
+from the named test file. F43.1/F43.2 are structural findings (missing
+machine check / duplication), not observed breakage — no artifact was found
+stale or corrupt in this pass.
