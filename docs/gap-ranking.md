@@ -410,6 +410,25 @@ repo is not equipped to make.
     key must resolve the *same* id. Bounded in magnitude (the orphaned row
     is a ~30-second-old backup) but it is an identity fork intersecting
     GDPR completeness.
+28. **`compliance:pb-portal-backdoor`** (pass 50, F50.1) — the
+    PocketBase route `POST /api/stripe-portal` (`pb_hooks/app.pb.js`) is a
+    documented dev backdoor that carries **zero production traffic** but
+    remains unauthed and unratelimited on the public port: the live
+    portal flow is app → local sidecar → `logic.createCustomerPortalLink`
+    (the sidecar requires `./logic.js` directly, never the PB HTTP handler),
+    so anyone who can reach PocketBase can send Stripe portal-link emails
+    to arbitrary customer addresses at any rate — email impersonation from
+    the store's domain, no purchase, no DB write, no data access. It is
+    also the only PB route with **no test at all** (the sibling routes
+    have handler-level suites; there is no route-table test asserting
+    per-route auth posture, which is exactly the class this finding is).
+    **Needs owner call:** (a) remove the PB-side handler + update the
+    §2.6/§2.7 doc note (the sidecar is the supported path) — recommended;
+    or (b) add the standard `authModel.role === "admin"` guard every
+    sibling route has. Either way, add the route-table test (invoke each
+    registered handler with authed/unauthenticated fake contexts, assert
+    401/403 vs pass-through) to lock the whole surface's auth posture in
+    one file. Not fixed — owner to decide.
 
 **Context — closed since the passes ran** (so the ranking isn't
 re-derived from stale reads): streak grace (it.14), streak freezes +
@@ -6806,3 +6825,20 @@ the `getIapDeviceId` caller census across the six server-facing modules
 (including the dev-sim providers' *non*-use, which is why the fork is
 invisible locally). Pass 49 made no code change; F49.1/F49.2/F49.3 are
 ranked only, pending greenlit.
+
+### The server API surface layer (pass 50 — the PocketBase hooks + sidecar routes: who reaches what, and what it can spend, written 2026-09-14)
+
+Audited the server API surface end to end for the first time — pass 39 audited the *purchase-verification logic*, pass 37 the webhooks, but nobody had inventoried the *route surface*: auth per route, rate limiting, payload caps, error shapes, binding, and which routes have tests. Surface: `pb_hooks/app.pb.js` (3 routes: `stripe-portal`, `stripe-checkout`, `stripe-webhook`), `pb_hooks/sidecar/server.js` (2 routes: `checkout`, `webhook`, bound 127.0.0.1:8787), `endpoints.js` (the app-facing URL table), plus the shared libs (`logic.js` 215 lines, `identityVerify.js`, `storeVerify.js`, `stripeVerify.js`, `verifySidecar.js`).
+
+**Verdict: the surface is clean except one documented backdoor (F50.1, Tier 1 #28).** The other findings are recorded posture, not defects:
+
++ **F50.1 `compliance:pb-portal-backdoor` (Tier 1 #28):** as above. The PB-side `stripe-portal` handler is the single unauthed, unratelimited, untested route on the public port; its only action is a Stripe *email send* via the `updateCustomerPortalLink` job. Worst case: unbounded portal-link email spam to customer addresses. Owner call: remove (recommended — the sidecar owns the live path) or auth-gate; plus the route-table test either way.
++ **Per-route auth (all other routes): correct — verified against handler source.** `stripe-checkout` requires `authModel.role === "admin"` (401/403 split); `stripe-webhook` is signature-only by design (Stripe HMAC + 12h idempotency, pass 37/39 territory); `sidecarWebhook` is secret-only (per-pass 39's model, the sidecar is the local trust boundary). `sidecarWebhook` additionally rejects non-JSON bodies with a generic 400, and its 500 path's `detail` is a redacted constant (pass 37 #5's fix holds at the wiring level too).
++ **Rate limiting: none on any route — documented, accepted posture.** No PocketBase rate-limit plugin (stock has none; `storeVerify.js`'s comments record the decision). Mitigations in place: storeVerify's per-day cap (10), checkout's 60s dedup window, webhook idempotency — and the app-facing *purchase* routes behind PocketBase's admin password. Consistent with pass 49 #23's apparmor deferral for the app-facing surface. `stripe-portal` is the one uncapped route — F50.1.
++ **Payload caps:** sidecar enforces 50KB (`MAX_BODY_BYTES` → 413); PB routes rely on PocketBase's own JSON body limit (not surfaced in code — PB default applies). Fine for current payload sizes (receipts/ids are small). Noted for the record.
++ **Error shapes: consistent, no stack leakage.** Every route returns `{error: <stable code>}` with correct status codes (400/401/403/409/413/422/502); sidecar JSON-parse failure → generic 400; unknown sidecar path → 404; no `err.stack` or thrown message on any prod path (webhook 500's `detail` is a constant). ✓
++ **Local-only binding: correct.** `sidecar/server.js` binds `127.0.0.1:8787`; CORS restricted to `http://localhost:8787`/`127.0.0.1:8787` origins with `Vary: Origin` (no credentials header needed — no auth cookie on loopback). The app reaches it only through the deep-link bridge (`endpoints.js` splits by platform: native → public PB URL, web → localhost:8787) — the web path never crosses the network to the sidecar. ✓
++ **Test coverage of the surface: good, one hole.** `pb_hooks/__test__/` holds handler-level suites for `logic`, `storeVerify`, `identityVerify`, `stripeWebhookSignature`, `stripeCheckoutRoute`, `sidecarWebhookRoute`, `handlerStripeWebhook`, `verifySidecar` (+ stripe), `secureRandom` (216+ tests per pass 39/42). **Not tested: the `app.pb.js` route table itself** — no test asserts "checkout requires admin", "webhook requires signature", or (the hole) that `stripe-portal`'s auth posture is whatever the owner decides. That's the fix-shape's test: a route-table suite invoking each registered handler with authed/unauthenticated fake contexts. Cheap; locks the whole posture.
++ **Checkout's 60s dedup is per-process in-memory** (`pending` Map in `storeVerify.js`): a multi-replica PB deployment would bypass it. The file documents the single-process assumption in the same block; the current deploy is one instance. Noted, no action (would need a PocketBase KV/model-backed store to fix — out of scope at one instance).
+
+Method: the layer's shape is the route inventory — `app.pb.js`'s three registrations read in full (auth guard, status codes, body handling per route), `sidecar/server.js`'s router read in full (bind address, CORS table, payload cap, parse-error path, 404), `endpoints.js`'s platform split, and the shared libs' *wiring* re-verified (not their logic — pass 37/39's territory) for error-shape and secret-leak invariants; the test coverage question is answered by the `__test__` file inventory plus a grep for which route names appear in test files (`stripePortal` in zero of them). Pass 50 made no code change; F50.1 is ranked (Tier 1 #28), pending the owner's remove-vs-gate call.
