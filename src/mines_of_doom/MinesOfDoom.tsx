@@ -1069,9 +1069,16 @@ export default function MinesOfDoom() {
   // persists via the normal autosave / background-save path (saving
   // immediately here would serialize the pre-import state, since the
   // state ref updates on render).
+  // F52.2: replay the 4-step tutorial — the flag has exactly one other
+  // write site (dismiss), so without this row a player who skipped it
+  // has no way to re-read it.
+  const handleReplayTutorial = useCallback(() => setOnboardingDone(false), [
+    setOnboardingDone,
+  ]);
+
   const handleExportSaveCode = useCallback(
-    () => exportSaveCode(settingsData, equationSettings),
-    [exportSaveCode, settingsData, equationSettings],
+    () => exportSaveCode(settingsData, equationSettings, onboardingDone),
+    [exportSaveCode, settingsData, equationSettings, onboardingDone],
   );
 
   const handleImportSaveCode = useCallback(
@@ -1084,11 +1091,19 @@ export default function MinesOfDoom() {
       if (imported.settings != null || imported.equationSettings != null) {
         applyImportedSettings(imported);
       }
+      // F52.1: a save code carries the tutorial-dismissed flag, so a
+      // restored veteran doesn't re-see the 4-step tutorial. Absent/true
+      // is a no-op for a player who already finished; a fresh install
+      // importing a veteran save skips it the same way the flag would on
+      // a cold load.
+      if (imported.onboardingDone === true) {
+        setOnboardingDone(true);
+      }
       displayMessage(t("toast.saveImported"), 3000);
       noteCrashEvent("save imported");
       return true;
     },
-    [importSaveCode, applyImportedSettings, displayMessage, t],
+    [importSaveCode, applyImportedSettings, displayMessage, t, setOnboardingDone],
   );
 
   // Daily bonus / login streak (plan §4.2): minerals flow through the
@@ -1530,6 +1545,7 @@ export default function MinesOfDoom() {
               onEraseAllData={handleEraseAllData}
               onExportSaveCode={handleExportSaveCode}
               onImportSaveCode={handleImportSaveCode}
+              onReplayTutorial={handleReplayTutorial}
               mute={mute}
               onMuteChange={handleMuteChange}
               onScreenKeypad={onScreenKeypad}

@@ -374,6 +374,7 @@ export const es: Record<TranslationKey, string> = {
   "settings.saveCodeHelp":
     "Exportar te da un código para copiar y compartir; al importar un código " +
     "se reemplaza tu guardado actual por el del código.",
+  "settings.replayTutorial": "Repetir el tutorial",
   "settings.cloudSave": "Copia en la nube",
   "settings.cloudSim": " (simulado)",
   "settings.cloudSaveHelp":

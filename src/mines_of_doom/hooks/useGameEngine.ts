@@ -964,9 +964,14 @@ export function useGameEngine(
     (
       settings?: Partial<SaveCodeSettings["settings"]>,
       equationSettings?: Partial<SaveCodeSettings["equationSettings"]>,
-    ): string => {
-      return encodeSaveCode(gameStateRef.current, settings, equationSettings);
-    },
+      onboardingDone?: boolean,
+    ): string =>
+      encodeSaveCode(
+        gameStateRef.current,
+        settings,
+        equationSettings,
+        onboardingDone,
+      ),
     [],
   );
 
@@ -977,9 +982,10 @@ export function useGameEngine(
     const now = Date.now();
     const decoded = decodeSaveCode(code, now);
     if (decoded == null) return null;
-    const { settings, equationSettings, ...save } = decoded;
+    const { settings, equationSettings, onboardingDone, ...save } = decoded;
     void settings;
     void equationSettings;
+    void onboardingDone; // ride-along for the caller (MinesOfDoom)
     const offline = computeOfflineMinerals(
       save.miners,
       save.minerPower,

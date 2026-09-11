@@ -28,7 +28,12 @@ function loadWeb() {
   const { IAP_PRODUCT_IDS: freshIds } = require("../iaps");
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const freshAsync = require("@react-native-async-storage/async-storage");
-  return { storeConfig, web, freshIds, freshAsync: freshAsync.default ?? freshAsync };
+  return {
+    storeConfig,
+    web,
+    freshIds,
+    freshAsync: freshAsync.default ?? freshAsync,
+  };
 }
 
 /** The mutable slice of storeConfig the provider reads. */
@@ -187,7 +192,9 @@ describe("web provider: purchase redirect", () => {
   it("requests the session from the sidecar, then redirects with ONLY the session id", async () => {
     const { storeConfig, web, freshIds } = loadWeb();
     configureStripe(storeConfig, freshIds);
-    const client: RedirectClient = { redirectToCheckout: jest.fn().mockResolvedValue({ id: "cs_1" }) };
+    const client: RedirectClient = {
+      redirectToCheckout: jest.fn().mockResolvedValue({ id: "cs_1" }),
+    };
     const { win } = makeWindow({ Stripe: () => client });
     setWindow(win);
     fetchMock.mockResolvedValue({
@@ -282,7 +289,9 @@ describe("web provider: purchase redirect", () => {
   it("injects the stripe.js script once and resolves on its load event", async () => {
     const { storeConfig, web, freshIds } = loadWeb();
     configureStripe(storeConfig, freshIds);
-    const client: RedirectClient = { redirectToCheckout: jest.fn().mockResolvedValue({ id: "cs_1" }) };
+    const client: RedirectClient = {
+      redirectToCheckout: jest.fn().mockResolvedValue({ id: "cs_1" }),
+    };
     const { win, created } = makeWindow(); // no window.Stripe yet
     setWindow(win);
     fetchMock.mockResolvedValue({
@@ -426,7 +435,10 @@ describe("web provider: pending-verify queue (restore replay)", () => {
     await expect(web.storeIapProvider.restore()).resolves.toEqual({
       packGold: true,
     });
-    expect(calls).toEqual([`${BASE}/api/app/verify`, `${BASE}/api/app/restore`]);
+    expect(calls).toEqual([
+      `${BASE}/api/app/verify`,
+      `${BASE}/api/app/restore`,
+    ]);
     const raw = await freshAsync.getItem(web.PENDING_VERIFY_KEY);
     expect(JSON.parse(raw as string)).toEqual([]);
   });

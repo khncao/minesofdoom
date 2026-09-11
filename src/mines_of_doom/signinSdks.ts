@@ -230,13 +230,10 @@ function loadGsiScript(w: GsiWindow): Promise<void> {
    script.remove();
    reject(new Error(message));
   };
-  const timer = setTimeout(
-   () => {
-    clearTimeout(timer);
-    fail("google sign-in script timed out");
-   },
-   GSI_LOAD_TIMEOUT_MS,
-  );
+  const timer = setTimeout(() => {
+   clearTimeout(timer);
+   fail("google sign-in script timed out");
+  }, GSI_LOAD_TIMEOUT_MS);
   script.onload = () => {
    clearTimeout(timer);
    resolve();

@@ -23,6 +23,10 @@ import {
 export type SaveCodeSettings = {
   settings?: Partial<SettingsData>;
   equationSettings?: Partial<EquationSettings>;
+  /** Additive (F52.1): the tutorial-dismissed flag, so a restored veteran
+   *  doesn't re-see the 4-step tutorial. Absent on every legacy code;
+   *  only a real `true` is applied on import (absent/false → keep local). */
+  onboardingDone?: boolean;
 };
 
 /** A save record (SaveData) plus the optional settings ride-along fields. */
@@ -163,10 +167,14 @@ export function serializeSavePayload(
   data: SaveData,
   settings?: Partial<SettingsData>,
   equationSettings?: Partial<EquationSettings>,
+  onboardingDone?: boolean,
 ): string {
   const payload: SaveCodePayload = { ...data };
   if (settings != null) payload.settings = settings;
   if (equationSettings != null) payload.equationSettings = equationSettings;
+  // F52.1: only emit the flag when true — legacy-shaped codes stay
+  // byte-identical when the caller doesn't thread it.
+  if (onboardingDone === true) payload.onboardingDone = true;
   return serializeSaveData(payload);
 }
 
@@ -175,9 +183,10 @@ export function encodeSaveCode(
   data: SaveData,
   settings?: Partial<SettingsData>,
   equationSettings?: Partial<EquationSettings>,
+  onboardingDone?: boolean,
 ): string {
   return `${SAVE_CODE_PREFIX}.${base64Encode(
-    serializeSavePayload(data, settings, equationSettings),
+    serializeSavePayload(data, settings, equationSettings, onboardingDone),
   )}`;
 }
 
@@ -229,6 +238,12 @@ export function parseSaveCodeSettings(
       defaultEquationSettings,
       parsed.equationSettings,
     ),
+    // F52.1: pass through only a real boolean (a corrupted field is dropped,
+    // like the pickPartial above).
+    onboardingDone:
+      typeof parsed.onboardingDone === "boolean"
+        ? parsed.onboardingDone
+        : undefined,
   };
 }
 
@@ -267,6 +282,9 @@ export function decodeSaveCode(
   if (rideAlong.settings != null) payload.settings = rideAlong.settings;
   if (rideAlong.equationSettings != null) {
     payload.equationSettings = rideAlong.equationSettings;
+  }
+  if (rideAlong.onboardingDone != null) {
+    payload.onboardingDone = rideAlong.onboardingDone;
   }
   return payload;
 }

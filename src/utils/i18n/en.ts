@@ -371,6 +371,7 @@ export const en = {
   "settings.saveCodeHelp":
     "Export gives you a code to copy and share; importing a code " +
     "replaces your current save with the one in the code.",
+  "settings.replayTutorial": "Replay the tutorial",
   "settings.cloudSave": "Cloud backup",
   "settings.cloudSim": " (simulated)",
   "settings.cloudSaveHelp":

@@ -236,4 +236,27 @@ describe("settings ride-along (settings portability)", () => {
     expect(decoded!.settings).toEqual({ haptics: true });
     expect(decoded!.equationSettings).toBeUndefined();
   });
+
+  it("round-trips the onboarding flag (F52.1) and stays legacy-shaped without it", () => {
+    const save = createEmptySaveData();
+    // Flag present: a restored veteran doesn't re-see the tutorial.
+    const withFlag = decodeSaveCode(
+      encodeSaveCode(save, undefined, undefined, true),
+      NOW,
+    );
+    expect(withFlag).not.toBeNull();
+    expect(withFlag!.onboardingDone).toBe(true);
+    // Absent: the field is not even emitted (legacy codes unchanged),
+    // and a corrupted (non-boolean) value is dropped on decode.
+    const legacy = base64Decode(
+      encodeSaveCode(save).slice(SAVE_CODE_PREFIX_LEN),
+    )!;
+    expect(JSON.parse(legacy)).not.toHaveProperty("onboardingDone");
+    const corrupt = `${SAVE_CODE_PREFIX}.${base64Encode(
+      JSON.stringify({ ...JSON.parse(legacy), onboardingDone: "yes" }),
+    )}`;
+    const decodedCorrupt = decodeSaveCode(corrupt, NOW);
+    expect(decodedCorrupt).not.toBeNull();
+    expect(decodedCorrupt!.onboardingDone).toBeUndefined();
+  });
 });

@@ -52,6 +52,7 @@ function MenuPanel({
     onEraseAllData,
     onExportSaveCode,
     onImportSaveCode,
+    onReplayTutorial,
     mute,
     onMuteChange,
     onScreenKeypad,
@@ -75,6 +76,8 @@ function MenuPanel({
     onEraseAllData: () => void;
     onExportSaveCode: () => string;
     onImportSaveCode: (code: string) => boolean;
+    /** Re-shows the 4-step tutorial (F52.2). */
+    onReplayTutorial: () => void;
     mute: boolean;
     onMuteChange: (newVal: boolean) => void;
     /** On-screen keypad setting (todo: keypad tab view): an
@@ -139,6 +142,7 @@ function MenuPanel({
                 onEraseAllData={onEraseAllData}
                 onExportSaveCode={onExportSaveCode}
                 onImportSaveCode={onImportSaveCode}
+                onReplayTutorial={onReplayTutorial}
                 cloudSave={cloudSave}
             />
         ),

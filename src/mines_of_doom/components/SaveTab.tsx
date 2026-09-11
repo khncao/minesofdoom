@@ -25,6 +25,7 @@ const SaveTab = memo(function SaveTab({
   onEraseAllData,
   onExportSaveCode,
   onImportSaveCode,
+  onReplayTutorial,
   cloudSave,
 }: {
   settingsData: SettingsData;
@@ -39,6 +40,9 @@ const SaveTab = memo(function SaveTab({
   onExportSaveCode: () => string;
   /** Plan §4.3: imports a save code; returns false (and toasts) on failure. */
   onImportSaveCode: (code: string) => boolean;
+  /** Re-shows the 4-step tutorial (F52.2): flips the onboarding flag back
+   *  so the overlay renders on the next frame. */
+  onReplayTutorial: () => void;
   /** Cloud-backup section bundle; the section hides itself while the
    *  provider is unavailable ("hidden until configured"). */
   cloudSave: CloudSaveSettingsProps;
@@ -101,6 +105,10 @@ const SaveTab = memo(function SaveTab({
         <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
           {t("settings.saveCodeHelp")}
         </Text>
+        <Button
+          title={t("settings.replayTutorial")}
+          onPress={onReplayTutorial}
+        />
       </View>
       <View
         style={{
