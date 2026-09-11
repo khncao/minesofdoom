@@ -86,6 +86,69 @@ test.describe("web IAP — purchase round-trip", () => {
       await expect(page.getByRole("button", { name: "Equip" })).toBeVisible();
    });
 
+   test("a verify the sidecar can't confirm is refused and stays queued", async ({
+      page,
+      context,
+   }) => {
+      const iap = createIapStubState();
+      await installAdStubs(context);
+      await installIapStubs(context, iap);
+
+      // Seed the pending-verify queue (the bare AsyncStorage web key,
+      // PENDING_VERIFY_KEY in iapProvider.web.ts) with a FORGED entry —
+      // a session id no sidecar ever issued — before the app loads.
+      await page.addInitScript(() => {
+        localStorage.setItem(
+           "iapPendingVerifies",
+           JSON.stringify([
+            { productId: "packGold", token: "cs_forged_never_issued" },
+           ]),
+        );
+      });
+
+      await bootApp(page);
+
+      // Boot has no launch reconcile on web (the first IAP traffic is the
+      // player's own purchase) — the forged entry is untouched so far.
+      expect(iap.verifyCalls).toEqual([]);
+      expect(iap.rejectedVerifies).toEqual([]);
+
+      // The player's real purchase: purchase() replays the queue FIRST,
+      // so the forged verify fires and the strict stub refuses it
+      // (400 — the real sidecar's unconfirmed-session contract).
+      await page.locator('[aria-label="Shop"]').click();
+      const cash = page.getByRole("button", { name: /^\$0\.99$/ }).first();
+      await expect(cash).toBeEnabled();
+      await cash.click();
+      await page.waitForURL(/iap=success&iap_product=packGold&iap_sid=cs_e2e_/);
+
+      // The return-visit verify (an ISSUED token) is accepted and mints;
+      // the forged one was refused (and is refused again on replay).
+      await expect
+         .poll(() => iap.verifyCalls.length, { timeout: 20_000 })
+         .toBeGreaterThanOrEqual(2);
+      expect(iap.rejectedVerifies).toContainEqual({
+         productId: "packGold",
+         token: "cs_forged_never_issued",
+      });
+
+      await expect(page.getByTestId("mining-canvas")).toBeVisible();
+
+      // A failed verify is NEVER dropped from the pending queue (pass 58
+      // semantics), while the verified issued pair is. And the real
+      // purchase still granted its pack.
+      const queue = await page.evaluate(() =>
+         JSON.parse(
+          localStorage.getItem("iapPendingVerifies") ?? "[]",
+         ) as unknown,
+      );
+      expect(queue).toEqual([
+       { productId: "packGold", token: "cs_forged_never_issued" },
+      ]);
+      await page.locator('[aria-label="Shop"]').click();
+      await expect(page.getByText(/Gold Pickaxe\s*✓/)).toBeVisible();
+   });
+
    test("no live sidecar/Stripe traffic escapes the stubs", async ({
       page,
       context,

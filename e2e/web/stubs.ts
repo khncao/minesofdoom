@@ -20,9 +20,12 @@
  *  stub session id; js.stripe.com returns a script whose
  *  redirectToCheckout navigates to the app's
  *  `?iap=success&iap_product=…&iap_sid=…` return URL; /api/app/verify mints
- *  the entitlement (like the real sidecar); /api/app/restore returns it.
- *  Everything else on the sidecar/Stripe domains aborts — the app must
- *  survive without its backends (resilience).
+ *  the entitlement ONLY for a session id its own checkout issued for that
+ *  product id — an unknown/stale/cross-product token gets a 400 (and lands
+ *  in `rejectedVerifies`), matching the real sidecar's confirm-with-Stripe
+ *  contract (an unconfirmed session is a refusal, never a mint); /api/app/
+ *  restore returns the minted set. Everything else on the sidecar/Stripe
+ *  domains aborts — the app must survive without its backends (resilience).
  *
  *  installSignInStubs — the web Google sign-in leg (src/mines_of_doom/
  *  signinSdks.ts): accounts.google.com/gsi/client is served a stub ID client
@@ -46,11 +49,16 @@ export const PB_BASE = "https://minesofdoom.minus4kelvin.com";
 
 /**
  * Any domain that would mean a LIVE ad request — always blocked in e2e.
- * (The loader script itself, pagead2.googlesyndication.com/pagead/js/*,
- * is NOT an ad request and is handled separately.)
+ * `googlesyndication.com` is treated as live AD TRAFFIC in its entirety:
+ * the loader script (pagead/js/adsbygoogle.js, see AD_LOADER_RE) is the
+ * ONLY googlesyndication resource a hermetic run may load, and every
+ * other path on that domain (1ps.js, showads.js, creativetags, the
+ * /pagead/lds image endpoint, …) is ad infrastructure. (The loader URL
+ * is exempted by the callers BEFORE this test runs — the stub-loader run
+ * intercepts it, the test-mode run lets it through.)
  */
 const LIVE_AD_RE =
-  /doubleclick\.net|googleadservices\.com|adservice\.google|adsystem\.google|googlesyndication\.com\/pagead\/lds/;
+  /doubleclick\.net|googleadservices\.com|adservice\.google|adsystem\.google|googlesyndication\.com/;
 
 /** The ad-loader script URL emitted in +html.tsx. */
 const AD_LOADER_RE =
@@ -148,6 +156,10 @@ export async function installLiveAdGuard(
   const state = { abortedLive: [] as string[] };
   await context.route("https://**", (route) => {
     const url = route.request().url();
+    // The loader script itself must reach Google in test mode (that is
+    // the point of this run); everything else matching the live set is
+    // aborted + recorded.
+    if (AD_LOADER_RE.test(url)) return route.fallback();
     if (LIVE_AD_RE.test(url)) {
       state.abortedLive.push(url);
       return route.abort();
@@ -170,8 +182,15 @@ export interface IapStubState {
   restoreCalls: Record<string, unknown>[];
   /** Last minted checkout session (productId + session id). */
   lastSession: { productId: string; sessionId: string } | null;
+  /** Session ids this stub's checkout issued, per product id — the
+   *  verify route's mint gate (the real sidecar's confirm-with-Stripe
+   *  contract, in stub form). */
+  issued: Map<string, Set<string>>;
   /** Entitlement store ids the verify stub has minted. */
   minted: Set<string>;
+  /** verify calls the stub REFUSED (token not issued for that product) —
+   *  the app must keep those in its pending queue, never grant. */
+  rejectedVerifies: { productId: unknown; token: unknown }[];
   /** Aborted sidecar/Stripe requests (the resilience assertion). */
   aborted: string[];
 }
@@ -182,7 +201,9 @@ export function createIapStubState(): IapStubState {
     verifyCalls: [],
     restoreCalls: [],
     lastSession: null,
+    issued: new Map<string, Set<string>>(),
     minted: new Set<string>(),
+    rejectedVerifies: [],
     aborted: [],
   };
 }
@@ -262,6 +283,11 @@ export async function installIapStubs(
       productId: body.productId,
       sessionId,
     };
+    // Record the issuance — the verify route only mints for tokens this
+    // stub itself issued for the same product id.
+    const issued = state.issued.get(body.productId) ?? new Set<string>();
+    issued.add(sessionId);
+    state.issued.set(body.productId, issued);
     return route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({ sessionId }),
@@ -271,15 +297,33 @@ export async function installIapStubs(
   await context.route(`${PB_BASE}/api/app/verify`, (route) => {
     const body = bodyOf(route.request());
     state.verifyCalls.push(body);
-    // The real sidecar mints the entitlement on a confirmed session; mirror
-    // it (web verify: token = the checkout session id).
-    const storeId =
-      typeof body.productId === "string"
-        ? PRODUCT_STORE_ID[body.productId]
-        : undefined;
-    if (storeId && typeof body.token === "string") {
-      state.minted.add(storeId);
+    // Mirror the real sidecar's contract (pass 55): the entitlement is
+    // minted only for a session the sidecar can CONFIRM — in stub form,
+    // a session id this stub's own checkout issued for the SAME product
+    // id. An unknown, stale, or cross-product token is a 400 refusal,
+    // so an app regression that sends a wrong iap_sid can never mint
+    // here (and the pending-queue retry semantics get a realistic
+    // failure to exercise).
+    const productId =
+      typeof body.productId === "string" ? body.productId : undefined;
+    const storeId = productId ? PRODUCT_STORE_ID[productId] : undefined;
+    const token = typeof body.token === "string" ? body.token : undefined;
+    const confirmed =
+      productId !== undefined &&
+      token !== undefined &&
+      state.issued.get(productId)?.has(token) === true;
+    if (!confirmed || storeId === undefined) {
+      state.rejectedVerifies.push({
+        productId: body.productId,
+        token: body.token,
+      });
+      return route.fulfill({
+        status: 400,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "unconfirmed checkout session" }),
+      });
     }
+    state.minted.add(storeId);
     return route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({ ok: true }),

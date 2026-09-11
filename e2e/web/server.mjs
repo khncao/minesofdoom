@@ -18,7 +18,7 @@
  * Everything else is plain static serving of dist/ with an index.html SPA
  * fallback (expo-router static export is a single-page app at /).
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, normalize, resolve } from "node:path";
@@ -135,9 +135,6 @@ async function main() {
     console.log(`[e2e:server] serving ${DIST} on http://localhost:${PORT}`);
   });
 }
-
-// readFileSync is imported for potential future use; keep imports used-only:
-void readFileSync;
 
 main().catch((err) => {
   console.error(err);
