@@ -122,6 +122,11 @@ export function loadStripe(): Promise<StripeRedirectClient | null> {
       resolve(safeConstruct(win.Stripe));
     });
     script.addEventListener("error", () => {
+      // Remove the dead tag so a later purchase creates a FRESH script.
+      // Reusing an already-errored element would attach listeners that
+      // can never fire and stall loadStripe (and the in-flight purchase,
+      // with its in-flight guard) forever until a page refresh.
+      script.remove();
       // Let a later purchase retry the load.
       stripePromise = null;
       resolve(null);

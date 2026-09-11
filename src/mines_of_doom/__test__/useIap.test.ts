@@ -324,6 +324,28 @@ describe("useIap — restore", () => {
     expect(result.current.entitlements.packGold).toBe(true);
   });
 
+  it("a batched restore records every new pack (per-product analytics, F58.1)", async () => {
+    // A restore can add several packs at once (e.g. the re-mint after a
+    // local wipe): recordIapPurchase increments the counter per call, so
+    // every fresh pack must fire — with ONE toast (the first pack).
+    const onPurchased = jest.fn();
+    const displayMessage = jest.fn();
+    const provider = makeProvider("purchased", true, {
+      packGold: true,
+      packFrost: true,
+    });
+    const result = await renderIap({
+      provider: provider as unknown as IapProvider,
+      displayMessage,
+      onPurchased,
+    });
+    await restore(result);
+    expect(onPurchased).toHaveBeenCalledTimes(2);
+    const fired = onPurchased.mock.calls.map((c) => c[0]).sort();
+    expect(fired).toEqual(["packFrost", "packGold"]);
+    expect(displayMessage).toHaveBeenCalledTimes(1);
+  });
+
   it("restore also merges the store's own record (reconcileStore)", async () => {
     const provider = makeProvider(
       "purchased",

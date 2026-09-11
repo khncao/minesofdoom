@@ -187,7 +187,11 @@ export function useIap({
               entitlementsRef.current[pid] !== true,
           );
           if (fresh.length > 0) {
-            onPurchased?.(fresh[0]);
+            // Per-product: recordIapPurchase increments the counter, so a
+            // batched restore (e.g. the re-mint after a local wipe) must
+            // record EVERY new pack, not just the first — but the toast
+            // stays one line (the first pack).
+            for (const pid of fresh) onPurchased?.(pid);
             const packCosmetic = getIapPackCosmetic(fresh[0]);
             displayMessage(
               t("toast.iapPackUnlocked", { name: packCosmetic.name }),

@@ -63,6 +63,9 @@ type FakeScript = {
   src?: string;
   async?: boolean;
   setAttribute: (k: string, v: string) => void;
+  remove: () => void;
+  /** True once remove() fired (the F58.2 dead-tag net). */
+  removed: boolean;
   listeners: Record<string, (() => void)[]>;
   addEventListener: (ev: string, cb: () => void) => void;
   fire: (ev: string) => void;
@@ -95,6 +98,10 @@ function makeWindow(
       createElement: () => {
         const s: FakeScript = {
           setAttribute: () => {},
+          remove: () => {
+            s.removed = true;
+          },
+          removed: false,
           listeners: {},
           addEventListener(ev: string, cb: () => void) {
             (s.listeners[ev] = s.listeners[ev] ?? []).push(cb);
@@ -293,6 +300,27 @@ describe("web provider: purchase redirect", () => {
     created[0].fire("load");
     await expect(pending).resolves.toBe("purchased");
     expect(client.redirectToCheckout).toHaveBeenCalledTimes(1);
+  });
+
+  it("detaches a failed script tag so a later attempt starts fresh (F58.2)", async () => {
+    const { storeConfig, web, freshIds } = loadWeb();
+    configureStripe(storeConfig, freshIds);
+    const { win, created } = makeWindow();
+    setWindow(win);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ sessionId: "cs_test_abc" }),
+    });
+    const pending = web.storeIapProvider.purchase("packGold");
+    await settle();
+    expect(created).toHaveLength(1);
+    // The script fails (a blocked CDN / a DNS blip): the purchase errors
+    // cleanly AND the dead tag is removed — reusing an errored element
+    // would attach listeners that can never fire and stall the next
+    // purchase's loadStripe (and its in-flight guard) until a refresh.
+    created[0].fire("error");
+    await expect(pending).resolves.toBe("error");
+    expect(created[0].removed).toBe(true);
   });
 });
 
