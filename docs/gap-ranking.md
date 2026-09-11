@@ -6344,3 +6344,117 @@ the `use*` hooks, `iapDeviceId.ts`, `iapProvider(.web).ts`,
 + the server table (`pb_hooks/collections.js`, `validateCloudPush` in
 `logic.js`) + the token store (`secureToken.ts`). Pass 46 made no code
 change; F46.1/F46.2 are ranked only, pending greenlit.
+
+### The listener & subscription lifecycle layer (pass 47 — every registration with the platform: who registers, who removes, and what dies with the screen, written 2026-09-12)
+
+Pass 40 audited the clocks' *math* (catch-up, deadlines, what freezes each);
+pass 44 audited how tick state flows to pixels. Neither audited the
+*registrations themselves* — the subscriptions a component opens on platform
+objects (AppState, window/document, matchMedia, expo-audio players, the ad
+SDKs' event emitters) and whether every opened registration is closed. The
+layer's surface is small and, for a codebase this size, unusually
+disciplined: every long-lived registration is paired with a removal, and the
+only unpaired sites are four bounded fire-and-forget timers that sit in a
+tree the app never unmounts. No leaks, no code.
+
++ **The registration inventory, and the pairing it already holds:** (1)
+  **three AppState subscriptions** — `useGameEngine`'s save-on-background
+  (ref-captured `saveGame`, registered once), `useGameEngine`'s active-ref
+  clock, and `useSounds`' bed pause/resume — all `.remove()` on cleanup.
+  (2) **five DOM listeners** — the first-gesture gate
+  (`window` pointerdown + keydown, `{ once: true }`, *and* removed in
+  cleanup), `document.visibilitychange` (web belt-and-braces for the
+  play-time clock), `window` pagehide (the tab-close save net, pass 40),
+  `matchMedia` change (reduce-motion), plus one-shot script `load`/`error`
+  pairs (web IAP loaders, the skin picker's `change`/`cancel`) — all
+  removed or genuinely one-shot. (3) **the timer family** — the engine
+  loop's `setInterval` (cleared; its autosave cadence rides inside it,
+  pass 40), the five 60s day/week-key pollers (`useDailyBonus`,
+  `useDailyEquation`, `useWeeklyChallenge` ×the week key, `useIdleReminder`
+  at 5s, `useGemPocket` at CHECK_MS), the two 1s countdown clocks
+  (`ComboSaveIndicator`, `AdRewardsPanel` — the latter only while a save is
+  pending), the juice-wave chain (`useJuiceWaves` tracks every id in a Set
+  and cancels on unmount), the combo-save expiry poller in
+  `MinesOfDoom.tsx` (cleared, and suspended while the claim ad is
+  mid-play), and the double-RAF URL re-clean (explicitly cancelled on every
+  exit path, including the back-out "cancel" branch) — all cleared.
+  (4) **the expo-audio players** — ~10 SFX players + the looping bed are
+  created in one effect, paused and nulled on cleanup; the skin-swing
+  override re-creates on URI change and pauses its predecessor. (5)
+  **the ad SDKs** — the AdMob rewarded flow's `settle` is first-terminal-wins
+  and calls `ad.removeAllListeners()`, with the load watchdog cleared both
+  on OPENED (a full video must not be cut off) and on settle; the AdSense
+  watchdog is cleared in its `settle`. (6) **the HTTP timeout pattern**
+  (`cloudSave` / `leaderboard` / `auth` / both IAP providers): a
+  `setTimeout(controller.abort)` bounded by the request's own lifetime —
+  the timer can outlive nothing.
+
++ **The four unpaired timer sites are bounded, live in a tree the app never
+unmounts, and are hygiene, not defects** → F47.1.
+
++ **The hardware-back / exit path is deliberately unintercepted — canon
+pin, watch-item:** there is **no** `BackHandler`, no `hardwareBack`, no
+Escape-key handling anywhere in `src/` — and that is correct for this app's
+shape, for the same reason the layer is disciplined: `src/app/` is a single
+root `Stack.Screen`, so there is no screen to pop. Android back at the root
+is the system's exit, iOS has no back surface, and on web there is nothing
+to pop. The one thing that *would* matter about exit — losing the last
+autosave — is already covered and netted by the two save-on-exit paths
+(pass 40's pagehide/AppState save; pass 46's erasure/scope pass), so
+"back exits the app" loses at most one autosave interval (5–600s clamped).
+The trap, recorded so a future pass doesn't re-derive it: the moment a
+second route or panel exists, unintercepted back silently becomes "exits the
+app mid-flow", and an exit-confirmation or BackHandler decision becomes a
+real feature (it is not one today — a single-screen idle game exiting on
+back is the platform-native behavior).
+
+Findings:
+
++ **F47.1 `lifecycle:fire-and-forget-timers` (Tier 3):** four sites
+  schedule a timer with no cancellation path: (1) `useMessages`'
+  `displayMessage` setTimeout (4–8 s; `timeoutRef` is cleared by the *next*
+  message, never on unmount); (2) `useMineTaps.scheduleTapFlush`'s
+  self-rescheduling rAF chain (re-arms every frame until
+  `TAP_FLUSH_INTERVAL` elapses; the id is never cancelled); (3–4)
+  `BlockBreak` and `DebrisParticles`' per-batch removal `setTimeout`s
+  (~1–2 s; the ids are tracked nowhere). **None is a live defect**, and the
+  reason is architectural, not per-site: all four live in the root-screen
+  tree, which the app never unmounts (the only "unmount" is process death,
+  which kills the timers with the page), every timer is time-bounded (none
+  reschedules indefinitely), and a post-unmount `setState` is a React 18
+  no-op anyway. The safety argument therefore rests on the
+  never-unmounts invariant living in no one's head — it is not asserted,
+  tested, or even written down at the sites. Fix shape (only if a future
+  pass makes any of these components actually unmountable — a panel/tab
+  architecture, or the root-fragile subtree pass 44 named): a ref + cleanup
+  at each of the four sites, zero behavior change. Ranked, not planned.
+
++ **Recorded, not defects:** (1) the expo-audio unmount path **pauses**
+  rather than stops/releases players — irrelevant while the root screen
+  never unmounts, noted for the same future pass as F47.1 (pause is the
+  right call today: unmount-recreation on URI change is the only churn, and
+  a pause-before-destroy is what makes it silent). (2) the 60s key pollers
+  and 1s countdown clocks each reinvent 1 Hz — pass 40 finding (1)'s
+  accounting, not double-counted here. (3) the dev-sim
+  `setTimeout(() => resolve("rewarded"|"purchased"), 1500)` in `ads.ts` /
+  `iaps.ts` is dev-only simulation with no unmount concern. (4) the
+  `iapProvider.web` script `load`/`error` listeners are never removed, but
+  the element is a per-attempt artifact — same class as pass 41's
+  dead-element recording (F41.3), subsumed by that finding's fix shape.
+
+Method: the layer's shape is every platform-facing registration in
+`src/` (non-test): the three `AppState.addEventListener` sites
+(`useGameEngine` ×2, `useSounds`), the DOM listeners
+(`useSounds`' gesture gate, `useGameEngine`'s visibilitychange + pagehide,
+`useAccessibilityReduceMotion`'s matchMedia, the two web script loaders,
+`customSkinPicker.web`), every `setInterval`/`setTimeout`/`requestAnimationFrame`
+call site (the engine loop + autosave in `useGameEngine`, the five
+deadline pollers, the juice waves, the two countdown clocks, the
+combo-save expiry + URL re-clean in `MinesOfDoom.tsx`, `useMessages`,
+`useMineTaps`, `BlockBreak`, `DebrisParticles`, the ad providers'
+watchdogs, the HTTP timeout pattern), the expo-audio player effects
+(`useSounds`), and the ad SDK listener sites (`adProvider`,
+`adSenseProvider.web`) — each checked for its cleanup, not just its
+registration. The route surface (`src/app/index.tsx`) was checked for any
+second screen back could pop (there is none). Pass 47 made no code
+change; F47.1 is ranked only, pending greenlit.
