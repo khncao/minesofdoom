@@ -63,15 +63,9 @@ export interface AccountHandle {
   isDevSim: boolean;
   /** Register a new account (email/password). The claim runs after the
    *  sign-in succeeds. Resolves the outcome for the UI's inline copy. */
-  register: (
-    email: string,
-    password: string,
-  ) => Promise<AuthSigninOutcome>;
+  register: (email: string, password: string) => Promise<AuthSigninOutcome>;
   /** Log into an existing account (the single error path). */
-  login: (
-    email: string,
-    password: string,
-  ) => Promise<AuthSigninOutcome>;
+  login: (email: string, password: string) => Promise<AuthSigninOutcome>;
   /** Google/Apple sign-in (the native SDK mints the idToken). */
   providerSignIn: (
     kind: "google" | "apple",
@@ -203,8 +197,7 @@ export function useAccount(opts: AccountOptions): AccountHandle {
   );
 
   const login = useCallback(
-    (email: string, password: string) =>
-      finishSignIn("login", email, password),
+    (email: string, password: string) => finishSignIn("login", email, password),
     [finishSignIn],
   );
 

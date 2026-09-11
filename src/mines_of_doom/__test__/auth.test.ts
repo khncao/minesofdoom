@@ -65,7 +65,9 @@ afterEach(() => {
 // -- selection ----------------------------------------------------------------
 
 describe("pickAuthProvider (selection matrix)", () => {
-  const sel = (over: Partial<{ dev: boolean; pocketbaseConfigured: boolean }> = {}) => ({
+  const sel = (
+    over: Partial<{ dev: boolean; pocketbaseConfigured: boolean }> = {},
+  ) => ({
     dev: false,
     pocketbaseConfigured: false,
     ...over,
@@ -94,13 +96,19 @@ describe("storeAuthProvider (gating)", () => {
   it("is unavailable and inert while the URL is empty", async () => {
     storeConfig.pocketbaseUrl = "";
     expect(storeAuthProvider.isAvailable()).toBe(false);
-    await expect(storeAuthProvider.register("a@b.co", "password1")).resolves.toEqual({
+    await expect(
+      storeAuthProvider.register("a@b.co", "password1"),
+    ).resolves.toEqual({
       status: "error",
     });
-    await expect(storeAuthProvider.login("a@b.co", "password1")).resolves.toEqual({
+    await expect(
+      storeAuthProvider.login("a@b.co", "password1"),
+    ).resolves.toEqual({
       status: "error",
     });
-    await expect(storeAuthProvider.providerSignIn("google", "x")).resolves.toEqual({
+    await expect(
+      storeAuthProvider.providerSignIn("google", "x"),
+    ).resolves.toEqual({
       status: "error",
     });
     await expect(storeAuthProvider.me("token")).resolves.toEqual({
@@ -108,8 +116,12 @@ describe("storeAuthProvider (gating)", () => {
     });
     await expect(storeAuthProvider.logout("token")).resolves.toBe(false);
     await expect(storeAuthProvider.link("token")).resolves.toBeNull();
-    await expect(storeAuthProvider.setPassword("token", "password1")).resolves.toBeNull();
-    await expect(storeAuthProvider.linkProvider("token", "google", "x")).resolves.toBeNull();
+    await expect(
+      storeAuthProvider.setPassword("token", "password1"),
+    ).resolves.toBeNull();
+    await expect(
+      storeAuthProvider.linkProvider("token", "google", "x"),
+    ).resolves.toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -122,10 +134,15 @@ describe("storeAuthProvider (gating)", () => {
 
 describe("storeAuthProvider.register", () => {
   it("sends the email/password/deviceId and reports the session", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ ok: true, token: "t1", account: ACCOUNT }, 200));
+    fetchMock.mockResolvedValue(
+      jsonResponse({ ok: true, token: "t1", account: ACCOUNT }, 200),
+    );
     await expect(
       storeAuthProvider.register("dig@er.co", "password1"),
-    ).resolves.toEqual({ status: "signedIn", session: { token: "t1", account: ACCOUNT } });
+    ).resolves.toEqual({
+      status: "signedIn",
+      session: { token: "t1", account: ACCOUNT },
+    });
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe(`${BASE}/api/app/auth/register`);
     expect(JSON.parse(init.body)).toEqual({
@@ -136,7 +153,9 @@ describe("storeAuthProvider.register", () => {
   });
 
   it("maps the 409 to emailTaken (the account may be absent — the UI offers 'sign in')", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ error: "email already in use" }, 409));
+    fetchMock.mockResolvedValue(
+      jsonResponse({ error: "email already in use" }, 409),
+    );
     await expect(
       storeAuthProvider.register("dig@er.co", "password1"),
     ).resolves.toEqual({
@@ -153,7 +172,9 @@ describe("storeAuthProvider.register", () => {
   });
 
   it("never leaks a malformed reply as a session (no token = error)", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ ok: true, account: ACCOUNT }, 200));
+    fetchMock.mockResolvedValue(
+      jsonResponse({ ok: true, account: ACCOUNT }, 200),
+    );
     await expect(
       storeAuthProvider.register("dig@er.co", "password1"),
     ).resolves.toEqual({ status: "error" });
@@ -162,22 +183,31 @@ describe("storeAuthProvider.register", () => {
 
 describe("storeAuthProvider.login", () => {
   it("sends the same body and reports the session on success", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ ok: true, token: "t2", account: ACCOUNT }, 200));
+    fetchMock.mockResolvedValue(
+      jsonResponse({ ok: true, token: "t2", account: ACCOUNT }, 200),
+    );
     await expect(
       storeAuthProvider.login("dig@er.co", "password1"),
-    ).resolves.toEqual({ status: "signedIn", session: { token: "t2", account: ACCOUNT } });
+    ).resolves.toEqual({
+      status: "signedIn",
+      session: { token: "t2", account: ACCOUNT },
+    });
     expect(fetchMock.mock.calls[0][0]).toBe(`${BASE}/api/app/auth/login`);
   });
 
   it("maps the 401 to badCredentials (one error for both halves)", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ error: "invalid credentials" }, 401));
+    fetchMock.mockResolvedValue(
+      jsonResponse({ error: "invalid credentials" }, 401),
+    );
     await expect(
       storeAuthProvider.login("dig@er.co", "wrong"),
     ).resolves.toEqual({ status: "badCredentials" });
   });
 
   it("maps a 429 rate-limit to error (the player can retry)", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ error: "too many requests" }, 429));
+    fetchMock.mockResolvedValue(
+      jsonResponse({ error: "too many requests" }, 429),
+    );
     await expect(
       storeAuthProvider.login("dig@er.co", "password1"),
     ).resolves.toEqual({ status: "error" });
@@ -186,13 +216,21 @@ describe("storeAuthProvider.login", () => {
 
 describe("storeAuthProvider.providerSignIn", () => {
   it("posts the idToken to the provider endpoint", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ ok: true, token: "t3", account: ACCOUNT }, 200));
+    fetchMock.mockResolvedValue(
+      jsonResponse({ ok: true, token: "t3", account: ACCOUNT }, 200),
+    );
     await expect(
       storeAuthProvider.providerSignIn("google", "id-token"),
-    ).resolves.toEqual({ status: "signedIn", session: { token: "t3", account: ACCOUNT } });
+    ).resolves.toEqual({
+      status: "signedIn",
+      session: { token: "t3", account: ACCOUNT },
+    });
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe(`${BASE}/api/app/auth/google`);
-    expect(JSON.parse(init.body)).toEqual({ idToken: "id-token", deviceId: DEVICE_ID });
+    expect(JSON.parse(init.body)).toEqual({
+      idToken: "id-token",
+      deviceId: DEVICE_ID,
+    });
   });
 
   it("maps the 401 to unverified (the sidecar refused the token)", async () => {
@@ -214,27 +252,41 @@ describe("storeAuthProvider.me (tri-state, F41.2)", () => {
       status: "account",
       account: ACCOUNT,
     });
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ token: "t1" });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      token: "t1",
+    });
   });
 
   it("maps a dead/expired session (401) to dead — the only case that may clear the token", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ error: "invalid session" }, 401));
-    await expect(storeAuthProvider.me("dead")).resolves.toEqual({ status: "dead" });
+    fetchMock.mockResolvedValue(
+      jsonResponse({ error: "invalid session" }, 401),
+    );
+    await expect(storeAuthProvider.me("dead")).resolves.toEqual({
+      status: "dead",
+    });
   });
 
   it("maps a network failure to unknown (the token stays; retry next launch)", async () => {
     fetchMock.mockRejectedValue(new Error("offline"));
-    await expect(storeAuthProvider.me("t1")).resolves.toEqual({ status: "unknown" });
+    await expect(storeAuthProvider.me("t1")).resolves.toEqual({
+      status: "unknown",
+    });
   });
 
   it("maps a server error (5xx) to unknown, not dead", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ error: "boom" }, 500));
-    await expect(storeAuthProvider.me("t1")).resolves.toEqual({ status: "unknown" });
+    await expect(storeAuthProvider.me("t1")).resolves.toEqual({
+      status: "unknown",
+    });
   });
 
   it("maps a 200 with a malformed body to unknown, not dead (F41.5)", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ account: { email: 42, providers: "nope" } }, 200));
-    await expect(storeAuthProvider.me("t1")).resolves.toEqual({ status: "unknown" });
+    fetchMock.mockResolvedValue(
+      jsonResponse({ account: { email: 42, providers: "nope" } }, 200),
+    );
+    await expect(storeAuthProvider.me("t1")).resolves.toEqual({
+      status: "unknown",
+    });
   });
 });
 
@@ -242,8 +294,12 @@ describe("storeAuthProvider.logout", () => {
   it("is true only on 2xx (idempotent on the server side)", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ ok: true }, 200));
     await expect(storeAuthProvider.logout("t1")).resolves.toBe(true);
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ token: "t1" });
-    fetchMock.mockResolvedValue(jsonResponse({ error: "invalid session" }, 401));
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      token: "t1",
+    });
+    fetchMock.mockResolvedValue(
+      jsonResponse({ error: "invalid session" }, 401),
+    );
     await expect(storeAuthProvider.logout("t1")).resolves.toBe(false);
   });
 });
@@ -260,7 +316,9 @@ describe("storeAuthProvider.link", () => {
   });
 
   it("maps a dead session to null", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ error: "invalid session" }, 401));
+    fetchMock.mockResolvedValue(
+      jsonResponse({ error: "invalid session" }, 401),
+    );
     await expect(storeAuthProvider.link("dead")).resolves.toBeNull();
   });
 });
@@ -283,10 +341,18 @@ describe("storeAuthProvider.setPassword", () => {
   });
 
   it("maps a dead session (401) and a server refusal (400) to null", async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "invalid session" }, 401));
-    await expect(storeAuthProvider.setPassword("dead", "password1")).resolves.toBeNull();
-    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "invalid password" }, 400));
-    await expect(storeAuthProvider.setPassword("t1", "short")).resolves.toBeNull();
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ error: "invalid session" }, 401),
+    );
+    await expect(
+      storeAuthProvider.setPassword("dead", "password1"),
+    ).resolves.toBeNull();
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ error: "invalid password" }, 400),
+    );
+    await expect(
+      storeAuthProvider.setPassword("t1", "short"),
+    ).resolves.toBeNull();
   });
 });
 
@@ -321,7 +387,10 @@ describe("storeAuthProvider.linkProvider", () => {
 describe("devSimAuthProvider (the labeled simulation)", () => {
   it("is available and issues in-memory sessions", async () => {
     expect(devSimAuthProvider.isAvailable()).toBe(true);
-    const outcome = await devSimAuthProvider.register("sim@dev.co", "password1");
+    const outcome = await devSimAuthProvider.register(
+      "sim@dev.co",
+      "password1",
+    );
     expect(outcome.status).toBe("signedIn");
     if (outcome.status !== "signedIn") throw new Error("unreachable");
     expect(outcome.session.account.email).toBe("sim@dev.co");
@@ -357,17 +426,24 @@ describe("devSimAuthProvider (the labeled simulation)", () => {
     await expect(devSimAuthProvider.link(reg.session.token)).resolves.toEqual(
       reg.session.account,
     );
-    await expect(devSimAuthProvider.logout(reg.session.token)).resolves.toBe(true);
+    await expect(devSimAuthProvider.logout(reg.session.token)).resolves.toBe(
+      true,
+    );
     await expect(devSimAuthProvider.me(reg.session.token)).resolves.toEqual({
       status: "dead",
     });
   });
 
   it("providerSignIn issues a provider-linked account", async () => {
-    const outcome = await devSimAuthProvider.providerSignIn("apple", "id-token");
+    const outcome = await devSimAuthProvider.providerSignIn(
+      "apple",
+      "id-token",
+    );
     expect(outcome.status).toBe("signedIn");
     if (outcome.status !== "signedIn") throw new Error("unreachable");
-    const apple = outcome.session.account.providers.find((p) => p.name === "apple");
+    const apple = outcome.session.account.providers.find(
+      (p) => p.name === "apple",
+    );
     expect(apple).toEqual({ name: "apple", linked: true });
   });
 

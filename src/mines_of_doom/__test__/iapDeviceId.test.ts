@@ -1,6 +1,7 @@
 import { IAP_DEVICE_ID_KEY, makeDeviceId } from "../iapDeviceId";
 
-type AsyncStorageObj = typeof import("@react-native-async-storage/async-storage")["default"];
+type AsyncStorageObj =
+  typeof import("@react-native-async-storage/async-storage")["default"];
 
 /**
  * Fresh copy of the module + its AsyncStorage mock so the single-flight
@@ -9,10 +10,14 @@ type AsyncStorageObj = typeof import("@react-native-async-storage/async-storage"
  * from the SAME fresh registry so the storage assertions see the store
  * the app module writes to.
  */
-function freshModule(): { storage: AsyncStorageObj; mod: typeof import("../iapDeviceId") } {
+function freshModule(): {
+  storage: AsyncStorageObj;
+  mod: typeof import("../iapDeviceId");
+} {
   jest.resetModules();
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const storage = require("@react-native-async-storage/async-storage").default as AsyncStorageObj;
+  const storage = require("@react-native-async-storage/async-storage")
+    .default as AsyncStorageObj;
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const mod = require("../iapDeviceId") as typeof import("../iapDeviceId");
   return { storage, mod };

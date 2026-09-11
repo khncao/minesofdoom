@@ -596,6 +596,23 @@ export function activePlaySeconds(
       : 0;
   return Math.min(whole, LIVE_PLAY_TICK_CAP);
 }
+
+/**
+ * Whole-tick elapsed time between two wall-clock timestamps, clamped to
+ * the catch-up range: the tick loop banks time while backgrounded and pays
+ * it out on the next fire. A negative or clock-skew reading pays nothing,
+ * and a long absence (suspension, sleep, throttled tab) never pays out
+ * more than maxOfflineTicks in one catch-up fire. This is the one
+ * expression the whole absence economy depends on (F40.2) — extracted
+ * from the useGameEngine loop so it has a net, mirroring
+ * activePlaySeconds' play-time half of the same fire.
+ */
+export function catchUpTicks(lastTickAtMs: number, nowMs: number): number {
+  return Math.min(
+    Math.max(0, Math.floor((nowMs - lastTickAtMs) / msPerTick)),
+    maxOfflineTicks,
+  );
+}
 // Minerals per depth meter
 export const mineralsPerDepth = 500;
 

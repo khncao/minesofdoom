@@ -10,7 +10,12 @@ export type Props = {
    * once per game tick — today, the `Miner` sprites with `reactOnTick`
    * — PUSH their callback into the array on mount and SPlice it out on
    * unmount (see `Miner.tsx`). The engine's 1Hz loop calls every
-   * registered callback exactly once per tick.
+   * registered callback exactly once per tick — but only while passive
+   * income is non-zero: the loop fires the registry exclusively inside the
+   * miners-gate (and only after the `elapsed < 1` early return), so a
+   * zero-miner session gets no callbacks at all (F40.1). Don't register
+   * deadline-dependent work here — poll a wall-clock deadline, like the
+   * other pollers do.
    *
    * Why a mutable ref array in a Context instead of React state/props?
    * - The registry is mutated imperatively on mount/unmount. Routing it
@@ -28,4 +33,7 @@ export type Props = {
    */
   onTick: Array<() => void>;
 };
+// SAFETY: the null default is unreachable — the app always provides the
+// real context from MinesOfDoom, so consumers only ever see a non-null
+// Props; the assertion just satisfies createContext's generic.
 export const Context = createContext<Props>(null as unknown as Props);

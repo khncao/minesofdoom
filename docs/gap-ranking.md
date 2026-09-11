@@ -5753,7 +5753,7 @@ from `Date.now()`. That is why the game survives bfcache restores,
 laptop sleep, and Android process death with zero `resume` code: there is
 none to write, by construction.
 
-**F40.1 — `tick:registry-not-a-clock` (Tier 2, low).** The documented 1 Hz
+**F40.1 — `tick:registry-not-a-clock` (Tier 2, low — FIXED in pass 61, 2026-09-16: the `Context.tsx` registry contract now states the gate — “only while passive income is non-zero … fires the registry exclusively inside the miners-gate (and only after the `elapsed < 1` early return)” — plus the “don't register deadline-dependent work here; poll a wall-clock deadline” direction, so the doc-trap is closed. Promoting the registry to a true clock remains optional and un-done, as ranked).** The original finding: the documented 1 Hz
 animation clock is actually “1 Hz *while passive income is non-zero*”.
 `Context.tsx` describes `onTick` as “the engine's 1Hz loop calls every
 registered callback exactly once per tick” — but the loop invokes the
@@ -5774,7 +5774,7 @@ doc-trap for future consumers: a countdown or spawn roll registered on
 future consumer actually wants to ride it. No player-visible or data
 impact.
 
-**F40.2 — `tick:catchup-untested` (Tier 3).** The one expression the whole
+**F40.2 — `tick:catchup-untested` (Tier 3 — FIXED in pass 61, 2026-09-16: extracted as `catchUpTicks(lastTickAtMs, nowMs)` in `game.ts`, the useGameEngine loop now calls it, and `game.test.ts` nets it the way `activePlaySeconds` is netted — whole-tick one-for-one, sub-tick → 0, backward/clock-skew → 0, 8 h → exactly maxOfflineTicks, 10 h and 1-year absences capped at maxOfflineTicks. No behavior change: identical expression, now with a net).** The original finding: the one expression the whole
 absence economy depends on — `elapsed = min(max(0, floor((now − last)/
 msPerTick)), maxOfflineTicks)` — is inline in `useGameEngine` and
 unit-tested nowhere, while its sibling, the play-time half of the same

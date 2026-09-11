@@ -12,6 +12,7 @@ import {
   BuyAllPlan,
   SaveData,
   buildSaveData,
+  catchUpTicks,
   computeOfflineMinerals,
   computeOfflineTopUpMinerals,
   createEmptySaveData,
@@ -34,7 +35,6 @@ import {
   getPrestigeLevel,
   getPrestigeMultiplier,
   lifetimeDelta,
-  maxOfflineTicks,
   migrateSaveData,
   msPerTick,
   serializeSaveData,
@@ -345,10 +345,7 @@ export function useGameEngine(
     let last = Date.now();
     const id = setInterval(() => {
       const now = Date.now();
-      const elapsed = Math.min(
-        Math.max(0, Math.floor((now - last) / msPerTick)),
-        maxOfflineTicks,
-      );
+      const elapsed = catchUpTicks(last, now);
       last = now;
       if (elapsed < 1) {
         return;

@@ -11,10 +11,7 @@ import { storeConfig } from "../storeConfig";
 
 describe("legal documents", () => {
   it("ships exactly the privacy policy and terms of use", () => {
-    expect(LEGAL_DOCS.map((d) => d.id).sort()).toEqual([
-      "privacy",
-      "terms",
-    ]);
+    expect(LEGAL_DOCS.map((d) => d.id).sort()).toEqual(["privacy", "terms"]);
   });
 
   it("has unique ids, and getLegalDoc round-trips", () => {
@@ -66,9 +63,9 @@ describe("legal documents", () => {
     // ...and it actually appears in every doc's contact section, so a
     // rename of the constant above can't silently orphan the text.
     for (const doc of LEGAL_DOCS) {
-      expect(doc.sections.some((s) => s.body.includes(LEGAL_CONTACT_EMAIL))).toBe(
-        true,
-      );
+      expect(
+        doc.sections.some((s) => s.body.includes(LEGAL_CONTACT_EMAIL)),
+      ).toBe(true);
     }
   });
 });

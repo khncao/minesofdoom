@@ -178,7 +178,9 @@ export function isValidEmailInput(email: string): boolean {
 }
 
 export function isValidPasswordInput(password: string): boolean {
-  return password.length >= AUTH_PASSWORD_MIN && password.length <= AUTH_PASSWORD_MAX;
+  return (
+    password.length >= AUTH_PASSWORD_MIN && password.length <= AUTH_PASSWORD_MAX
+  );
 }
 
 // -- the fetch round-trip (auth is the one data path that NEEDS the HTTP
@@ -306,7 +308,9 @@ function withProviderLinked(
   name: AuthProviderKind,
 ): AuthAccountInfo {
   const providers = account.providers.some((p) => p.name === name)
-    ? account.providers.map((p) => (p.name === name ? { name, linked: true } : p))
+    ? account.providers.map((p) =>
+        p.name === name ? { name, linked: true } : p,
+      )
     : [...account.providers, { name, linked: true }];
   return { ...account, providers };
 }
@@ -341,7 +345,10 @@ export const devSimAuthProvider: AuthProvider = {
   async providerSignIn(kind) {
     const account: AuthAccountInfo = {
       email: "",
-      providers: [{ name: "email", linked: false }, { name: kind, linked: true }],
+      providers: [
+        { name: "email", linked: false },
+        { name: kind, linked: true },
+      ],
     };
     const session = {
       token: `dev-token-${devSimCounter++}`,

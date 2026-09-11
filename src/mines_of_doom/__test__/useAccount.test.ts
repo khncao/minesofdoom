@@ -39,9 +39,7 @@ function makeTokenStore(initial: string | null = null) {
   };
 }
 
-function makeProvider(
-  overrides: Partial<AuthProvider> = {},
-): AuthProvider {
+function makeProvider(overrides: Partial<AuthProvider> = {}): AuthProvider {
   return {
     id: "fake",
     isAvailable: () => true,
@@ -83,9 +81,7 @@ describe("useAccount: session restore on mount", () => {
   it("stays out when no token is stored", async () => {
     const tokenStore = makeTokenStore(null);
     const provider = makeProvider();
-    const { result } = renderHook(() =>
-      useAccount({ provider, tokenStore }),
-    );
+    const { result } = renderHook(() => useAccount({ provider, tokenStore }));
     await flush();
     expect(result.current.status).toBe("out");
     expect(result.current.getSessionToken()).toBeNull();
@@ -95,9 +91,7 @@ describe("useAccount: session restore on mount", () => {
   it("restores a live token to the signed-in state", async () => {
     const tokenStore = makeTokenStore("tok-live");
     const provider = makeProvider();
-    const { result } = renderHook(() =>
-      useAccount({ provider, tokenStore }),
-    );
+    const { result } = renderHook(() => useAccount({ provider, tokenStore }));
     await flush();
     expect(result.current.status).toBe("in");
     expect(result.current.account).toEqual(ACCOUNT);
@@ -108,9 +102,7 @@ describe("useAccount: session restore on mount", () => {
   it("drops a dead token (the server expired/erased it) and stays out", async () => {
     const tokenStore = makeTokenStore("tok-dead");
     const provider = makeProvider();
-    const { result } = renderHook(() =>
-      useAccount({ provider, tokenStore }),
-    );
+    const { result } = renderHook(() => useAccount({ provider, tokenStore }));
     await flush();
     expect(result.current.status).toBe("out");
     expect(result.current.getSessionToken()).toBeNull();
@@ -123,9 +115,7 @@ describe("useAccount: session restore on mount", () => {
     const provider = makeProvider({
       me: jest.fn(async () => ({ status: "unknown" as const })),
     });
-    const { result } = renderHook(() =>
-      useAccount({ provider, tokenStore }),
-    );
+    const { result } = renderHook(() => useAccount({ provider, tokenStore }));
     await flush();
     // Anonymous for this run — but the stored 30-day token SURVIVES the
     // blip, so the next launch retries instead of losing the session.
@@ -142,9 +132,7 @@ describe("useAccount: session restore on mount", () => {
         throw new Error("boom");
       }),
     });
-    const { result } = renderHook(() =>
-      useAccount({ provider, tokenStore }),
-    );
+    const { result } = renderHook(() => useAccount({ provider, tokenStore }));
     await flush();
     expect(result.current.status).toBe("out");
     expect(tokenStore.clearToken).not.toHaveBeenCalled();
@@ -156,9 +144,7 @@ describe("useAccount: sign-in", () => {
   it("register secures the token and runs the claim (link)", async () => {
     const tokenStore = makeTokenStore();
     const provider = makeProvider();
-    const { result } = renderHook(() =>
-      useAccount({ provider, tokenStore }),
-    );
+    const { result } = renderHook(() => useAccount({ provider, tokenStore }));
     await flush();
     let outcome: unknown;
     await act(async () => {
@@ -179,9 +165,7 @@ describe("useAccount: sign-in", () => {
   it("login does the same round of work", async () => {
     const tokenStore = makeTokenStore();
     const provider = makeProvider();
-    const { result } = renderHook(() =>
-      useAccount({ provider, tokenStore }),
-    );
+    const { result } = renderHook(() => useAccount({ provider, tokenStore }));
     await flush();
     await act(async () => {
       await result.current.login("dig@er.co", "password1");
@@ -200,9 +184,7 @@ describe("useAccount: sign-in", () => {
         account: ACCOUNT,
       })),
     });
-    const { result } = renderHook(() =>
-      useAccount({ provider, tokenStore }),
-    );
+    const { result } = renderHook(() => useAccount({ provider, tokenStore }));
     await flush();
     await act(async () => {
       await result.current.register("dig@er.co", "password1");
@@ -219,9 +201,7 @@ describe("useAccount: sign-in", () => {
         throw new Error("network");
       }),
     });
-    const { result } = renderHook(() =>
-      useAccount({ provider, tokenStore }),
-    );
+    const { result } = renderHook(() => useAccount({ provider, tokenStore }));
     await flush();
     await act(async () => {
       await result.current.login("dig@er.co", "password1");
@@ -248,9 +228,7 @@ describe("useAccount: account merge (set password / link provider)", () => {
         token === "tok-login" ? linked : null,
       ),
     });
-    const { result } = renderHook(() =>
-      useAccount({ provider, tokenStore }),
-    );
+    const { result } = renderHook(() => useAccount({ provider, tokenStore }));
     await flush();
     await act(async () => {
       await result.current.login("dig@er.co", "password1");
@@ -276,9 +254,7 @@ describe("useAccount: account merge (set password / link provider)", () => {
     const provider = makeProvider({
       linkProvider: jest.fn(async () => null), // 409: identity taken
     });
-    const { result } = renderHook(() =>
-      useAccount({ provider, tokenStore }),
-    );
+    const { result } = renderHook(() => useAccount({ provider, tokenStore }));
     await flush();
     await act(async () => {
       await result.current.login("dig@er.co", "password1");
@@ -300,9 +276,7 @@ describe("useAccount: account merge (set password / link provider)", () => {
   it("both are inert when not signed in (no session to act on)", async () => {
     const tokenStore = makeTokenStore();
     const provider = makeProvider();
-    const { result } = renderHook(() =>
-      useAccount({ provider, tokenStore }),
-    );
+    const { result } = renderHook(() => useAccount({ provider, tokenStore }));
     await flush();
     await act(async () => {
       await result.current.setPassword("newpassword1");
@@ -317,9 +291,7 @@ describe("useAccount: sign out", () => {
   it("clears the stored token and kills the server session (best effort)", async () => {
     const tokenStore = makeTokenStore("tok-live");
     const provider = makeProvider();
-    const { result } = renderHook(() =>
-      useAccount({ provider, tokenStore }),
-    );
+    const { result } = renderHook(() => useAccount({ provider, tokenStore }));
     await flush();
     expect(result.current.status).toBe("in");
     await act(async () => {
@@ -334,9 +306,7 @@ describe("useAccount: sign out", () => {
   it("signing out twice is a no-op the second time (no second logout call)", async () => {
     const tokenStore = makeTokenStore();
     const provider = makeProvider();
-    const { result } = renderHook(() =>
-      useAccount({ provider, tokenStore }),
-    );
+    const { result } = renderHook(() => useAccount({ provider, tokenStore }));
     await flush();
     await act(async () => {
       await result.current.signOut();
@@ -350,9 +320,7 @@ describe("useAccount: pass-through flags", () => {
   it("surfaces the provider availability and dev-sim flags", async () => {
     const tokenStore = makeTokenStore();
     const provider = makeProvider({ id: "dev-sim" });
-    const { result } = renderHook(() =>
-      useAccount({ provider, tokenStore }),
-    );
+    const { result } = renderHook(() => useAccount({ provider, tokenStore }));
     await flush();
     expect(result.current.available).toBe(true);
     expect(result.current.isDevSim).toBe(true);

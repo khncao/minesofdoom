@@ -9,6 +9,7 @@ import {
   computeBuyAll,
   computeOfflineMinerals,
   buildSaveData,
+  catchUpTicks,
   computeOfflineTopUpMinerals,
   createEmptySaveData,
   gemChancePerLevel,
@@ -1710,5 +1711,37 @@ describe("activePlaySeconds (todo: statistics detail — active clock honesty)",
     expect(activePlaySeconds(1.7, true)).toBe(1);
     expect(activePlaySeconds(Number.NaN, true)).toBe(0);
     expect(activePlaySeconds(Number.POSITIVE_INFINITY, true)).toBe(0);
+  });
+});
+
+describe("catchUpTicks (F40.2 — the absence economy's catch-up, extracted from useGameEngine)", () => {
+  const t0 = 1_000_000_000; // arbitrary epoch base, ms
+
+  test("counts whole ticks one-for-one between fires", () => {
+    expect(catchUpTicks(t0, t0)).toBe(0);
+    expect(catchUpTicks(t0, t0 + msPerTick)).toBe(1);
+    expect(catchUpTicks(t0, t0 + 3 * msPerTick)).toBe(3);
+  });
+
+  test("sub-tick elapsed pays nothing (floors to 0)", () => {
+    expect(catchUpTicks(t0, t0 + 1)).toBe(0);
+    expect(catchUpTicks(t0, t0 + 999)).toBe(0);
+  });
+
+  test("a backward / clock-skew reading pays nothing, never negative", () => {
+    expect(catchUpTicks(t0, t0 - msPerTick)).toBe(0);
+    expect(catchUpTicks(t0 + 10_000, t0)).toBe(0);
+  });
+
+  test("a long absence is capped at maxOfflineTicks, never beyond", () => {
+    expect(
+      catchUpTicks(t0, t0 + maxOfflineTicks * msPerTick),
+    ).toBe(maxOfflineTicks);
+    // 10 h away (2 h over the 8 h cap) still pays exactly the cap...
+    expect(catchUpTicks(t0, t0 + 10 * 60 * 60 * 1000)).toBe(maxOfflineTicks);
+    // ...and so does a year of suspension.
+    expect(catchUpTicks(t0, t0 + 365 * 24 * 60 * 60 * 1000)).toBe(
+      maxOfflineTicks,
+    );
   });
 });
