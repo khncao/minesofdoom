@@ -10,10 +10,13 @@ import {
   minerSpriteUri,
   mulberry32,
   pickaxeSpriteUri,
+  pixelDataUrl,
   DEBRIS_VARIANTS,
   debrisSpriteUri,
   gemSpriteUri,
   mineralChunkSpriteUri,
+  STRIP_MAX_BLOCK_PX,
+  stripSizeForWidth,
 } from "./pixelArt";
 
 const PREFIX = "data:image/png;base64,";
@@ -47,14 +50,28 @@ function decodePng(dataUri: string) {
   const chunks: Array<{ type: string; data: Uint8Array }> = [];
   let off = 8;
   while (off < buf.length) {
-    const len = buf[off] << 24 | buf[off + 1] << 16 | buf[off + 2] << 8 | buf[off + 3];
+    const len =
+      (buf[off] << 24) |
+      (buf[off + 1] << 16) |
+      (buf[off + 2] << 8) |
+      buf[off + 3];
     const type = String.fromCharCode(
-      buf[off + 4], buf[off + 5], buf[off + 6], buf[off + 7],
+      buf[off + 4],
+      buf[off + 5],
+      buf[off + 6],
+      buf[off + 7],
     );
     const data = buf.subarray(off + 8, off + 8 + len);
-    const crc = buf[off + 8 + len] << 24 | buf[off + 9 + len] << 16 | buf[off + 10 + len] << 8 | buf[off + 11 + len];
+    const crc =
+      (buf[off + 8 + len] << 24) |
+      (buf[off + 9 + len] << 16) |
+      (buf[off + 10 + len] << 8) |
+      buf[off + 11 + len];
     // Independent CRC check: recompute over type + data.
-    const crcInput = new Uint8Array([...type.split("").map((c) => c.charCodeAt(0)), ...data]);
+    const crcInput = new Uint8Array([
+      ...type.split("").map((c) => c.charCodeAt(0)),
+      ...data,
+    ]);
     expect(crc32(crcInput)).toBe(crc >>> 0);
     chunks.push({ type, data });
     off += 12 + len;
@@ -62,26 +79,36 @@ function decodePng(dataUri: string) {
 
   expect(chunks.map((c) => c.type)).toEqual(["IHDR", "IDAT", "IEND"]);
   const ihdr = chunks[0].data;
-  const width = ihdr[0] << 24 | ihdr[1] << 16 | ihdr[2] << 8 | ihdr[3];
-  const height = ihdr[4] << 24 | ihdr[5] << 16 | ihdr[6] << 8 | ihdr[7];
-  expect([ihdr[8], ihdr[9], ihdr[10], ihdr[11], ihdr[12]]).toEqual([8, 6, 0, 0, 0]);
+  const width = (ihdr[0] << 24) | (ihdr[1] << 16) | (ihdr[2] << 8) | ihdr[3];
+  const height = (ihdr[4] << 24) | (ihdr[5] << 16) | (ihdr[6] << 8) | ihdr[7];
+  expect([ihdr[8], ihdr[9], ihdr[10], ihdr[11], ihdr[12]]).toEqual([
+    8, 6, 0, 0, 0,
+  ]);
 
-  // IDAT: zlib header (0x78 0x01) + one stored block (final, type 00) + ADLER32.
+  // IDAT: zlib header (0x78 0x01) + a run of stored blocks (BTYPE 00, final
+  // flag on the last) + ADLER32.
   const idat = chunks[1].data;
   expect([idat[0], idat[1]]).toEqual([0x78, 0x01]);
-  expect(idat[2] & 1).toBe(1); // BFINAL
-  expect((idat[2] >> 1) & 3).toBe(0); // BTYPE: stored
-  const len = idat[3] | (idat[4] << 8);
-  const nlen = idat[5] | (idat[6] << 8);
-  expect(nlen).toBe((~len & 0xffff) >>> 0);
-  const raw = idat.subarray(7, 7 + len);
+  const rawParts: number[] = [];
+  let off2 = 2;
+  for (;;) {
+    const bfinal = idat[off2] & 1;
+    expect((idat[off2] >> 1) & 3).toBe(0); // BTYPE: stored
+    const len = idat[off2 + 1] | (idat[off2 + 2] << 8);
+    const nlen = idat[off2 + 3] | (idat[off2 + 4] << 8);
+    expect(nlen).toBe((~len & 0xffff) >>> 0);
+    for (let i = 0; i < len; i++) rawParts.push(idat[off2 + 5 + i]);
+    off2 += 5 + len;
+    if (bfinal) break;
+  }
+  const raw = new Uint8Array(rawParts);
   const adler =
-    (idat[7 + len] << 24) |
-    (idat[8 + len] << 16) |
-    (idat[9 + len] << 8) |
-    idat[10 + len];
+    (idat[off2] << 24) |
+    (idat[off2 + 1] << 16) |
+    (idat[off2 + 2] << 8) |
+    idat[off2 + 3];
   expect(adler32(raw)).toBe(adler >>> 0);
-  expect(idat.length).toBe(11 + len);
+  expect(off2 + 4).toBe(idat.length);
 
   expect(height * (1 + width * 4)).toBe(raw.length);
   const px = (x: number, y: number): number[] => {
@@ -124,13 +151,17 @@ describe("PRNG", () => {
 describe("checksums", () => {
   test("crc32 matches the standard test vector", () => {
     // CRC-32 of ASCII "123456789" is 0xCBF43926 (the polynomial's check value).
-    const input = new Uint8Array("123456789".split("").map((c) => c.charCodeAt(0)));
+    const input = new Uint8Array(
+      "123456789".split("").map((c) => c.charCodeAt(0)),
+    );
     expect(crc32(input)).toBe(0xcbf43926);
   });
 
   test("adler32 matches the standard test vector", () => {
     // Adler-32 of ASCII "Wikipedia" is 0x11E60398.
-    const input = new Uint8Array("Wikipedia".split("").map((c) => c.charCodeAt(0)));
+    const input = new Uint8Array(
+      "Wikipedia".split("").map((c) => c.charCodeAt(0)),
+    );
     expect(adler32(input)).toBe(0x11e60398);
   });
 });
@@ -146,7 +177,9 @@ describe("gridToPngDataUri", () => {
   };
 
   test("encodes a valid, fully-specified PNG with correct pixels", () => {
-    const { width, height, px } = decodePng(gridToPngDataUri(buildMinerGrid(look)));
+    const { width, height, px } = decodePng(
+      gridToPngDataUri(buildMinerGrid(look)),
+    );
     expect(width).toBe(16);
     expect(height).toBe(16);
     // hat (helmet crown), eye, shirt, transparent corner
@@ -158,7 +191,10 @@ describe("gridToPngDataUri", () => {
 
   test("small grids also encode", () => {
     const { width, height, px } = decodePng(
-      gridToPngDataUri([["#ff0000", null], [null, "#00ff00"]]),
+      gridToPngDataUri([
+        ["#ff0000", null],
+        [null, "#00ff00"],
+      ]),
     );
     expect(width).toBe(2);
     expect(height).toBe(2);
@@ -166,18 +202,53 @@ describe("gridToPngDataUri", () => {
     expect(px(1, 1)).toEqual([0, 255, 0, 255]);
   });
 
-  test("rejection of over-large sprites", () => {
-    const big = Array.from({ length: 1 }, () =>
+  test("wide images split across multiple stored blocks", () => {
+    // 20000×2 → ~160KB raw, well past the single 65500-byte stored block:
+    // the encoder must chain stored blocks and still round-trip every pixel.
+    const big = Array.from({ length: 2 }, () =>
       Array.from({ length: 20000 }, () => "#ffffff" as string | null),
     );
-    expect(() => gridToPngDataUri(big)).toThrow();
+    const { width, height, px } = decodePng(gridToPngDataUri(big));
+    expect(width).toBe(20000);
+    expect(height).toBe(2);
+    expect(px(0, 0)).toEqual([255, 255, 255, 255]);
+    expect(px(19999, 1)).toEqual([255, 255, 255, 255]);
+  });
+});
+
+describe("strip sizing (adaptive-width cave strips)", () => {
+  test("stripSizeForWidth rounds up to a cell multiple within the block cap", () => {
+    expect(stripSizeForWidth(0, 24)).toBe(24);
+    expect(stripSizeForWidth(24, 24)).toBe(24);
+    expect(stripSizeForWidth(25, 24)).toBe(48);
+    expect(stripSizeForWidth(1280, 24)).toBe(1296);
+    expect(stripSizeForWidth(16000, 24)).toBe(16008);
+    // Past the cap the result is clamped: still a cell multiple, still near
+    // the cap (at most one cell over), and never larger than that.
+    expect(stripSizeForWidth(100000, 24)).toBeLessThanOrEqual(
+      STRIP_MAX_BLOCK_PX + 23,
+    );
+    expect(stripSizeForWidth(100000, 24) % 24).toBe(0);
+  });
+
+  test("pixelDataUrl encodes a raw RGBA buffer like the grid path", () => {
+    const buf = new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255]);
+    const { width, height, px } = decodePng(pixelDataUrl(buf, 2, 1));
+    expect(width).toBe(2);
+    expect(height).toBe(1);
+    expect(px(0, 0)).toEqual([255, 0, 0, 255]);
+    expect(px(1, 0)).toEqual([0, 255, 0, 255]);
   });
 });
 
 describe("sprite URIs", () => {
   const lookA = {
-    skin: "#f2c9a0", shirt: "#e8a33d", pants: "#3b4a6b",
-    boots: "#4a3524", hat: "#e8c33d", hatStyle: "helmet" as const,
+    skin: "#f2c9a0",
+    shirt: "#e8a33d",
+    pants: "#3b4a6b",
+    boots: "#4a3524",
+    hat: "#e8c33d",
+    hatStyle: "helmet" as const,
   };
   const lookB = { ...lookA, shirt: "#d9534f" };
 
@@ -227,7 +298,7 @@ describe("sprite URIs", () => {
   });
 });
 
-describe("animal bodies (species: \"animal\")", () => {
+describe('animal bodies (species: "animal")', () => {
   // A marmot-ish look: brown fur, red vest, bandana. The field mapping is
   // skin=fur, shirt=vest, pants=lower fur, boots=feet.
   const fur = "#a08058";
@@ -275,12 +346,7 @@ describe("animal bodies (species: \"animal\")", () => {
   });
 
   test("a hat over an animal still leaves the ear tips visible", () => {
-    for (const hatStyle of [
-      "helmet",
-      "beanie",
-      "cap",
-      "bandana",
-    ] as const) {
+    for (const hatStyle of ["helmet", "beanie", "cap", "bandana"] as const) {
       const g = buildMinerGrid({ ...animalLook, hatStyle });
       expect(g[0][5]).toBe(fur);
       expect(g[0][10]).toBe(fur);
@@ -290,9 +356,7 @@ describe("animal bodies (species: \"animal\")", () => {
   test("encodes to a valid PNG and differs from the human look", () => {
     const { px } = decodePng(minerSpriteUri(animalLook));
     // Ear tip and eye read through the PNG
-    expect(px(5, 0)).toEqual([
-      0xa0, 0x80, 0x58, 255,
-    ]);
+    expect(px(5, 0)).toEqual([0xa0, 0x80, 0x58, 255]);
     expect(px(6, 4)).toEqual([0x1a, 0x1a, 0x1a, 255]);
     const human = { ...animalLook, species: "human" as const };
     expect(minerSpriteUri(animalLook)).not.toBe(minerSpriteUri(human));

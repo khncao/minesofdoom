@@ -32,7 +32,9 @@ export const CAVE_TIER_ATS: number[] = [0, 10, 50, 150, 500];
 /** Tiles per strip (the strip is stretched to the canvas width). */
 export const CAVE_TILE_PX = 24;
 /** Number of tiles across a strip. */
-export const CAVE_TILES_PER_ROW = 12;
+export const CAVE_TILES_PER_ROW = 14;
+/** Strip width in source pixels (the strip is stretched to the canvas width). */
+export const CAVE_STRIP_WIDTH = CAVE_TILES_PER_ROW * CAVE_TILE_PX;
 /**
  * Distinct strip textures generated per tier; rows cycle through them as
  * depth increases. Kept small on purpose: the cache holds one PNG data URI
@@ -180,7 +182,7 @@ function drawGem(
  * dug out (no rock, no gems) so the cave reads as one vertical shaft the
  * player is mining down, with dark wall edges on the tiles flanking it.
  */
-export const CAVE_PATH_TILES: readonly number[] = [5, 6];
+export const CAVE_PATH_TILES: readonly number[] = [6, 7];
 
 /** Dark wall edge drawn on the inner side of the tiles flanking the path. */
 export function pathEdgeColor(tint: string): string {
@@ -211,7 +213,9 @@ export type CaveEggKind = (typeof CAVE_EGG_KINDS)[number];
 /** Share of strips that carry an egg. */
 const EGG_CHANCE = 0.15;
 /** Egg placement space: every tile except the two path tiles. */
-const EGG_OUTER_TILES: readonly number[] = [0, 1, 2, 3, 8, 9, 10, 11];
+const EGG_OUTER_TILES: readonly number[] = [
+  0, 1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13,
+];
 
 /**
  * Deterministic per (tier, strip): the egg's tile + kind, or null. Rows
@@ -275,7 +279,7 @@ export function buildCaveRow(
   tint: string,
 ): PixelGrid {
   const t = Math.max(0, Math.min(tier, GEM_CHANCE.length - 1));
-  const grid = createGrid(CAVE_TILES_PER_ROW * CAVE_TILE_PX, CAVE_TILE_PX);
+  const grid = createGrid(CAVE_STRIP_WIDTH, CAVE_TILE_PX);
   const shades = rockShades(tint);
   const gem = gemColor(tint);
   const egg = eggForStrip(t, strip);

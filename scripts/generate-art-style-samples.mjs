@@ -174,8 +174,9 @@ function composeSheet(styleId) {
     row2x + 4 * 54 + 6,
     88 + 6,
   );
-  // Row 3: one full cave row (288px wide) at 1× — Deep Grotto tint.
-  place(s, pass(buildCaveRow(1, 0, "#8fa8b8")), 26, 148);
+  // Row 3: one full cave row (336px wide) at 1× — Deep Grotto tint,
+  // centered in the 340px sheet.
+  place(s, pass(buildCaveRow(1, 0, "#8fa8b8")), (SHEET_W - 336) / 2, 148);
   return s;
 }
 

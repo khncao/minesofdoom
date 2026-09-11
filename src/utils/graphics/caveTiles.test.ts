@@ -6,6 +6,7 @@ import {
   CAVE_PATH_TILES,
   CAVE_PX_PER_METER,
   CAVE_STRIPS_PER_TIER,
+  CAVE_STRIP_WIDTH,
   CAVE_TILE_PX,
   CAVE_TIER_ATS,
   caveRowStartForDepth,
@@ -78,7 +79,7 @@ describe("buildCaveRow", () => {
     const a = buildCaveRow(2, 0, "#9a7fb8");
     const b = buildCaveRow(2, 0, "#9a7fb8");
     expect(a.length).toBe(24);
-    expect(a[0].length).toBe(288);
+    expect(a[0].length).toBe(14 * 24); // CAVE_TILES_PER_ROW × CAVE_TILE_PX
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 
@@ -111,13 +112,17 @@ describe("buildCaveRow", () => {
     expect(found).toBe(true);
   });
 
-  test("strip is within the PNG encoder's single-block size limit", () => {
-    // gridToPngDataUri throws above 65535 raw bytes; exercising it here
-    // catches a future COLS/width bump before it reaches the render loop.
-    expect(() => buildCaveRow(4, 3, "#5ab8b8")).not.toThrow();
+  test("strip size is pinned and the PNG payload stays bounded", () => {
+    // The encoder (pixelArt) splits the raw payload into stored deflate
+    // blocks of ≤65535 bytes, so any width works, but pin the budget: a
+    // width bump that blew the strip into many blocks is a visible cost
+    // change and should fail here first.
     const grid = buildCaveRow(4, 3, "#5ab8b8");
+    expect(grid.length).toBe(CAVE_TILE_PX);
+    expect(grid[0].length).toBe(CAVE_STRIP_WIDTH);
     const raw = grid.length * (1 + grid[0].length * 4);
-    expect(raw).toBeLessThanOrEqual(65535);
+    expect(raw).toBe(CAVE_TILE_PX * (1 + CAVE_STRIP_WIDTH * 4));
+    expect(raw).toBeLessThanOrEqual(2 * 65535);
   });
 });
 

@@ -39,18 +39,27 @@ export type Pixel = string | null;
 export type PixelGrid = Pixel[][];
 
 export function createGrid(width: number, height: number): PixelGrid {
-  return Array.from({ length: height }, () =>
-    Array<Pixel>(width).fill(null),
-  );
+  return Array.from({ length: height }, () => Array<Pixel>(width).fill(null));
 }
 
-export function setPixel(grid: PixelGrid, x: number, y: number, color: Pixel): void {
+export function setPixel(
+  grid: PixelGrid,
+  x: number,
+  y: number,
+  color: Pixel,
+): void {
   if (y >= 0 && y < grid.length && x >= 0 && x < grid[0].length) {
     grid[y][x] = color;
   }
 }
 
-export function hline(grid: PixelGrid, x0: number, x1: number, y: number, color: Pixel): void {
+export function hline(
+  grid: PixelGrid,
+  x0: number,
+  x1: number,
+  y: number,
+  color: Pixel,
+): void {
   for (let x = x0; x <= x1; x++) setPixel(grid, x, y, color);
 }
 
@@ -79,7 +88,8 @@ export function toBase64(bytes: Uint8Array): string {
     const b2 = i + 2 < bytes.length ? bytes[i + 2] : -1;
     out += B64_CHARS[b0 >> 2];
     out += B64_CHARS[((b0 & 3) << 4) | (b1 >= 0 ? b1 >> 4 : 0)];
-    out += b1 >= 0 ? B64_CHARS[((b1 & 15) << 2) | (b2 >= 0 ? b2 >> 6 : 0)] : "=";
+    out +=
+      b1 >= 0 ? B64_CHARS[((b1 & 15) << 2) | (b2 >= 0 ? b2 >> 6 : 0)] : "=";
     out += b2 >= 0 ? B64_CHARS[b2 & 63] : "=";
   }
   return out;
@@ -140,16 +150,19 @@ function concatBytes(...arrs: Array<number[] | Uint8Array>): Uint8Array {
 
 function pngChunk(type: string, data: Uint8Array): Uint8Array {
   const typeBytes = Array.from(type, (ch) => ch.charCodeAt(0));
-  const crc = crc32(
-    concatBytes(new Uint8Array(typeBytes), data),
-  );
+  const crc = crc32(concatBytes(new Uint8Array(typeBytes), data));
   return concatBytes(u32be(data.length), typeBytes, data, u32be(crc));
 }
 
+/** Max raw payload per stored deflate block (the deflate limit is 65535). */
+export const STORED_BLOCK_MAX = 65500;
+
 /**
- * Encode a grid as `data:image/png;base64,...`. The image data is a single
- * *stored* (uncompressed) deflate block — fine at this size (~1.1KB raw for
- * 16×16 RGBA) and keeps the encoder free of any zlib dependency.
+ * Encode a grid as `data:image/png;base64,...`. The image data is a run of
+ * *stored* (uncompressed) deflate blocks — one per
+ * `STORED_BLOCK_MAX` raw bytes — which keeps the encoder free of any zlib
+ * dependency while still allowing wide images (the adaptive-width cave
+ * strips are up to a few thousand px wide, well past one block).
  */
 export function gridToPngDataUri(grid: PixelGrid): string {
   const height = grid.length;
@@ -178,20 +191,111 @@ export function gridToPngDataUri(grid: PixelGrid): string {
     }
   }
   const rawBytes = new Uint8Array(raw);
-  if (rawBytes.length > 65535) {
-    throw new Error("Sprite too large for a single stored deflate block");
+
+  // Stored deflate blocks: each header is BFINAL (1 on the last block),
+  // BTYPE=00 (stored), then LEN and NLEN (~LEN) little-endian, then the raw
+  // payload. Splitting keeps every block under the deflate 65535 limit.
+  let idat: Uint8Array = new Uint8Array([0x78, 0x01]); // zlib header
+  for (let off = 0; off < rawBytes.length; off += STORED_BLOCK_MAX) {
+    const chunk = rawBytes.subarray(off, off + STORED_BLOCK_MAX);
+    const isFinal = off + STORED_BLOCK_MAX >= rawBytes.length;
+    const len = chunk.length;
+    const nlen = ~len & 0xffff;
+    idat = concatBytes(
+      idat,
+      [
+        isFinal ? 1 : 0,
+        len & 0xff,
+        (len >> 8) & 0xff,
+        nlen & 0xff,
+        (nlen >> 8) & 0xff,
+      ],
+      chunk,
+    );
   }
+  idat = concatBytes(idat, u32be(adler32(rawBytes)));
 
-  // Stored deflate block: BFINAL=1, BTYPE=00, then LEN and NLEN (~LEN) little-endian.
-  const len = rawBytes.length;
-  const nlen = (~len) & 0xffff;
-  const adler = adler32(rawBytes);
-  const idat = concatBytes(
-    [0x78, 0x01, 0x01, len & 0xff, (len >> 8) & 0xff, nlen & 0xff, (nlen >> 8) & 0xff],
-    rawBytes,
-    u32be(adler),
+  const png = concatBytes(
+    [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+    pngChunk("IHDR", ihdr),
+    pngChunk("IDAT", idat),
+    pngChunk("IEND", new Uint8Array(0)),
   );
+  return `data:image/png;base64,${toBase64(png)}`;
+}
 
+/**
+ * Encode an RGBA8 byte buffer (row-major) as a PNG data URL. Buffer-based
+ * variant of {@link gridToPngDataUri} for procedurally filled strips (cave
+ * tiles) where building a hex-string grid would be wasteful. Same stored
+ * deflate multi-block encoding.
+ */
+export function pixelDataUrl(
+  buf: Uint8Array,
+  width: number,
+  height: number,
+): string {
+  const raw = new Uint8Array(height * (width * 4 + 1));
+  for (let y = 0; y < height; y++) {
+    raw[y * (width * 4 + 1)] = 0; // filter byte: None
+    raw.set(
+      buf.subarray(y * width * 4, (y + 1) * width * 4),
+      y * (width * 4 + 1) + 1,
+    );
+  }
+  return pngBytesFromRaw(width, height, raw);
+}
+
+/** Largest cave-strip width (in px) that fits one stored deflate block. */
+export const STRIP_MAX_BLOCK_PX = Math.max(
+  64,
+  Math.floor(STORED_BLOCK_MAX / 4),
+);
+
+/**
+ * Pick a strip width (multiple of `cellSize`) for a container of `widthPx`:
+ * one block when it fits the stored-deflate block limit, otherwise as many
+ * cells as needed (capped) so the strip never visually stretches.
+ */
+export function stripSizeForWidth(widthPx: number, cellSize: number): number {
+  const fit = Math.min(STRIP_MAX_BLOCK_PX, Math.max(cellSize, widthPx));
+  const cells = Math.max(1, Math.ceil(fit / cellSize));
+  return cells * cellSize;
+}
+
+function pngBytesFromRaw(
+  width: number,
+  height: number,
+  raw: Uint8Array,
+): string {
+  const ihdr = new Uint8Array([
+    ...u32be(width),
+    ...u32be(height),
+    8,
+    6,
+    0,
+    0,
+    0,
+  ]);
+  let idat: Uint8Array = new Uint8Array([0x78, 0x01]);
+  for (let off = 0; off < raw.length; off += STORED_BLOCK_MAX) {
+    const chunk = raw.subarray(off, off + STORED_BLOCK_MAX);
+    const isFinal = off + STORED_BLOCK_MAX >= raw.length;
+    const len = chunk.length;
+    const nlen = ~len & 0xffff;
+    idat = concatBytes(
+      idat,
+      [
+        isFinal ? 1 : 0,
+        len & 0xff,
+        (len >> 8) & 0xff,
+        nlen & 0xff,
+        (nlen >> 8) & 0xff,
+      ],
+      chunk,
+    );
+  }
+  idat = concatBytes(idat, u32be(adler32(raw)));
   const png = concatBytes(
     [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
     pngChunk("IHDR", ihdr),
@@ -443,14 +547,118 @@ const N: Pixel = null;
 const MINERAL_CHUNK_ROWS: Pixel[][] = [
   [N, N, N, N, N, N, N, N, N, N, N, N],
   [N, N, N, N, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, N, N, N, N],
-  [N, N, N, ROCK_LIGHT, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, N, N, N],
-  [N, N, ROCK_BASE, ROCK_BASE, ROCK_BASE, ORE_GOLD, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, N, N],
-  [N, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, N, N],
-  [N, ROCK_BASE, ROCK_BASE, ORE_GOLD, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, N],
-  [N, ROCK_BASE, ROCK_BASE, ROCK_BASE, ORE_GLOW, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, N, N],
-  [N, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ORE_GOLD, ROCK_BASE, N, N],
-  [N, ROCK_DARK, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, N, N, N],
-  [N, N, ROCK_DARK, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_DARK, N, N, N, N],
+  [
+    N,
+    N,
+    N,
+    ROCK_LIGHT,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    N,
+    N,
+    N,
+  ],
+  [
+    N,
+    N,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ORE_GOLD,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    N,
+    N,
+  ],
+  [
+    N,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    N,
+    N,
+  ],
+  [
+    N,
+    ROCK_BASE,
+    ROCK_BASE,
+    ORE_GOLD,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    N,
+  ],
+  [
+    N,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ORE_GLOW,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    N,
+    N,
+  ],
+  [
+    N,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ORE_GOLD,
+    ROCK_BASE,
+    N,
+    N,
+  ],
+  [
+    N,
+    ROCK_DARK,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    N,
+    N,
+    N,
+  ],
+  [
+    N,
+    N,
+    ROCK_DARK,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_BASE,
+    ROCK_DARK,
+    N,
+    N,
+    N,
+    N,
+  ],
   [N, N, N, ROCK_DARK, ROCK_BASE, ROCK_BASE, ROCK_BASE, ROCK_BASE, N, N, N, N],
   [N, N, N, N, ROCK_DARK, ROCK_BASE, ROCK_BASE, N, N, N, N, N],
 ];
@@ -459,13 +667,104 @@ const MINERAL_CHUNK_ROWS: Pixel[][] = [
 const GEM_ROWS: Pixel[][] = [
   [N, N, N, N, N, N, N, N, N, N, N, N],
   [N, N, N, N, GEM_DEEP, GEM_DEEP, GEM_DEEP, GEM_DEEP, N, N, N, N],
-  [N, N, N, GEM_DEEP, GEM_BASE, GEM_LIGHT, GEM_BASE, GEM_BASE, GEM_DEEP, N, N, N],
-  [N, N, GEM_DEEP, GEM_BASE, GEM_LIGHT, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_DEEP, N, N],
-  [N, GEM_DEEP, GEM_BASE, GEM_LIGHT, GEM_BASE, GEM_BASE, GEM_BASE, GEM_LIGHT, GEM_BASE, GEM_DEEP, N, N],
-  [N, GEM_BASE, GEM_LIGHT, GEM_BASE, GEM_BASE, GEM_WHITE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_DEEP, N],
-  [GEM_DEEP, GEM_BASE, GEM_BASE, GEM_BASE, GEM_WHITE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, N],
-  [N, GEM_DEEP, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_DEEP, N],
-  [N, N, GEM_DEEP, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_BASE, GEM_DEEP, N, N, N],
+  [
+    N,
+    N,
+    N,
+    GEM_DEEP,
+    GEM_BASE,
+    GEM_LIGHT,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_DEEP,
+    N,
+    N,
+    N,
+  ],
+  [
+    N,
+    N,
+    GEM_DEEP,
+    GEM_BASE,
+    GEM_LIGHT,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_DEEP,
+    N,
+    N,
+  ],
+  [
+    N,
+    GEM_DEEP,
+    GEM_BASE,
+    GEM_LIGHT,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_LIGHT,
+    GEM_BASE,
+    GEM_DEEP,
+    N,
+    N,
+  ],
+  [
+    N,
+    GEM_BASE,
+    GEM_LIGHT,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_WHITE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_DEEP,
+    N,
+  ],
+  [
+    GEM_DEEP,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_WHITE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_BASE,
+    N,
+  ],
+  [
+    N,
+    GEM_DEEP,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_DEEP,
+    N,
+  ],
+  [
+    N,
+    N,
+    GEM_DEEP,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_BASE,
+    GEM_DEEP,
+    N,
+    N,
+    N,
+  ],
   [N, N, N, GEM_DEEP, GEM_BASE, GEM_BASE, GEM_BASE, GEM_DEEP, N, N, N, N],
   [N, N, N, N, GEM_DEEP, GEM_BASE, GEM_BASE, GEM_DEEP, N, N, N, N],
   [N, N, N, N, N, N, N, N, N, N, N, N],
