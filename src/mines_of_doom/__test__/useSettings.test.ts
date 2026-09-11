@@ -59,9 +59,11 @@ const renderSettingsTest = (): UseSettingsTest => {
   const displayMessage = jest.fn();
   const r = renderHook(() => useSettings({ saveGame, displayMessage }));
   return {
-    result: { get current() {
-      return r.result.current;
-    } },
+    result: {
+      get current() {
+        return r.result.current;
+      },
+    },
     saveGame,
     displayMessage,
   };
@@ -115,10 +117,7 @@ describe("useSettings", () => {
   it("merges a partial stored save over defaults (forward-compat)", async () => {
     // A pre-upgrade save without the newer fields: every field must be
     // present in the result, stored fields winning.
-    mockStore.set(
-      settingsDataKey,
-      JSON.stringify({ music: false }),
-    );
+    mockStore.set(settingsDataKey, JSON.stringify({ music: false }));
     const { result } = renderSettingsTest();
     await flush();
     expect(result.current.settingsData).toEqual({
@@ -141,14 +140,16 @@ describe("useSettings", () => {
     // Two composes: the second must see the first's result (a
     // stale-closure update would land back at the default here).
     act(() => {
-      result.current.updateSettingsData(
-        (s: SettingsData) => ({ ...s, music: !s.music }),
-      );
+      result.current.updateSettingsData((s: SettingsData) => ({
+        ...s,
+        music: !s.music,
+      }));
     });
     act(() => {
-      result.current.updateSettingsData(
-        (s: SettingsData) => ({ ...s, music: !s.music }),
-      );
+      result.current.updateSettingsData((s: SettingsData) => ({
+        ...s,
+        music: !s.music,
+      }));
     });
     expect(result.current.settingsData.music).toBe(start);
   });
@@ -157,9 +158,10 @@ describe("useSettings", () => {
     const { result } = renderSettingsTest();
     await flush();
     act(() => {
-      result.current.updateSettingsData(
-        (s: SettingsData) => ({ ...s, music: false }),
-      );
+      result.current.updateSettingsData((s: SettingsData) => ({
+        ...s,
+        music: false,
+      }));
     });
     const persisted = JSON.parse(
       mockStore.get(settingsDataKey) ?? "{}",
@@ -178,9 +180,10 @@ describe("useSettings", () => {
     const { result } = renderSettingsTest();
     // Update BEFORE the load resolves.
     act(() => {
-      result.current.updateSettingsData(
-        (s: SettingsData) => ({ ...s, music: false }),
-      );
+      result.current.updateSettingsData((s: SettingsData) => ({
+        ...s,
+        music: false,
+      }));
     });
     await flush();
     expect(result.current.settingsData.music).toBe(false);
@@ -190,14 +193,13 @@ describe("useSettings", () => {
     const { result } = renderSettingsTest();
     await flush();
     mockRejectSetItem = true;
-    const warnSpy = jest
-      .spyOn(console, "warn")
-      .mockImplementation(() => {});
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
     // Must not throw into the caller.
     act(() => {
-      result.current.updateSettingsData(
-        (s: SettingsData) => ({ ...s, music: false }),
-      );
+      result.current.updateSettingsData((s: SettingsData) => ({
+        ...s,
+        music: false,
+      }));
     });
     expect(result.current.settingsData.music).toBe(false);
     // Flush so the rejected setItem promise settles and the hook's
@@ -211,24 +213,26 @@ describe("useSettings", () => {
     const test = renderSettingsTest();
     await flush();
     act(() => {
-      test.result.current.updateSettingsData(
-        (s: SettingsData) => ({ ...s, music: false }),
-      );
+      test.result.current.updateSettingsData((s: SettingsData) => ({
+        ...s,
+        music: false,
+      }));
     });
     act(() => {
       test.result.current.handleSaveSettings();
     });
     expect(test.saveGame).toHaveBeenCalledTimes(1);
-    expect(
-      JSON.parse(mockStore.get(settingsDataKey) ?? "{}"),
-    ).toEqual({ ...defaultSettingsData, music: false });
-    expect(
-      JSON.parse(mockStore.get(equationSettingsKey) ?? "{}"),
-    ).toEqual(defaultEquationSettings);
+    expect(JSON.parse(mockStore.get(settingsDataKey) ?? "{}")).toEqual({
+      ...defaultSettingsData,
+      music: false,
+    });
+    expect(JSON.parse(mockStore.get(equationSettingsKey) ?? "{}")).toEqual(
+      defaultEquationSettings,
+    );
     expect(test.displayMessage).toHaveBeenCalledTimes(1);
     expect(test.displayMessage.mock.calls[0][1]).toBe(3000);
-    expect(
-      String(test.displayMessage.mock.calls[0][0]).length,
-    ).toBeGreaterThan(0);
+    expect(String(test.displayMessage.mock.calls[0][0]).length).toBeGreaterThan(
+      0,
+    );
   });
 });
