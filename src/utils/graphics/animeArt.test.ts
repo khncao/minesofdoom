@@ -102,7 +102,7 @@ describe("buildAnimeCharacterGrid", () => {
     }
   });
 
-  it("bob and long differ exactly in the front-strand region", () => {
+  it("bob and long differ exactly in the side-hair column region", () => {
     const bob = buildAnimeCharacterGrid({ ...LOOKS[0], hairStyle: "bob" });
     const long = buildAnimeCharacterGrid({ ...LOOKS[0], hairStyle: "long" });
     let diffs = 0;
@@ -110,11 +110,11 @@ describe("buildAnimeCharacterGrid", () => {
       for (let x = 0; x < ANIME_GRID_SIZE; x++) {
         if (bob[y][x] !== long[y][x]) {
           diffs++;
-          // Strands live at x 6..9 / 22..25, y 19..26 — nowhere else.
+          // Columns live at x 6..9 / 22..25, y 14..24 — nowhere else.
           const mirrored = x >= 31 - 9 && x <= 31 - 6;
           expect((x >= 6 && x <= 9) || mirrored).toBe(true);
-          expect(y).toBeGreaterThanOrEqual(19);
-          expect(y).toBeLessThanOrEqual(26);
+          expect(y).toBeGreaterThanOrEqual(14);
+          expect(y).toBeLessThanOrEqual(24);
         }
       }
     }
@@ -124,9 +124,9 @@ describe("buildAnimeCharacterGrid", () => {
   it("both hair styles show the fringe tips and the scalloped hem gaps", () => {
     for (const style of ["bob", "long"] as const) {
       const g = buildAnimeCharacterGrid({ ...LOOKS[1], hairStyle: style });
-      // Fringe tips (row 11) alternate hair/skin — check one tip + one gap.
-      expect(g[11][13]).toBe(LOOKS[1].hair); // tip
-      expect(g[11][15]).not.toBe(LOOKS[1].hair); // gap between tips
+      // Fringe tips (row 10) alternate hair/skin — check one tip + one gap.
+      expect(g[10][13]).toBe(LOOKS[1].hair); // tip
+      expect(g[10][15]).not.toBe(LOOKS[1].hair); // gap between tips
       // Frill hem (row 27): four lobes with 1px gaps at x 12, 16, 20.
       expect(g[27][10]).toBe(LOOKS[1].dress); // lobe
       expect(g[27][12]).toBeNull(); // gap

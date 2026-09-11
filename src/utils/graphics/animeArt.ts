@@ -4,7 +4,8 @@
  * stylePasses.ts (16×16 grid transforms) and detailPass.ts (a bevel over the
  * base grids), this module BUILDS new 32×32 sprites from scratch: a chibi
  * character with big glossy eyes, shine-banded hair, a frilly-scarfed dress,
- * a chest bow, and a scalloped hem. Pure, framework-free, deterministic.
+ * a chest bow (wings tapering to a V), and a scalloped hem. Pure,
+ * framework-free, deterministic.
  *
  * This is the draft the decision picks from — it is NOT wired into the app.
  * The contact sheet lives in docs/art-anime.md and is rendered by
@@ -111,9 +112,10 @@ function ellipse(
 
 /**
  * Build one 32×32 chibi character. Drawing order is back-to-front:
- * back hair → face → fringe + shine → brows/eyes/blush/mouth → dress
- * (bodice, bow, petticoat band, flared skirt, folds, scalloped frill hem)
- * → arms → feet → front hair strands (long style only, over the shoulders).
+ * back hair → wide face → fringe + shine → brows/eyes/blush/mouth → dress
+ * (bodice, V-tapered bow, petticoat band, flared skirt, folds, scalloped
+ * frill hem) → arms → feet → long side hair columns (long style only,
+ * running from the lower head over the shoulders so they never float).
  * A fresh grid is returned; `look` is read, never mutated.
  */
 export function buildAnimeCharacterGrid(look: AnimeLook): PixelGrid {
@@ -127,36 +129,42 @@ export function buildAnimeCharacterGrid(look: AnimeLook): PixelGrid {
   const bootTrim = lightenHex(ANIME_BOOT, 0.3);
 
   // --- head (chibi: the head is ~half the sprite) --------------------------
-  ellipse(g, 15.5, 11, 10, 9, look.hair); // back hair
-  ellipse(g, 15.5, 12.5, 7.5, 6.5, look.skin); // face
+  ellipse(g, 15.5, 10.5, 9, 8.5, look.hair); // back hair
+  ellipse(g, 15.5, 13, 8, 7, look.skin); // wide face (the chibi face shows)
   // Fringe: solid band + four down-tips over the forehead.
-  rect(g, 8, 6, 23, 10, look.hair);
-  rect(g, 9, 11, 10, 11, look.hair);
-  rect(g, 13, 11, 14, 11, look.hair);
-  rect(g, 17, 11, 18, 11, look.hair);
-  rect(g, 21, 11, 22, 11, look.hair);
-  rect(g, 9, 3, 22, 4, hairShine); // gloss band
+  rect(g, 8, 6, 23, 9, look.hair);
+  rect(g, 9, 10, 10, 10, look.hair);
+  rect(g, 13, 10, 14, 10, look.hair);
+  rect(g, 17, 10, 18, 10, look.hair);
+  rect(g, 21, 10, 22, 10, look.hair);
+  rect(g, 11, 3, 20, 4, hairShine); // gloss band (inside the hair at both rows)
   // Brows (thin, one row above the eyes).
   mirrorRect(g, 11, 12, 12, 12, brow);
-  // Eyes: 4 rows — lash line, then iris with a two-pixel gloss highlight.
+  // Eyes: lash line, iris, rounded bottom, two gloss highlights per eye.
   mirrorRect(g, 10, 13, 13, 13, ANIME_EYELASH);
-  mirrorRect(g, 10, 14, 13, 16, eye);
+  mirrorRect(g, 10, 14, 13, 15, eye);
+  mirrorRect(g, 11, 16, 12, 16, eye); // rounded bottom (corners stay face)
+  g[14][11] = ANIME_HIGHLIGHT;
   g[15][12] = ANIME_HIGHLIGHT; // left-eye gloss
-  g[15][19] = ANIME_HIGHLIGHT; // right-eye gloss (mirror of x 12)
+  g[14][20] = ANIME_HIGHLIGHT;
+  g[15][19] = ANIME_HIGHLIGHT; // right-eye gloss (mirror)
   // Blush + small mouth.
-  mirrorRect(g, 9, 15, 10, 16, ANIME_BLUSH);
+  mirrorRect(g, 8, 15, 9, 16, ANIME_BLUSH);
   rect(g, 15, 17, 16, 17, ANIME_MOUTH);
 
   // --- dress ----------------------------------------------------------------
-  rect(g, 11, 19, 20, 19, look.dress); // shoulders
-  rect(g, 12, 19, 19, 22, look.dress); // bodice
-  // Bow: two wings + a darker knot over the chest.
-  mirrorRect(g, 12, 19, 14, 21, look.bow);
-  rect(g, 15, 20, 16, 21, bowKnot);
+  rect(g, 11, 20, 20, 20, look.dress); // shoulders
+  rect(g, 12, 20, 19, 22, look.dress); // bodice
+  // Bow: wings tapering to a V + a darker knot over the chest.
+  mirrorRect(g, 12, 20, 14, 20, look.bow);
+  mirrorRect(g, 13, 21, 14, 21, look.bow);
+  mirrorRect(g, 14, 22, 14, 22, look.bow);
+  rect(g, 15, 21, 16, 22, bowKnot);
   // Petticoat peek + flared skirt with three fold lines...
   rect(g, 10, 23, 21, 23, dressLight);
-  rect(g, 9, 24, 22, 26, look.dress);
-  rect(g, 8, 25, 23, 26, look.dress);
+  rect(g, 10, 24, 21, 24, look.dress);
+  rect(g, 9, 25, 22, 26, look.dress);
+  rect(g, 8, 26, 23, 26, look.dress);
   rect(g, 12, 24, 12, 26, dressDark);
   rect(g, 16, 24, 16, 26, dressDark);
   rect(g, 20, 24, 20, 26, dressDark);
@@ -175,11 +183,15 @@ export function buildAnimeCharacterGrid(look: AnimeLook): PixelGrid {
   rect(g, 12, 29, 14, 29, bootTrim);
   rect(g, 17, 29, 19, 29, bootTrim);
 
-  // --- front hair strands (long style only) ----------------------------------
+  // --- long side hair (long style only) --------------------------------------
+  // Columns from the lower head over the shoulders — continuous, so the
+  // strands can never float off the head the way separate tufts did.
   if (look.hairStyle === "long") {
-    mirrorRect(g, 6, 19, 9, 21, look.hair);
-    mirrorRect(g, 7, 22, 9, 24, look.hair);
-    mirrorRect(g, 8, 25, 9, 26, look.hair);
+    // Overlap the lower head (back hair reaches x 7 at y 14) so the columns
+    // connect, and taper: outer column shortest, inner longest.
+    mirrorRect(g, 6, 14, 6, 22, look.hair);
+    mirrorRect(g, 7, 14, 8, 24, look.hair);
+    mirrorRect(g, 9, 20, 9, 24, look.hair);
   }
 
   return g;

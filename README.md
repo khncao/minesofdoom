@@ -37,6 +37,7 @@ Use **pnpm** (not npm) — see `pnpm-lock.yaml` and `.npmrc`.
 - [docs/gap-ranking.md](docs/gap-ranking.md) — gap analysis / prioritization
 - [docs/art-styles.md](docs/art-styles.md) — generated art style drafts (contact sheets)
 - [docs/art-detail.md](docs/art-detail.md) — detail pass drafts (more detailed generated pixel art)
+- [docs/art-anime.md](docs/art-anime.md) — high-resolution anime chibi character drafts (contact sheet)
 - [docs/store-integration.md](docs/store-integration.md) — Play Store, ads, and IAP setup
 - [docs/pocketbase-plan.md](docs/pocketbase-plan.md) — PocketBase backend plan
 - [docs/security-audit.md](docs/security-audit.md) — security notes
