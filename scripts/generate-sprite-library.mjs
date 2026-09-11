@@ -33,6 +33,11 @@ const META = {
   name: "Cyber technician",
   sourceUrl: "https://freegamesprites.com/en/assets/cybernetic-arm-technician",
  },
+ "deep-mole": {
+  name: "Deep mole",
+  sourceUrl:
+   "original — authored in-repo (scripts/generate-deep-mole-sprite.mjs)",
+ },
  "dwarven-mine-worker": {
   name: "Dwarven miner",
   sourceUrl: "https://freegamesprites.com/en/assets/dwarven-mine-worker",

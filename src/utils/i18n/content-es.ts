@@ -353,6 +353,7 @@ export const contentEs: ContentTable = {
   // --- Bundled sprite library (BUNDLED_SPRITES in bundledSprites.ts) ----
   "bundledSprite:beggar-boy-tin-cup": { title: "Pilluelo con lata" },
   "bundledSprite:cybernetic-arm-technician": { title: "Técnico cibernético" },
+  "bundledSprite:deep-mole": { title: "Topo profundo" },
   "bundledSprite:dwarven-mine-worker": { title: "Minero enano" },
   "bundledSprite:goblin-bog-servant": { title: "Goblin del pantano" },
   "bundledSprite:hangar-mechanic-goggles-greasy": {

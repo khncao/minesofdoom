@@ -15,6 +15,8 @@ carries the CC0 license in its metadata. The PNGs here are the original
 
   beggar-boy-tin-cup.png          https://freegamesprites.com/en/assets/beggar-boy-tin-cup
   cybernetic-arm-technician.png   https://freegamesprites.com/en/assets/cybernetic-arm-technician
+  deep-mole.png                 original — authored in-repo (16×16 pixel grid scaled 8× to 128×128,
+                                scripts/generate-deep-mole-sprite.mjs), dedicated to the public domain
   dwarven-mine-worker.png         https://freegamesprites.com/en/assets/dwarven-mine-worker
   goblin-bog-servant.png          https://freegamesprites.com/en/assets/goblin-bog-servant
   hangar-mechanic-goggles-greasy.png  https://freegamesprites.com/en/assets/hangar-mechanic-goggles-greasy

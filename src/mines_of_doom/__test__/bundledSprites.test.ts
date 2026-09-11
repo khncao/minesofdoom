@@ -22,10 +22,15 @@ describe("bundled sprite library", () => {
     }
   });
 
-  it("every entry is CC0-licensed with a source page (transparency)", () => {
+  it("every entry is CC0-licensed with a declared source (transparency)", () => {
     for (const s of BUNDLED_SPRITES) {
       expect(s.license).toBe("CC0-1.0");
-      expect(s.sourceUrl).toMatch(/^https:\/\/freegamesprites\.com\//);
+      // Sourced sprites carry their freegamesprites.com page; art authored in
+      // this repo (no external page) declares `original — …` instead. Either
+      // way the origin must be explicit, never blank.
+      expect(
+        /^https:\/\//.test(s.sourceUrl) || /^original[\s-]/i.test(s.sourceUrl),
+      ).toBe(true);
       expect(s.name.length).toBeGreaterThan(0);
     }
   });

@@ -60,11 +60,9 @@ const {
   buildMineralChunkGrid,
 } = await import("../src/utils/graphics/pixelArt.ts");
 const { buildCaveRow } = await import("../src/utils/graphics/caveTiles.ts");
-const {
-  detailPass,
-  DETAIL_STRONG,
-  DETAIL_SOFT,
-} = await import("../src/utils/graphics/detailPass.ts");
+const { detailPass, DETAIL_STRONG, DETAIL_SOFT } = await import(
+  "../src/utils/graphics/detailPass.ts"
+);
 const { createGrid, hexToRgb } = await import(
   "../src/utils/graphics/pixelArt.ts"
 );
