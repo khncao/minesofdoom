@@ -206,10 +206,15 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
       storeConfig.stripeProd.prices = savedPrices;
     });
 
-    it("is empty until the launch flip (pre-launch state is pinned)", () => {
-      expect(storeConfig.stripeProd.publishableKey).toBe("");
-      expect(storeConfig.stripeProd.prices).toEqual({});
-      expect(isStripeProdConfigured()).toBe(false);
+    it("pins the flipped price map (launch flip, §2.6 step 6)", () => {
+      // The price map is pasted (syncStripe.mjs products --live) and must
+      // cover the FULL catalog with live price ids.
+      expect(new Set(Object.keys(storeConfig.stripeProd.prices))).toEqual(
+        new Set(IAP_PRODUCT_IDS),
+      );
+      for (const price of Object.values(storeConfig.stripeProd.prices)) {
+        expect(price).toMatch(/^price_[A-Za-z0-9]+$/);
+      }
     });
 
     it("never activates on a non-prod env, even fully filled", () => {
@@ -223,8 +228,9 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
     });
 
     it("prod env + unconfigured prod block falls back to the test block", () => {
-      // The pre-launch state: the prod domain still serves the test-mode
-      // block until the --live snippet is pasted.
+      // No publishable key → never an activation, however full the map.
+      storeConfig.stripeProd.publishableKey = "";
+      expect(isStripeProdConfigured()).toBe(false);
       expect(getActiveStripe(true)).toBe(storeConfig.stripe);
     });
 

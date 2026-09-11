@@ -146,8 +146,35 @@ export const storeConfig = {
   // this exact block (pk_live_ key + live price map, the §2.6 step-6
   // snippet). Empty = not flipped yet.
   publishableKey: "",
-  prices: {} as Record<string, string>,
- },
+  prices: {
+    packGold: "price_1UEaWODBoBUcNBmBW7km01os",
+    packFrost: "price_1UEaWODBoBUcNBmBKcKPo0mC",
+    packShadow: "price_1UEaWPDBoBUcNBmBuZWshBIH",
+    packNight: "price_1UEaWQDBoBUcNBmB9qEKfbUl",
+    packGoldrush: "price_1UEaWQDBoBUcNBmBCFb2oNlf",
+    packCrystal: "price_1UEaWRDBoBUcNBmBerVyOlin",
+    packMagma: "price_1UEaWRDBoBUcNBmBKHUmzMOP",
+    packBlocky: "price_1UEaWSDBoBUcNBmBuw9VL2Uy",
+    packSurface: "price_1UEaWSDBoBUcNBmBahuOtRXQ",
+    packKnight: "price_1UEaWTDBoBUcNBmBJ0Crcnwr",
+    packHunter: "price_1UEaWTDBoBUcNBmBNDdzscOs",
+    packOni: "price_1UEaWUDBoBUcNBmB44drrXGT",
+    packMarmot: "price_1UEaWUDBoBUcNBmBkvqIokC4",
+    packFox: "price_1UEaWVDBoBUcNBmBqcUniAvD",
+    packOtter: "price_1UEaWVDBoBUcNBmBscQN2g5k",
+    packDamsel: "price_1UEaWWDBoBUcNBmBDQCOCeZA",
+    packAmethyst: "price_1UEaWXDBoBUcNBmB8BREAVEn",
+    packVerdant: "price_1UEaWXDBoBUcNBmBe3sV2dP4",
+    packSolar: "price_1UEaWYDBoBUcNBmBFokxGaJ9",
+    packVoid: "price_1UEaWYDBoBUcNBmB1iEeW8s7",
+    packVoxel: "price_1UEaWZDBoBUcNBmBWXgDfwfE",
+    packWilds: "price_1UEaWZDBoBUcNBmBrhyCBbGW",
+    packAshen: "price_1UEaWaDBoBUcNBmBTcuYPTVD",
+    packGothic: "price_1UEaWaDBoBUcNBmBNsARRHlP",
+    packCherry: "price_1UEaWbDBoBUcNBmBXXib2IPX",
+    packSkin: "price_1UEaWbDBoBUcNBmBrrWiZzHq",
+  } as Record<string, string>,
+},
  /**
   * AdSense (web rewarded ads, docs/todo.md #2) — the web parity path for
   * the AdMob rewarded placements, via the AdSense "Ad Placement API"

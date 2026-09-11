@@ -30,23 +30,50 @@ const CATALOG = JSON.parse(
   ),
 ) as CatalogEntry[];
 
-function parseRepo(): {
+interface StoreBlock {
   publishableKey: string;
   prices: Record<string, string>;
-} {
-  const source = fs.readFileSync(
-    path.join(REPO_ROOT, "src", "mines_of_doom", "storeConfig.ts"),
-    "utf8",
-  );
-  const pk = /publishableKey:\s*"([^"]*)"/.exec(source);
-  const block = /prices:\s*\{([^}]*)\}/.exec(source);
+}
+
+/** Same brace-matching slice the script uses (comment-stripped). */
+function parseBlock(source: string, label: "stripe" | "stripeProd"): StoreBlock {
+  const src = source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/[^\n]*/g, "");
+  const start = src.indexOf(`${label}: {`);
+  if (start < 0) return { publishableKey: "", prices: {} };
+  const open = src.indexOf("{", start);
+  let depth = 0;
+  let close = -1;
+  for (let i = open; i < src.length; i++) {
+    if (src[i] === "{") depth++;
+    else if (src[i] === "}") {
+      depth--;
+      if (depth === 0) {
+        close = i;
+        break;
+      }
+    }
+  }
+  const block = close > 0 ? src.slice(open, close + 1) : src.slice(open);
+  const pk = /publishableKey:\s*"([^"]*)"/.exec(block);
   const prices: Record<string, string> = {};
-  if (block) {
-    for (const m of block[1].matchAll(/(\w+)\s*:\s*"([^"]*)"/g)) {
+  const pricesMatch = /prices:\s*\{([^}]*)\}/.exec(block);
+  if (pricesMatch) {
+    for (const m of pricesMatch[1].matchAll(/(\w+)\s*:\s*"([^"]*)"/g)) {
       prices[m[1]] = m[2];
     }
   }
   return { publishableKey: pk ? pk[1] : "", prices };
+}
+
+/** Both store blocks: test (the `stripe` block) and prod (stripeProd). */
+function parseRepo(): { test: StoreBlock; prod: StoreBlock } {
+  const source = fs.readFileSync(
+    path.join(REPO_ROOT, "src", "mines_of_doom", "storeConfig.ts"),
+    "utf8",
+  );
+  return { test: parseBlock(source, "stripe"), prod: parseBlock(source, "stripeProd") };
 }
 
 interface MockOpts {
@@ -65,6 +92,12 @@ function startMock(overrides: MockOpts = {}): Promise<{
   close: () => Promise<void>;
 }> {
   const repo = parseRepo();
+  // The test and live accounts are SEPARATE Stripe environments with
+  // separate price ids — branch on the bearer key the child sends.
+  const repoPricesFor = (auth: string) =>
+    auth.startsWith("Bearer sk_live_")
+      ? repo.prod.prices
+      : repo.test.prices;
   const omit = new Set(overrides.omitIds ?? []);
   const products = CATALOG.filter((e) => !omit.has(e.id)).map((e) => ({
     id: "prod_" + e.id,
@@ -93,7 +126,8 @@ function startMock(overrides: MockOpts = {}): Promise<{
       const prodId = u.searchParams.get("product");
       const entry = CATALOG.find((e) => "prod_" + e.id === prodId);
       if (!entry) return send({ object: "list", data: [], has_more: false });
-      let priceId = repo.prices[entry.id] ?? "price_unknown";
+      let priceId = repoPricesFor(req.headers.authorization ?? "")[entry.id] ??
+        "price_unknown";
       if (overrides.mutatePriceId === entry.id) priceId = "price_mutated";
       const unitAmount =
         overrides.mutateAmount === entry.id
@@ -208,40 +242,52 @@ test("verify flags a rogue mdoom-marker product in the account", async () => {
   expect(r.stderr).toContain("unknown mdoom product");
 });
 
-test("verify --live checks stripeProd: an unfilled prod block is a finding", async () => {
+const CFG_PATH = path.join(
+  REPO_ROOT,
+  "src",
+  "mines_of_doom",
+  "storeConfig.ts",
+);
+
+/** Swap the stripeProd block's publishableKey without touching the
+ *  committed file (label-aware: the test block's key stays as-is). */
+function withProdKey(source: string, key: string): string {
+  const i = source.indexOf("stripeProd: {");
+  if (i < 0) throw new Error("stripeProd block not found");
+  return (
+    source.slice(0, i) +
+    source
+      .slice(i)
+      .replace(/publishableKey:\s*"[^"]*"/, `publishableKey: "${key}"`)
+  );
+}
+
+test("verify --live flags an unfilled prod publishableKey", async () => {
   mock = await startMock();
   // The live key verifies against the auto-enabled prod block
-  // (storeConfig.stripeProd) — empty pre-launch, so the flip is not done.
-  const r = await runVerify(mock.url, "sk_live_fixture000", ["--live"]);
-  expect(r.status).toBe(1);
-  expect(r.stderr).toContain("stripeProd");
-  expect(r.stderr).toContain("publishableKey is not set");
+  // (storeConfig.stripeProd) — blank the key in a scratch copy, so an
+  // unfilled/half-pasted prod block is a finding in either flip state.
+  const original = fs.readFileSync(CFG_PATH, "utf8");
+  const tmp = path.join(REPO_ROOT, "storeConfig.verify-tmp-unfilled.ts");
+  fs.writeFileSync(tmp, withProdKey(original, ""));
+  try {
+    const r = await runVerify(mock.url, "sk_live_fixture000", ["--live"], tmp);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("stripeProd");
+    expect(r.stderr).toContain("publishableKey is not set");
+  } finally {
+    fs.unlinkSync(tmp);
+  }
 });
 
 test("verify --live passes once stripeProd holds the live snippet", async () => {
   // Simulate the finished launch flip WITHOUT touching the committed file:
-  // a scratch storeConfig.ts whose stripeProd carries a live key + the
-  // price ids the (mock) live account serves. (The flip swaps the key and
-  // price SOURCE — in this mock world the ids happen to match.)
-  const cfgPath = path.join(
-    REPO_ROOT,
-    "src",
-    "mines_of_doom",
-    "storeConfig.ts",
-  );
-  const original = fs.readFileSync(cfgPath, "utf8");
-  const tmp = path.join(REPO_ROOT, "storeConfig.verify-tmp.ts");
-  const livePrices = Object.entries(parseRepo().prices)
-    .map(([id, price]) => `      ${id}: "${price}",`)
-    .join("\n");
-  const liveConfig = original
-    .replace('publishableKey: "",', 'publishableKey: "pk_live_fixture",')
-    .replace(
-      "prices: {} as Record<string, string>,",
-      "prices: {\n" + livePrices + "\n    },",
-    );
-  expect(liveConfig).not.toBe(original); // both replacements landed
-  fs.writeFileSync(tmp, liveConfig);
+  // a scratch storeConfig.ts whose stripeProd carries a live key; the
+  // committed price map IS what the (mock) live account serves, so a
+  // clean run means account and repo agree.
+  const original = fs.readFileSync(CFG_PATH, "utf8");
+  const tmp = path.join(REPO_ROOT, "storeConfig.verify-tmp-live.ts");
+  fs.writeFileSync(tmp, withProdKey(original, "pk_live_fixture"));
   try {
     mock = await startMock();
     const r = await runVerify(mock.url, "sk_live_fixture000", ["--live"], tmp);
