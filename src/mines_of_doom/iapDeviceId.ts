@@ -23,14 +23,14 @@ const ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
  * "a UUID persisted in AsyncStorage".
  */
 export function makeDeviceId(
- now: number,
- rand: () => number = Math.random,
+  now: number,
+  rand: () => number = Math.random,
 ): string {
- let tail = "";
- for (let i = 0; i < 16; i++) {
-  tail += ALPHABET[Math.floor(rand() * ALPHABET.length)];
- }
- return `dev-${now.toString(36)}${tail}`;
+  let tail = "";
+  for (let i = 0; i < 16; i++) {
+    tail += ALPHABET[Math.floor(rand() * ALPHABET.length)];
+  }
+  return `dev-${now.toString(36)}${tail}`;
 }
 
 /**
@@ -52,24 +52,24 @@ let memoId: string | null = null;
 let inFlight: Promise<string> | null = null;
 
 export function getIapDeviceId(): Promise<string> {
- if (memoId !== null) return Promise.resolve(memoId);
- if (inFlight !== null) return inFlight;
- inFlight = AsyncStorage.getItem(IAP_DEVICE_ID_KEY)
-  .then((existing) => {
-   if (typeof existing === "string" && existing.length > 0) {
-    memoId = existing;
-    return existing;
-   }
-   const id = makeDeviceId(Date.now());
-   return AsyncStorage.setItem(IAP_DEVICE_ID_KEY, id).then(() => {
-    memoId = id;
-    return id;
-   });
-  })
-  .finally(() => {
-   // Reset the single-flight slot so a failed first read retries on the
-   // next call; a successful one is a no-op (memoId already set).
-   inFlight = null;
-  });
- return inFlight;
+  if (memoId !== null) return Promise.resolve(memoId);
+  if (inFlight !== null) return inFlight;
+  inFlight = AsyncStorage.getItem(IAP_DEVICE_ID_KEY)
+    .then((existing) => {
+      if (typeof existing === "string" && existing.length > 0) {
+        memoId = existing;
+        return existing;
+      }
+      const id = makeDeviceId(Date.now());
+      return AsyncStorage.setItem(IAP_DEVICE_ID_KEY, id).then(() => {
+        memoId = id;
+        return id;
+      });
+    })
+    .finally(() => {
+      // Reset the single-flight slot so a failed first read retries on the
+      // next call; a successful one is a no-op (memoId already set).
+      inFlight = null;
+    });
+  return inFlight;
 }

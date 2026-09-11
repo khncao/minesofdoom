@@ -1734,9 +1734,9 @@ describe("catchUpTicks (F40.2 — the absence economy's catch-up, extracted from
   });
 
   test("a long absence is capped at maxOfflineTicks, never beyond", () => {
-    expect(
-      catchUpTicks(t0, t0 + maxOfflineTicks * msPerTick),
-    ).toBe(maxOfflineTicks);
+    expect(catchUpTicks(t0, t0 + maxOfflineTicks * msPerTick)).toBe(
+      maxOfflineTicks,
+    );
     // 10 h away (2 h over the 8 h cap) still pays exactly the cap...
     expect(catchUpTicks(t0, t0 + 10 * 60 * 60 * 1000)).toBe(maxOfflineTicks);
     // ...and so does a year of suspension.
