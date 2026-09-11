@@ -7,11 +7,23 @@ sections below are standalone — when one unblocks, delete its section.
 ## IAP (on-device purchase leg) — `todo.md` "IAP — on-device purchase leg (license tester)"
 
 **Remaining external items:** (1) the iOS `APPLE_*` App Store Connect
-API key for the sidecar (`docs/backlog.md`, iOS section), and (2) the
-Stripe **`sk_live` flip at launch** (`todo.md` — step-6 test purchase
+API key for the sidecar (`docs/backlog.md`, iOS section), and (2) the Stripe **`sk_live` flip at launch — IN FLIGHT
+(2026-09-11)**: done = the live price map in `stripeProd.prices`
+(commit `4ff4f45`), the live webhook endpoint rotated to `we_1UEbw0…`
+(the first endpoint's one-time `whsec_` was unrecoverable) and the VPS
+sidecar env flipped live (`STRIPE_SECRET_KEY=sk_live_…` + live whsec +
+the live `MDOOM_STRIPE_PRICE_MAP`; backup
+`~/docker/pocketbase/.env.bak-preliveflip-20260911`; sidecar /healthz
+all green, unsigned webhook POSTs → 400). `verify --live` agrees on the
+price map; its only finding is the unfilled publishable key. Left =
+paste the `pk_live_…` key (dashboard-only — NOT API-readable: the API
+dropped the account `keys` field, so it can't be fetched; Stripe
+dashboard → Developers → API keys → live mode) into
+`stripeProd.publishableKey` + `pnpm run deploy` (needs `npx wrangler
+login` first), then `verify --live` exit 0. (The step-6 test purchase
 is **done 2026-09-08**: `scripts/stripe/checkoutTest.mjs` confirmed the
 redirect grant + the webhook's idempotent backup mint for the same
-(device, product) row via a no-cost hosted-Checkout order). The
+(device, product) row via a no-cost hosted-Checkout order.) The
 `packSkin` leg is **LANDED 2026-09-10** — both external halves: the
 Stripe test price (`syncStripe.mjs products` created
 `prod_VEghKLcgCPNKkB` / `price_1UEDJqDPxWoXhXF8WYfaEDSe`, pasted into

@@ -563,9 +563,21 @@ started") from ever being mistaken for a confirmed payment.
    real paid session-creation route (`--via-sidecar` → the sidecar's
    `POST /stripe/checkout`) is verified for session creation; it cannot
    be driven to completion by the script (blank card is policy). The
-   only remaining step is the launch flip: paste the `--live` snippet
-   into the `stripeProd` block (it auto-enables on the prod
-   environment — the step-6 flip below).
+   **Flip status (2026-09-11, IN FLIGHT):** the live price map is
+   pasted into `stripeProd.prices` (commit `4ff4f45`), the live webhook
+   endpoint was rotated to `we_1UEbw0…` (the first endpoint's one-time
+   `whsec_` is unrecoverable), and the VPS sidecar env is already live
+   (`STRIPE_SECRET_KEY=sk_live_…` + the new whsec + the live
+   `MDOOM_STRIPE_PRICE_MAP`; backup
+   `~/docker/pocketbase/.env.bak-preliveflip-20260911` on the VPS;
+   sidecar /healthz all green, unsigned webhook POSTs → 400). `verify
+   --live` agrees on the price map; its only finding is the unfilled
+   `stripeProd.publishableKey`. What remains: paste the `pk_live_…` key
+   into `stripeProd.publishableKey` — the key is **dashboard-only**
+   (Developers → API keys → live mode; the API no longer returns
+   account keys, so the `products --live` snippet shows a placeholder
+   for it) — then `pnpm run deploy` and `verify --live` (exit 0). The
+   step-6 flip below stays the runbook.
 
    **Steps 1–2 are scriptable** — `node scripts/stripe/syncStripe.mjs
    products` (idempotent, creates the 25 products + prices from
