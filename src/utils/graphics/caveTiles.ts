@@ -20,6 +20,7 @@ import {
   hexToRgb,
   mulberry32,
   setPixel,
+  stripSizeForWidth,
 } from "./pixelArt";
 import type { Pixel, PixelGrid } from "./pixelArt";
 
@@ -31,9 +32,15 @@ export const CAVE_TIER_ATS: number[] = [0, 10, 50, 150, 500];
 
 /** Tiles per strip (the strip is stretched to the canvas width). */
 export const CAVE_TILE_PX = 24;
-/** Number of tiles across a strip. */
+/**
+ * Minimum tiles across a strip. `buildCaveRow`/`caveRowUri` widen the strip
+ * to the container width when given one (adaptive-width strips — the
+ * encoder's multi-block stored-deflate path exists for this), floored at
+ * this count so the default 14-tile layout (egg placement space included)
+ * stays valid.
+ */
 export const CAVE_TILES_PER_ROW = 14;
-/** Strip width in source pixels (the strip is stretched to the canvas width). */
+/** Default strip width in source pixels (when the container width is unknown). */
 export const CAVE_STRIP_WIDTH = CAVE_TILES_PER_ROW * CAVE_TILE_PX;
 /**
  * Distinct strip textures generated per tier; rows cycle through them as
@@ -178,11 +185,20 @@ function drawGem(
 }
 
 /**
- * The mined path (plan "Adjust"): the two middle tiles of every strip, kept
- * dug out (no rock, no gems) so the cave reads as one vertical shaft the
- * player is mining down, with dark wall edges on the tiles flanking it.
+ * The mined path (plan "Adjust"): the two middle tiles of a `count`-wide
+ * strip, kept dug out (no rock, no gems) so the cave reads as one vertical
+ * shaft the player is mining down, with dark wall edges on the tiles
+ * flanking it. Centered so the shaft stays on screen mid as the strip
+ * widens adaptively.
  */
-export const CAVE_PATH_TILES: readonly number[] = [6, 7];
+export function cavePathTiles(count: number): [number, number] {
+  const mid = Math.floor(count / 2);
+  return [mid - 1, mid];
+}
+
+/** Path tiles for the default (minimum) 14-tile strip. */
+export const CAVE_PATH_TILES: readonly number[] =
+  cavePathTiles(CAVE_TILES_PER_ROW);
 
 /** Dark wall edge drawn on the inner side of the tiles flanking the path. */
 export function pathEdgeColor(tint: string): string {
@@ -212,27 +228,32 @@ export type CaveEggKind = (typeof CAVE_EGG_KINDS)[number];
 
 /** Share of strips that carry an egg. */
 const EGG_CHANCE = 0.15;
-/** Egg placement space: every tile except the two path tiles. */
-const EGG_OUTER_TILES: readonly number[] = [
-  0, 1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13,
-];
 
 /**
- * Deterministic per (tier, strip): the egg's tile + kind, or null. Rows
- * cycle through the strips, so an egg reappears every CAVE_STRIPS_PER_TIER
- * rows — same texture-cycle discipline as the rock strips themselves.
+ * Deterministic per (tier, strip, count): the egg's tile + kind, or null.
+ * Rows cycle through the strips, so an egg reappears every
+ * CAVE_STRIPS_PER_TIER rows — same texture-cycle discipline as the rock
+ * strips themselves. The tile is picked from the strip's OUTER space
+ * (every tile except the two centered path tiles), so an egg never lands
+ * in the shaft; at the default `count` the space is the 14-tile one.
  */
 export function eggForStrip(
   tier: number,
   strip: number,
+  count = CAVE_TILES_PER_ROW,
 ): { tile: number; kind: CaveEggKind } | null {
   const seed = hashSeed(tier * 7919 + strip * 104729, 0x9e69);
   const rng = mulberry32(seed);
   if (rng() >= EGG_CHANCE) {
     return null;
   }
+  const [pa, pb] = cavePathTiles(count);
+  const outer: number[] = [];
+  for (let tile = 0; tile < count; tile++) {
+    if (tile !== pa && tile !== pb) outer.push(tile);
+  }
   return {
-    tile: EGG_OUTER_TILES[Math.floor(rng() * EGG_OUTER_TILES.length)],
+    tile: outer[Math.floor(rng() * outer.length)],
     kind: CAVE_EGG_KINDS[Math.floor(rng() * CAVE_EGG_KINDS.length)],
   };
 }
@@ -270,22 +291,36 @@ function drawEgg(grid: PixelGrid, x0: number, kind: CaveEggKind): void {
 }
 
 /**
- * Build one full cave row: `CAVE_TILES_PER_ROW` tiles of
- * `CAVE_TILE_PX` × `CAVE_TILE_PX`. Deterministic in (tier, strip, tint).
+ * Build one full cave row: tiles of `CAVE_TILE_PX` × `CAVE_TILE_PX`,
+ * `CAVE_TILES_PER_ROW` across by default, or — when `widthPx` is given —
+ * widened to the nearest tile multiple at or above `widthPx` (clamped to
+ * `STRIP_MAX_BLOCK_PX`, floored at the default count) so a container of
+ * that width renders the strip with (near-)zero horizontal stretch. The
+ * mined path stays centered at any width. Deterministic in
+ * (tier, strip, tint, widthPx).
  */
 export function buildCaveRow(
   tier: number,
   strip: number,
   tint: string,
+  widthPx?: number,
 ): PixelGrid {
   const t = Math.max(0, Math.min(tier, GEM_CHANCE.length - 1));
-  const grid = createGrid(CAVE_STRIP_WIDTH, CAVE_TILE_PX);
+  const count =
+    widthPx == null
+      ? CAVE_TILES_PER_ROW
+      : Math.max(
+          CAVE_TILES_PER_ROW,
+          Math.round(stripSizeForWidth(widthPx, CAVE_TILE_PX) / CAVE_TILE_PX),
+        );
+  const grid = createGrid(count * CAVE_TILE_PX, CAVE_TILE_PX);
   const shades = rockShades(tint);
   const gem = gemColor(tint);
-  const egg = eggForStrip(t, strip);
-  for (let tile = 0; tile < CAVE_TILES_PER_ROW; tile++) {
+  const [pa, pb] = cavePathTiles(count);
+  const egg = eggForStrip(t, strip, count);
+  for (let tile = 0; tile < count; tile++) {
     const x0 = tile * CAVE_TILE_PX;
-    const inPath = CAVE_PATH_TILES.includes(tile);
+    const inPath = tile === pa || tile === pb;
     if (!inPath) {
       const seed = hashSeed(t * 7919 + strip * 104729, 0x5eed + tile * 131);
       if (mulberry32(seed)() < ROCK_CHANCE) {
@@ -300,11 +335,11 @@ export function buildCaveRow(
     }
     // Path wall edges: a dark 3px stripe on the inner side of the tiles
     // flanking the shaft, drawn even over gaps so the path reads clearly.
-    if (tile === CAVE_PATH_TILES[0] - 1) {
+    if (tile === pa - 1) {
       for (let dx = CAVE_TILE_PX - 3; dx < CAVE_TILE_PX; dx++) {
         vline(grid, x0 + dx, 0, CAVE_TILE_PX - 1, pathEdgeColor(tint));
       }
-    } else if (tile === CAVE_PATH_TILES[CAVE_PATH_TILES.length - 1] + 1) {
+    } else if (tile === pb + 1) {
       for (let dx = 0; dx < 3; dx++) {
         vline(grid, x0 + dx, 0, CAVE_TILE_PX - 1, pathEdgeColor(tint));
       }
@@ -325,19 +360,28 @@ export function clearCaveTileCache(): void {
 }
 
 /**
- * Cached PNG data URI for the cave row visible at a given absolute depth and
- * theme tint. Rows repeat with period `CAVE_STRIPS_PER_TIER` within a tier,
- * which is what keeps the cache bounded.
+ * Cached PNG data URI for the cave row visible at a given absolute depth,
+ * theme tint and container width. Rows repeat with period
+ * `CAVE_STRIPS_PER_TIER` within a tier (and the width is stable per
+ * window), which is what keeps the cache bounded.
  */
-export function caveRowUri(opts: { depth: number; tint: string }): string {
+export function caveRowUri(opts: {
+  depth: number;
+  tint: string;
+  /** Container width in px; widens the strip adaptively (see buildCaveRow). */
+  widthPx?: number;
+}): string {
   const tier = caveTierForDepth(opts.depth);
   const strip =
     ((Math.floor(opts.depth) % CAVE_STRIPS_PER_TIER) + CAVE_STRIPS_PER_TIER) %
     CAVE_STRIPS_PER_TIER;
-  const key = `${opts.tint}|${tier}|${strip}`;
+  const width = opts.widthPx ?? 0;
+  const key = `${width}|${opts.tint}|${tier}|${strip}`;
   let uri = cache.get(key);
   if (uri == null) {
-    uri = gridToPngDataUri(buildCaveRow(tier, strip, opts.tint));
+    uri = gridToPngDataUri(
+      buildCaveRow(tier, strip, opts.tint, opts.widthPx),
+    );
     cache.set(key, uri);
   }
   return uri;

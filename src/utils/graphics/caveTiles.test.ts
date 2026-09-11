@@ -9,6 +9,7 @@ import {
   CAVE_STRIP_WIDTH,
   CAVE_TILE_PX,
   CAVE_TIER_ATS,
+  cavePathTiles,
   caveRowStartForDepth,
   caveRowUri,
   caveTierForDepth,
@@ -21,6 +22,7 @@ import {
   rockShades,
 } from "./caveTiles";
 import type { PixelGrid } from "./caveTiles";
+import { STRIP_MAX_BLOCK_PX } from "./pixelArt";
 
 const PREFIX = "data:image/png;base64,";
 
@@ -112,6 +114,56 @@ describe("buildCaveRow", () => {
     expect(found).toBe(true);
   });
 
+  test("widthPx widens the strip to a tile multiple with a centered path", () => {
+    // 1280px container → 1296 source px (1280 rounded up to a 24px tile
+    // multiple), 54 tiles, path at the middle pair (26, 27).
+    const grid = buildCaveRow(2, 0, "#9a7fb8", 1280);
+    expect(grid[0].length).toBe(1296);
+    expect(grid.length).toBe(CAVE_TILE_PX);
+    const [pa, pb] = cavePathTiles(54);
+    expect([pa, pb]).toEqual([26, 27]);
+    // Path tiles stay dug out (the encoder's multi-block stored-deflate
+    // path makes any width round-trip — see pixelArt tests).
+    for (const row of grid) {
+      for (let x = pa * CAVE_TILE_PX; x < (pb + 1) * CAVE_TILE_PX; x++) {
+        expect(row[x]).toBeNull();
+      }
+    }
+    // Wall edges flank the widened path.
+    const edge = pathEdgeColor("#9a7fb8");
+    const leftX = (pa - 1) * CAVE_TILE_PX + CAVE_TILE_PX - 3;
+    const rightX = (pb + 1) * CAVE_TILE_PX;
+    for (const row of grid) {
+      expect([row[leftX], row[leftX + 1], row[leftX + 2]]).toEqual([
+        edge,
+        edge,
+        edge,
+      ]);
+      expect([row[rightX], row[rightX + 1], row[rightX + 2]]).toEqual([
+        edge,
+        edge,
+        edge,
+      ]);
+    }
+    // Deterministic at a given width.
+    expect(JSON.stringify(buildCaveRow(2, 0, "#9a7fb8", 1280))).toBe(
+      JSON.stringify(grid),
+    );
+  });
+
+  test("widthPx floors at the default strip width", () => {
+    // Narrower containers don't shrink the strip below CAVE_TILES_PER_ROW
+    // (the egg placement space is pinned to the 14-tile layout).
+    expect(buildCaveRow(2, 0, "#9a7fb8", 200)[0].length).toBe(CAVE_STRIP_WIDTH);
+    expect(buildCaveRow(2, 0, "#9a7fb8", 336)[0].length).toBe(CAVE_STRIP_WIDTH);
+  });
+
+  test("widthPx never exceeds the stored-block cap in cells", () => {
+    const grid = buildCaveRow(2, 0, "#9a7fb8", 100000);
+    expect(grid[0].length % CAVE_TILE_PX).toBe(0);
+    expect(grid[0].length).toBeLessThanOrEqual(STRIP_MAX_BLOCK_PX + 23);
+  });
+
   test("strip size is pinned and the PNG payload stays bounded", () => {
     // The encoder (pixelArt) splits the raw payload into stored deflate
     // blocks of ≤65535 bytes, so any width works, but pin the budget: a
@@ -199,6 +251,23 @@ describe("mined path + easter eggs", () => {
         const egg = eggForStrip(t, s);
         if (egg == null) continue;
         const grid = buildCaveRow(t, s, TINT);
+        const x0 = egg.tile * CAVE_TILE_PX;
+        const painted = grid.some((row) =>
+          row.slice(x0 + 5, x0 + 19).some((p) => p !== null),
+        );
+        expect(painted).toBe(true);
+      }
+    }
+  });
+
+  test("eggForStrip with a wide count stays off the widened path", () => {
+    for (let t = 0; t < CAVE_TIER_ATS.length; t++) {
+      for (let s = 0; s < CAVE_STRIPS_PER_TIER; s++) {
+        const count = 54; // the 1296px / 24px strip
+        const egg = eggForStrip(t, s, count);
+        if (egg == null) continue;
+        expect(cavePathTiles(count)).not.toContain(egg.tile);
+        const grid = buildCaveRow(t, s, TINT, 1296);
         const x0 = egg.tile * CAVE_TILE_PX;
         const painted = grid.some((row) =>
           row.slice(x0 + 5, x0 + 19).some((p) => p !== null),
@@ -320,5 +389,19 @@ describe("caveRowUri", () => {
     const before = caveRowUri({ depth: 5, tint: "#a0856a" });
     clearCaveTileCache();
     expect(caveRowUri({ depth: 5, tint: "#a0856a" })).toBe(before);
+  });
+
+  test("widthPx is part of the cache key and changes the strip", () => {
+    const narrow = caveRowUri({ depth: 12, tint: "#8fa8b8" });
+    const wide = caveRowUri({ depth: 12, tint: "#8fa8b8", widthPx: 1280 });
+    expect(wide).not.toBe(narrow);
+    // Same width → same URI (cached).
+    expect(caveRowUri({ depth: 12, tint: "#8fa8b8", widthPx: 1280 })).toBe(
+      wide,
+    );
+    // A width below the minimum strips to the default width.
+    expect(caveRowUri({ depth: 12, tint: "#8fa8b8", widthPx: 100 })).toBe(
+      narrow,
+    );
   });
 });

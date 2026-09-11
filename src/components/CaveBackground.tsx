@@ -14,6 +14,7 @@ import {
   caveRowUri,
   caveTranslateForDepth,
 } from "src/utils/graphics/caveTiles";
+import { stripSizeForWidth } from "src/utils/graphics/pixelArt";
 
 /** Fallback window height (px) before the first onLayout. */
 const INITIAL_HEIGHT = 13 * CAVE_TILE_PX;
@@ -50,6 +51,7 @@ function CaveBackground({
   const scrollAnimRunRef = useRef<Animated.CompositeAnimation | null>(null);
   const prevDescendPx = useRef(0);
   const [height, setHeight] = useState(0);
+  const [width, setWidth] = useState(0);
 
   const rowStart = caveRowStartForDepth(depth);
   const descendPx = CAVE_PX_PER_METER * Number(depth);
@@ -60,6 +62,12 @@ function CaveBackground({
   // of descent lands, so fast mining re-renders only when content changes.
   const rowCount = Math.ceil((height || INITIAL_HEIGHT) / CAVE_TILE_PX) + 1;
 
+  // Adaptive-width strips: bake each row at the container width (rounded up
+  // to a tile multiple) so the Image stretch is ~zero on wide screens
+  // instead of smearing 336px across 1280+. Undefined until first layout.
+  const stripWidth =
+    width > 0 ? stripSizeForWidth(width, CAVE_TILE_PX) : undefined;
+
   // Skipped entirely in emoji mode — no PNG baking either, not just no
   // render. Rows are addressed by ABSOLUTE cave depth (rowStart + i), so
   // a row re-index lands exactly when the slide completes one row.
@@ -68,9 +76,13 @@ function CaveBackground({
       emojiArt
         ? []
         : Array.from({ length: rowCount }, (_, i) =>
-            caveRowUri({ depth: rowStart * CAVE_METERS_PER_ROW + i, tint }),
+            caveRowUri({
+              depth: rowStart * CAVE_METERS_PER_ROW + i,
+              tint,
+              widthPx: stripWidth,
+            }),
           ),
-    [rowStart, rowCount, tint, emojiArt],
+    [rowStart, rowCount, tint, emojiArt, stripWidth],
   );
 
   useLayoutEffect(() => {
@@ -117,8 +129,9 @@ function CaveBackground({
       style={styles.container}
       pointerEvents="none"
       onLayout={(e) => {
-        const h = e.nativeEvent.layout.height;
-        if (h > 0) setHeight(h);
+        const { width: w, height: h } = e.nativeEvent.layout;
+        if (h > 0 && h !== height) setHeight(h);
+        if (w > 0 && w !== width) setWidth(w);
       }}
     >
       <Animated.View style={{ transform: [{ translateY }] }}>
