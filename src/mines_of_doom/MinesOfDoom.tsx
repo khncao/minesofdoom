@@ -86,9 +86,10 @@ import { useSounds } from "./hooks/useSounds";
 import { useCustomSkin } from "./hooks/useCustomSkin";
 import {
   CUSTOM_SKIN_UNLOCK_COST_GEMS,
+  activeSkinArt,
   customSkinGridToUri,
-  hasCustomSkinPixels,
 } from "./customSkin";
+import { bundledSpriteById } from "./bundledSprites";
 import { gridToPngDataUri, type PixelGrid } from "src/utils/graphics/pixelArt";
 import { pickCustomSkinAudio, pickCustomSkinImage } from "./customSkinPicker";
 import { useHaptics } from "./hooks/useHaptics";
@@ -598,21 +599,29 @@ export default function MinesOfDoom() {
     setEquipped: setCustomSkinEquipped,
     setGrid: setCustomSkinGrid,
     setAudio: setCustomSkinAudio,
+    setArt: setCustomSkinArt,
     clear: clearCustomSkin,
   } = useCustomSkin();
-  // The equipped skin as a PNG data URI (cached per grid) — the player
-  // miner's body override. An empty-grid skin keeps the outfit body.
+  // The equipped skin's body art as a data URI — the player miner's
+  // body override. A bundled sprite (bundledSprites.ts, the CC0 library)
+  // takes precedence over an uploaded 16×16 grid; neither set keeps the
+  // outfit body. The grid path is cached per grid JSON.
   const customSkinBodyUri = useMemo(() => {
-    const grid = customSkin.grid;
-    if (customSkin.equipped && grid != null && hasCustomSkinPixels(grid)) {
-      // SAFETY: a 16×16 (string|null)[][] IS a PixelGrid — the readonly
-      // grid type is the same cells, so this is a shape assertion only.
-      return customSkinGridToUri(grid, (g) =>
-        gridToPngDataUri(g as unknown as PixelGrid),
-      );
+    const art = activeSkinArt(customSkin);
+    if (art === null) {
+      return null;
     }
-    return null;
-  }, [customSkin.equipped, customSkin.grid]);
+    if (art.kind === "bundled") {
+      const sprite = bundledSpriteById(art.spriteId);
+      return sprite?.uri ?? null;
+    }
+    const grid = art.grid;
+    // SAFETY: a 16×16 (string|null)[][] IS a PixelGrid — the readonly
+    // grid type is the same cells, so this is a shape assertion only.
+    return customSkinGridToUri(grid, (g) =>
+      gridToPngDataUri(g as unknown as PixelGrid),
+    );
+  }, [customSkin]);
   const { play } = useSounds(
     mute,
     gameState.selectedPickaxe,
@@ -1573,6 +1582,7 @@ export default function MinesOfDoom() {
               customSkin={customSkin}
               onUploadSkinImage={handleSkinImageUpload}
               onUploadSkinAudio={handleSkinAudioUpload}
+              onPickBundledSprite={setCustomSkinArt}
               onClearSkin={() => {
                 clearCustomSkin();
                 displayMessage(t("toast.skinCleared"), 2000);

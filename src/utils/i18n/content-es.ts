@@ -350,6 +350,18 @@ export const contentEs: ContentTable = {
       "cosmético.",
   },
 
+  // --- Bundled sprite library (BUNDLED_SPRITES in bundledSprites.ts) ----
+  "bundledSprite:beggar-boy-tin-cup": { title: "Pilluelo con lata" },
+  "bundledSprite:cybernetic-arm-technician": { title: "Técnico cibernético" },
+  "bundledSprite:dwarven-mine-worker": { title: "Minero enano" },
+  "bundledSprite:goblin-bog-servant": { title: "Goblin del pantano" },
+  "bundledSprite:hangar-mechanic-goggles-greasy": {
+    title: "Mecánico engrasado",
+  },
+  "bundledSprite:lantern-bearer-boy": { title: "Porta-linternas" },
+  "bundledSprite:trapper-bearskin-pelt": { title: "Cazador de pieles" },
+  "bundledSprite:will-o-wisp-spirit": { title: "Fuego fatuo" },
+
   // --- Legal docs (LEGAL_DOCS in legal.ts) -------------------------------
   // Titles, section headings AND bodies are localized here.
   "legalDoc:privacy": { title: "Política de privacidad" },

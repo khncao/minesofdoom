@@ -2,15 +2,19 @@
  * User-uploaded custom skin (docs/todo.md custom-skinning line).
  *
  * One save slot: an optional 16×16 pixel grid (decoded from the user's PNG
- * — see utils/graphics/customSprite.ts) and an optional pickaxe-swing
- * audio data URI. `unlocked` is the one-time purchase gate (IAP
- * `customSkinPass`, gems or cash); `equipped` toggles the look at will.
+ * — see utils/graphics/customSprite.ts), an optional bundled-sprite id
+ * (bundledSprites.ts — the CC0 2D art library), and an optional
+ * pickaxe-swing audio data URI. `unlocked` is the one-time purchase gate
+ * (IAP `customSkinPass`, gems or cash); `equipped` toggles the look at
+ * will.
  *
  * Everything here is pure: the decode (PNG bytes → grid) lives in
  * utils/graphics/customSprite.ts, the file picking (DOM input / OS
  * picker) in customSkinPicker(.web).ts. The React layer only wires the
  * pieces to the save.
  */
+
+import { BUNDLED_SPRITE_IDS } from "./bundledSprites";
 
 /** The grid shape the user's body sprite uses (the Miner body is 16×16). */
 export const CUSTOM_SKIN_GRID_SIZE = 16;
@@ -58,16 +62,29 @@ export type CustomSkinGrid = readonly (readonly (string | null)[] | null)[];
 export interface CustomSkinSave {
  /** One-time-purchase gate (IAP packSkin or the gem buy). */
  unlocked: boolean;
- /** Equip the skin's pixels/sound over the outfit miner (visual). */
+ /** Equip the skin's art/sound over the outfit miner (visual). */
  equipped: boolean;
  /** The uploaded 16×16 body, or null for no image (body sprite shows). */
  grid: CustomSkinGrid | null;
+ /**
+  * A bundled sprite-library id (bundledSprites.ts), or null. Takes
+  * PRECEDENCE over `grid` when set — the library picker and the image
+  * upload are two ways to fill the same "body art" slot, and the most
+  * recent choice wins.
+  */
+ artId: string | null;
  /** data:audio URI for the swing sound, or null (pickaxe sound plays). */
  audio: string | null;
 }
 
 export function defaultCustomSkin(): CustomSkinSave {
- return { unlocked: false, equipped: false, grid: null, audio: null };
+ return {
+  unlocked: false,
+  equipped: false,
+  grid: null,
+  artId: null,
+  audio: null,
+ };
 }
 
 /**
@@ -86,6 +103,7 @@ export function normalizeCustomSkinSave(value: unknown): CustomSkinSave {
   unlocked: v.unlocked === true,
   equipped: v.equipped === true,
   grid: normalizeCustomSkinGrid(v.grid),
+  artId: normalizeCustomSkinArtId(v.artId),
   audio: normalizeCustomSkinAudio(v.audio),
  };
 }
@@ -164,6 +182,38 @@ export function customSkinGridToUri(
   gridUriCacheBytes = key.length + uri.length;
  }
  return uri;
+}
+
+/**
+ * The bundled sprite id: must be one of the ids in bundledSprites.ts
+ * (an unknown id — a save edited by hand or a future library change —
+ * falls back to "no bundled art" rather than a blank body).
+ */
+export function normalizeCustomSkinArtId(v: unknown): string | null {
+ if (typeof v !== "string") return null;
+ return BUNDLED_SPRITE_IDS.includes(v) ? v : null;
+}
+
+/** The art the equipped skin resolves to — bundled sprite first, then the uploaded grid. */
+export type ActiveSkinArt =
+ | { kind: "bundled"; spriteId: string }
+ | { kind: "grid"; grid: CustomSkinGrid };
+
+/**
+ * The body art the skin slot carries right now, or null when nothing is
+ * equipped to show. A bundled sprite id wins over an uploaded grid (the
+ * library picker is the more recent intent); the caller maps the result
+ * to a URI (sprite.uri / customSkinGridToUri) — this module stays free
+ * of image encoding.
+ */
+export function activeSkinArt(save: CustomSkinSave): ActiveSkinArt | null {
+ if (!save.equipped) return null;
+ if (save.artId !== null) return { kind: "bundled", spriteId: save.artId };
+ const grid = save.grid;
+ if (grid !== null && hasCustomSkinPixels(grid)) {
+  return { kind: "grid", grid };
+ }
+ return null;
 }
 
 /**

@@ -224,7 +224,9 @@ describe("mined path + easter eggs", () => {
     let found = false;
     for (let s = 0; s < CAVE_STRIPS_PER_TIER && !found; s++) {
       const grid = buildCaveRow(4, s, "#5ab8b8");
-      found = grid.some((row) => row.some((p) => p != null && oreColors.includes(p)));
+      found = grid.some((row) =>
+        row.some((p) => p != null && oreColors.includes(p)),
+      );
     }
     expect(found).toBe(true);
   });

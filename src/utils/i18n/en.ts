@@ -532,6 +532,8 @@ export const en = {
     "Your own pixels: upload a body image and a swing sound (one-time unlock).",
   "iap.skinUploadImage": "Upload image",
   "iap.skinUploadAudio": "Upload sound",
+  "iap.skinSprites": "Sprite art",
+  "iap.skinSpriteDefault": "Default look",
   "iap.skinClear": "Clear uploads",
   "iap.skinUploadsUnavailable": "Uploads are not available on this platform",
 

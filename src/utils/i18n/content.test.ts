@@ -17,17 +17,10 @@ import { GOAL_TIERS } from "src/mines_of_doom/goals";
 import { ACHIEVEMENTS } from "src/mines_of_doom/achievements";
 import { getRecords } from "src/mines_of_doom/records";
 import { IAP_PRODUCTS } from "src/mines_of_doom/iaps";
+import { BUNDLED_SPRITES } from "src/mines_of_doom/bundledSprites";
 import { LEGAL_DOCS } from "src/mines_of_doom/legal";
-import {
-  OUTFITS,
-  PICKAXES,
-  CAVE_THEMES,
-} from "src/mines_of_doom/cosmetics";
-import {
-  translateContent,
-  contentKey,
-  type ContentStrings,
-} from "./content";
+import { OUTFITS, PICKAXES, CAVE_THEMES } from "src/mines_of_doom/cosmetics";
+import { translateContent, contentKey, type ContentStrings } from "./content";
 import { contentEs } from "./content-es";
 
 /**
@@ -57,6 +50,9 @@ function expectedItems(): Map<string, ContentStrings> {
   for (const p of Object.values(IAP_PRODUCTS)) {
     m.set(contentKey("iap", p.id), { title: p.label, detail: p.blurb });
   }
+  for (const s of BUNDLED_SPRITES) {
+    m.set(contentKey("bundledSprite", s.id), { title: s.name });
+  }
   for (const o of OUTFITS) {
     m.set(contentKey("outfit", o.id), { title: o.name, detail: o.blurb });
   }
@@ -69,10 +65,10 @@ function expectedItems(): Map<string, ContentStrings> {
   for (const doc of LEGAL_DOCS) {
     m.set(contentKey("legalDoc", doc.id), { title: doc.title });
     for (const section of doc.sections) {
-      m.set(
-        contentKey("legalSection", `${doc.id}:${section.heading}`),
-        { title: section.heading, body: section.body },
-      );
+      m.set(contentKey("legalSection", `${doc.id}:${section.heading}`), {
+        title: section.heading,
+        body: section.body,
+      });
     }
   }
   return m;
@@ -113,8 +109,12 @@ describe("locale content tables", () => {
           hasEnDetail,
           hasLocaleDetail: entry.detail != null,
         }).toEqual({ locale, key, hasEnDetail, hasLocaleDetail: hasEnDetail });
-        expect({ locale, key, hasEnBody, hasLocaleBody: entry.body != null })
-          .toEqual({ locale, key, hasEnBody, hasLocaleBody: hasEnBody });
+        expect({
+          locale,
+          key,
+          hasEnBody,
+          hasLocaleBody: entry.body != null,
+        }).toEqual({ locale, key, hasEnBody, hasLocaleBody: hasEnBody });
       }
     }
   });

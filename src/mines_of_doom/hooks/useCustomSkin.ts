@@ -4,6 +4,7 @@ import {
  CustomSkinGrid,
  CustomSkinSave,
  defaultCustomSkin,
+ normalizeCustomSkinArtId,
  normalizeCustomSkinAudio,
  normalizeCustomSkinGrid,
  normalizeCustomSkinSave,
@@ -41,6 +42,13 @@ export interface UseCustomSkin {
  setGrid(grid: CustomSkinGrid | null): void;
  /** Store (or clear, with null) the uploaded swing sound data URI. */
  setAudio(uri: string | null): void;
+ /**
+  * Equip a bundled sprite-library id (bundledSprites.ts) as the body
+  * art — or null to fall back to the generated pixel look. Picking an
+  * art IS equipping it (same first-upload-equip rule as setGrid). A
+  * no-op when the slot is still locked or the id is not in the library.
+  */
+ setArt(id: string | null): void;
  /** Clear the player's uploads (keeps the unlock — that's a purchase). */
  clear(): void;
 }
@@ -92,9 +100,31 @@ export function useCustomSkin(): UseCustomSkin {
   update((c) => ({
    ...c,
    grid: normalized,
+   // A fresh image upload supersedes a bundled sprite (most recent
+   // intent wins the single body-art slot).
+   artId: grid == null ? c.artId : null,
    // First upload equips the skin so the player sees their pixel right
    // away (the body sprite still shows through until pixels land).
    equipped: grid == null ? c.equipped : true,
+  }));
+ };
+
+ const setArt = (id: string | null): void => {
+  const current = skinRef.current;
+  if (!current.unlocked) {
+   return;
+  }
+  const normalized = id == null ? null : normalizeCustomSkinArtId(id);
+  if (normalized == null && id != null) {
+   return; // unknown library id — keep the slot clean
+  }
+  update((c) => ({
+   ...c,
+   artId: normalized,
+   // Picking a bundled sprite equips the skin right away (same rule
+   // as a first image upload) — null ("default look") keeps whatever
+   // the current equipped state is.
+   equipped: id == null ? c.equipped : true,
   }));
  };
 
@@ -105,11 +135,11 @@ export function useCustomSkin(): UseCustomSkin {
 
  const clear = (): void => {
   const current = skinRef.current;
-  if (current.grid == null && current.audio == null) {
+  if (current.grid == null && current.artId == null && current.audio == null) {
    return;
   }
-  update((c) => ({ ...c, grid: null, audio: null }));
+  update((c) => ({ ...c, grid: null, artId: null, audio: null }));
  };
 
- return { skin, unlock, setEquipped, setGrid, setAudio, clear };
+ return { skin, unlock, setEquipped, setGrid, setAudio, setArt, clear };
 }

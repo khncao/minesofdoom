@@ -541,6 +541,8 @@ export const es: Record<TranslationKey, string> = {
     "Tus propios píxeles: sube una imagen de cuerpo y un sonido de balanceo (desbloqueo único).",
   "iap.skinUploadImage": "Subir imagen",
   "iap.skinUploadAudio": "Subir sonido",
+  "iap.skinSprites": "Arte de sprite",
+  "iap.skinSpriteDefault": "Apariencia predeterminada",
   "iap.skinClear": "Borrar subidas",
   "iap.skinUploadsUnavailable":
     "Las subidas no están disponibles en esta plataforma",

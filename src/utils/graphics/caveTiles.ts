@@ -494,9 +494,7 @@ export function caveRowUri(opts: {
   const key = `${width}|${opts.tint}|${tier}|${strip}`;
   let uri = cache.get(key);
   if (uri == null) {
-    uri = gridToPngDataUri(
-      buildCaveRow(tier, strip, opts.tint, opts.widthPx),
-    );
+    uri = gridToPngDataUri(buildCaveRow(tier, strip, opts.tint, opts.widthPx));
     cache.set(key, uri);
   }
   return uri;

@@ -26,37 +26,39 @@ import { contentEs } from "./content-es";
 
 /** Which data table a key belongs to. */
 export type ContentNamespace =
-  /** Biome names (DEPTH_TIERS in game.ts). id = tier id, stringified. */
-  | "depthTier"
-  /** Goal tier name + unlock line (GOAL_TIERS in goals.ts). */
-  | "goalTier"
-  /** Individual goal labels (the `goals` arrays in goals.ts). */
-  | "goal"
-  /** Achievement labels (ACHIEVEMENTS in achievements.ts). */
-  | "achievement"
-  /** Record row labels (getRecords in records.ts). */
-  | "record"
-  /** Outfit name + blurb (OUTFITS in cosmetics.ts). */
-  | "outfit"
-  /** Pickaxe name (PICKAXES in cosmetics.ts). */
-  | "pickaxe"
-  /** Cave theme name + blurb (CAVE_THEMES in cosmetics.ts). */
-  | "caveTheme"
-  /** IAP product label + blurb (IAP_PRODUCTS in iaps.ts). */
-  | "iap"
-  /** Legal document titles (LEGAL_DOCS in legal.ts). */
-  | "legalDoc"
-  /** Legal section headings + bodies. id = `<docId>:<English heading>`. */
-  | "legalSection";
+ /** Biome names (DEPTH_TIERS in game.ts). id = tier id, stringified. */
+ | "depthTier"
+ /** Goal tier name + unlock line (GOAL_TIERS in goals.ts). */
+ | "goalTier"
+ /** Individual goal labels (the `goals` arrays in goals.ts). */
+ | "goal"
+ /** Achievement labels (ACHIEVEMENTS in achievements.ts). */
+ | "achievement"
+ /** Record row labels (getRecords in records.ts). */
+ | "record"
+ /** Outfit name + blurb (OUTFITS in cosmetics.ts). */
+ | "outfit"
+ /** Pickaxe name (PICKAXES in cosmetics.ts). */
+ | "pickaxe"
+ /** Cave theme name + blurb (CAVE_THEMES in cosmetics.ts). */
+ | "caveTheme"
+ /** IAP product label + blurb (IAP_PRODUCTS in iaps.ts). */
+ | "iap"
+ /** Bundled sprite-library art name (BUNDLED_SPRITES in bundledSprites.ts). */
+ | "bundledSprite"
+ /** Legal document titles (LEGAL_DOCS in legal.ts). */
+ | "legalDoc"
+ /** Legal section headings + bodies. id = `<docId>:<English heading>`. */
+ | "legalSection";
 
 /** A content item's display strings. */
 export type ContentStrings = {
-  /** Display name / label. */
-  title: string;
-  /** Optional one-line extra (blurb, unlock line). */
-  detail?: string;
-  /** Optional long text (legal doc section bodies). */
-  body?: string;
+ /** Display name / label. */
+ title: string;
+ /** Optional one-line extra (blurb, unlock line). */
+ detail?: string;
+ /** Optional long text (legal doc section bodies). */
+ body?: string;
 };
 
 /** A locale's content table, keyed by `ns:id` (contentKey). */
@@ -69,12 +71,12 @@ export type ContentTable = Record<string, ContentStrings>;
  * full table here + a parity entry in content.test.ts.
  */
 const TABLES: Record<Locale, ContentTable> = {
-  en: {},
-  es: contentEs,
+ en: {},
+ es: contentEs,
 };
 
 export function contentKey(ns: ContentNamespace, id: string): string {
-  return `${ns}:${id}`;
+ return `${ns}:${id}`;
 }
 
 /**
@@ -84,16 +86,16 @@ export function contentKey(ns: ContentNamespace, id: string): string {
  * mirroring `translate` in i18n.ts.
  */
 export function translateContent(
-  ns: ContentNamespace,
-  id: string,
-  locale: Locale,
-  fallback: ContentStrings,
+ ns: ContentNamespace,
+ id: string,
+ locale: Locale,
+ fallback: ContentStrings,
 ): ContentStrings {
-  const entry = TABLES[locale][contentKey(ns, id)];
-  if (entry == null) return fallback;
-  return {
-    title: entry.title,
-    detail: entry.detail ?? fallback.detail,
-    body: entry.body ?? fallback.body,
-  };
+ const entry = TABLES[locale][contentKey(ns, id)];
+ if (entry == null) return fallback;
+ return {
+  title: entry.title,
+  detail: entry.detail ?? fallback.detail,
+  body: entry.body ?? fallback.body,
+ };
 }

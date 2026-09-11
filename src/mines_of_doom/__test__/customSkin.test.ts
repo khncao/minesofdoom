@@ -2,12 +2,17 @@ import {
   CUSTOM_SKIN_UNLOCK_COST_GEMS,
   CUSTOM_SKIN_AUDIO_MAX_URI_LENGTH,
   CUSTOM_SKIN_GRID_SIZE,
+  activeSkinArt,
+  defaultCustomSkin,
   hasCustomSkinPixels,
   isValidCustomSkinColor,
+  normalizeCustomSkinArtId,
   normalizeCustomSkinAudio,
   normalizeCustomSkinGrid,
+  normalizeCustomSkinSave,
   customSkinGridToUri,
 } from "../customSkin";
+import { BUNDLED_SPRITES } from "../bundledSprites";
 
 const row = (color: string | null): (string | null)[] =>
   Array.from({ length: CUSTOM_SKIN_GRID_SIZE }, () => color);
@@ -142,5 +147,45 @@ describe("cost", () => {
   it("unlock price is a positive integer of gems (feature tier)", () => {
     expect(CUSTOM_SKIN_UNLOCK_COST_GEMS).toBeGreaterThan(0);
     expect(Number.isInteger(CUSTOM_SKIN_UNLOCK_COST_GEMS)).toBe(true);
+  });
+});
+
+describe("bundled-sprite art slot (artId)", () => {
+  const someId = BUNDLED_SPRITES[0].id;
+
+  it("normalizeCustomSkinArtId accepts library ids and rejects the rest", () => {
+    expect(normalizeCustomSkinArtId(someId)).toBe(someId);
+    expect(normalizeCustomSkinArtId("no-such-sprite")).toBeNull();
+    expect(normalizeCustomSkinArtId(42)).toBeNull();
+    expect(normalizeCustomSkinArtId(null)).toBeNull();
+  });
+
+  it("normalizeCustomSkinSave keeps a known artId, drops an unknown one", () => {
+    const save = { ...defaultCustomSkin(), artId: someId };
+    expect(normalizeCustomSkinSave(save).artId).toBe(someId);
+    expect(
+      normalizeCustomSkinSave({ ...save, artId: "bogus" }).artId,
+    ).toBeNull();
+  });
+
+  it("activeSkinArt: a bundled sprite wins over an uploaded grid", () => {
+    const base = {
+      ...defaultCustomSkin(),
+      grid: goodGrid(),
+      equipped: true,
+    };
+    expect(activeSkinArt(base)).toEqual({ kind: "grid", grid: goodGrid() });
+    const withArt = { ...base, artId: someId, equipped: true };
+    expect(activeSkinArt(withArt)).toEqual({
+      kind: "bundled",
+      spriteId: someId,
+    });
+  });
+
+  it("activeSkinArt is null when not equipped, or equipped with no art", () => {
+    expect(
+      activeSkinArt({ ...defaultCustomSkin(), artId: someId, equipped: false }),
+    ).toBeNull();
+    expect(activeSkinArt(defaultCustomSkin())).toBeNull();
   });
 });

@@ -16,6 +16,7 @@ import {
 } from "../iaps";
 import { getPickaxe, rollMinerLook } from "../cosmetics";
 import { CustomSkinSave } from "../customSkin";
+import { BUNDLED_SPRITES } from "../bundledSprites";
 import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/pixelArt";
 import { emojis } from "src/utils/graphics/emojis";
 import { styles } from "../styles";
@@ -109,6 +110,7 @@ function IapPanel({
   onReroll,
   onUploadSkinImage,
   onUploadSkinAudio,
+  onPickBundledSprite,
   onClearSkin,
 }: {
   /** Provider is the dev simulation (dev builds only). */
@@ -154,6 +156,12 @@ function IapPanel({
   onUploadSkinImage?: () => void;
   /** Web-only (for now): store an uploaded swing sound. */
   onUploadSkinAudio?: () => void;
+  /**
+   * Pick a bundled sprite-library art (bundledSprites.ts) as the body —
+   * null reverts to the default generated pixel look. Only offered once
+   * the skin line is unlocked (the same gate as the uploads).
+   */
+  onPickBundledSprite?: (id: string | null) => void;
   /** Clear the player's skin uploads (keeps the unlock). */
   onClearSkin?: () => void;
   /** The engine gem buy (auto-equips; idempotent, no-op when unaffordable). */
@@ -252,7 +260,77 @@ function IapPanel({
                     {t("iap.skinUploadsUnavailable")}
                   </Text>
                 )}
-                {(customSkin.grid != null || customSkin.audio != null) &&
+                {/* The bundled sprite library (bundledSprites.ts — CC0
+                    2D art, see public/assets/sprites/CREDITS.txt): pick
+                    a ready-made body, or the default generated look. */}
+                {onPickBundledSprite != null && (
+                  <View style={{ gap: 3 }}>
+                    <Text
+                      style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}
+                    >
+                      {t("iap.skinSprites")}
+                    </Text>
+                    <View
+                      style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}
+                    >
+                      <Pressable
+                        testID="skin-sprite-default"
+                        accessibilityRole="button"
+                        accessibilityLabel={t("iap.skinSpriteDefault")}
+                        onPress={() => onPickBundledSprite(null)}
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 4,
+                          borderWidth: 1,
+                          borderColor:
+                            customSkin.artId == null
+                              ? "#ffd54f"
+                              : "rgba(255,255,255,0.3)",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: "rgba(0,0,0,0.25)",
+                        }}
+                      >
+                        <Text style={{ fontSize: 14 }}>⛏️</Text>
+                      </Pressable>
+                      {BUNDLED_SPRITES.map((s) => {
+                        const active = customSkin.artId === s.id;
+                        return (
+                          <Pressable
+                            key={s.id}
+                            testID={`skin-sprite-${s.id}`}
+                            accessibilityRole="button"
+                            accessibilityLabel={
+                              content("bundledSprite", s.id, { title: s.name })
+                                .title
+                            }
+                            onPress={() => onPickBundledSprite(s.id)}
+                            style={{
+                              width: 30,
+                              height: 30,
+                              borderRadius: 4,
+                              borderWidth: active ? 2 : 1,
+                              borderColor: active
+                                ? "#ffd54f"
+                                : "rgba(255,255,255,0.3)",
+                              backgroundColor: "rgba(0,0,0,0.25)",
+                            }}
+                          >
+                            <Image
+                              source={{ uri: s.uri }}
+                              style={{ width: "100%", height: "100%" }}
+                              resizeMode="contain"
+                            />
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+                {(customSkin.grid != null ||
+                  customSkin.artId != null ||
+                  customSkin.audio != null) &&
                   onClearSkin != null && (
                     <Button
                       tone="gem"

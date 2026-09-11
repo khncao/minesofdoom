@@ -1,0 +1,26 @@
+Bundled sprite art — "Custom skin" sprite library
+===================================================
+
+These sprites are the bundled 2D art the player can equip in the custom-skin
+line (shop → "Custom skin"). Every sprite in this directory is licensed
+**CC0 1.0 Universal** (public domain dedication,
+https://creativecommons.org/publicdomain/zero/1.0/): free to use in any
+project, including commercial ones, no permission required, attribution not
+required (but appreciated, hence this file).
+
+Source: FreeGameSprites (https://freegamesprites.com) — each asset page
+carries the CC0 license in its metadata. The PNGs here are the original
+256×256 sprites downscaled to 128×128 (nearest, integer 2×) for the game's
+≤44px body render; dwarven-mine-worker is the source's native 96×96.
+
+  beggar-boy-tin-cup.png          https://freegamesprites.com/en/assets/beggar-boy-tin-cup
+  cybernetic-arm-technician.png   https://freegamesprites.com/en/assets/cybernetic-arm-technician
+  dwarven-mine-worker.png         https://freegamesprites.com/en/assets/dwarven-mine-worker
+  goblin-bog-servant.png          https://freegamesprites.com/en/assets/goblin-bog-servant
+  hangar-mechanic-goggles-greasy.png  https://freegamesprites.com/en/assets/hangar-mechanic-goggles-greasy
+  lantern-bearer-boy.png          https://freegamesprites.com/en/assets/lantern-bearer-boy
+  trapper-bearskin-pelt.png       https://freegamesprites.com/en/assets/trapper-bearskin-pelt
+  will-o-wisp-spirit.png          https://freegamesprites.com/en/assets/will-o-wisp-spirit
+
+Regenerate the in-repo data-URI module after touching these files:
+  node scripts/generate-sprite-library.mjs
