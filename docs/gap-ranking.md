@@ -6458,3 +6458,141 @@ watchdogs, the HTTP timeout pattern), the expo-audio player effects
 registration. The route surface (`src/app/index.tsx`) was checked for any
 second screen back could pop (there is none). Pass 47 made no code
 change; F47.1 is ranked only, pending greenlit.
+
+### The fault-handling / failure-path layer (pass 48 — every site where data is malformed or the platform throws, and who hears about it, written 2026-09-12)
+
+Pass 28 audited what a hostile *player* can do (modified client, fast clock);
+pass 46 audited what gets *stored*; pass 47 audited the *registrations*.
+This pass audits the third adversary: the platform and the data failing
+*beneath* the game — corrupt saves and pasted codes, undecodable uploads,
+file/IO read failures, network non-2xx, storage-write rejections, audio/play
+rejections, missing 2d contexts, and throws outside the React tree — and
+answers, per site: is it contained, and does the player *hear* about it.
+The layer is, end to end, one of the best-fault-handled in the repo: every
+decode/parse funnel degrades to a typed result, and the crash nets are
+double-layered. The two gaps found are both *symmetry* gaps — one platform
+missing a net another platform has, and one input layer below a typed
+boundary that rejects instead of downgrades.
+
++ **The parse/decode funnel is fully netted, and the strongest pattern in
+the layer is the corrupt-save quarantine:** all ten production `JSON.parse`
+sites are try/catch-guarded with a degrade path, and the save loader's
+failure is the model case — `useGameEngine`'s load pipeline wraps each stage
+(parse → migrate → clamped build) in its own catch, and a parse failure
+does not just fall back to a fresh save: the raw bytes are **quarantined**
+to `saveDataKey + ".corrupt"` (test-pinned in
+`useGameEngine.test.ts:181`) so the player's save survives for recovery
+instead of being silently discarded. Settings load (two tables) degrades to
+defaults with a `console.warn`; the crash ring and the analytics ring
+parse failures keep their in-memory copy; the entitlement log parse failure
+degrades to an empty log (the IAP providers re-verify on demand, so an
+untrusted log is self-healing). Save *codes* were already audited in
+pass 21/28 (the `saveCode.ts` parse is guarded and typed).
+
++ **The crash net is double-layered and containment-within-containment
+on native:** (1) `ErrorBoundary` (render/lifecycle) — persists in
+`componentDidCatch` *before* re-rendering the fallback, shows a
+selectable full stack + the crash-context trail, and offers Try-again /
+Reload; (2) `installGlobalErrorCapture` wraps `ErrorUtils.setGlobalHandler`
+so out-of-React throws (native-module callbacks, timers — the suspected
+Android `describe` class) land in the same persisted ring with
+`source: "global"`, chained to the *previous* handler so dev behavior is
+preserved. `recordCrash` itself is contained twice: the serializer is
+try-wrapped (a hostile `toString` getter cannot hide the crash it was
+capturing), and the persistence chain catches its own failures into the
+in-memory fallback — "a throwing crash logger is a bug in disguise" is
+written into the module. The ring surfaces in AboutTab ("Recent errors")
+and is cleared by reset/erase (pass 46). `crashLog.ts` (pure ring math) and
+`crashContext.ts` are test-pinned.
+
++ **Every "the platform might say no" funnel degrades to a typed,
+toast-able result:** the four HTTP modules (`auth` 401/409-mapped,
+`cloudSave`/`leaderboard` `!res.ok → null`, both IAP providers) with
+request-bounded timeouts (pass 47); the secure-token store's
+keychain/keystore-throw → log + in-memory degrade (a design documented in
+`secureToken.ts`, not an accident); every expo-audio `.play()` catch-wrapped
+with the first-gesture gate over the RN `media.play()` leak; the share
+chain's full fallback ladder (null 2d-context guard, `toBlob`-reject → text
+share, `canShare` probe, AbortError → deliberate no-op); the skin pickers'
+decode-level failures → `{kind, error}` results the caller toasts. The
+equation generator can't produce an unplayable board: bounded re-pick,
+non-empty `choices` guaranteed (`choices.push(mult)` on empty), and a
+last-resort plain multiply that "can't fail, so the last return is never
+actually hit" — playability is the invariant, not the average case. i18n
+falls unknown-locale → `en`, missing-template → the en table.
+
+Findings:
+
++ **F48.1 `fault:web-global-capture-missing` (Tier 2):** the crash net has
+one platform asymmetry — `installGlobalErrorCapture` bails early on web
+(react-native-web exports no `ErrorUtils`, and the bail is deliberate and
+documented), so the **web release build has no global capture at all**: an
+out-of-React throw on web (an rAF chain, an async callback, the
+double-RAF URL re-clean) reaches only the browser console, and the
+persisted crash ring + AboutTab "Recent errors" — which *do* work on web
+(`recordCrash` is web-compatible: AsyncStorage → localStorage + memory
+fallback, none of it native-gated) — stay empty on web. The ErrorBoundary
+still catches web render errors (its `recordCrash` fires fine), so the
+gap is exactly the second net, on exactly the platform that is the public
+production surface (pass 36). The native install path itself also has no
+direct unit test (the ring math is pinned, the `setGlobalHandler` wrapper
+isn't). Fix shape: a web branch in `installGlobalErrorCapture` —
+`window.addEventListener("error")` + `"unhandledrejection"` →
+`recordCrash(error/reason, null, "global")` and fall through to console —
+~15 lines reusing the existing idempotency flag, plus a net for both
+branches (mock `ErrorUtils` for the native path, jsdom-style window for the
+web path). Ranked, pending greenlit.
+
++ **F48.2 `fault:skin-picker-raw-reject` (Tier 3):** both pickers convert
+*decode-level* failures into typed results, but the file-read layer
+*underneath* them can still throw raw: native's `File.pickFileAsync` /
+`res.result.arrayBuffer()` (an FS read failure, a storage hiccup) and web's
+`file.arrayBuffer()` inside `audioFileToUri` (the image path,
+`imageFileToGrid`, is fully guarded). `MinesOfDoom`'s
+`handleSkinImageUpload` / `handleSkinAudioUpload` await the pickers with no
+try/catch, so such a throw is an unhandled rejection: the upload button
+dies **silently — no toast**, breaking the plain-language-failure contract
+the module header states ("the player always hears what was stored and
+what wasn't") at exactly the layer one read below the typed boundary. On
+native, RN's global handler records it (so it is diagnosable), on web it
+is console-only (and, until F48.1, even the record is missing). Fix shape:
+wrap each picker's body and map a raw throw to a new
+`{kind:"invalid", error:"io"}` (two i18n strings, en+es) or try/catch at
+the two call sites with the existing invalid toast — either is a few lines
+with zero behavior change on the happy path. Ranked, pending greenlit.
+
++ **Recorded, not defects:** (1) the two upload handlers deliberately toast
+nothing on `{kind:"cancelled"}` — a dismissed picker is not a failure, and
+toasting "cancelled" would be noise. (2) `useEquations.handleSubmit`'s
+try/catch around `Number.parseFloat` is dead code (`parseFloat` never
+throws; empty input → NaN → the wrong-answer path, which is the intended
+playable behavior) and the `value = -1` init is likewise unreachable —
+harmless, no fix ranked. (3) `customSkinPicker.web`'s `chooseFile` creates
+its `<input>` **detached from the DOM** and calls `.click()` on it —
+works in Chromium/Safari/Firefox as of the audited platforms, but it is
+the classic "attach first" browser-compat foot-gun; a non-firing click
+reads as a dead button with no failure signal (no reject, no toast —
+distinct from F48.2's rejection path). Watch item; a `document.body
+.append` + remove-on-settle is the standard hardening if it ever bites.
+(4) the `ErrorBoundary` wraps `MinesOfDoom` but sits *inside*
+`Stack.Screen`'s sibling position — a synchronous throw in the native
+stack itself would white-screen without hitting the boundary; low-
+probability by construction (the suspected Android class was the
+listener/native-callback class, which the global net owns), no fix
+ranked. (5) the crash ring's 32 KB byte-cap has no direct eviction test —
+that is F46.1, not re-ranked here. (6) `recordCrash`'s serializer-is-
+contained + chain-catches-its-own-write shape is the layer's model; any
+future fire-and-forget diagnostics should copy both.
+
+Method: the layer's shape is the inventory of "input is not under our
+control" sites in `src/` (non-test): all ten production `JSON.parse`
+sites (each checked for guard + degrade, not just guard), the engine's
+three-stage save-load pipeline + corrupt quarantine, the crash net
+(`ErrorBoundary`, `installGlobalErrorCapture`, `recordCrash`,
+`useCrashLog`, AboutTab's surface, web-compatibility of each piece), the
+four HTTP modules + both IAP providers' non-2xx mapping, the secure-token
+degrade ladder, `useSounds`' play-rejection sites, the share chain
+(`share.ts`, `shareImage(.web).ts`), `equations.ts`' generate fallback,
+`i18n.ts`'s locale/template fallbacks, both skin pickers' decode funnels +
+their two call sites in `MinesOfDoom.tsx`. Pass 48 made no code change;
+F48.1/F48.2 are ranked only, pending greenlit.
