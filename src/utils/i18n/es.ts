@@ -443,6 +443,16 @@ export const es: Record<TranslationKey, string> = {
   "settings.resetButton": "Reiniciar",
   "settings.resetDescription":
     "Borrará el guardado actual y volverá al estado inicial.",
+  "settings.eraseAllData": "Borrar todos los datos",
+  "settings.eraseAllDataDescription":
+    "Borra TODO lo que esta app guarda en este dispositivo: datos " +
+    "guardados, ajustes, estadísticas locales, registro de errores, " +
+    "activación de anuncios y la sesión de la cuenta. No se puede " +
+    "deshacer. El guardado en la nube (si existe) se conserva y se puede " +
+    "restaurar después.",
+  "settings.eraseAllDataFailed":
+    "No se pudo borrar — puede que quede algún dato.",
+  "settings.eraseAllDataDone": "Todos los datos borrados.",
   "settings.a11ySaveCode": "Tu código de guardado — selecciona para copiar",
   "settings.analytics": "Estadísticas locales (dep.)",
   "settings.clear": "Borrar",

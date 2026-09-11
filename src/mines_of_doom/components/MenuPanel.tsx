@@ -49,6 +49,7 @@ function MenuPanel({
     showMessage,
     onSave,
     onReset,
+    onEraseAllData,
     onExportSaveCode,
     onImportSaveCode,
     mute,
@@ -70,6 +71,8 @@ function MenuPanel({
     showMessage: string | null;
     onSave: () => void;
     onReset: () => void;
+    /** "Erase all data" (superset of Reset — see eraseAll.ts). */
+    onEraseAllData: () => void;
     onExportSaveCode: () => string;
     onImportSaveCode: (code: string) => boolean;
     mute: boolean;
@@ -133,6 +136,7 @@ function MenuPanel({
                 showMessage={showMessage}
                 onSave={onSave}
                 onReset={onReset}
+                onEraseAllData={onEraseAllData}
                 onExportSaveCode={onExportSaveCode}
                 onImportSaveCode={onImportSaveCode}
                 cloudSave={cloudSave}
@@ -144,6 +148,7 @@ function MenuPanel({
             showMessage,
             onSave,
             onReset,
+            onEraseAllData,
             onExportSaveCode,
             onImportSaveCode,
             cloudSave,

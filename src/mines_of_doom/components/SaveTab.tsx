@@ -22,6 +22,7 @@ const SaveTab = memo(function SaveTab({
   showMessage,
   onSave,
   onReset,
+  onEraseAllData,
   onExportSaveCode,
   onImportSaveCode,
   cloudSave,
@@ -31,6 +32,9 @@ const SaveTab = memo(function SaveTab({
   showMessage: string | null;
   onSave: () => void;
   onReset: () => void;
+  /** "Erase all data" (a superset of Reset — see eraseAll.ts): wipes
+   *  everything the app persists locally, not just the save. */
+  onEraseAllData: () => void;
   /** Plan §4.3: returns the current save as a shareable base64 code. */
   onExportSaveCode: () => string;
   /** Plan §4.3: imports a save code; returns false (and toasts) on failure. */
@@ -110,6 +114,13 @@ const SaveTab = memo(function SaveTab({
           title={t("settings.resetButton")}
           description={t("settings.resetDescription")}
           onPress={onReset}
+        />
+      </View>
+      <View style={{ alignSelf: "stretch", marginTop: 8 }} testID="erase-all-data">
+        <ConfirmableButton
+          title={t("settings.eraseAllData")}
+          description={t("settings.eraseAllDataDescription")}
+          onPress={onEraseAllData}
         />
       </View>
       <CloudSaveSection cloudSave={cloudSave} />

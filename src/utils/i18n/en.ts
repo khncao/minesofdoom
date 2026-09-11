@@ -435,6 +435,15 @@ export const en = {
   "settings.resetButton": "Reset",
   "settings.resetDescription":
     "Will delete current save data and reset to initial state.",
+  "settings.eraseAllData": "Erase all data",
+  "settings.eraseAllDataDescription":
+    "Deletes EVERYTHING this app stores on this device: save data, " +
+    "settings, local stats, error log, ad opt-in, and the account " +
+    "sign-in. Cannot be undone. Your cloud save (if any) is kept and can " +
+    "be restored from the cloud after erasing.",
+  "settings.eraseAllDataFailed":
+    "Erasing failed — some data may remain.",
+  "settings.eraseAllDataDone": "All data erased.",
   "settings.a11ySaveCode": "Your save code — select to copy",
   "settings.analytics": "Local stats (debug)",
   "settings.clear": "Clear",

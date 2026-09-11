@@ -52,6 +52,8 @@ import {
   getSessionStats,
   SessionBaseline,
 } from "./session";
+import { defaultEquationSettings } from "src/utils/math/equations";
+import { eraseAllAppStorage } from "./eraseAll";
 import {
   getAchievement,
   getAchievementBonus,
@@ -1447,6 +1449,44 @@ export default function MinesOfDoom() {
     resetGame();
   }, [resetGame]);
 
+  // "Erase all data" (a superset of Reset — see eraseAll.ts for the
+  // scope): wipe EVERYTHING the app persists locally, not just the
+  // save. The live in-memory state is reset to defaults FIRST because
+  // a native app has no page reload — the in-memory values are what a
+  // next autosave would rewrite; on web the reload below guarantees a
+  // clean boot regardless.
+  const signOut = account.signOut;
+  const handleEraseAllData = useCallback(async () => {
+    noteCrashEvent("erase-all-data");
+    resetGame();
+    updateSettingsData(defaultSettingsData);
+    updateEquationSettings(defaultEquationSettings);
+    setMute(false);
+    setOnScreenKeypad(Platform.OS !== "web");
+    await signOut();
+    try {
+      await eraseAllAppStorage();
+    } catch (e) {
+      console.error("Erase all data failed", e);
+      displayMessage(t("settings.eraseAllDataFailed"), 5000);
+      return;
+    }
+    if (Platform.OS === "web") {
+      window.location.reload();
+    } else {
+      displayMessage(t("settings.eraseAllDataDone"), 4000);
+    }
+  }, [
+    resetGame,
+    updateSettingsData,
+    updateEquationSettings,
+    setMute,
+    setOnScreenKeypad,
+    signOut,
+    displayMessage,
+    t,
+  ]);
+
   // Cold start (plan §4.4): hold the screen on a loading state until the
   // stored save is loaded, instead of flashing the zeroed state first.
   // All hooks above have already run, so an early return is safe here.
@@ -1487,6 +1527,7 @@ export default function MinesOfDoom() {
               showMessage={showMessage}
               onSave={handleSaveSettings}
               onReset={handleReset}
+              onEraseAllData={handleEraseAllData}
               onExportSaveCode={handleExportSaveCode}
               onImportSaveCode={handleImportSaveCode}
               mute={mute}
