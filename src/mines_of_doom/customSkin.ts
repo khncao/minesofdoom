@@ -25,6 +25,19 @@ export const CUSTOM_SKIN_UNLOCK_COST_GEMS = 250;
  */
 export const CUSTOM_SKIN_AUDIO_MAX_URI_LENGTH = 300_000;
 
+/**
+ * The swing sound is a SWING: a short clip, on every platform (3 s). The
+ * web picker enforces it at decode time (AudioContext), the native picker
+ * after WAV parse — one cap, both pickers.
+ */
+export const CUSTOM_SKIN_AUDIO_MAX_SECONDS = 3;
+
+/**
+ * Sanity cap on a picked file (bytes) before we spend a decode on it —
+ * a skin image/sound will never be near this (the save keeps ~2 KB).
+ */
+export const CUSTOM_SKIN_MAX_PICK_BYTES = 20 * 1024 * 1024;
+
 /** A 16×16 grid of CSS colors or null (transparent) cells. */
 export type CustomSkinGrid = readonly (readonly (string | null)[] | null)[];
 

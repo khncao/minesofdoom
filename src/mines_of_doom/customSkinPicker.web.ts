@@ -16,17 +16,14 @@
  */
 import {
   CustomSkinGrid,
+  CUSTOM_SKIN_AUDIO_MAX_SECONDS,
   CUSTOM_SKIN_AUDIO_MAX_URI_LENGTH,
   CUSTOM_SKIN_GRID_SIZE,
+  CUSTOM_SKIN_MAX_PICK_BYTES,
 } from "./customSkin";
 import { CustomSkinPickResult } from "./customSkinPicker";
 import { rgbaToGrid } from "src/utils/graphics/customSprite";
-
-/** The swing sound is a SWING: keep it to a short clip (3 s max). */
-const SKIN_AUDIO_MAX_SECONDS = 3;
-
-/** Sanity cap on the picked file (bytes) before we try to decode it. */
-const MAX_PICK_FILE_BYTES = 20 * 1024 * 1024;
+import { pcmToWavDataUri } from "src/utils/audio/wav";
 
 /** Ask the browser for a file with the given accept filter. */
 function chooseFile(accept: string): Promise<File | null> {
@@ -74,39 +71,6 @@ async function imageFileToGrid(file: File): Promise<CustomSkinGrid | null> {
   }
 }
 
-/** Encode mono float PCM as a 16-bit WAV data URI (the save shape). */
-function encodeWavDataUri(data: Float32Array, sampleRate: number): string {
-  const n = data.length;
-  const buffer = new ArrayBuffer(44 + n * 2);
-  const view = new DataView(buffer);
-  const writeStr = (o: number, s: string) => {
-    for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i));
-  };
-  writeStr(0, "RIFF");
-  view.setUint32(4, 36 + n * 2, true);
-  writeStr(8, "WAVE");
-  writeStr(12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM
-  view.setUint16(22, 1, true); // mono
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true); // byte rate
-  view.setUint16(32, 2, true); // block align
-  view.setUint16(34, 16, true); // bits
-  writeStr(36, "data");
-  view.setUint32(40, n * 2, true);
-  for (let i = 0; i < n; i++) {
-    const s = Math.max(-1, Math.min(1, data[i]));
-    view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-  }
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return `data:audio/wav;base64,${btoa(binary)}`;
-}
-
 async function audioFileToUri(file: File): Promise<string | null> {
   // SAFETY: the DOM lib types window.AudioContext for modern browsers;
   // the webkitAudioContext fallback only carries the same constructor
@@ -120,10 +84,13 @@ async function audioFileToUri(file: File): Promise<string | null> {
   const ctx = new AudioCtor();
   try {
     const audio = await ctx.decodeAudioData(arrayBuffer);
-    if (audio.duration <= 0 || audio.duration > SKIN_AUDIO_MAX_SECONDS) {
+    if (
+      audio.duration <= 0 ||
+      audio.duration > CUSTOM_SKIN_AUDIO_MAX_SECONDS
+    ) {
       return null;
     }
-    const uri = encodeWavDataUri(audio.getChannelData(0), audio.sampleRate);
+    const uri = pcmToWavDataUri(audio.getChannelData(0), audio.sampleRate);
     return uri.length > CUSTOM_SKIN_AUDIO_MAX_URI_LENGTH ? null : uri;
   } catch {
     return null;
@@ -135,7 +102,7 @@ async function audioFileToUri(file: File): Promise<string | null> {
 export async function pickCustomSkinImage(): Promise<CustomSkinPickResult> {
   const file = await chooseFile("image/*");
   if (file == null) return { kind: "cancelled" };
-  if (file.size > MAX_PICK_FILE_BYTES) {
+  if (file.size > CUSTOM_SKIN_MAX_PICK_BYTES) {
     return { kind: "invalid", error: "too-large" };
   }
   const grid = await imageFileToGrid(file);
@@ -147,7 +114,7 @@ export async function pickCustomSkinImage(): Promise<CustomSkinPickResult> {
 export async function pickCustomSkinAudio(): Promise<CustomSkinPickResult> {
   const file = await chooseFile("audio/*");
   if (file == null) return { kind: "cancelled" };
-  if (file.size > MAX_PICK_FILE_BYTES) {
+  if (file.size > CUSTOM_SKIN_MAX_PICK_BYTES) {
     return { kind: "invalid", error: "too-large" };
   }
   const uri = await audioFileToUri(file);

@@ -1571,12 +1571,8 @@ export default function MinesOfDoom() {
                 !gameState.completedTiers.includes(CAVE_THEME_UNLOCK_TIER)
               }
               customSkin={customSkin}
-              onUploadSkinImage={
-                Platform.OS === "web" ? handleSkinImageUpload : undefined
-              }
-              onUploadSkinAudio={
-                Platform.OS === "web" ? handleSkinAudioUpload : undefined
-              }
+              onUploadSkinImage={handleSkinImageUpload}
+              onUploadSkinAudio={handleSkinAudioUpload}
               onClearSkin={() => {
                 clearCustomSkin();
                 displayMessage(t("toast.skinCleared"), 2000);

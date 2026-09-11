@@ -54,11 +54,11 @@ export const en = {
   "toast.vein": "You struck a vein! +1 💎",
   "toast.skinImageSaved": "Custom skin image saved",
   "toast.skinImageInvalid":
-    "That image couldn't be used — try a simpler, smaller image",
+    "That image couldn't be used — try a plain, simpler PNG image",
   "toast.skinAudioSaved": "Custom swing sound saved",
   "toast.skinAudioInvalid":
-    "That sound file couldn't be used (keep it under 3 seconds)",
-  "toast.skinUnsupported": "Uploads are available on web for now",
+    "That sound file couldn't be used — use a plain .wav sound under 3 seconds",
+  "toast.skinUnsupported": "Uploads are not available on this platform",
   "toast.skinCleared": "Custom skin uploads cleared",
   "toast.comboUp": "Combo x{mult}!",
   "toast.comboDropped": "Combo dropped to {combo}!",
@@ -534,7 +534,7 @@ export const en = {
   "iap.skinUploadImage": "Upload image",
   "iap.skinUploadAudio": "Upload sound",
   "iap.skinClear": "Clear uploads",
-  "iap.skinUploadsWebOnly": "Uploads are available on web for now",
+  "iap.skinUploadsUnavailable": "Uploads are not available on this platform",
 
   // --- Shared UI ---------------------------------------------------------------
   "ui.close": "Close",

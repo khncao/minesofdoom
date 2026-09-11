@@ -227,7 +227,7 @@ function IapPanel({
               title={equipped ? t("iap.equipped") : t("iap.equip")}
               onPress={() => onSelect(product.id)}
             />
-            {/* The custom-skin row: upload controls (web for now) + a
+            {/* The custom-skin row: upload controls (both platforms) +
                 clear — the slot is device-local, uploads live in the
                 customSkin save slot, not the game save. */}
             {product.line === "skin" && (
@@ -249,7 +249,7 @@ function IapPanel({
                   </View>
                 ) : (
                   <Text style={{ ...styles.text, fontSize: 10, opacity: 0.7 }}>
-                    {t("iap.skinUploadsWebOnly")}
+                    {t("iap.skinUploadsUnavailable")}
                   </Text>
                 )}
                 {(customSkin.grid != null || customSkin.audio != null) &&

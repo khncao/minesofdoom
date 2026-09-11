@@ -187,19 +187,26 @@ of Pressable so rapid tapping doesn't double-render).
 - **Custom skinning** — the player's own avatar: a one-time unlock
   (250 gems OR the `packSkin` IAP — the 26th catalog row, the priciest
   "skin" feature-tier line) opens an upload UI where the player sets
-  their own 16×16 body sprite (any PNG → `pngBytesToGrid` → nearest-
-  neighbor downscale, web picker `customSkinPicker.web.ts`) and/or their
-  own pickaxe-swing sound (data URI ≤ 300 KB; `useSounds` swaps the
-  player's swing clip to it). Equipped, the grid overrides the outfit
-  miner's body sprite (`Miner.tsx: bodyOverrideUri` — the pickaxe and the
-  emoji fallback are unaffected); uploads are stored DEVICE-LOCAL in their
-  own AsyncStorage key (like IAP entitlements, never in `SaveData`, so
-  save codes / cloud restores never carry user-uploaded files),
-  normalized on read with corrupt-slot degradation to "locked look"
-  (`customSkin.ts`, `hooks/useCustomSkin.ts`); the IAP grant rides the
-  entitlement path (`IAP_PACK_GRANTS.customSkin`). Upload is **web-only
-  for now** — native is a no-op stub with a "web only" note in the panel
-  (`IapPanel.tsx` skin row; native picker pending, `docs/todo.md`).
+  their own 16×16 body sprite (PNG → the ONE shared pure-JS decoder
+  `pngBytesToGrid` → box-averaged downscale) and/or their own
+  pickaxe-swing sound (a ≤ 3 s, ≤ 300 KB WAV data URI; `useSounds`
+  swaps the player's swing clip to it). Equipped, the grid overrides
+  the outfit miner's body sprite (`Miner.tsx: bodyOverrideUri` — the
+  pickaxe and the emoji fallback are unaffected); uploads are stored
+  DEVICE-LOCAL in their own AsyncStorage key (like IAP entitlements,
+  never in `SaveData`, so save codes / cloud restores never carry
+  user-uploaded files), normalized on read with corrupt-slot
+  degradation to "locked look" (`customSkin.ts`,
+  `hooks/useCustomSkin.ts`); the IAP grant rides the entitlement path
+  (`IAP_PACK_GRANTS.customSkin`). Upload works on **both platforms**
+  (`IapPanel.tsx` skin row): web picks via a hidden file input (any
+  image format the canvas can draw, audio via AudioContext) in
+  `customSkinPicker.web.ts`; native picks via expo-file-system's
+  document picker (`File.pickFileAsync` — no new dependency, no runtime
+  permissions) in `customSkinPicker.ts`, decoding the same pure-JS
+  funnels (images filtered to `image/png`, audio to plain 16-bit PCM
+  `.wav` via `utils/audio/wav.ts` — the formats decodable without a
+  native decoder; anything else toasts a plain-language reason).
 - **Wide-screen layout** — portrait-only (`orientation: "portrait"`),
   but the game column caps at 640 px and centers on wider surfaces, and
   on web the cave breaks OUT of the cap to span the full viewport
