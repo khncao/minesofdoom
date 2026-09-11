@@ -144,8 +144,10 @@ export const storeConfig = {
  stripeProd: {
   // Launch: `node scripts/stripe/syncStripe.mjs products --live` prints
   // this exact block (pk_live_ key + live price map, the §2.6 step-6
-  // snippet). Empty = not flipped yet.
-  publishableKey: "",
+  // snippet). Flipped 2026-09-11 (key pasted at launch — the pk key is
+  // public by design, safe in the bundle; the sk_ stays on the VPS).
+  publishableKey:
+    "pk_live_51UDFRhDBoBUcNBmBQG9yibrPv4tjH2fJXHuc1wDXMkxz7wwwjqxy3KJ7kUt3ydz0naVGxZf1a8QyZVAIxc0vyXbC00UnzaIcRs",
   prices: {
     packGold: "price_1UEaWODBoBUcNBmBW7km01os",
     packFrost: "price_1UEaWODBoBUcNBmBKcKPo0mC",
