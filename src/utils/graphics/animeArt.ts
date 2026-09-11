@@ -73,7 +73,14 @@ export function animePalette(look: AnimeLook): string[] {
 }
 
 /** Inclusive-axis helpers (mirror axis: x' = 31 - x on a 32-wide grid). */
-function rect(g: PixelGrid, x0: number, y0: number, x1: number, y1: number, c: string): void {
+function rect(
+  g: PixelGrid,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  c: string,
+): void {
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) g[y][x] = c;
   }

@@ -39,7 +39,9 @@ const ALL_IDS = new Set<
   "comboResist",
 ]);
 
-function state(over: Partial<PurchaseAffordability> = {}): PurchaseAffordability {
+function state(
+  over: Partial<PurchaseAffordability> = {},
+): PurchaseAffordability {
   return {
     minerals: 1n,
     gems: 0,
@@ -112,7 +114,14 @@ describe("game-start cost states (audit: free first upgrades are by design)", ()
     expect(getMinerPowerUpgradeCost(1)).toBeGreaterThan(0);
   });
   it("miner/gem-line costs from count 0 are positive (never a free buy)", () => {
-    for (const f of [getMinerUpgradeCost, getFastMinerCost, getLegendaryMinerCost, getGemChanceCost, getClickBoostCost, getComboResistCost]) {
+    for (const f of [
+      getMinerUpgradeCost,
+      getFastMinerCost,
+      getLegendaryMinerCost,
+      getGemChanceCost,
+      getClickBoostCost,
+      getComboResistCost,
+    ]) {
       expect(f(0)).toBeGreaterThan(0);
     }
   });
@@ -127,15 +136,31 @@ describe("computeBuyAll exactness", () => {
       for (const cur of ["minerals", "gems"] as const) {
         const p = computeBuyAll(cur, s, ALL_IDS);
         let sum = 0;
-        sum += Array.from({ length: p.clickPower }, (_, i) => getClickUpgradeCost(s.clickPower + i)).reduce((a, b) => a + b, 0);
-        sum += Array.from({ length: p.minerPower }, (_, i) => getMinerPowerUpgradeCost(s.minerPower + i)).reduce((a, b) => a + b, 0);
+        sum += Array.from({ length: p.clickPower }, (_, i) =>
+          getClickUpgradeCost(s.clickPower + i),
+        ).reduce((a, b) => a + b, 0);
+        sum += Array.from({ length: p.minerPower }, (_, i) =>
+          getMinerPowerUpgradeCost(s.minerPower + i),
+        ).reduce((a, b) => a + b, 0);
         if (cur === "gems") {
-          sum += Array.from({ length: p.miners }, (_, i) => getMinerUpgradeCost(s.miners + i)).reduce((a, b) => a + b, 0);
-          sum += Array.from({ length: p.fastMiners }, (_, i) => getFastMinerCost(s.fastMiners + i)).reduce((a, b) => a + b, 0);
-          sum += Array.from({ length: p.legendaryMiners }, (_, i) => getLegendaryMinerCost(s.legendaryMiners + i)).reduce((a, b) => a + b, 0);
-          sum += Array.from({ length: p.gemChance }, (_, i) => getGemChanceCost(s.gemChanceLevels + i)).reduce((a, b) => a + b, 0);
-          sum += Array.from({ length: p.clickBoost }, (_, i) => getClickBoostCost(s.clickBoostLevels + i)).reduce((a, b) => a + b, 0);
-          sum += Array.from({ length: p.comboResist }, (_, i) => getComboResistCost(s.comboResistLevels + i)).reduce((a, b) => a + b, 0);
+          sum += Array.from({ length: p.miners }, (_, i) =>
+            getMinerUpgradeCost(s.miners + i),
+          ).reduce((a, b) => a + b, 0);
+          sum += Array.from({ length: p.fastMiners }, (_, i) =>
+            getFastMinerCost(s.fastMiners + i),
+          ).reduce((a, b) => a + b, 0);
+          sum += Array.from({ length: p.legendaryMiners }, (_, i) =>
+            getLegendaryMinerCost(s.legendaryMiners + i),
+          ).reduce((a, b) => a + b, 0);
+          sum += Array.from({ length: p.gemChance }, (_, i) =>
+            getGemChanceCost(s.gemChanceLevels + i),
+          ).reduce((a, b) => a + b, 0);
+          sum += Array.from({ length: p.clickBoost }, (_, i) =>
+            getClickBoostCost(s.clickBoostLevels + i),
+          ).reduce((a, b) => a + b, 0);
+          sum += Array.from({ length: p.comboResist }, (_, i) =>
+            getComboResistCost(s.comboResistLevels + i),
+          ).reduce((a, b) => a + b, 0);
         }
         expect(p.totalCost).toBe(sum);
         const budget = BigInt(cur === "minerals" ? minerals : gems);
@@ -171,7 +196,11 @@ describe("computeBuyAll exactness", () => {
   });
 
   it("excludes the buy-a-gem conversion from the minerals group", () => {
-    const p = computeBuyAll("minerals", state({ minerals: 10n ** 12n }), ALL_IDS);
+    const p = computeBuyAll(
+      "minerals",
+      state({ minerals: 10n ** 12n }),
+      ALL_IDS,
+    );
     // only clickPower + minerPower lines exist in the minerals group
     expect(p.totalLevels).toBe(p.clickPower + p.minerPower);
   });

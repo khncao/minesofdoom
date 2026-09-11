@@ -51,10 +51,9 @@ registerHooks({
 const { createGrid, hexToRgb, crc32, buildMinerGrid } = await import(
   "../src/utils/graphics/pixelArt.ts"
 );
-const {
-  buildAnimeCharacterGrid,
-  ANIME_GRID_SIZE,
-} = await import("../src/utils/graphics/animeArt.ts");
+const { buildAnimeCharacterGrid, ANIME_GRID_SIZE } = await import(
+  "../src/utils/graphics/animeArt.ts"
+);
 
 // The three art directions (same set the test renders). Row 1 is the anime
 // look; row 2 pairs each with the classic 16×16 character closest to it.
@@ -228,7 +227,9 @@ const outDir = path.join(process.cwd(), "docs", "art-anime", "samples");
 mkdirSync(outDir, { recursive: true });
 const file = path.join(outDir, "anime-hires.png");
 writeFileSync(file, gridToPngBuffer(composeSheet()));
-console.log(`wrote ${path.relative(process.cwd(), file)} (${SHEET_W}×${SHEET_H})`);
+console.log(
+  `wrote ${path.relative(process.cwd(), file)} (${SHEET_W}×${SHEET_H})`,
+);
 console.log(
   `anime grid: ${ANIME_GRID_SIZE}×${ANIME_GRID_SIZE} (2× the classic 16×16)`,
 );

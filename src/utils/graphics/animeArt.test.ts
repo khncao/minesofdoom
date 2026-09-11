@@ -18,9 +18,27 @@ import type { PixelGrid } from "src/utils/graphics/pixelArt";
 // The same three looks scripts/generate-anime-art-samples.mjs renders, so
 // the tested set IS the shipped sample set.
 const LOOKS: AnimeLook[] = [
-  { skin: "#ffe3c8", hair: "#ff9ecd", dress: "#b48cff", bow: "#ff5f9e", hairStyle: "bob" },
-  { skin: "#f2c9a0", hair: "#7ad0e8", dress: "#ffd166", bow: "#ef476f", hairStyle: "long" },
-  { skin: "#ffe3c8", hair: "#c3b1ff", dress: "#8fe3c0", bow: "#7a5fd0", hairStyle: "long" },
+  {
+    skin: "#ffe3c8",
+    hair: "#ff9ecd",
+    dress: "#b48cff",
+    bow: "#ff5f9e",
+    hairStyle: "bob",
+  },
+  {
+    skin: "#f2c9a0",
+    hair: "#7ad0e8",
+    dress: "#ffd166",
+    bow: "#ef476f",
+    hairStyle: "long",
+  },
+  {
+    skin: "#ffe3c8",
+    hair: "#c3b1ff",
+    dress: "#8fe3c0",
+    bow: "#7a5fd0",
+    hairStyle: "long",
+  },
 ];
 
 function isFilled(grid: PixelGrid): number {
@@ -140,8 +158,6 @@ describe("buildAnimeCharacterGrid", () => {
     expect(custom[15][11]).toBe("#123456");
     const def = buildAnimeCharacterGrid(LOOKS[0]);
     expect(def[15][11]).not.toBe("#123456");
-    expect(
-      paletteViolations(def, animePalette(LOOKS[0])),
-    ).toEqual([]);
+    expect(paletteViolations(def, animePalette(LOOKS[0]))).toEqual([]);
   });
 });
