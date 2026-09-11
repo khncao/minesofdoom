@@ -442,8 +442,7 @@ export const en = {
     "settings, local stats, error log, ad opt-in, and the account " +
     "sign-in. Cannot be undone. Your cloud save (if any) is kept and can " +
     "be restored from the cloud after erasing.",
-  "settings.eraseAllDataFailed":
-    "Erasing failed — some data may remain.",
+  "settings.eraseAllDataFailed": "Erasing failed — some data may remain.",
   "settings.eraseAllDataDone": "All data erased.",
   "settings.a11ySaveCode": "Your save code — select to copy",
   "settings.analytics": "Local stats (debug)",

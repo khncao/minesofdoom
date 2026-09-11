@@ -43,7 +43,10 @@ export function useIap({
 }) {
   const { t } = useI18n();
   const [entitlements, setEntitlements, iapPending] =
-    useLocalStorage<IapEntitlements>(iapEntitlementsKey, emptyIapEntitlements());
+    useLocalStorage<IapEntitlements>(
+      iapEntitlementsKey,
+      emptyIapEntitlements(),
+    );
   // The purchase re-checks entitlements against the LATEST state via the
   // ref: setState only lands on the next render, and a fast second tap
   // before that render would otherwise double-fire the store sheet.
@@ -119,9 +122,7 @@ export function useIap({
             if (provider.grantsLocally) {
               // Native stores confirm the payment inside the page, so
               // the local grant (pending the server verify) is safe.
-              setEntitlements(
-                grantIapEntitlement(entitlementsRef.current, id),
-              );
+              setEntitlements(grantIapEntitlement(entitlementsRef.current, id));
               onPurchased?.(id);
               const packCosmetic = getIapPackCosmetic(id);
               displayMessage(
@@ -162,12 +163,10 @@ export function useIap({
         // record is the fallback: it re-mints the server rows under the
         // current id (re-verify inside the provider) while granting here.
         const storeOwned = provider.reconcileStore
-          ? await provider
-              .reconcileStore(token())
-              .catch((e) => {
-                console.warn("IAP store reconcile failed", e);
-                return {};
-              })
+          ? await provider.reconcileStore(token()).catch((e) => {
+              console.warn("IAP store reconcile failed", e);
+              return {};
+            })
           : {};
         const merged = mergeIapEntitlements(
           mergeIapEntitlements(entitlementsRef.current, restored),
@@ -183,8 +182,7 @@ export function useIap({
           // event. Merge is additive, so each product fires at most once.
           const fresh = (Object.keys(merged) as IapProductId[]).filter(
             (pid) =>
-              merged[pid] === true &&
-              entitlementsRef.current[pid] !== true,
+              merged[pid] === true && entitlementsRef.current[pid] !== true,
           );
           if (fresh.length > 0) {
             // Per-product: recordIapPurchase increments the counter, so a

@@ -124,7 +124,10 @@ const SaveTab = memo(function SaveTab({
           onPress={onReset}
         />
       </View>
-      <View style={{ alignSelf: "stretch", marginTop: 8 }} testID="erase-all-data">
+      <View
+        style={{ alignSelf: "stretch", marginTop: 8 }}
+        testID="erase-all-data"
+      >
         <ConfirmableButton
           title={t("settings.eraseAllData")}
           description={t("settings.eraseAllDataDescription")}

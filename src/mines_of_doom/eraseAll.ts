@@ -32,18 +32,18 @@ import { WEB_TOKEN_KEY } from "./secureToken";
  * boot regardless.
  */
 export async function eraseAllAppStorage(): Promise<number> {
-  const keys = await AsyncStorage.getAllKeys();
-  // removeItem per key rather than multiRemove: the key count is tiny
-  // (~10) and the per-key form is what every AsyncStorage implementation
-  // (and the jest mock) guarantees.
-  for (const key of keys) {
-    await AsyncStorage.removeItem(key);
-  }
-  if (Platform.OS === "web" && typeof window !== "undefined") {
-    // The session token is the only key outside the AsyncStorage
-    // namespace (see module docs); the rest of the web session state
-    // (the in-memory account hook) dies with the reload.
-    window.localStorage.removeItem(WEB_TOKEN_KEY);
-  }
-  return keys.length;
+ const keys = await AsyncStorage.getAllKeys();
+ // removeItem per key rather than multiRemove: the key count is tiny
+ // (~10) and the per-key form is what every AsyncStorage implementation
+ // (and the jest mock) guarantees.
+ for (const key of keys) {
+  await AsyncStorage.removeItem(key);
+ }
+ if (Platform.OS === "web" && typeof window !== "undefined") {
+  // The session token is the only key outside the AsyncStorage
+  // namespace (see module docs); the rest of the web session state
+  // (the in-memory account hook) dies with the reload.
+  window.localStorage.removeItem(WEB_TOKEN_KEY);
+ }
+ return keys.length;
 }

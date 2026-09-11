@@ -29,8 +29,8 @@ jest.mock("@react-native-async-storage/async-storage", () => {
     setItem: jest.fn(async (k: string, v: string) => {
       store.set(k, v);
     }),
-    getItem: jest.fn(
-      async (k: string) => (store.has(k) ? (store.get(k) as string) : null),
+    getItem: jest.fn(async (k: string) =>
+      store.has(k) ? (store.get(k) as string) : null,
     ),
     removeItem: jest.fn(async (k: string) => {
       store.delete(k);
@@ -54,9 +54,11 @@ jest.mock("@react-native-async-storage/async-storage", () => {
 
 import * as AsyncStorageMock from "@react-native-async-storage/async-storage";
 
-const mockStore: Map<string, string> = (AsyncStorageMock as unknown as {
-  __store: Map<string, string>;
-}).__store;
+const mockStore: Map<string, string> = (
+  AsyncStorageMock as unknown as {
+    __store: Map<string, string>;
+  }
+).__store;
 
 type MockProvider = {
   id: string;
@@ -117,7 +119,9 @@ async function renderIap(props: UseIapProps, seed?: IapEntitlements) {
 
 const stored = (): IapEntitlements | null =>
   mockStore.has(iapEntitlementsKey)
-    ? (JSON.parse(mockStore.get(iapEntitlementsKey) as string) as IapEntitlements)
+    ? (JSON.parse(
+        mockStore.get(iapEntitlementsKey) as string,
+      ) as IapEntitlements)
     : null;
 
 async function buy(result: { current: UseIap }, id: IapProductId) {
@@ -301,11 +305,9 @@ describe("useIap — restore", () => {
       purchase: jest.fn(),
       restore: jest.fn(
         () =>
-          new Promise<Partial<Record<IapProductId, boolean>>>(
-            (resolve) => {
-              resolveRestore = resolve;
-            },
-          ),
+          new Promise<Partial<Record<IapProductId, boolean>>>((resolve) => {
+            resolveRestore = resolve;
+          }),
       ),
     };
     const result = await renderIap(makeProps({ provider }));

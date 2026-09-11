@@ -18,13 +18,13 @@ import { SessionStats } from "../session";
 import { styles } from "../styles";
 
 type MenuView =
-    | "settings"
-    | "save"
-    | "account"
-    | "goals"
-    | "records"
-    | "collection"
-    | "about";
+        | "settings"
+        | "save"
+        | "account"
+        | "goals"
+        | "records"
+        | "collection"
+        | "about";
 
 /**
  * Footer menu (plan "Adjust", reorganized for the todo
@@ -42,271 +42,285 @@ type MenuView =
  * one tap away.
  */
 function MenuPanel({
-    settingsData,
-    onChangeSettingsData,
-    equationSettings,
-    onChangeEquationSettings,
-    showMessage,
-    onSave,
-    onReset,
-    onEraseAllData,
-    onExportSaveCode,
-    onImportSaveCode,
-    onReplayTutorial,
-    mute,
-    onMuteChange,
-    onScreenKeypad,
-    onKeypadChange,
-    hardModeUnlocked,
-    stats,
-    session,
-    analytics,
-    onClearAnalytics,
-    cloudSave,
-    account,
+        settingsData,
+        onChangeSettingsData,
+        equationSettings,
+        onChangeEquationSettings,
+        showMessage,
+        onSave,
+        onReset,
+        onEraseAllData,
+        onExportSaveCode,
+        onImportSaveCode,
+        onReplayTutorial,
+        mute,
+        onMuteChange,
+        onScreenKeypad,
+        onKeypadChange,
+        hardModeUnlocked,
+        stats,
+        session,
+        analytics,
+        onClearAnalytics,
+        cloudSave,
+        account,
 }: {
-    settingsData: SettingsData;
-    onChangeSettingsData: (newSettings: SettingsData) => void;
-    equationSettings: EquationSettings;
-    onChangeEquationSettings: (newSettings: EquationSettings) => void;
-    showMessage: string | null;
-    onSave: () => void;
-    onReset: () => void;
-    /** "Erase all data" (superset of Reset — see eraseAll.ts). */
-    onEraseAllData: () => void;
-    onExportSaveCode: () => string;
-    onImportSaveCode: (code: string) => boolean;
-    /** Re-shows the 4-step tutorial (F52.2). */
-    onReplayTutorial: () => void;
-    mute: boolean;
-    onMuteChange: (newVal: boolean) => void;
-    /** On-screen keypad setting (todo: keypad tab view): an
-     *  AsyncStorage-backed display preference, so it applies immediately —
-     *  unlike the SettingsData switches, which wait for the Save tap. */
-    onScreenKeypad: boolean;
-    onKeypadChange: (newVal: boolean) => void;
-    hardModeUnlocked: boolean;
-    /** Lifetime save data — feeds the goals/records views' derived progress. */
-    stats: SaveData;
-    /** This-session stats (delta vs. the launch baseline); null until the
-     *  save has loaded (the records view hides its session block). */
-    session: SessionStats | null;
-    /** Guardrail 6: the local analytics record for the About-tab debug
-     *  section (single owner is MinesOfDoom's useAnalytics; this is a
-     *  read-through, not a second storage reader). */
-    analytics: AnalyticsState | null;
-    /** Data-deletion path for the analytics record. */
-    onClearAnalytics: () => void;
-    /** Cloud-backup settings bundle (see useCloudSave); the section hides
-     *  itself while the provider is unavailable. */
-    cloudSave: CloudSaveSettingsProps;
-    /** Optional-account settings bundle (see AccountSettingsProps); the
-     *  section hides itself while the provider is unavailable. */
-    account: AccountSettingsProps;
+        settingsData: SettingsData;
+        onChangeSettingsData: (newSettings: SettingsData) => void;
+        equationSettings: EquationSettings;
+        onChangeEquationSettings: (newSettings: EquationSettings) => void;
+        showMessage: string | null;
+        onSave: () => void;
+        onReset: () => void;
+        /** "Erase all data" (superset of Reset — see eraseAll.ts). */
+        onEraseAllData: () => void;
+        onExportSaveCode: () => string;
+        onImportSaveCode: (code: string) => boolean;
+        /** Re-shows the 4-step tutorial (F52.2). */
+        onReplayTutorial: () => void;
+        mute: boolean;
+        onMuteChange: (newVal: boolean) => void;
+        /** On-screen keypad setting (todo: keypad tab view): an
+         *  AsyncStorage-backed display preference, so it applies immediately —
+         *  unlike the SettingsData switches, which wait for the Save tap. */
+        onScreenKeypad: boolean;
+        onKeypadChange: (newVal: boolean) => void;
+        hardModeUnlocked: boolean;
+        /** Lifetime save data — feeds the goals/records views' derived progress. */
+        stats: SaveData;
+        /** This-session stats (delta vs. the launch baseline); null until the
+         *  save has loaded (the records view hides its session block). */
+        session: SessionStats | null;
+        /** Guardrail 6: the local analytics record for the About-tab debug
+         *  section (single owner is MinesOfDoom's useAnalytics; this is a
+         *  read-through, not a second storage reader). */
+        analytics: AnalyticsState | null;
+        /** Data-deletion path for the analytics record. */
+        onClearAnalytics: () => void;
+        /** Cloud-backup settings bundle (see useCloudSave); the section hides
+         *  itself while the provider is unavailable. */
+        cloudSave: CloudSaveSettingsProps;
+        /** Optional-account settings bundle (see AccountSettingsProps); the
+         *  section hides itself while the provider is unavailable. */
+        account: AccountSettingsProps;
 }) {
-    const t = useT();
-    const [view, setView] = useState<MenuView>("settings");
+        const t = useT();
+        const [view, setView] = useState<MenuView>("settings");
 
-    // Stable elements so the memoized views skip re-rendering when only
-    // unrelated state changed (mirrors the old SettingsPanel pattern).
-    const settingsChildren = useMemo(
-        () => (
-            <SettingsContent
-                settingsData={settingsData}
-                onChangeSettingsData={onChangeSettingsData}
-                equationSettings={equationSettings}
-                onChangeEquationSettings={onChangeEquationSettings}
-                onScreenKeypad={onScreenKeypad}
-                onKeypadChange={onKeypadChange}
-                hardModeUnlocked={hardModeUnlocked}
-            />
-        ),
-        [
-            settingsData,
-            onChangeSettingsData,
-            equationSettings,
-            onChangeEquationSettings,
-            onScreenKeypad,
-            onKeypadChange,
-            hardModeUnlocked,
-        ],
-    );
-    const saveChildren = useMemo(
-        () => (
-            <SaveTab
-                settingsData={settingsData}
-                onChangeSettingsData={onChangeSettingsData}
-                showMessage={showMessage}
-                onSave={onSave}
-                onReset={onReset}
-                onEraseAllData={onEraseAllData}
-                onExportSaveCode={onExportSaveCode}
-                onImportSaveCode={onImportSaveCode}
-                onReplayTutorial={onReplayTutorial}
-                cloudSave={cloudSave}
-            />
-        ),
-        [
-            settingsData,
-            onChangeSettingsData,
-            showMessage,
-            onSave,
-            onReset,
-            onEraseAllData,
-            onExportSaveCode,
-            onImportSaveCode,
-            cloudSave,
-        ],
-    );
-    const accountChildren = useMemo(
-        () => <AccountTab account={account} />,
-        [account],
-    );
-    const goalsChildren = useMemo(
-        () => <GoalsContent stats={stats} />,
-        [stats],
-    );
-    const recordsChildren = useMemo(
-        () => <RecordsContent stats={stats} session={session} />,
-        [stats, session],
-    );
-    const collectionChildren = useMemo(
-        () => <CollectionContent stats={stats} />,
-        [stats],
-    );
-    const aboutChildren = useMemo(
-        () => (
-            <AboutTab
-                analytics={analytics}
-                onClearAnalytics={onClearAnalytics}
-            />
-        ),
-        [analytics, onClearAnalytics],
-    );
+        // Stable elements so the memoized views skip re-rendering when only
+        // unrelated state changed (mirrors the old SettingsPanel pattern).
+        const settingsChildren = useMemo(
+                () => (
+                        <SettingsContent
+                                settingsData={settingsData}
+                                onChangeSettingsData={onChangeSettingsData}
+                                equationSettings={equationSettings}
+                                onChangeEquationSettings={
+                                        onChangeEquationSettings
+                                }
+                                onScreenKeypad={onScreenKeypad}
+                                onKeypadChange={onKeypadChange}
+                                hardModeUnlocked={hardModeUnlocked}
+                        />
+                ),
+                [
+                        settingsData,
+                        onChangeSettingsData,
+                        equationSettings,
+                        onChangeEquationSettings,
+                        onScreenKeypad,
+                        onKeypadChange,
+                        hardModeUnlocked,
+                ],
+        );
+        const saveChildren = useMemo(
+                () => (
+                        <SaveTab
+                                settingsData={settingsData}
+                                onChangeSettingsData={onChangeSettingsData}
+                                showMessage={showMessage}
+                                onSave={onSave}
+                                onReset={onReset}
+                                onEraseAllData={onEraseAllData}
+                                onExportSaveCode={onExportSaveCode}
+                                onImportSaveCode={onImportSaveCode}
+                                onReplayTutorial={onReplayTutorial}
+                                cloudSave={cloudSave}
+                        />
+                ),
+                [
+                        settingsData,
+                        onChangeSettingsData,
+                        showMessage,
+                        onSave,
+                        onReset,
+                        onEraseAllData,
+                        onExportSaveCode,
+                        onImportSaveCode,
+                        onReplayTutorial,
+                        cloudSave,
+                ],
+        );
+        const accountChildren = useMemo(
+                () => <AccountTab account={account} />,
+                [account],
+        );
+        const goalsChildren = useMemo(
+                () => <GoalsContent stats={stats} />,
+                [stats],
+        );
+        const recordsChildren = useMemo(
+                () => <RecordsContent stats={stats} session={session} />,
+                [stats, session],
+        );
+        const collectionChildren = useMemo(
+                () => <CollectionContent stats={stats} />,
+                [stats],
+        );
+        const aboutChildren = useMemo(
+                () => (
+                        <AboutTab
+                                analytics={analytics}
+                                onClearAnalytics={onClearAnalytics}
+                        />
+                ),
+                [analytics, onClearAnalytics],
+        );
 
-    return (
-        <BottomModal
-            pressable={<Text style={{ fontSize: 30 }}>☰</Text>}
-            accessibilityLabel={t("main.a11yMenu")}
-            scrollable
-            // The six views are a few screens tall each — a 90% bottom sheet
-            // wastes the top of the screen, so the menu fills it (todo:
-            // "menu modal takes up whole screen").
-            fullscreen
-            testID="menu-button"
-            sheetTestID="menu-sheet"
-        >
-            <View style={{ gap: 4 }}>
-                <View
-                    style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        flexWrap: "wrap",
-                        gap: 2,
-                    }}
+        return (
+                <BottomModal
+                        pressable={<Text style={{ fontSize: 30 }}>☰</Text>}
+                        accessibilityLabel={t("main.a11yMenu")}
+                        scrollable
+                        // The six views are a few screens tall each — a 90% bottom sheet
+                        // wastes the top of the screen, so the menu fills it (todo:
+                        // "menu modal takes up whole screen").
+                        fullscreen
+                        testID="menu-button"
+                        sheetTestID="menu-sheet"
                 >
-                    <MuteToggle init={mute} onToggleChange={onMuteChange} />
-                    <MenuNavButton
-                        label={t("menu.settings")}
-                        active={view === "settings"}
-                        onPress={() => setView("settings")}
-                        testID="menu-tab-settings"
-                    />
-                    <MenuNavButton
-                        label={t("menu.save")}
-                        active={view === "save"}
-                        onPress={() => setView("save")}
-                        testID="menu-tab-save"
-                    />
-                    <MenuNavButton
-                        label={t("menu.account")}
-                        active={view === "account"}
-                        onPress={() => setView("account")}
-                        testID="menu-tab-account"
-                    />
-                    <MenuNavButton
-                        label={t("menu.goals")}
-                        active={view === "goals"}
-                        onPress={() => setView("goals")}
-                        testID="menu-tab-goals"
-                    />
-                    <MenuNavButton
-                        label={t("menu.records")}
-                        active={view === "records"}
-                        onPress={() => setView("records")}
-                        testID="menu-tab-records"
-                    />
-                    <MenuNavButton
-                        label={t("menu.collection")}
-                        active={view === "collection"}
-                        onPress={() => setView("collection")}
-                        testID="menu-tab-collection"
-                    />
-                    <MenuNavButton
-                        label={t("menu.about")}
-                        active={view === "about"}
-                        onPress={() => setView("about")}
-                        testID="menu-tab-about"
-                    />
-                </View>
-                {view === "settings"
-                    ? settingsChildren
-                    : view === "save"
-                      ? saveChildren
-                      : view === "account"
-                        ? accountChildren
-                        : view === "goals"
-                          ? goalsChildren
-                          : view === "records"
-                            ? recordsChildren
-                            : view === "collection"
-                              ? collectionChildren
-                              : aboutChildren}
-            </View>
-        </BottomModal>
-    );
+                        <View style={{ gap: 4 }}>
+                                <View
+                                        style={{
+                                                flexDirection: "row",
+                                                alignItems: "center",
+                                                flexWrap: "wrap",
+                                                gap: 2,
+                                        }}
+                                >
+                                        <MuteToggle
+                                                init={mute}
+                                                onToggleChange={onMuteChange}
+                                        />
+                                        <MenuNavButton
+                                                label={t("menu.settings")}
+                                                active={view === "settings"}
+                                                onPress={() =>
+                                                        setView("settings")
+                                                }
+                                                testID="menu-tab-settings"
+                                        />
+                                        <MenuNavButton
+                                                label={t("menu.save")}
+                                                active={view === "save"}
+                                                onPress={() => setView("save")}
+                                                testID="menu-tab-save"
+                                        />
+                                        <MenuNavButton
+                                                label={t("menu.account")}
+                                                active={view === "account"}
+                                                onPress={() =>
+                                                        setView("account")
+                                                }
+                                                testID="menu-tab-account"
+                                        />
+                                        <MenuNavButton
+                                                label={t("menu.goals")}
+                                                active={view === "goals"}
+                                                onPress={() => setView("goals")}
+                                                testID="menu-tab-goals"
+                                        />
+                                        <MenuNavButton
+                                                label={t("menu.records")}
+                                                active={view === "records"}
+                                                onPress={() =>
+                                                        setView("records")
+                                                }
+                                                testID="menu-tab-records"
+                                        />
+                                        <MenuNavButton
+                                                label={t("menu.collection")}
+                                                active={view === "collection"}
+                                                onPress={() =>
+                                                        setView("collection")
+                                                }
+                                                testID="menu-tab-collection"
+                                        />
+                                        <MenuNavButton
+                                                label={t("menu.about")}
+                                                active={view === "about"}
+                                                onPress={() => setView("about")}
+                                                testID="menu-tab-about"
+                                        />
+                                </View>
+                                {view === "settings"
+                                        ? settingsChildren
+                                        : view === "save"
+                                          ? saveChildren
+                                          : view === "account"
+                                            ? accountChildren
+                                            : view === "goals"
+                                              ? goalsChildren
+                                              : view === "records"
+                                                ? recordsChildren
+                                                : view === "collection"
+                                                  ? collectionChildren
+                                                  : aboutChildren}
+                        </View>
+                </BottomModal>
+        );
 }
 
 /** Settings/save/account/goals/records/about view switcher (also the
  *  only "back" affordance needed — every view is reachable at all
  *  times, so there's no dead end). */
 function MenuNavButton({
-    label,
-    active,
-    onPress,
-    testID,
+        label,
+        active,
+        onPress,
+        testID,
 }: {
-    label: string;
-    active: boolean;
-    onPress: () => void;
-    testID?: string;
+        label: string;
+        active: boolean;
+        onPress: () => void;
+        testID?: string;
 }) {
-    return (
-        <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            onPress={onPress}
-            testID={testID}
-            // 44px-tall target: 14px text + 12px vertical padding either side.
-            style={{
-                paddingVertical: 12,
-                paddingHorizontal: 8,
-                borderRadius: 6,
-                backgroundColor: active ? "#555" : "#333",
-            }}
-        >
-            <Text
-                style={{
-                    ...styles.text,
-                    fontSize: 14,
-                    fontWeight: "bold",
-                    opacity: active ? 1 : 0.6,
-                }}
-            >
-                {label}
-            </Text>
-        </Pressable>
-    );
+        return (
+                <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: active }}
+                        onPress={onPress}
+                        testID={testID}
+                        // 44px-tall target: 14px text + 12px vertical padding either side.
+                        style={{
+                                paddingVertical: 12,
+                                paddingHorizontal: 8,
+                                borderRadius: 6,
+                                backgroundColor: active ? "#555" : "#333",
+                        }}
+                >
+                        <Text
+                                style={{
+                                        ...styles.text,
+                                        fontSize: 14,
+                                        fontWeight: "bold",
+                                        opacity: active ? 1 : 0.6,
+                                }}
+                        >
+                                {label}
+                        </Text>
+                </Pressable>
+        );
 }
 
 export default memo(MenuPanel);

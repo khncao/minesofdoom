@@ -1072,9 +1072,10 @@ export default function MinesOfDoom() {
   // F52.2: replay the 4-step tutorial — the flag has exactly one other
   // write site (dismiss), so without this row a player who skipped it
   // has no way to re-read it.
-  const handleReplayTutorial = useCallback(() => setOnboardingDone(false), [
-    setOnboardingDone,
-  ]);
+  const handleReplayTutorial = useCallback(
+    () => setOnboardingDone(false),
+    [setOnboardingDone],
+  );
 
   const handleExportSaveCode = useCallback(
     () => exportSaveCode(settingsData, equationSettings, onboardingDone),
@@ -1103,7 +1104,13 @@ export default function MinesOfDoom() {
       noteCrashEvent("save imported");
       return true;
     },
-    [importSaveCode, applyImportedSettings, displayMessage, t, setOnboardingDone],
+    [
+      importSaveCode,
+      applyImportedSettings,
+      displayMessage,
+      t,
+      setOnboardingDone,
+    ],
   );
 
   // Daily bonus / login streak (plan §4.2): minerals flow through the
