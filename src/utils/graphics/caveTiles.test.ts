@@ -122,13 +122,18 @@ describe("buildCaveRow", () => {
     expect(grid.length).toBe(CAVE_TILE_PX);
     const [pa, pb] = cavePathTiles(54);
     expect([pa, pb]).toEqual([26, 27]);
-    // Path tiles stay dug out (the encoder's multi-block stored-deflate
-    // path makes any width round-trip — see pixelArt tests).
+    // Path tiles stay sparse (loose rubble only, far below the rock
+    // density) — the encoder's multi-block stored-deflate path makes any
+    // width round-trip, see pixelArt tests.
+    const area = (pb + 1 - pa) * CAVE_TILE_PX * CAVE_TILE_PX;
+    let filled = 0;
     for (const row of grid) {
       for (let x = pa * CAVE_TILE_PX; x < (pb + 1) * CAVE_TILE_PX; x++) {
-        expect(row[x]).toBeNull();
+        if (row[x] !== null) filled++;
       }
     }
+    expect(filled).toBeGreaterThan(0); // rubble under the player
+    expect(filled).toBeLessThan(area * 0.1); // still reads as an opening
     // Wall edges flank the widened path.
     const edge = pathEdgeColor("#9a7fb8");
     const leftX = (pa - 1) * CAVE_TILE_PX + CAVE_TILE_PX - 3;
@@ -190,16 +195,38 @@ describe("mined path + easter eggs", () => {
     return rows;
   };
 
-  test("path tiles stay dug out (no rock, gems or eggs) in every strip", () => {
+  test("path tiles are sparse rubble, lower-half only, in every strip", () => {
+    // The dug shaft keeps loose rubble (blocks under the player), but it
+    // must stay far sparser than rock: no full rock tiles, no gems, no
+    // eggs — only small chunks, and only in the LOWER half (y >= 12) so
+    // the rubble piles at the bottom of the shaft, never over the miner.
+    const gem = gemColor(TINT);
     const x0 = CAVE_PATH_TILES[0] * CAVE_TILE_PX;
     const x1 = (CAVE_PATH_TILES[CAVE_PATH_TILES.length - 1] + 1) * CAVE_TILE_PX;
+    let someRubble = false;
     for (const grid of allRows()) {
-      for (const row of grid) {
+      for (let y = 0; y < CAVE_TILE_PX; y++) {
+        const row = grid[y];
         for (let x = x0; x < x1; x++) {
-          expect(row[x]).toBeNull();
+          expect(row[x]).not.toBe(gem);
+          if (row[x] !== null) {
+            expect(y).toBeGreaterThanOrEqual(12);
+            someRubble = true;
+          }
         }
       }
     }
+    expect(someRubble).toBe(true);
+  });
+
+  test("deeper tiers carry ore flecks from the fixed ore palette", () => {
+    const oreColors = ["#ffd24a", "#e08040", "#6ab8ff", "#50d080"];
+    let found = false;
+    for (let s = 0; s < CAVE_STRIPS_PER_TIER && !found; s++) {
+      const grid = buildCaveRow(4, s, "#5ab8b8");
+      found = grid.some((row) => row.some((p) => p != null && oreColors.includes(p)));
+    }
+    expect(found).toBe(true);
   });
 
   test("dark wall edges flank the path in every strip", () => {
@@ -220,6 +247,22 @@ describe("mined path + easter eggs", () => {
           expect(row[x]).toBe(edge);
         }
       }
+    }
+  });
+
+  test("every egg kind in the catalog is rollable", () => {
+    // The visible 20 strips (5 tiers × 4) only roll a couple of eggs —
+    // rarity is deliberate — so scan a wider deterministic (tier, strip)
+    // grid: every catalog kind must be reachable, or it's dead art.
+    const seen = new Set<string>();
+    for (let t = 0; t < CAVE_TIER_ATS.length; t++) {
+      for (let s = 0; s < CAVE_STRIPS_PER_TIER * 5; s++) {
+        const egg = eggForStrip(t, s);
+        if (egg != null) seen.add(egg.kind);
+      }
+    }
+    for (const kind of CAVE_EGG_KINDS) {
+      expect(seen).toContain(kind);
     }
   });
 

@@ -54,6 +54,23 @@ export const CAVE_STRIPS_PER_TIER = 4;
 const GEM_CHANCE = [0.05, 0.08, 0.12, 0.1, 0.16];
 /** Share of tiles that are solid rock (the rest are empty gaps). */
 const ROCK_CHANCE = 0.62;
+/**
+ * Ore fleck density per tier — deeper mines carry more visible veins. The
+ * flecks ride on rock only, so a gap tile never shows floating ore.
+ */
+const ORE_CHANCE = [0.05, 0.07, 0.1, 0.13, 0.16];
+/**
+ * Ore fleck palette. Fixed object colors (like the egg palettes), not
+ * tint-derived — the veins read as metals regardless of the theme tint.
+ */
+const ORE_COLORS = ["#ffd24a", "#e08040", "#6ab8ff", "#50d080"];
+/**
+ * Share of the two path (shaft) tiles that carry a loose rubble chunk. The
+ * shaft is no longer a fully empty column — a few blocks sit under the
+ * player so the miner reads as standing on dug-out ground, but the density
+ * is far below ROCK_CHANCE so the path still reads as an opening.
+ */
+const PATH_RUBBLE_CHANCE = 0.55;
 
 /** Highest tier whose minimum depth has been reached (clamped at the last). */
 export function caveTierForDepth(depth: number): number {
@@ -186,10 +203,10 @@ function drawGem(
 
 /**
  * The mined path (plan "Adjust"): the two middle tiles of a `count`-wide
- * strip, kept dug out (no rock, no gems) so the cave reads as one vertical
- * shaft the player is mining down, with dark wall edges on the tiles
- * flanking it. Centered so the shaft stays on screen mid as the strip
- * widens adaptively.
+ * strip, kept sparse (only loose rubble — no rock tiles, no gems, no
+ * eggs) so the cave reads as one vertical shaft the player is mining down,
+ * with dark wall edges on the tiles flanking it. Centered so the shaft
+ * stays on screen mid as the strip widens adaptively.
  */
 export function cavePathTiles(count: number): [number, number] {
   const mid = Math.floor(count / 2);
@@ -223,11 +240,19 @@ function vline(
 // (the cave contents are the same mine, repainted).
 // ---------------------------------------------------------------------------
 
-export const CAVE_EGG_KINDS = ["spider", "princess", "chest"] as const;
+export const CAVE_EGG_KINDS = [
+  "spider",
+  "princess",
+  "chest",
+  "skeleton",
+  "mole",
+  "dwarf",
+  "cave",
+] as const;
 export type CaveEggKind = (typeof CAVE_EGG_KINDS)[number];
 
 /** Share of strips that carry an egg. */
-const EGG_CHANCE = 0.15;
+const EGG_CHANCE = 0.25;
 
 /**
  * Deterministic per (tier, strip, count): the egg's tile + kind, or null.
@@ -258,6 +283,46 @@ export function eggForStrip(
   };
 }
 
+/** A few small ore flecks in a rock tile (two-pixel veins). */
+function drawOre(
+  grid: PixelGrid,
+  x0: number,
+  rng: () => number,
+  color: string,
+): void {
+  for (let i = 0; i < 4; i++) {
+    const fx = x0 + 2 + Math.floor(rng() * (CAVE_TILE_PX - 4));
+    const fy = 2 + Math.floor(rng() * (CAVE_TILE_PX - 4));
+    setPixel(grid, fx, fy, color);
+    setPixel(grid, fx + 1, fy, color);
+  }
+}
+
+/**
+ * Loose rubble for the path (shaft) tiles: 1–3 small chunks biased to the
+ * LOWER half of the tile, so the blocks pile at the bottom of the shaft —
+ * under the player, never over their head.
+ */
+function drawRubble(
+  grid: PixelGrid,
+  x0: number,
+  rng: () => number,
+  shades: [string, string, string],
+): void {
+  const [, base, dark] = shades;
+  const chunks = 1 + Math.floor(rng() * 3);
+  for (let i = 0; i < chunks; i++) {
+    const w = 2 + Math.floor(rng() * 3); // 2–4 px wide
+    const h = 2 + Math.floor(rng() * 2); // 2–3 px tall
+    const cx = x0 + 1 + Math.floor(rng() * (CAVE_TILE_PX - w - 2));
+    const cy = 12 + Math.floor(rng() * (CAVE_TILE_PX - h - 12));
+    const color = rng() < 0.4 ? dark : base;
+    for (let dy = 0; dy < h; dy++) {
+      hline(grid, cx, cx + w - 1, cy + dy, color);
+    }
+  }
+}
+
 /**
  * Draw one egg into the tile at `x0` (its 24×24 area), centered. Colors are
  * fixed (they're objects, not rock), so they don't depend on the tint.
@@ -281,12 +346,47 @@ function drawEgg(grid: PixelGrid, x0: number, kind: CaveEggKind): void {
     hline(grid, x0 + 11, x0 + 12, 10, "#ff7bb0");
     hline(grid, x0 + 10, x0 + 13, 11, "#ff7bb0");
     hline(grid, x0 + 9, x0 + 14, 12, "#ff7bb0");
+  } else if (kind === "skeleton") {
+    // Skeleton: white skull with dark eyes, spine and ribs below.
+    const bone = "#e8e8e0";
+    hline(grid, x0 + 10, x0 + 13, 8, bone);
+    hline(grid, x0 + 10, x0 + 13, 9, bone);
+    setPixel(grid, x0 + 11, 9, "#101010");
+    setPixel(grid, x0 + 12, 9, "#101010");
+    hline(grid, x0 + 11, x0 + 12, 10, bone);
+    vline(grid, x0 + 12, 11, 15, bone);
+    hline(grid, x0 + 9, x0 + 15, 12, bone);
+    hline(grid, x0 + 10, x0 + 14, 14, bone);
+    hline(grid, x0 + 10, x0 + 14, 16, bone);
+  } else if (kind === "mole") {
+    // Mole: brown round body, dark eyes, light snout.
+    const fur = "#7a4a2a";
+    hline(grid, x0 + 9, x0 + 14, 12, fur);
+    hline(grid, x0 + 8, x0 + 15, 13, fur);
+    hline(grid, x0 + 8, x0 + 15, 14, fur);
+    hline(grid, x0 + 9, x0 + 14, 15, fur);
+    hline(grid, x0 + 10, x0 + 13, 16, fur);
+    setPixel(grid, x0 + 10, 13, "#101010");
+    setPixel(grid, x0 + 13, 13, "#101010");
+    setPixel(grid, x0 + 12, 15, "#d8b898");
+  } else if (kind === "dwarf") {
+    // Dwarf miner: steel helm, skin face, red beard.
+    const skin = "#f2c79b";
+    const beard = "#c03020";
+    const helm = "#d8d8e0";
+    hline(grid, x0 + 10, x0 + 13, 8, helm);
+    hline(grid, x0 + 9, x0 + 14, 9, helm);
+    hline(grid, x0 + 10, x0 + 13, 10, skin);
+    setPixel(grid, x0 + 11, 10, "#101010");
+    setPixel(grid, x0 + 12, 10, "#101010");
+    hline(grid, x0 + 10, x0 + 13, 11, beard);
+    hline(grid, x0 + 10, x0 + 13, 12, beard);
+    hline(grid, x0 + 11, x0 + 12, 13, beard);
   } else {
-    // Treasure chest: brown box, dark lid, gold band + keyhole.
-    for (let y = 10; y <= 14; y++) hline(grid, x0 + 8, x0 + 15, y, "#8a5a2a");
-    hline(grid, x0 + 8, x0 + 15, 10, "#5f3c1c");
-    hline(grid, x0 + 8, x0 + 15, 13, "#ffd24a");
-    setPixel(grid, x0 + 11, 12, "#5f3c1c");
+    // Cave opening: a dark arch in the rock (the mine goes on).
+    const dark = "#080808";
+    hline(grid, x0 + 10, x0 + 13, 9, dark);
+    for (let y = 10; y <= 16; y++) hline(grid, x0 + 9, x0 + 14, y, dark);
   }
 }
 
@@ -325,12 +425,27 @@ export function buildCaveRow(
       const seed = hashSeed(t * 7919 + strip * 104729, 0x5eed + tile * 131);
       if (mulberry32(seed)() < ROCK_CHANCE) {
         drawRockTile(grid, x0, mulberry32(hashSeed(seed, 1)), shades);
+        // Ore veins ride on rock only — a gap tile never shows floating ore.
+        if (mulberry32(hashSeed(seed, 4))() < ORE_CHANCE[t]) {
+          const color =
+            ORE_COLORS[
+              Math.floor(mulberry32(hashSeed(seed, 6))() * ORE_COLORS.length)
+            ];
+          drawOre(grid, x0, mulberry32(hashSeed(seed, 5)), color);
+        }
       }
       if (mulberry32(hashSeed(seed, 2))() < GEM_CHANCE[t]) {
         drawGem(grid, x0, mulberry32(hashSeed(seed, 3)), gem, t >= 2);
       }
       if (egg != null && egg.tile === tile) {
         drawEgg(grid, x0, egg.kind);
+      }
+    } else {
+      // Dug shaft: sparse rubble chunks in the lower half so the player
+      // stands on blocks instead of floating in an empty column.
+      const seed = hashSeed(t * 7919 + strip * 104729, 0x5eed + tile * 131);
+      if (mulberry32(hashSeed(seed, 7))() < PATH_RUBBLE_CHANCE) {
+        drawRubble(grid, x0, mulberry32(hashSeed(seed, 8)), shades);
       }
     }
     // Path wall edges: a dark 3px stripe on the inner side of the tiles
