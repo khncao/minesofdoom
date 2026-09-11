@@ -551,6 +551,7 @@ export const en = {
   "ui.areYouSure": "Are you sure?",
   "ui.confirm": "Confirm",
   "ui.cancel": "Cancel",
+  "ui.holdToMineHint": "hold to mine",
   "a11y.backspace": "Backspace",
   "a11y.clearAnswer": "Clear the whole answer",
   "a11y.submitAnswer": "Submit answer",

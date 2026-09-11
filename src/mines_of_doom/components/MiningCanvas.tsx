@@ -321,7 +321,7 @@ const MiningCanvas = memo(function MiningCanvas({
             userSelect: "none",
           }}
         >
-          hold to mine
+          {t("ui.holdToMineHint")}
         </Text>
       </View>
     </View>

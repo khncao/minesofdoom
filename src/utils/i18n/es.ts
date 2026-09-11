@@ -562,6 +562,7 @@ export const es: Record<TranslationKey, string> = {
   "ui.areYouSure": "¿Estás seguro?",
   "ui.confirm": "Confirmar",
   "ui.cancel": "Cancelar",
+  "ui.holdToMineHint": "mantén pulsado para minar",
   "a11y.backspace": "Retroceso",
   "a11y.clearAnswer": "Borrar toda la respuesta",
   "a11y.submitAnswer": "Enviar respuesta",
