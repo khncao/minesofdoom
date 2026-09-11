@@ -324,6 +324,65 @@ describe("web provider: purchase redirect", () => {
   });
 });
 
+describe("web provider: stripe.js loader retries (F41.1/F41.4)", () => {
+  it("an errored tag is dropped and the next attempt loads a FRESH script", async () => {
+    const { web } = loadWeb();
+    const client: RedirectClient = { redirectToCheckout: jest.fn() };
+    const { win, created } = makeWindow();
+    setWindow(win);
+    const first = web.loadStripe();
+    created[0].fire("error");
+    await expect(first).resolves.toBeNull();
+    expect(created[0].removed).toBe(true);
+    // The cache was reset: a second attempt injects a NEW element (the
+    // dead one was detached, so this can no longer hang the shop).
+    const second = web.loadStripe();
+    expect(created).toHaveLength(2);
+    win.Stripe = () => client;
+    created[1].fire("load");
+    await expect(second).resolves.toBe(client);
+  });
+
+  it("a script that never settles times out, and the retry starts fresh", async () => {
+    jest.useFakeTimers();
+    try {
+      const { web } = loadWeb();
+      const client: RedirectClient = { redirectToCheckout: jest.fn() };
+      const { win, created } = makeWindow();
+      setWindow(win);
+      const first = web.loadStripe();
+      jest.advanceTimersByTime(web.STRIPE_LOAD_TIMEOUT_MS);
+      await expect(first).resolves.toBeNull();
+      expect(created[0].removed).toBe(true);
+      const second = web.loadStripe();
+      expect(created).toHaveLength(2);
+      win.Stripe = () => client;
+      created[1].fire("load");
+      await expect(second).resolves.toBe(client);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("a load that exposes no usable Stripe clears the cache for a retry (F41.4)", async () => {
+    const { web } = loadWeb();
+    const client: RedirectClient = { redirectToCheckout: jest.fn() };
+    const { win, created } = makeWindow();
+    setWindow(win);
+    const first = web.loadStripe();
+    // The tag settles but window.Stripe is still undefined (a partial
+    // block that lets the script "load" without executing).
+    created[0].fire("load");
+    await expect(first).resolves.toBeNull();
+    expect(created[0].removed).toBe(true);
+    const second = web.loadStripe();
+    expect(created).toHaveLength(2);
+    win.Stripe = () => client;
+    created[1].fire("load");
+    await expect(second).resolves.toBe(client);
+  });
+});
+
 describe("web provider: pending-verify queue (restore replay)", () => {
   it("noteCheckoutSuccess enqueues the (product, session) pair", async () => {
     const { web, freshAsync } = loadWeb();

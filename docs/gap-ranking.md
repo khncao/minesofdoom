@@ -326,8 +326,14 @@ repo is not equipped to make.
     upsert for `entitlements`, `linkDeviceRows` iterating the device's
     rows, and a two-product regression test against a
     production-faithful fake.
-24. **`web:stripe-script-retry-hang`** (pass 41, F41.1) — a real bug on the
-    web money path: `loadStripe()` caches its failure badly. When the
+24. ~~**`web:stripe-script-retry-hang`**~~ (pass 41, F41.1) — **FIXED
+    2026-09-16 (pass 58)**: the loader now settles exactly once on load /
+    error / a 15 s timeout, drops the (dead or global-less) tag on every
+    failure, and resets the promise cache on EVERY null resolution (F41.4
+    folded in), so the next purchase injects a fresh script; nets for the
+    error, timeout, and partial-block branches in
+    `iapProvider.web.test.ts`. The original finding: a real bug on the
+    web money path — `loadStripe()` cached its failure badly. When the
     `js.stripe.com/v3` script tag fails once (CDN blip, adblock, flaky
     connection), the error path clears the promise cache but leaves the
     dead script element in `document.head`; the *next* `loadStripe()` call
@@ -342,9 +348,9 @@ repo is not equipped to make.
     the correct pattern a file away: `loadGsiScript` (signinSdks.ts)
     creates a fresh element per attempt, sets a load timeout, and rejects
     (never hangs). Fix: mirror it — remove the failed element on error
-    (or create fresh per attempt) and add a load timeout. No test can
-    catch this today (the web e2e stubs the loader; the unit tests stub
-    `window.Stripe` present).
+    (or create fresh per attempt) and add a load timeout. (The unit
+    tests used to stub `window.Stripe` present, so the dead-tag branch
+    was never exercised — the pass-58 fake-script nets close that.)
 25. **`account:me-network-wipes-token`** (pass 41, F41.2) — a real bug on
     the account path, same class as F39.1 (a destructive local action
     taken on an ambiguous remote result): `storeAuthProvider.me()` returns
@@ -5882,8 +5888,12 @@ runtime-injected:**
   "409/401 are distinct outcomes, not failure" — `me()`'s fix (F41.2)
   only has to use the status it already receives.
 
-**F41.1 — `web:stripe-script-retry-hang` (Tier 1, #24 — real bug).**
-The Stripe loader's retry design is broken on the exact path it was
+**F41.1 — `web:stripe-script-retry-hang` (Tier 1, #24 — real bug; FIXED in
+pass 58, 2026-09-16 — full fix shape landed: element removed on error AND
+timeout, promise cache reset on every null resolution (F41.4 folded), 15 s
+`STRIPE_LOAD_TIMEOUT_MS` mirroring the GSI convention; error/timeout/
+partial-block nets in `iapProvider.web.test.ts`).**
+The Stripe loader's retry design was broken on the exact path it was
 written for. `loadStripe()` resolves its failure by clearing the
 promise cache (`stripePromise = null`) but leaving the dead `<script
 data-stripe-v3>` element in `document.head`. The next purchase calls
@@ -5934,7 +5944,10 @@ on the next launch or on a connectivity return. Small; touches `auth.ts`
 (the interface + store/dev-sim/noop providers), `useAccount`'s restore
 branch, and the `useAccount.test.ts` fakes.
 
-**F41.3 — `web:gsi-dead-element-accumulation` (Tier 3, recorded).** The
+**F41.3 — `web:gsi-dead-element-accumulation` (Tier 3, recorded; FIXED in
+pass 58, 2026-09-16 — folded into the F41.1 touch as recorded here: the
+GSI loader now removes the element in its error AND timeout paths, net in
+`signinSdks.test.ts`).** The
 GSI loader's one hygiene gap: on `onerror`/timeout it rejects but
 leaves the dead (or still-downloading, in the timeout case) script
 element in the head, and the *next* attempt injects a *second* element
@@ -5947,7 +5960,10 @@ injection entirely, and a backgrounded late-arriving load just sets
 `onerror`/timeout cleanup); recorded, fold into the F41.1 fix if that
 touch runs anyway.
 
-**F41.4 — `web:stripe-null-cache` (Tier 3, recorded).** The sibling of
+**F41.4 — `web:stripe-null-cache` (Tier 3, recorded; FIXED in pass 58,
+2026-09-16 — the cache now resets on a null resolve from the tag-loaded-but-
+global-missing branch and the `window.Stripe` present-but-unconstructable
+branch; partial-block net in `iapProvider.web.test.ts`).** The sibling of
 F41.1's hang, on the other two branches of `loadStripe`: when
 `window.Stripe` exists but `safeConstruct` returns/throws to `null`, or
 the script's `load` event fires but the global is still undefined (a
@@ -6913,8 +6929,10 @@ Method: `ads.ts` read whole (caps, eligibility, metering), `useAdRewards.ts` rea
 + **F57.1 `canvas:untranslated-hold-hint` (Tier 1 — FIXED in pass 57, 2026-09-16):** the visible `hold to mine` hint in `MiningCanvas` was hardcoded English while the a11y label of the same control already goes through `t("a11y.holdToMine")` — a Spanish speaker reads English under the cave. Fix: new `ui.holdToMineHint` key (en/es) wired into the component; gates green.
 + No other findings: cosmetics are pure recolors/animation data with no gameplay knob (guardrail 1 holds at this layer), unknown ids fall back to defaults, `getThemeTint` is clamped, the `caveRowUri` cache key is complete, roster seeds are row-offset with a 50-per-row cap, `Miner` is memo'd with throttled swings + tick cleanup, custom-skin saves re-validate on load.
 
-### The IAP purchase / receipt-queue internals (pass 58 — useIap lifecycle, web Stripe provider, return-visit wiring)
+### The IAP purchase / receipt-queue internals (pass 58 — useIap lifecycle, web Stripe provider, return-visit wiring, written 2026-09-16)
 
 + **F58.1 `iap:restore-batch-undercounts-analytics` (Tier 3 — FIXED in pass 58, 2026-09-16):** `useIap.restore` fired `onPurchased` for `fresh[0]` only — a batched restore (the re-mint after a local wipe) recorded 1 of N new packs into `iapPurchases` while the in-code comment claimed "each product fires at most once". Fix: fire per fresh pack, toast stays one line; net in `useIap.test.ts` (2-pack restore → 2 events with both ids, 1 toast).
-+ **F58.2 `iap:stripe-loader-stalls-after-script-error` (Tier 2 — FIXED in pass 58, 2026-09-16):** `loadStripe` found the already-errored script tag on a later attempt and attached listeners that can never fire — the cached promise, and the in-flight purchase holding `inFlightRef`, stalled until a page refresh. Fix: `script.remove()` in the error listener; net in `iapProvider.web.test.ts` (fake-script `removed` flag + error-fires test).
-+ Clean: `grantsLocally:false` is the linchpin (web "purchased" = "redirect started", never "paid"), the pending-verify queue persists + dedupes + replays + never drops, the return-visit URL is one-shot with a catalog-allowlisted product id, the launch-reconcile `loadStartedRef` ordering is correct. Not defects: the pre-checkout queue replay's bounded latency; the queue keeping failed verifies forever (intended).
++ **F58.2 `iap:stripe-loader-stalls-after-script-error` (Tier 2 — FIXED in pass 58, 2026-09-16; this IS Tier 1 #24 / F41.1 from pass 41):** `loadStripe` found the already-errored script tag on a later attempt and attached listeners that can never fire — the cached promise, and the in-flight purchase holding `inFlightRef`, stalled until a page refresh. Fix: the loader now settles exactly once on load / error / a 15 s timeout (`STRIPE_LOAD_TIMEOUT_MS`, mirroring the GSI loader's convention), drops the dead tag on every failure, and — the F41.4 fold — resets the promise cache on EVERY null resolution (tag loaded but no `window.Stripe`, or `window.Stripe` present but unconstructable), so the next purchase always injects a FRESH script. Nets: `iapProvider.web.test.ts` error-path detach (the original F58.2 net), a fresh-retry-after-error test, a fake-timer timeout test (timeout fires → null + tag removed → the second attempt creates element #2 and can still succeed), and the partial-block test (load fires with no global → null + tag removed → fresh retry succeeds).
++ **F41.3 `web:gsi-dead-element-accumulation` (Tier 3 — FIXED in pass 58, 2026-09-16):** the GSI loader's recorded two-line hygiene gap, folded in as its own entry directed ("fold into the F41.1 fix if that touch runs anyway"): `loadGsiScript` now removes the element in BOTH failure paths (the `onerror` and the timeout `fail`), so N failed sign-in attempts leave no orphaned tags; net in `signinSdks.test.ts` (errored tag → reject + `remove()` called once). The timeout path previously only rejected, leaving a still-downloading tag behind.
++ Clean: `grantsLocally:false` is the linchpin (web "purchased" = "redirect started", never "paid"), the pending-verify queue persists + dedupes + replays + never drops, the return-visit URL is one-shot with a catalog-allowlisted product id, the launch-reconcile `loadStartedRef` ordering is correct. Not defects: the pre-checkout queue replay's bounded latency; the queue keeping failed verifies forever (intended); the `querySelector` reuse branch in `loadStripe` is now mostly defensive (the cache reset on failure removes the element it would find) and is kept for a page that injected the tag by other means.
++ Gates: typecheck + lint clean; jest 1220/1220 (80 suites; +6 nets over the pass-57 1214 baseline — the two WIP nets F58.1/F58.2 plus the four new loader/GSI nets above).

@@ -247,6 +247,27 @@ describe("mintGoogleIdTokenWeb (Google Identity Services)", () => {
     );
   });
 
+  it("an errored gsi tag is removed so the next attempt injects fresh (F41.3)", async () => {
+    let removed = 0;
+    const fakeScript: Record<string, unknown> = {
+      async: false,
+      remove: () => {
+        removed += 1;
+      },
+    };
+    fake.window.document = {
+      createElement: () => fakeScript,
+      head: {
+        appendChild: () => {
+          (fakeScript.onerror as () => void)();
+        },
+      },
+    };
+    const promise = mintGoogleIdTokenWeb();
+    await expect(promise).rejects.toThrow("failed to load");
+    expect(removed).toBe(1);
+  });
+
   it("injects the gsi/client script and runs the flow once it loads", async () => {
     // No google API on the window: the module must inject the script
     // itself, and the (fake) script exposes the API on load.

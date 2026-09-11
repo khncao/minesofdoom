@@ -223,8 +223,18 @@ function loadGsiScript(w: GsiWindow): Promise<void> {
  script.src = GSI_SCRIPT_SRC;
  script.async = true;
  return new Promise<void>((resolve, reject) => {
+  const fail = (message: string) => {
+   // Drop the dead (or still-hanging) tag: a settled script never
+   // re-fires its events, and leaving N orphans behind across N failed
+   // attempts is hygiene the F41.1 stripe fix already enforces.
+   script.remove();
+   reject(new Error(message));
+  };
   const timer = setTimeout(
-   () => reject(new Error("google sign-in script timed out")),
+   () => {
+    clearTimeout(timer);
+    fail("google sign-in script timed out");
+   },
    GSI_LOAD_TIMEOUT_MS,
   );
   script.onload = () => {
@@ -233,7 +243,7 @@ function loadGsiScript(w: GsiWindow): Promise<void> {
   };
   script.onerror = () => {
    clearTimeout(timer);
-   reject(new Error("google sign-in script failed to load"));
+   fail("google sign-in script failed to load");
   };
   w.document.head.appendChild(script);
  });

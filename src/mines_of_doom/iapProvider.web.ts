@@ -89,8 +89,19 @@ declare global {
   }
 }
 
+/** A stuck CDN script is a failed load, not a hang: the GSI loader's
+ *  15 s budget is the repo's convention for injected loader scripts. */
+export const STRIPE_LOAD_TIMEOUT_MS = 15 * 1000;
+
 /** Inject the stripe.js script once and wait for it to load. Cached for
- *  the page's lifetime; a failed load returns null (never throws). */
+ *  the page's lifetime; a failed load returns null (never throws).
+ *
+ *  Every null resolution is RETRYABLE: the (dead or empty) script tag is
+ *  removed and the promise cache reset, so the next purchase injects a
+ *  FRESH element. A settled `<script>` never re-fires its events, so
+ *  re-attaching listeners to it would stall loadStripe — and with it the
+ *  in-flight purchase guard — for the rest of the page session (a single
+ *  CDN blip must never brick the web shop without a refresh). */
 let stripePromise: Promise<StripeRedirectClient | null> | null = null;
 
 export function loadStripe(): Promise<StripeRedirectClient | null> {
@@ -103,7 +114,9 @@ export function loadStripe(): Promise<StripeRedirectClient | null> {
     }
     const win = w.window;
     if (win.Stripe) {
-      resolve(safeConstruct(win.Stripe));
+      const client = safeConstruct(win.Stripe);
+      if (client === null) stripePromise = null;
+      resolve(client);
       return;
     }
     const existing = win.document.querySelector(
@@ -117,20 +130,34 @@ export function loadStripe(): Promise<StripeRedirectClient | null> {
       script.setAttribute("data-stripe-v3", "true");
       win.document.head?.appendChild(script);
     }
-    // Both fresh scripts and an already-pending one settle here.
-    script.addEventListener("load", () => {
-      resolve(safeConstruct(win.Stripe));
-    });
-    script.addEventListener("error", () => {
-      // Remove the dead tag so a later purchase creates a FRESH script.
-      // Reusing an already-errored element would attach listeners that
-      // can never fire and stall loadStripe (and the in-flight purchase,
-      // with its in-flight guard) forever until a page refresh.
+    // The promise settles exactly once, on whichever of load / error /
+    // timeout wins. Any non-success outcome drops the tag and resets the
+    // cache (see the function doc); both fresh scripts and an
+    // already-pending one settle here.
+    let done = false;
+    const fail = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
       script.remove();
-      // Let a later purchase retry the load.
       stripePromise = null;
       resolve(null);
+    };
+    const timer = setTimeout(fail, STRIPE_LOAD_TIMEOUT_MS);
+    script.addEventListener("load", () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      const client = safeConstruct(win.Stripe);
+      if (client === null) {
+        // The tag "loaded" but exposed no usable global (a partial
+        // block): retry from a fresh tag on the next attempt.
+        script.remove();
+        stripePromise = null;
+      }
+      resolve(client);
     });
+    script.addEventListener("error", fail);
   });
   return stripePromise;
 }
