@@ -1004,9 +1004,19 @@ export function useGameEngine(
       lifetimeMinerals: save.lifetimeMinerals + offline,
     });
     playSecondsRef.current = save.playSeconds;
+    // An import replaces the whole run: the previous session's offers are
+    // stale from this moment on. Clear the double (an import never re-
+    // offers it — the base haul is already paid above) and replace the
+    // top-up with the imported save's, which is none when it didn't hit
+    // the 8h cap.
+    offlineDoubleRef.current = null;
+    setOfflineDouble(null);
     if (topUp > 0n) {
       offlineTopUpRef.current = topUp;
       setOfflineTopUp(topUp);
+    } else {
+      offlineTopUpRef.current = null;
+      setOfflineTopUp(null);
     }
     return decoded;
   }, []);
@@ -1078,9 +1088,17 @@ export function useGameEngine(
         lifetimeMinerals: data.lifetimeMinerals + offline,
       });
       playSecondsRef.current = data.playSeconds;
+      // Same stale-offer hygiene as importSaveCode: a restore replaces the
+      // whole run, so the previous session's offers are stale from this
+      // moment on.
+      offlineDoubleRef.current = null;
+      setOfflineDouble(null);
       if (topUp > 0n) {
         offlineTopUpRef.current = topUp;
         setOfflineTopUp(topUp);
+      } else {
+        offlineTopUpRef.current = null;
+        setOfflineTopUp(null);
       }
       return true;
     },
@@ -1090,6 +1108,14 @@ export function useGameEngine(
   const resetGame = useCallback(() => {
     setGameState(createEmptySaveData());
     playSecondsRef.current = 0;
+    // The reset replaces the whole run, so the pending ad offers computed
+    // from the discarded run's offline haul must go with it — otherwise the
+    // panel keeps showing them and a claim would pay the stale haul against
+    // the fresh save.
+    offlineDoubleRef.current = null;
+    offlineTopUpRef.current = null;
+    setOfflineDouble(null);
+    setOfflineTopUp(null);
     // Clear async first; the next periodic save rewrites a fresh state, so
     // even if removal fails the stored save converges to the reset state.
     AsyncStorage.removeItem(saveDataKey).catch((e) => {

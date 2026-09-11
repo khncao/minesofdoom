@@ -621,6 +621,27 @@ describe("useGameEngine — prestige & offline offers", () => {
     });
     expect(result.current.gameState.minerals).toBe(s.minerals);
   });
+
+  it("resetGame clears pending offers (the stale-offer net)", async () => {
+    const saveTime = Date.now() - 10 * 60 * 60 * 1000;
+    const { result } = await renderEngine({ miners: 1 }, saveTime);
+    expect(result.current.offlineDouble).not.toBeNull();
+    expect(result.current.offlineTopUp).not.toBeNull();
+    await act(async () => {
+      result.current.resetGame();
+      await Promise.resolve();
+    });
+    expect(result.current.offlineDouble).toBeNull();
+    expect(result.current.offlineTopUp).toBeNull();
+    // A claim after the reset pays nothing (the stale haul is gone).
+    const base = result.current.gameState.minerals;
+    await act(async () => {
+      result.current.claimOfflineDouble();
+      result.current.claimOfflineTopUp();
+      await Promise.resolve();
+    });
+    expect(result.current.gameState.minerals).toBe(base);
+  });
 });
 
 describe("useGameEngine — cloud restore", () => {
@@ -645,6 +666,30 @@ describe("useGameEngine — cloud restore", () => {
     expect(offline).toBeGreaterThan(0n);
     expect(result.current.gameState.minerals).toBe(1000n + offline);
     expect(result.current.gameState.lifetimeMinerals).toBe(5000n + offline);
+  });
+
+  it("restoreFromBlob clears the previous session's stale offers", async () => {
+    // Load a 10h-away save so both offers are pending...
+    const loadTime = Date.now() - 10 * 60 * 60 * 1000;
+    const { result } = await renderEngine({ miners: 1 }, loadTime);
+    expect(result.current.offlineDouble).not.toBeNull();
+    expect(result.current.offlineTopUp).not.toBeNull();
+    // ...then restore a save that was only 2h away (under the cap: no
+    // top-up, and a restore never offers a double): both stale offers
+    // must be gone.
+    const blob = serializeSaveData({
+      ...createEmptySaveData(),
+      miners: 1,
+      saveTime: Date.now() - 2 * 60 * 60 * 1000,
+    });
+    let ok = false;
+    await act(async () => {
+      ok = result.current.restoreFromBlob(blob);
+      await Promise.resolve();
+    });
+    expect(ok).toBe(true);
+    expect(result.current.offlineDouble).toBeNull();
+    expect(result.current.offlineTopUp).toBeNull();
   });
 
   it("restoreFromBlob rejects garbage (no state change)", async () => {
@@ -693,6 +738,22 @@ describe("useGameEngine — save codes", () => {
       await Promise.resolve();
     });
     expect(imported).toBeNull();
+  });
+
+  it("importSaveCode never leaves the previous session's double offer", async () => {
+    const saveTime = Date.now() - 10 * 60 * 60 * 1000;
+    const { result } = await renderEngine({ miners: 1 }, saveTime);
+    expect(result.current.offlineDouble).not.toBeNull();
+    const code = result.current.exportSaveCode();
+    let imported: unknown = null;
+    await act(async () => {
+      imported = result.current.importSaveCode(code);
+      await Promise.resolve();
+    });
+    expect(imported).not.toBeNull();
+    // The import replaced the run: the old "watch to double" offer is
+    // stale from the import onwards (an import never re-offers one).
+    expect(result.current.offlineDouble).toBeNull();
   });
 });
 
