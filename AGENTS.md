@@ -40,7 +40,6 @@ src/                       # All source
                            # ONLY route files belong under src/app — every OTHER file
                            # (any extension, incl. tests/.d.ts) becomes a route, and
                            # the static web export emits an HTML page per route.
-  AppContext.ts            # App-level React context (tick callbacks)
   components/              # Shared UI components (Button, Tooltip, BottomModal,
                            # IntegerInput, NumericKeypad, etc.)
   hooks/                   # Shared hooks (useLocalStorage)

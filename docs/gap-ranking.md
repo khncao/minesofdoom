@@ -363,6 +363,25 @@ repo is not equipped to make.
     unknown / account — `postJsonWithStatus` already has the status to
     tell them apart) and wipe the token only on `dead` (an explicit 401);
     a 200-with-malformed-body should also stop wiping (recorded, F41.5).
+26. **`compliance:policy-child-directed-mismatch`** (pass 45, F45.1) — the
+    published privacy policy contradicts the recorded age-rating decision:
+    `legal.ts` v2.0 (effective 2026-09-06) says advertising is "configured
+    for child-directed treatment", but S6 (security-audit.md,
+    DECIDED 2026-09-08 — two days later) positions the app teen+ (13+),
+    NOT child-directed, with
+    `storeConfig.adMob.tagForChildDirectedTreatment: false` test-pinned by
+    `storeConfig.test.ts`. The policy was rewritten to match the real
+    architecture at v2.0 but predates the S6 decision and never caught up —
+    so the in-app policy and both generated `public/*.html` copies assert an
+    ad configuration the shipped code does not have (and the "below the
+    platform's minimum age" clause is vaguer than the recorded 13+ stance).
+    A false compliance claim in a young-skewing game's policy is
+    store-review material on its own; the fix is a one-sentence rewrite
+    (state the 13+ / not-child-directed position, keep the under-13
+    deletion promise) + regenerating the HTML via `legalDocs.test.ts`.
+    Sibling net (same class as F38.4's prose contracts): nothing checks the
+    policy's claim against the config, so a future flag flip would silently
+    falsify it again.
 
 **Context — closed since the passes ran** (so the ranking isn't
 re-derived from stale reads): streak grace (it.14), streak freezes +
@@ -5995,12 +6014,14 @@ as stated.
 ### The asset-generation & shipped-artifact layer (pass 43 — how the shipped art and audio come to exist, written 2026-09-11)
 
 The layer answers: when a pixel or a sample changes, what actually has to
-be regenerated, and what catches a drift. Five `scripts/generate-*.mjs`
-compilers plus the in-code grid builders:
+be regenerated, and what catches a drift. Six `scripts/generate-*.mjs`
+compilers (pass 44: `generate-deep-mole-sprite.mjs` added — the
+sprite-library line below counts nine artifacts as of 2026-09-11)
+plus the in-code grid builders:
 
 | generator | artifact | net on the shipped artifact |
 | --- | --- | --- |
-| `generate-sprite-library.mjs` | `bundledSprites.ts` (data-URI module) | **strong** — `bundledSprites.test.ts` decodes every URI with the production PNG decoder, pins license/source/size/id shape |
+| `generate-sprite-library.mjs` | `bundledSprites.ts` (data-URI module, 9 sprites) | **strong** — `bundledSprites.test.ts` decodes every URI with the production PNG decoder, pins license/source/size/id shape, and requires every shipped sprite to carry a verifiable provenance (source URL or declared original) |
 | `generate-pickaxe-sounds.mjs` | `public/assets/audio/pickaxe-*.wav` | none (files are checked in; a corrupt regen is caught only by ear) |
 | `generate-ambient-loop.mjs` | `public/assets/audio/cave-ambient.wav` | none (same) |
 | `generate-art-style-samples.mjs` | `docs/art-styles/samples/*.png` | none (doc artifacts) |
@@ -6056,3 +6077,174 @@ this pass: each generator's output path read from the script, each net claim
 from the named test file. F43.1/F43.2 are structural findings (missing
 machine check / duplication), not observed breakage — no artifact was found
 stale or corrupt in this pass.
+
+### The React state & component-architecture layer (pass 44 — how the 1Hz tick's state flows from the engine to pixels, and where the re-render boundary is, written 2026-09-12)
+
+The layer answers: where does state produced by the engine's 1Hz tick land,
+and what stops one tick from re-rendering the whole screen?
+
+Shape (verified against the tree as of this pass):
+
++ **One composition root.** `MinesOfDoom.tsx` (1,827 lines) calls 25 domain
+  hooks (game engine, settings, combo, daily, cloud save, account,
+  leaderboard, IAP, skins, sounds, …) all before the
+  `if (!isLoaded) return <LoadingScreen/>` early return. There is no other
+  screen-level component; the game is one screen by design.
++ **Exactly one React context in the game** — the `onTick` ref-array
+  registry (`mines_of_doom/Context.tsx`, plan §3.2), a documented *deliberate*
+  deviation from data flow: the value's identity is stable (the engine never
+  replaces the array; the root's `contextValue` memo pins
+  `{ onTick: onTick.current }`), and the sole consumer (`Miner`) pushes its
+  callback on mount and splices it on unmount. Tick-driven animation
+  (the pickaxe bob) therefore bypasses React entirely — a tick never
+  renders a Miner.
++ **Everything else flows down as explicit props**, and **all 30 components
+  in `components/` are wrapped in `memo()`**. The root is designed to keep
+  memoized children's prop identity stable across ticks (the
+  "memoized MenuPanel/SettingsPanel quiet" comment at the save-dirty
+  plumbing; `contextValue` memo; settings objects memoized via
+  `useMemo`). A tick's `setGameState` therefore re-runs the root's own body
+  (the 25 hook bodies + prop computation at 1Hz) without cascading into
+  the memo-gated subtree.
++ **The bridge is one big hook.** `useGameEngine.ts` (1,154 lines) owns the
+  tick loop, offline catch-up, save/autosave, and the whole `SaveData`
+  (12+ `setGameState` sites); the other 24 hooks are domain leaves that
+  read slices. The pure `game.ts` engine stays framework-free by design.
+
+Nets on the invariants:
+
++ `react-hooks/rules-of-hooks` runs at **error** (the plugin's recommended
+  config is spread in `eslint.config.mjs`), so the "all hooks before the
+  early return" invariant is machine-guarded — a hook added below
+  `if (!isLoaded)` fails lint, not just breaks at runtime.
++ `exhaustive-deps` at warn (same config) covers the ref-callback closures.
++ `useGameEngine.test.ts` exists (the bridge itself is netted); the hook-
+  layer test debt is F42.1's (20 renders without unmount across five suites).
++ Pass 20 measured the per-second cost of the tick path and found it fine.
+
+**F44.1 — `arch:orphan-appcontext` (cleanup — LANDED this pass).**
+`src/AppContext.ts` was a complete duplicate of the game's `onTick`
+context (same ref-array shape) with **zero importers** since the
+iteration-28 `apps/` → `src/` move; its only trace was an
+`AGENTS.md` architecture-tree line. A dead duplicate state channel is
+precisely what a future edit imports by mistake, so this pass removed the
+file and the `AGENTS.md` line (typecheck + full jest confirm zero impact).
+Not a feature gap — the only implementation this pass, and a cleanup.
+
+**F44.2 — `arch:engine-god-hook` (recorded, not a defect).** The 25-hook
+fan-out is a thin face over one large hook: the 1,154-line `useGameEngine`
+bridge concentrates the tick loop, offline catch-up, migration entry, and
+every `SaveData` mutation, while each of the 24 leaves is a domain that
+could have been folded in. This is intentional (the bridge is where
+framework-free `game.ts` meets React) and it is netted
+(`useGameEngine.test.ts`), but it makes the bridge the highest-churn file
+in the game layer: any state field added to `SaveData` touches it. The
+extension point when it outgrows ~1.5k lines is to pull a domain *out of*
+the hook into its own leaf (the `useCloudSave`/`useLeaderboard` shape),
+not to split `game.ts` — the pure engine is the stable half. Recorded for
+layer completeness, not ranked.
+
+**Recorded, not defects:** (a) `crashContext.ts` is module-level state
+deliberately outside React (a crash can happen anywhere; a context value
+would be exactly what's missing then) — `recordCrash` snapshots it into
+every entry; `crashContext.test.ts` + `crashLog.test.ts` net it. (b)
+`saveGameRef.current = saveGame` assigned during render (the "latest ref"
+idiom) is the correct pattern for the once-registered `AppState`
+background-save listener and is not a render-side-effect per the React
+rules (idempotent, no reads). (c) the 1Hz root re-run is a *measured* cost
+(pass 20), not a defect; the pressure points are only a raised tick rate or
+a heavier root prop graph — if either lands, the first move is extracting
+the tick-driven canvas subtree behind its own memo, not splitting the root.
+
+**Source quality (pass 44).** Every claim verified against the tree as of
+this pass: the memo scan covered all 30 components (all memoized), the
+hook count and early-return position from the root source, the
+rules-of-hooks severity from `eslint.config.mjs`, and the importer scan was
+repo-wide (code files, node_modules/dist excluded). No player-visible
+defect found; F44.1 is the only change made.
+
+### The compliance / privacy / age-rating layer (pass 45 — what a regulator, a store reviewer, and a parent see when they look at the shipped product, written 2026-09-12)
+
+The layer answers: when a store reviewer, a privacy authority, or a parent
+reads what we ship — the published legal docs, the data flows those docs
+assert, and what the store forms must declare — do those three agree?
+
+Shape (verified against the tree as of this pass):
+
++ **The policy is written against the actual architecture, and the published copies are pinned.**
+  `legal.ts` (Privacy Policy v2.0, effective 2026-09-06; Terms v2.0) is the
+  single source; `public/privacy-policy.html` / `terms-of-use.html` are
+  generated from it and pinned by `legalDocs.test.ts` (edit the module,
+  re-run the tests); the in-app `LegalSection` opens the same module from
+  Settings. S4 (security-audit.md) — "no discoverable privacy policy" — is
+  Fixed with exactly this shape.
++ **The age-rating decision is recorded and test-pinned.** S6
+  (security-audit.md, DECIDED 2026-09-08): teen+ (13+) positioning, NOT
+  child-directed → `storeConfig.adMob.tagForChildDirectedTreatment: false`
+  (the comment cites the decision; `storeConfig.test.ts` pins the value;
+  `adProvider.ts` applies it via `MobileAds().setRequestConfiguration`).
+  The COPPA-2025 inputs behind the decision are the pass 6 compliance
+  research; the kid-directed alternative (parental-consent gate) is
+  documented as the rejected, expensive branch.
++ **The policy's data-flow claims hold up re-verification pass by pass.**
+  Save codes carry the save payload and nothing else (no token/email/
+  device id — `saveCode.ts`); analytics are local-only (no network calls in
+  `analytics.ts`; the stored fields match the policy's list); the crash
+  ring is bounded and save-free (`crashContext.ts`); the session token
+  lives in Keychain/Keystore on native and profile-scoped localStorage on
+  web, never AsyncStorage (`secureToken.ts`); passwords are a salted
+  iterated-SHA-256 KDF (100k rounds, CSPRNG salt — the documented goja
+  runtime limitation, S3); Google/Apple sign-in tokens are verified by the
+  provider and the password is never seen or stored (`pb_hooks`
+  identityVerify); leaderboard rows are a device-id key + the player-chosen
+  display name + scores (the email is never exposed); share badges/images
+  embed no PII; Stripe card data never reaches the app (checkout sessions
+  only, publishable key shipped).
++ **Erasure exists for every data path that stores personal data**: local
+  Reset, the GDPR delete endpoint (the token IS the deletion authority —
+  device-scope keep of entitlements is the accepted S5 trade-off), and
+  email-based account deletion ("including the database and backups" — a
+  manual process with no written retention schedule; fine at the 13+
+  stance, would need a retention schedule only if the stance flipped,
+  pass 6).
+
+Findings:
+
++ **F45.1 `compliance:policy-child-directed-mismatch` (Tier 1 — new #26).**
+  The "Children" section of the privacy policy asserts advertising is
+  "configured for child-directed treatment" while S6 (two days after the
+  policy's effective date) decided the opposite and the code + tests pin it
+  (`tagForChildDirectedTreatment: false`). See Tier 1 #26 for the fix
+  shape. Everything else in the same section is consistent with the 13+
+  stance; the defect is that one sentence.
++ **F45.2 `web:adsense-consent-gate` (Tier 2 — trigger-gated on the AdSense
+  account approval, pass 36 `search:console-verify`; no ads serve today
+  while the account is pending, so exposure is the loader, not impressions):**
+  the production web export emits the LIVE AdSense loader
+  (`ca-pub-2101316086878618` from `storeConfig.adsense.client`, no test
+  flag) into the `<head>` of every page unconditionally — no consent-mode
+  or region gate in `+html.tsx` — and the policy is silent on third-party
+  cookies/consent. Third-party JS executes on every page load before a
+  player has ever tapped "watch"; for EEA traffic Google's own publisher
+  guidance requires consent before the tag loads. Fix shape: gate the tag
+  (consent-mode v2 params or a region check) in `+html.tsx` + a
+  cookies/consent paragraph in `legal.ts` (regenerate HTML after).
++ **Recorded, not defects:** the store-side privacy declarations (Play data-
+  safety form, App Store privacy labels) are console steps, not repo code —
+  the data categories to declare are derivable from this pass (account
+  email, cloud save/progress, purchase info, device-scoped purchase +
+  leaderboard identity); S6's checklist already covers the age-rating half
+  and Android shipped, so this bites at the iOS submission. The
+  "deletion including backups" promise is a manual process with no written
+  retention schedule (acceptable at the 13+ stance). The iOS ATT prompt the
+  policy describes ships with the iOS release (`iosAppId` is still empty;
+  iOS is not prebuilt), so that sentence is accurate-as-planned, not
+  accurate-as-shipped.
+
+Method: the layer's shape is `legal.ts` + `storeConfig.ts` + the S6 record,
+then every data-flow sentence in the policy re-read against the module that
+implements it (`saveCode.ts`, `analytics.ts`, `crashContext.ts`,
+`secureToken.ts`, `pb_hooks/{logic,handlerLib,collections}.js`,
+`leaderboard.ts`, `shareBadge.ts`, `iapProvider.web.ts`), then the two
+published-artifact nets (`legalDocs.test.ts`, `storeConfig.test.ts`).
+Pass 45 made no code change; F45.1/F45.2 are ranked only, pending greenlit.
