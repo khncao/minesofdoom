@@ -102,8 +102,7 @@ export const es: Record<TranslationKey, string> = {
   "combo.saveOfferClaiming": "🔥 Guardando combo {combo}…",
 
   // --- Equation area ------------------------------------------------------
-  "equation.pending": "correcto: +{gain} 🪨",
-  "equation.detail": " (×{mult}{suffix})",
+  "equation.hint": "×{mult}{suffix}",
   "equation.tagHard": "difícil",
 
   // --- Purchase buttons ---------------------------------------------------

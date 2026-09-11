@@ -268,10 +268,10 @@ export default function MinesOfDoom() {
   // Depth-tier click bonus + banked prestige multiplier + the tier-3 click
   // x2 upgrade included: this is the value taps and answers actually pay
   // with (the engine applies the same multipliers authoritatively), so
-  // pending-gain / floating text agree.
+  // tap/answer payouts and floating text agree.
   // Integer factors first (click power × click-x2 boost), then the float
   // multipliers through mulFloats — exactly what the engine's
-  // applyAnswerReward pays, so pending-gain / floating text agree.
+  // applyAnswerReward pays, so the floating "+N" on solve matches.
   const effectiveClickPower = mulFloats(
     BigInt(gameState.clickPower) *
       BigInt(getClickBoostMultiplier(gameState.clickBoostLevels)),
@@ -1595,8 +1595,6 @@ export default function MinesOfDoom() {
           />
           <EquationDisplay
             equation={equation}
-            clickPower={effectiveClickPower}
-            comboMultiplier={comboMultiplier}
             multiplySymbol={equationSettings.multiplySymbol}
           />
           <AnswerInput

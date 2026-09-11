@@ -1507,34 +1507,12 @@ export function getEquationOpBonus(equation: Equation): number {
  * before it reaches applyAnswerReward. Operator bonus (÷ ×10, ² ×4, % ×3,
  * missing ×3, − ×2) × the hard-mode premium when the equation has a second
  * term. useEquations applies this; EquationDisplay folds the same number
- * into the pending-gain readout so the UI and the reward agree.
+ * into its answer-independent multiplier hint so the UI and the reward
+ * agree.
  */
 export function getAnswerPayoutMultiplier(equation: Equation): number {
   const opBonus = getEquationOpBonus(equation);
   return opBonus * (equation.op2 !== undefined ? HARD_MODE_PAYOUT : 1);
-}
-
-/**
- * The EXACT minerals a correct answer to this equation will earn — the
- * pending-gain readout's number (pass-15 audit finding (1),
- * `math:pending-gain`). Mirrors applyAnswerReward's integer core: the
- * premium-folded answer value (floored at 1 exactly like the reward
- * does — degenerate zero-answer equations pay the same floor) × the
- * EFFECTIVE click power × the combo multiplier. The float tail (depth-tier
- * click bonus, prestige) already rides inside the caller's effective click
- * power via mulFloats, exactly as applyAnswerReward applies it, so the
- * readout agrees with the floating "+N" on solve digit for digit.
- */
-export function getPendingAnswerGain(
-  equation: Equation,
-  clickPower: bigint,
-  comboMultiplier: number,
-): bigint {
-  const value = Math.max(
-    1,
-    equation.answer * getAnswerPayoutMultiplier(equation),
-  );
-  return BigInt(value) * clickPower * BigInt(comboMultiplier);
 }
 
 /**

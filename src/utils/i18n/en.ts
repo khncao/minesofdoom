@@ -110,8 +110,7 @@ export const en = {
   "combo.saveOfferClaiming": "🔥 Saving combo {combo}…",
 
   // --- Equation area ------------------------------------------------------
-  "equation.pending": "correct: +{gain} 🪨",
-  "equation.detail": " (×{mult}{suffix})",
+  "equation.hint": "×{mult}{suffix}",
   "equation.tagHard": "hard",
 
   // --- Purchase buttons ---------------------------------------------------
