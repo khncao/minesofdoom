@@ -509,19 +509,26 @@ export function useGameEngine(
     [],
   );
 
+  // Affordability-guarded like the other purchases (the UI's disabled flag
+  // already mirrors this, the guard is the engine-level backstop so no
+  // future caller can drive minerals negative).
   const upgradePower = useCallback(() => {
     setGameState((n: SaveData) => {
+      const cost = getClickUpgradeCost(n.clickPower);
+      if (n.minerals < BigInt(cost)) return n;
       return {
         ...n,
         clickPower: n.clickPower + 1,
-        minerals: n.minerals - BigInt(getClickUpgradeCost(n.clickPower)),
+        minerals: n.minerals - BigInt(cost),
       };
     });
   }, []);
 
+  // Affordability-guarded like the other purchases.
   const buyMiner = useCallback(() => {
     setGameState((n: SaveData) => {
       const cost = getMinerUpgradeCost(n.miners);
+      if (n.gems < cost) return n;
       return {
         ...n,
         miners: n.miners + 1,
@@ -580,8 +587,10 @@ export function useGameEngine(
     });
   }, []);
 
+  // Affordability-guarded like the other purchases.
   const buyGem = useCallback(() => {
     setGameState((n: SaveData) => {
+      if (n.minerals < BigInt(gemMineralCost)) return n;
       return {
         ...n,
         minerals: n.minerals - BigInt(gemMineralCost),

@@ -323,32 +323,54 @@ describe("useGameEngine — spending", () => {
     expect(s.totalGemsSpent).toBe(cost);
   });
 
-  it("buyFastMiner / buyLegendaryMiner are affordability-guarded", async () => {
-    const { result } = await renderEngine({ gems: 0 });
+  it("every purchase is affordability-guarded (no negative balances from any caller)", async () => {
+    const { result } = await renderEngine({ gems: 0, minerals: 0n });
     await act(async () => {
-      result.current.buyFastMiner();
-      result.current.buyLegendaryMiner();
-      await Promise.resolve();
-    });
-    expect(result.current.gameState.fastMiners).toBe(0);
-    expect(result.current.gameState.legendaryMiners).toBe(0);
-
-    const fc = getFastMinerCost(0);
-    const lc = getLegendaryMinerCost(0);
-    await act(async () => {
-      result.current.grantGems(fc + lc);
-      await Promise.resolve();
-    });
-    await act(async () => {
+      result.current.upgradePower();
+      result.current.buyMiner();
+      result.current.buyGem();
       result.current.buyFastMiner();
       result.current.buyLegendaryMiner();
       await Promise.resolve();
     });
     const s = result.current.gameState;
-    expect(s.fastMiners).toBe(1);
-    expect(s.legendaryMiners).toBe(1);
+    expect(s.clickPower).toBe(1);
+    expect(s.miners).toBe(0);
     expect(s.gems).toBe(0);
-    expect(s.totalGemsSpent).toBe(fc + lc);
+    expect(s.fastMiners).toBe(0);
+    expect(s.legendaryMiners).toBe(0);
+    expect(s.totalGemsMinted).toBe(0);
+    expect(s.minerals).toBe(0n);
+
+    const fc = getFastMinerCost(0);
+    const lc = getLegendaryMinerCost(0);
+    const mc = getMinerUpgradeCost(0);
+    const pc = getClickUpgradeCost(1);
+    await act(async () => {
+      result.current.grantGems(fc + lc + mc);
+      result.current.addTapGain(BigInt(pc + gemMineralCost));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      result.current.upgradePower();
+      result.current.buyMiner();
+      result.current.buyGem();
+      result.current.buyFastMiner();
+      result.current.buyLegendaryMiner();
+      await Promise.resolve();
+    });
+    const s2 = result.current.gameState;
+    expect(s2.fastMiners).toBe(1);
+    expect(s2.legendaryMiners).toBe(1);
+    expect(s2.miners).toBe(1);
+    expect(s2.clickPower).toBe(2);
+    // buyGem mints a gem within the same call batch, so the wallet ends
+    // with exactly that one minted gem; totalGemsSpent is the three miner
+    // lines (the conversion mints, it doesn't spend).
+    expect(s2.gems).toBe(1);
+    expect(s2.minerals).toBe(0n);
+    expect(s2.totalGemsMinted).toBe(fc + lc + mc + 1);
+    expect(s2.totalGemsSpent).toBe(fc + lc + mc);
   });
 
   it("buyGem swaps minerals for gems at the flat rate", async () => {
