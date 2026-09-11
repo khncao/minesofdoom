@@ -6248,3 +6248,99 @@ implements it (`saveCode.ts`, `analytics.ts`, `crashContext.ts`,
 `leaderboard.ts`, `shareBadge.ts`, `iapProvider.web.ts`), then the two
 published-artifact nets (`legalDocs.test.ts`, `storeConfig.test.ts`).
 Pass 45 made no code change; F45.1/F45.2 are ranked only, pending greenlit.
+
+### The storage / data-footprint layer (pass 46 — what the app stores where, how big it grows over time, and what hits a platform quota, written 2026-09-12)
+
+The layer answers: across the four storage media this app can touch
+(device KV, files, memory caches, the VPS), what exactly is stored, what
+bounds each record, what grows with play time, and which net pins the
+totals against the platform quota that actually bounds them?
+
+Shape (verified against the tree as of this pass):
+
++ **There is one storage funnel, and the bypasses are deliberate and
+  named.** Every React-layer record goes through `useLocalStorage` →
+  `@react-native-async-storage/async-storage` (web: localStorage, native:
+  the platform KV). The four object-API bypasses are module-local and
+  documented at the call site: `crashLogging.ts` (fire-and-forget writes
+  from an error boundary that no component owns, serialized through
+  `chainRef`), `useAnalytics` (its in-memory initial value must be the
+  stored value, not the default), `iapDeviceId` (read before any React
+  mount), and the `iapPendingVerifies` queue (a provider-module concern,
+  pass 41). No app code writes files: the custom-skin picker
+  (`customSkinPicker.ts`, `expo-file-system`) reads the user-picked
+  document, decodes it to a grid in memory, and leaves nothing on disk —
+  the persisted form is the ~2 KB grid + ≤300 KB audio data URI in the
+  `customSkin` KV record. The session token is the one deliberate
+  KV-excluded record (Keychain/Keystore on native, profile-scoped
+  localStorage on web — `secureToken.ts`, pass 45).
++ **Every persisted record is bounded by a constant or a finite catalog,
+  and none carries an unbounded event stream.** The game save (`save`
+  key) is scalars + finite-catalog id arrays (`completedTiers`,
+  `completedAchievements`, `ownedCosmetics`, `ownedCaveThemes`) — no
+  per-purchase or per-tap history (that log lives in `analytics`, capped
+  at `COSMETIC_PURCHASE_LOG_MAX = 100`). `crashLog` is a 5-entry ring
+  with message (300) / stack (4000) truncation. `customSkin` is a single
+  overwritten slot. The one-off day/week records (daily bonus, daily
+  equation, weekly challenge, ad rewards) hold last-claim state keyed by
+  the local day/week, not a history. The server side is constant per
+  device: one `cloudSaves` row, blob server-enforced ≤16 KB
+  (`validateCloudPush`), no version history rows.
++ **The memory-side caches are bounded where they exist.** The skin
+  grid→URI cache is capped (512 KB or 4 entries, cleared whole), the
+  bundled-sprite URIs and audio are in-bundle base64 (fixed with the
+  bundle), and the leaderboard/share canvases are transient.
+
+Findings:
+
++ **F46.1 `storage:footprint-net` (Tier 2 — same doc-only-contract class
+  as F43.1 `gen:regen-net` and F35.2 `app:route-only-net`):** nothing
+  pins the totals. Every per-record bound is a constant (and several are
+  unit-tested in isolation), but no test assembles the worst-case
+  device: a max save + a 300 KB skin audio + a full crash ring + a full
+  analytics log + the pending-verify queue, serialized through the same
+  JSON the funnel uses, asserted against the real platform quota (web
+  localStorage ≈ 5 MB — the tightest quota in play; native KV is
+  effectively unbounded). Hand math today puts the worst case at roughly
+  ~350 KB (≈7 % of the web quota), so this is a future-drift net, not a
+  live defect — a content pass that adds a second skin slot, an
+  achievement-history log to the save, or per-purchase receipts to the
+  `analytics` record would not be caught by anything. Fix shape: one
+  jest test that builds each worst-case record from the existing
+  builders (`buildSaveData`-shape max, `CustomSkinSave` at the audio cap,
+  `appendCrash` ×5, `recordCosmeticPurchase` ×100) and asserts the sum
+  against an explicit quota constant.
++ **F46.2 `iap:pending-verify-stale` (Tier 3):** the web
+  `iapPendingVerifies` queue dedups on (productId, token), replay drops
+  entries that succeed — but an entry whose verify can never succeed
+  (expired Stripe session, endpoint moved, VPS migrated) is retried on
+  every replay and kept forever: no age cap, no cap on entry count, and
+  nothing clears it on sign-out or data-deletion (it holds a product id
+  + an opaque Stripe session id — no account PII, so this is hygiene,
+  not privacy). Footprint is negligible (~40 chars/entry, only failed web
+  IAPs enqueue); the cost is a growing list of dead POSTs per launch. Fix
+  shape: stamp `at` on enqueue, drop entries older than a constant (a
+  Stripe session outlives any realistic retry window) in
+  `replayPendingVerifies`.
++ **Recorded, not defects:** the cloud push has no client-side pre-check
+  of the server's 16 KB cap — an over-cap save would fail the push and
+  toast "failed" instead of being rejected locally; the save is
+  structurally ~1–2 KB, so the cap is ~10× headroom for a decade of
+  content, and the server is the right place to enforce it anyway
+  (pass 39). `resetGame` clears only the `save` key — the device-local
+  footprint (`customSkin`, `iap`, `iapDeviceId`, `analytics`, `crashLog`,
+  the day/week records) survives a local reset by design: entitlements
+  are device-scoped purchases (the S5 trade-off, pass 33), and
+  `analytics`/`crashLog` each have their own settings-level clear. The
+  30-day server session tokens are the one expiring artifact; the local
+  KV records outlive the install only insofar as the OS KV outlives it,
+  which is the platform contract, not an app gap.
+
+Method: the layer's shape is the funnel (`hooks/useLocalStorage.ts`) +
+every `useLocalStorage`/`useAsyncStorage` call site (`MinesOfDoom.tsx`,
+the `use*` hooks, `iapDeviceId.ts`, `iapProvider(.web).ts`,
+`crashLogging.ts`, `useAnalytics`) + the picker (`customSkinPicker.ts`)
+
++ the server table (`pb_hooks/collections.js`, `validateCloudPush` in
+`logic.js`) + the token store (`secureToken.ts`). Pass 46 made no code
+change; F46.1/F46.2 are ranked only, pending greenlit.
