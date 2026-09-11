@@ -21,10 +21,7 @@ jest.mock("expo-file-system", () => {
 // The mock's control handle (set the next pickFileAsync result per test).
 const fs = EFS as typeof EFS & { __testState: { next: unknown } };
 
-import {
-  pickCustomSkinAudio,
-  pickCustomSkinImage,
-} from "../customSkinPicker";
+import { pickCustomSkinAudio, pickCustomSkinImage } from "../customSkinPicker";
 import { CUSTOM_SKIN_MAX_PICK_BYTES } from "../customSkin";
 
 /** File-shaped pick result: what File.pickFileAsync resolves on. */

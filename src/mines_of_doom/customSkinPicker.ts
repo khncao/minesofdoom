@@ -28,74 +28,74 @@
 import { File } from "expo-file-system";
 import { CustomSkinGrid } from "./customSkin";
 import {
-  CUSTOM_SKIN_AUDIO_MAX_SECONDS,
-  CUSTOM_SKIN_AUDIO_MAX_URI_LENGTH,
-  CUSTOM_SKIN_MAX_PICK_BYTES,
+ CUSTOM_SKIN_AUDIO_MAX_SECONDS,
+ CUSTOM_SKIN_AUDIO_MAX_URI_LENGTH,
+ CUSTOM_SKIN_MAX_PICK_BYTES,
 } from "./customSkin";
 import { pngBytesToGrid } from "src/utils/graphics/customSprite";
 import { parseWav, pcmToWavDataUri } from "src/utils/audio/wav";
 
 export type CustomSkinPickResult =
-  | { kind: "cancelled" }
-  | { kind: "image"; grid: CustomSkinGrid }
-  | { kind: "audio"; uri: string }
-  | { kind: "invalid"; error: string }
-  | { kind: "unsupported" };
+ | { kind: "cancelled" }
+ | { kind: "image"; grid: CustomSkinGrid }
+ | { kind: "audio"; uri: string }
+ | { kind: "invalid"; error: string }
+ | { kind: "unsupported" };
 
 /**
  * One platform document-picker round-trip. `null` = the player
  * cancelled (the picker's native `canceled` result, not an error).
  */
 type PickedFile =
-  | { kind: "cancelled" }
-  | { kind: "too-large" }
-  | { kind: "bytes"; bytes: Uint8Array };
+ | { kind: "cancelled" }
+ | { kind: "too-large" }
+ | { kind: "bytes"; bytes: Uint8Array };
 
 async function pickFile(mimeTypes: string[]): Promise<PickedFile> {
-  const res = await File.pickFileAsync({ mimeTypes });
-  if (res.canceled || res.result == null) {
-    return { kind: "cancelled" };
-  }
-  if (res.result.size > CUSTOM_SKIN_MAX_PICK_BYTES) {
-    return { kind: "too-large" };
-  }
-  const buffer = await res.result.arrayBuffer();
-  return { kind: "bytes", bytes: new Uint8Array(buffer) };
+ const res = await File.pickFileAsync({ mimeTypes });
+ if (res.canceled || res.result == null) {
+  return { kind: "cancelled" };
+ }
+ if (res.result.size > CUSTOM_SKIN_MAX_PICK_BYTES) {
+  return { kind: "too-large" };
+ }
+ const buffer = await res.result.arrayBuffer();
+ return { kind: "bytes", bytes: new Uint8Array(buffer) };
 }
 
 export async function pickCustomSkinImage(): Promise<CustomSkinPickResult> {
-  // image/* would let the player pick a JPEG that the pure-JS PNG
-  // decoder can't read — filter to PNG so the failure mode is a
-  // confusing toast, not the common case.
-  const picked = await pickFile(["image/png"]);
-  if (picked.kind === "cancelled") return { kind: "cancelled" };
-  if (picked.kind === "too-large") {
-    return { kind: "invalid", error: "too-large" };
-  }
-  const grid = pngBytesToGrid(picked.bytes);
-  return grid == null
-    ? { kind: "invalid", error: "decode" }
-    : { kind: "image", grid };
+ // image/* would let the player pick a JPEG that the pure-JS PNG
+ // decoder can't read — filter to PNG so the failure mode is a
+ // confusing toast, not the common case.
+ const picked = await pickFile(["image/png"]);
+ if (picked.kind === "cancelled") return { kind: "cancelled" };
+ if (picked.kind === "too-large") {
+  return { kind: "invalid", error: "too-large" };
+ }
+ const grid = pngBytesToGrid(picked.bytes);
+ return grid == null
+  ? { kind: "invalid", error: "decode" }
+  : { kind: "image", grid };
 }
 
 export async function pickCustomSkinAudio(): Promise<CustomSkinPickResult> {
-  const picked = await pickFile(["audio/*"]);
-  if (picked.kind === "cancelled") return { kind: "cancelled" };
-  if (picked.kind === "too-large") {
-    return { kind: "invalid", error: "too-large" };
-  }
-  const pcm = parseWav(picked.bytes);
-  if (pcm == null) {
-    // Not a plain 16-bit PCM WAV (mp3/ogg/… need a native decoder).
-    return { kind: "invalid", error: "decode-or-too-long" };
-  }
-  const seconds = pcm.samples.length / pcm.sampleRate;
-  if (seconds <= 0 || seconds > CUSTOM_SKIN_AUDIO_MAX_SECONDS) {
-    return { kind: "invalid", error: "decode-or-too-long" };
-  }
-  const uri = pcmToWavDataUri(pcm.samples, pcm.sampleRate);
-  if (uri.length > CUSTOM_SKIN_AUDIO_MAX_URI_LENGTH) {
-    return { kind: "invalid", error: "decode-or-too-long" };
-  }
-  return { kind: "audio", uri };
+ const picked = await pickFile(["audio/*"]);
+ if (picked.kind === "cancelled") return { kind: "cancelled" };
+ if (picked.kind === "too-large") {
+  return { kind: "invalid", error: "too-large" };
+ }
+ const pcm = parseWav(picked.bytes);
+ if (pcm == null) {
+  // Not a plain 16-bit PCM WAV (mp3/ogg/… need a native decoder).
+  return { kind: "invalid", error: "decode-or-too-long" };
+ }
+ const seconds = pcm.samples.length / pcm.sampleRate;
+ if (seconds <= 0 || seconds > CUSTOM_SKIN_AUDIO_MAX_SECONDS) {
+  return { kind: "invalid", error: "decode-or-too-long" };
+ }
+ const uri = pcmToWavDataUri(pcm.samples, pcm.sampleRate);
+ if (uri.length > CUSTOM_SKIN_AUDIO_MAX_URI_LENGTH) {
+  return { kind: "invalid", error: "decode-or-too-long" };
+ }
+ return { kind: "audio", uri };
 }

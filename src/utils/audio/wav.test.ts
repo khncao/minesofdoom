@@ -61,7 +61,9 @@ describe("bytesToBase64", () => {
     const b64 = bytesToBase64(bytes);
     // Global base64 decode (Node/jest env) as the independent oracle.
     const back = Uint8Array.from(
-      atob(b64).split("").map((c) => c.charCodeAt(0)),
+      atob(b64)
+        .split("")
+        .map((c) => c.charCodeAt(0)),
     );
     expect(Array.from(back)).toEqual(Array.from(bytes));
   });

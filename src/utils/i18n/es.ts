@@ -44,7 +44,8 @@ export const es: Record<TranslationKey, string> = {
   "toast.skinAudioSaved": "Sonido de balanceo guardado",
   "toast.skinAudioInvalid":
     "Ese archivo de sonido no se pudo usar: usa un .wav de menos de 3 segundos",
-  "toast.skinUnsupported": "Las subidas no están disponibles en esta plataforma",
+  "toast.skinUnsupported":
+    "Las subidas no están disponibles en esta plataforma",
   "toast.skinCleared": "Subidas de piel personalizada borradas",
   "toast.comboUp": "¡Combo x{mult}!",
   "toast.comboDropped": "¡El combo bajó a {combo}!",
@@ -542,7 +543,8 @@ export const es: Record<TranslationKey, string> = {
   "iap.skinUploadImage": "Subir imagen",
   "iap.skinUploadAudio": "Subir sonido",
   "iap.skinClear": "Borrar subidas",
-  "iap.skinUploadsUnavailable": "Las subidas no están disponibles en esta plataforma",
+  "iap.skinUploadsUnavailable":
+    "Las subidas no están disponibles en esta plataforma",
 
   // --- UI compartida ------------------------------------------------------------
   "ui.close": "Cerrar",

@@ -84,10 +84,7 @@ async function audioFileToUri(file: File): Promise<string | null> {
   const ctx = new AudioCtor();
   try {
     const audio = await ctx.decodeAudioData(arrayBuffer);
-    if (
-      audio.duration <= 0 ||
-      audio.duration > CUSTOM_SKIN_AUDIO_MAX_SECONDS
-    ) {
+    if (audio.duration <= 0 || audio.duration > CUSTOM_SKIN_AUDIO_MAX_SECONDS) {
       return null;
     }
     const uri = pcmToWavDataUri(audio.getChannelData(0), audio.sampleRate);

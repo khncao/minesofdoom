@@ -113,8 +113,11 @@ export function parseWav(bytes: Uint8Array): WavPcm | null {
   let off = 12;
   while (off + 8 <= bytes.length) {
     const type = str(off, 4);
-    const len = bytes[off + 4] | (bytes[off + 5] << 8) |
-      (bytes[off + 6] << 16) | (bytes[off + 7] << 24);
+    const len =
+      bytes[off + 4] |
+      (bytes[off + 5] << 8) |
+      (bytes[off + 6] << 16) |
+      (bytes[off + 7] << 24);
     const dataStart = off + 8;
     if (dataStart + len > bytes.length) return null; // truncated chunk
     if (type === "fmt ") {
@@ -127,8 +130,7 @@ export function parseWav(bytes: Uint8Array): WavPcm | null {
         (bytes[dataStart + 5] << 8) |
         (bytes[dataStart + 6] << 16) |
         (bytes[dataStart + 7] << 24);
-      const bitDepth =
-        bytes[dataStart + 14] | (bytes[dataStart + 15] << 8);
+      const bitDepth = bytes[dataStart + 14] | (bytes[dataStart + 15] << 8);
       // Only plain 16-bit PCM mono/stereo is a real skin-sound source —
       // float IEEE (3) and compressed formats (mp3-in-RIFF is not a thing,
       // but 8-bit/24-bit/32-bit PCM are) are rejected like the PNG path
