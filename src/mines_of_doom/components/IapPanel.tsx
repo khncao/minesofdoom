@@ -110,9 +110,11 @@ function IapPanel({
   onSelect,
   onReroll,
   onUploadSkinImage,
+  onUploadSkinPickaxe,
   onUploadSkinAudio,
   onPickBundledSprite,
   onClearSkin,
+  onClearSkinPickaxe,
 }: {
   /** Provider is the dev simulation (dev builds only). */
   isDevSim: boolean;
@@ -155,6 +157,11 @@ function IapPanel({
   customSkin: CustomSkinSave;
   /** Web-only (for now): store an uploaded 16×16 body image. */
   onUploadSkinImage?: () => void;
+  /**
+   * Web-only (for now): store an uploaded 16×16 pickaxe sprite (the
+   * pickaxe slot) — full-sprite override of the player's pickaxe.
+   */
+  onUploadSkinPickaxe?: () => void;
   /** Web-only (for now): store an uploaded swing sound. */
   onUploadSkinAudio?: () => void;
   /**
@@ -165,6 +172,8 @@ function IapPanel({
   onPickBundledSprite?: (id: string | null) => void;
   /** Clear the player's skin uploads (keeps the unlock). */
   onClearSkin?: () => void;
+  /** Clear only the uploaded pickaxe sprite (body art + audio stay). */
+  onClearSkinPickaxe?: () => void;
   /** The engine gem buy (auto-equips; idempotent, no-op when unaffordable). */
   onBuyGems: (id: IapProductId) => void;
   /** The store purchase (provider flow). */
@@ -329,9 +338,66 @@ function IapPanel({
                     </View>
                   </View>
                 )}
+                {/* The pickaxe slot (todo: "Custom skin generator —
+                    pickaxe slot"): a 16×16 upload replaces the player's
+                    pickaxe sprite (full sprite — swing/wind-up rotate the
+                    one image, so it covers every frame). */}
+                {onUploadSkinPickaxe != null && (
+                  <View style={{ gap: 3 }}>
+                    <Text
+                      style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}
+                    >
+                      {t("iap.skinPickaxe")}
+                    </Text>
+                    <View style={{ flexDirection: "row", gap: 4 }}>
+                      <Button
+                        tone="gem"
+                        title={t("iap.skinUploadPickaxe")}
+                        onPress={onUploadSkinPickaxe}
+                      />
+                      {customSkin.pickaxeGrid != null &&
+                        onClearSkinPickaxe != null && (
+                          <Button
+                            tone="gem"
+                            title={t("iap.skinClearPickaxe")}
+                            onPress={onClearSkinPickaxe}
+                          />
+                        )}
+                    </View>
+                  </View>
+                )}
+                {/* The pickaxe slot (todo: "Custom skin generator —
+                    pickaxe slot"): a 16×16 upload replaces the player's
+                    pickaxe sprite — full-sprite override (swing/wind-up
+                    rotate the one image, so it covers every frame). */}
+                {onUploadSkinPickaxe != null && (
+                  <View style={{ gap: 3 }}>
+                    <Text
+                      style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}
+                    >
+                      {t("iap.skinPickaxe")}
+                    </Text>
+                    <View style={{ flexDirection: "row", gap: 4 }}>
+                      <Button
+                        tone="gem"
+                        title={t("iap.skinUploadPickaxe")}
+                        onPress={onUploadSkinPickaxe}
+                      />
+                      {customSkin.pickaxeGrid != null &&
+                        onClearSkinPickaxe != null && (
+                          <Button
+                            tone="gem"
+                            title={t("iap.skinClearPickaxe")}
+                            onPress={onClearSkinPickaxe}
+                          />
+                        )}
+                    </View>
+                  </View>
+                )}
                 {(customSkin.grid != null ||
                   customSkin.artId != null ||
-                  customSkin.audio != null) &&
+                  customSkin.audio != null ||
+                  customSkin.pickaxeGrid != null) &&
                   onClearSkin != null && (
                     <Button
                       tone="gem"

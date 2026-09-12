@@ -48,12 +48,21 @@ test.describe("web build — boot & free path", () => {
     const loader = page.locator("script[src*='adsbygoogle']");
     await expect(loader).toHaveAttribute("data-adbreak-test", "on");
 
-    const before = await readMinerals(page);
+    // Hold-to-mine works on web (pointer down → hold → up). The exact
+    // delta is measured from the persisted save, NOT the mineral banner —
+    // the banner uses the player's number notation (compact by default,
+    // iteration 20), so a small mining yield rounds to the same "11k".
+    await saveNow(page);
+    const savedBefore = await readSave(page);
+    if (savedBefore === null) throw new Error("a save should be written");
+    const before = Number(savedBefore.minerals);
 
-    // Hold-to-mine works on web (pointer down → hold → up).
     await mineOnce(page);
+    await saveNow(page);
     await expect
-      .poll(() => readMinerals(page), { timeout: 10_000 })
+      .poll(async () => Number((await readSave(page))?.minerals ?? 0), {
+        timeout: 10_000,
+      })
       .toBeGreaterThan(before);
     const afterMine = await readMinerals(page);
 

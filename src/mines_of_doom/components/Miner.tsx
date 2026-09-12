@@ -39,6 +39,14 @@ export interface MinerProps {
    * (player-only; the roster keeps the outfit look).
    */
   bodyOverrideUri?: string | null;
+  /**
+   * Custom-skin pickaxe (the "pickaxe slot" of the custom-skinning line):
+   * a PNG data URI of the player's own 16×16 pickaxe sprite — replaces
+   * the equipped pickaxe's procedural sprite when present (player-only;
+   * the roster keeps stock pickaxes). The swing/wind-up transforms still
+   * rotate this image, so a single sprite covers every frame.
+   */
+  pickaxeOverrideUri?: string | null;
 }
 
 // Emoji bodies for the low-end fallback (plan §4.5): seeded so a miner keeps
@@ -185,8 +193,11 @@ function Miner({ scale = 1, ...props }: MinerProps) {
   );
   const pickaxeUri = useMemo(
     () =>
-      props.emojiArt ? "" : pickaxeSpriteUri(getPickaxe(props.pickaxeId).theme),
-    [props.pickaxeId, props.emojiArt],
+      props.emojiArt
+        ? ""
+        : (props.pickaxeOverrideUri ??
+            pickaxeSpriteUri(getPickaxe(props.pickaxeId).theme)),
+    [props.pickaxeId, props.emojiArt, props.pickaxeOverrideUri],
   );
 
   const bodySize = props.isPlayer ? 44 : 24;

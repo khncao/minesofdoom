@@ -54,6 +54,7 @@ const MiningCanvas = memo(function MiningCanvas({
   outfitId,
   pickaxeId,
   playerBodyUri,
+  playerPickaxeUri,
   reduceMotion,
   emojiArt,
   pocket,
@@ -78,6 +79,13 @@ const MiningCanvas = memo(function MiningCanvas({
    * the outfit look. null/undefined = the normal seeded outfit body.
    */
   playerBodyUri?: string | null;
+  /**
+   * Custom-skin pickaxe for the PLAYER miner only (the pickaxe slot):
+   * a PNG data URI of the player's own 16×16 pickaxe sprite. Roster
+   * miners keep their equipped pickaxes. null/undefined = the stock
+   * procedural pickaxe.
+   */
+  playerPickaxeUri?: string | null;
   /** OS reduce-motion preference: suppresses decorative effects. */
   reduceMotion: boolean;
   /** Low-end fallback (plan §4.5): emoji instead of pixel sprites. */
@@ -254,6 +262,7 @@ const MiningCanvas = memo(function MiningCanvas({
             reduceMotion={reduceMotion}
             emojiArt={emojiArt}
             bodyOverrideUri={playerBodyUri}
+            pickaxeOverrideUri={playerPickaxeUri}
           />
           <DebrisParticles
             ref={debrisRef}

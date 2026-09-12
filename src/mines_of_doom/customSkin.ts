@@ -1,9 +1,12 @@
 /**
  * User-uploaded custom skin (docs/todo.md custom-skinning line).
  *
- * One save slot: an optional 16×16 pixel grid (decoded from the user's PNG
- * — see utils/graphics/customSprite.ts), an optional bundled-sprite id
- * (bundledSprites.ts — the CC0 2D art library), and an optional
+ * One save slot: an optional 16×16 pixel grid for the body (decoded from
+ * the user's PNG — see utils/graphics/customSprite.ts), an optional
+ * bundled-sprite id (bundledSprites.ts — the CC0 2D art library), an
+ * optional 16×16 pickaxe grid (a full-sprite override of the equipped
+ * pickaxe — the swing/wind-up frames are CSS rotations of the one sprite,
+ * so a single uploaded image covers every frame), and an optional
  * pickaxe-swing audio data URI. `unlocked` is the one-time purchase gate
  * (IAP `customSkinPass`, gems or cash); `equipped` toggles the look at
  * will.
@@ -52,7 +55,7 @@ export type CustomSkinGrid = readonly (readonly (string | null)[] | null)[];
  * rather than save fields:
  *
  *   { unlocked: boolean; equipped: boolean; grid: CustomSkinGrid | null;
- *     audio: string | null }
+ *     audio: string | null; pickaxeGrid: CustomSkinGrid | null; }
  *
  * Device-local means an uploaded sprite/sound never travels through
  * save-code imports or cloud-save restores (a save code is someone
@@ -75,6 +78,13 @@ export interface CustomSkinSave {
  artId: string | null;
  /** data:audio URI for the swing sound, or null (pickaxe sound plays). */
  audio: string | null;
+ /**
+  * An uploaded 16×16 pickaxe sprite, or null (the equipped pickaxe's
+  * procedural sprite shows). Takes effect for the player only — roster
+  * miners keep their equipped pickaxes — and is gated on `equipped`, same
+  * as the body art.
+  */
+ pickaxeGrid: CustomSkinGrid | null;
 }
 
 export function defaultCustomSkin(): CustomSkinSave {
@@ -84,6 +94,7 @@ export function defaultCustomSkin(): CustomSkinSave {
   grid: null,
   artId: null,
   audio: null,
+  pickaxeGrid: null,
  };
 }
 
@@ -105,6 +116,7 @@ export function normalizeCustomSkinSave(value: unknown): CustomSkinSave {
   grid: normalizeCustomSkinGrid(v.grid),
   artId: normalizeCustomSkinArtId(v.artId),
   audio: normalizeCustomSkinAudio(v.audio),
+  pickaxeGrid: normalizeCustomSkinGrid(v.pickaxeGrid),
  };
 }
 
@@ -212,6 +224,24 @@ export function activeSkinArt(save: CustomSkinSave): ActiveSkinArt | null {
  const grid = save.grid;
  if (grid !== null && hasCustomSkinPixels(grid)) {
   return { kind: "grid", grid };
+ }
+ return null;
+}
+
+/**
+ * The pickaxe art the equipped skin resolves to — the uploaded 16×16
+ * grid, or null when the skin is not equipped or carries no visible
+ * pickaxe pixels (the equipped pickaxe's sprite shows instead). The caller
+ * maps the grid to a data URI (customSkinGridToUri) — this module stays
+ * free of image encoding, like {@link activeSkinArt}.
+ */
+export function activePickaxeArt(
+ save: CustomSkinSave,
+): CustomSkinGrid | null {
+ if (!save.equipped) return null;
+ const grid = save.pickaxeGrid;
+ if (grid !== null && hasCustomSkinPixels(grid)) {
+  return grid;
  }
  return null;
 }

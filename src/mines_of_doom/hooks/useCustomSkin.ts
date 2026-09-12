@@ -40,6 +40,14 @@ export interface UseCustomSkin {
   * the programmatic path).
   */
  setGrid(grid: CustomSkinGrid | null): void;
+ /**
+  * Store an uploaded 16×16 pickaxe sprite (full-sprite override of the
+  * equipped pickaxe — the swing/wind-up frames are CSS rotations of the
+  * one sprite, so a single image covers every frame). Re-validated
+  * defensively; a no-op when the slot is still locked or the grid fails
+  * validation. First upload equips the skin (same rule as setGrid).
+  */
+ setPickaxeGrid(grid: CustomSkinGrid | null): void;
  /** Store (or clear, with null) the uploaded swing sound data URI. */
  setAudio(uri: string | null): void;
  /**
@@ -49,6 +57,8 @@ export interface UseCustomSkin {
   * no-op when the slot is still locked or the id is not in the library.
   */
  setArt(id: string | null): void;
+ /** Clear only the uploaded pickaxe sprite (body art + audio stay). */
+ clearPickaxe(): void;
  /** Clear the player's uploads (keeps the unlock — that's a purchase). */
  clear(): void;
 }
@@ -109,6 +119,25 @@ export function useCustomSkin(): UseCustomSkin {
   }));
  };
 
+ const setPickaxeGrid = (grid: CustomSkinGrid | null): void => {
+  const current = skinRef.current;
+  if (!current.unlocked) {
+   return;
+  }
+  const normalized = grid == null ? null : normalizeCustomSkinGrid(grid);
+  if (normalized == null && grid != null) {
+   return;
+  }
+  update((c) => ({
+   ...c,
+   pickaxeGrid: normalized,
+   // First pickaxe upload equips the skin so the player sees their
+   // sprite right away (the stock pickaxe shows through until pixels
+   // land) — same first-upload-equip rule as setGrid.
+   equipped: grid == null ? c.equipped : true,
+  }));
+ };
+
  const setArt = (id: string | null): void => {
   const current = skinRef.current;
   if (!current.unlocked) {
@@ -133,13 +162,32 @@ export function useCustomSkin(): UseCustomSkin {
   update((c) => ({ ...c, audio: normalized }));
  };
 
- const clear = (): void => {
-  const current = skinRef.current;
-  if (current.grid == null && current.artId == null && current.audio == null) {
-   return;
-  }
-  update((c) => ({ ...c, grid: null, artId: null, audio: null }));
+ const clearPickaxe = (): void => {
+  setPickaxeGrid(null);
  };
 
- return { skin, unlock, setEquipped, setGrid, setAudio, setArt, clear };
+ const clear = (): void => {
+  const current = skinRef.current;
+  if (
+   current.grid == null &&
+   current.artId == null &&
+   current.audio == null &&
+   current.pickaxeGrid == null
+  ) {
+   return;
+  }
+  update((c) => ({ ...c, grid: null, artId: null, audio: null, pickaxeGrid: null }));
+ };
+
+ return {
+  skin,
+  unlock,
+  setEquipped,
+  setGrid,
+  setPickaxeGrid,
+  setAudio,
+  setArt,
+  clearPickaxe,
+  clear,
+ };
 }

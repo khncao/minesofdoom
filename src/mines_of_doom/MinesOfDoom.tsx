@@ -92,6 +92,7 @@ import { useCustomSkin } from "./hooks/useCustomSkin";
 import {
   CUSTOM_SKIN_UNLOCK_COST_GEMS,
   activeSkinArt,
+  activePickaxeArt,
   customSkinGridToUri,
 } from "./customSkin";
 import { bundledSpriteById } from "./bundledSprites";
@@ -623,8 +624,10 @@ export default function MinesOfDoom() {
     unlock: unlockCustomSkin,
     setEquipped: setCustomSkinEquipped,
     setGrid: setCustomSkinGrid,
+    setPickaxeGrid: setCustomSkinPickaxeGrid,
     setAudio: setCustomSkinAudio,
     setArt: setCustomSkinArt,
+    clearPickaxe: clearCustomSkinPickaxe,
     clear: clearCustomSkin,
   } = useCustomSkin();
   // The equipped skin's body art as a data URI — the player miner's
@@ -643,6 +646,19 @@ export default function MinesOfDoom() {
     const grid = art.grid;
     // SAFETY: a 16×16 (string|null)[][] IS a PixelGrid — the readonly
     // grid type is the same cells, so this is a shape assertion only.
+    return customSkinGridToUri(grid, (g) =>
+      gridToPngDataUri(g as unknown as PixelGrid),
+    );
+  }, [customSkin]);
+  // The equipped skin's pickaxe art as a data URI — the player miner's
+  // pickaxe override (full-sprite replacement; swing/wind-up still rotate
+  // it, so one image covers every frame). null = the stock pickaxe.
+  const customSkinPickaxeUri = useMemo(() => {
+    const grid = activePickaxeArt(customSkin);
+    if (grid === null) {
+      return null;
+    }
+    // SAFETY: same shape assertion as the body path above.
     return customSkinGridToUri(grid, (g) =>
       gridToPngDataUri(g as unknown as PixelGrid),
     );
@@ -1577,6 +1593,20 @@ export default function MinesOfDoom() {
       displayMessage(t("toast.skinUnsupported"), 3000);
     }
   }, [displayMessage, t, setCustomSkinGrid]);
+  // The pickaxe slot (todo: "Custom skin generator — pickaxe slot"): the
+  // same PNG picker as the body — one 16×16 sprite replaces the equipped
+  // pickaxe's procedural sprite for the player miner only.
+  const handleSkinPickaxeUpload = useCallback(async () => {
+    const res = await pickCustomSkinImage();
+    if (res.kind === "image") {
+      setCustomSkinPickaxeGrid(res.grid);
+      displayMessage(t("toast.skinImageSaved"), 2000);
+    } else if (res.kind === "invalid") {
+      displayMessage(t("toast.skinImageInvalid"), 3000);
+    } else if (res.kind === "unsupported") {
+      displayMessage(t("toast.skinUnsupported"), 3000);
+    }
+  }, [displayMessage, t, setCustomSkinPickaxeGrid]);
   const handleSkinAudioUpload = useCallback(async () => {
     const res = await pickCustomSkinAudio();
     if (res.kind === "audio") {
@@ -1826,6 +1856,11 @@ export default function MinesOfDoom() {
               }
               customSkin={customSkin}
               onUploadSkinImage={handleSkinImageUpload}
+              onUploadSkinPickaxe={handleSkinPickaxeUpload}
+              onClearSkinPickaxe={() => {
+                clearCustomSkinPickaxe();
+                displayMessage(t("toast.skinCleared"), 2000);
+              }}
               onUploadSkinAudio={handleSkinAudioUpload}
               onPickBundledSprite={setCustomSkinArt}
               onClearSkin={() => {
@@ -1919,6 +1954,7 @@ export default function MinesOfDoom() {
                 outfitId={gameState.selectedOutfit}
                 pickaxeId={gameState.selectedPickaxe}
                 playerBodyUri={customSkinBodyUri}
+                playerPickaxeUri={customSkinPickaxeUri}
                 reduceMotion={reduceMotion}
                 emojiArt={settingsData.emojiArt}
               />

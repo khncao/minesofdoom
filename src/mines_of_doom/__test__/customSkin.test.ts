@@ -2,6 +2,7 @@ import {
   CUSTOM_SKIN_UNLOCK_COST_GEMS,
   CUSTOM_SKIN_AUDIO_MAX_URI_LENGTH,
   CUSTOM_SKIN_GRID_SIZE,
+  activePickaxeArt,
   activeSkinArt,
   defaultCustomSkin,
   hasCustomSkinPixels,
@@ -187,5 +188,38 @@ describe("bundled-sprite art slot (artId)", () => {
       activeSkinArt({ ...defaultCustomSkin(), artId: someId, equipped: false }),
     ).toBeNull();
     expect(activeSkinArt(defaultCustomSkin())).toBeNull();
+  });
+});
+
+describe("pickaxe slot (pickaxeGrid)", () => {
+  it("normalizeCustomSkinSave round-trips a valid pickaxeGrid and drops junk", () => {
+    const grid = goodGrid();
+    const save = { ...defaultCustomSkin(), pickaxeGrid: grid };
+    expect(normalizeCustomSkinSave(save).pickaxeGrid).toEqual(grid);
+    expect(
+      normalizeCustomSkinSave({ ...save, pickaxeGrid: null }).pickaxeGrid,
+    ).toBeNull();
+    expect(
+      normalizeCustomSkinSave({
+        ...save,
+        pickaxeGrid: [[1, 2], [3, 4]],
+      }).pickaxeGrid,
+    ).toBeNull();
+  });
+
+  it("activePickaxeArt: the grid when equipped, null otherwise", () => {
+    const grid = goodGrid();
+    const skin = { ...defaultCustomSkin(), pickaxeGrid: grid, equipped: true };
+    expect(activePickaxeArt(skin)).toEqual(grid);
+    expect(activePickaxeArt({ ...skin, equipped: false })).toBeNull();
+    expect(activePickaxeArt(defaultCustomSkin())).toBeNull();
+    expect(
+      activePickaxeArt({
+        ...skin,
+        pickaxeGrid: Array.from({ length: CUSTOM_SKIN_GRID_SIZE }, () =>
+          row(null),
+        ),
+      }),
+    ).toBeNull();
   });
 });
