@@ -311,21 +311,35 @@ repo is not equipped to make.
     and `cloud:stale-notice` (F33.4 — the stale-push import path
     replaces local progress with the other device's save and no toast,
     unlike the two restore paths that do).
-23. **`entitlements:clobber-on-second-purchase`** (pass 39, F39.1) —
-    a real bug on the money path, not a feature gap: the entitlement
-    row upsert is keyed by `deviceId` alone, so a second, *different*
-    pack bought on the same device silently rewrites the first
-    purchase's row in place — restore and the verify response return
-    only the last product purchased, and the first pack's entitlement
-    is gone from the collection. Masked in normal play by the
-    device-local entitlement store; surfaces on reinstall or
-    cross-device restore, exactly where the server row is the recovery
-    source. The webhook suite can't catch it (every scenario mints one
-    product per device, and the fake datastore models the *intended*
-    pair-keyed semantics, not the code's). Fix is small: pair-keyed
-    upsert for `entitlements`, `linkDeviceRows` iterating the device's
-    rows, and a two-product regression test against a
-    production-faithful fake.
+23. ~~**`entitlements:clobber-on-second-purchase`**~~ (pass 39, F39.1) —
+    **FIXED 2026-09-12 (pass 69)**: the pair-keyed `upsertEntitlementRow`
+    (findRecordsByFilter on `deviceId && productId`) replaces the
+    deviceId-keyed upsert at BOTH mint sites (the primary `verify` and
+    the webhook backup), `cloudSaves`/`leaderboard` keep the
+    single-row-per-device `upsertDeviceRow` shape (correct there), and
+    `linkDeviceRows` (the sign-in backfill) now iterates the device's
+    entitlement rows and tags EVERY one, not just the first. New
+    `handlerVerify.test.js` (6 tests) drives the REAL
+    `handleVerify`/`handleRestore`/webhook handlers against a
+    production-faithful fake — records bound to stored rows, `set()` +
+    `save()` mutating in place (the property the old webhook fake got
+    wrong, which is why it never fired) — covering two-products/
+    one-device → two rows on both mint paths, restore returning both,
+    same-product re-verify staying one row (refreshed in place), webhook
+    dedup intact, and the backfill regression. Regression proof: the
+    three bug tests FAIL against the pre-fix handler (verified by
+    stashing the fix) and pass with it. Original finding: a real bug on
+    the money path, not a feature gap — the entitlement row upsert was
+    keyed by `deviceId` alone, so a second, *different* pack bought on
+    the same device silently rewrote the first purchase's row in place;
+    restore and the verify response returned only the last product
+    purchased, and the first pack's entitlement was gone from the
+    collection. Masked in normal play by the device-local entitlement
+    store; it surfaced on reinstall or cross-device restore, exactly
+    where the server row is the recovery source. The webhook suite
+    couldn't catch it (every scenario mints one product per device, and
+    the fake datastore modeled the *intended* pair-keyed semantics, not
+    the code's).
 24. ~~**`web:stripe-script-retry-hang`**~~ (pass 41, F41.1) — **FIXED
     2026-09-16 (pass 58)**: the loader now settles exactly once on load /
     error / a 15 s timeout, drops the (dead or global-less) tag on every

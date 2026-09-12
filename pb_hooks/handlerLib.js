@@ -81,6 +81,42 @@ function upsertDeviceRow(app, name, deviceId, data) {
   return created;
 }
 
+/**
+ * Entitlement upsert keyed on the PAIR (F39.1, Tier 1 #23): an
+ * entitlement row is one per (deviceId, productId), so the lookup must
+ * key on both. The deviceId-keyed upsertDeviceRow found the device's
+ * FIRST entitlement row and rewrote it in place on a second, DIFFERENT
+ * purchase — productId/tokenHash/verifiedAt flipped to the newer pack and
+ * the first pack's row ceased to exist, so restore and the verify
+ * response returned only the last product purchased. Masked in normal
+ * play by the device-local entitlement store; it surfaced on reinstall /
+ * cross-device restore — exactly where the server row is the only
+ * recovery source. cloudSaves/leaderboard stay on upsertDeviceRow, where
+ * one row per device is the correct shape.
+ */
+function upsertEntitlementRow(app, deviceId, row) {
+  const existing = app.findRecordsByFilter(
+    "entitlements",
+    "deviceId = {:deviceId} && productId = {:productId}",
+    "",
+    -1,
+    0,
+    { deviceId: deviceId, productId: row.productId },
+  );
+  const record = (existing && existing[0]) || null;
+  if (record) {
+    for (const key of Object.keys(row)) record.set(key, row[key]);
+    app.save(record);
+    return record;
+  }
+  const created = new Record(
+    app.findCollectionByNameOrId("entitlements"),
+    Object.assign({ deviceId: deviceId }, row),
+  );
+  app.save(created);
+  return created;
+}
+
 function listEntitlements(app, deviceId) {
   const records = app.findRecordsByFilter(
     "entitlements",
@@ -175,7 +211,7 @@ function handleVerify(app, body) {
     verifiedAt: new Date().toISOString(),
   };
   if (session) row.accountId = session.account.get("id");
-  upsertDeviceRow(app, "entitlements", deviceId, row);
+  upsertEntitlementRow(app, deviceId, row);
   spendWriteBudget(app, deviceId);
   const entitlements = session
     ? logic.unionEntitlements([listEntitlements(app, deviceId), listAccountEntitlements(app, session.account.get("id"))])
@@ -257,7 +293,7 @@ function handleStripeWebhook(app, body, headers) {
     tokenHash: globalThis.$security.sha256(v.sessionId),
     verifiedAt: new Date().toISOString(),
   };
-  upsertDeviceRow(app, "entitlements", v.deviceId, row);
+  upsertEntitlementRow(app, v.deviceId, row);
   const collection = app.findCollectionByNameOrId("events");
   app.save(
     new Record(collection, {
@@ -579,9 +615,27 @@ function sessionOfToken(app, token) {
  */
 function linkDeviceRows(app, accountId, deviceId) {
   if (!accountId || !logic.validDeviceId(deviceId)) return;
-  for (const name of ["cloudSaves", "leaderboard", "entitlements"]) {
+  // cloudSaves/leaderboard: one row per device — the deviceId-keyed
+  // single-row lookup is the correct shape there.
+  for (const name of ["cloudSaves", "leaderboard"]) {
     const record = findDeviceRow(app, name, deviceId);
     if (!record) continue;
+    if (record.get("accountId") === accountId) continue;
+    record.set("accountId", accountId);
+    app.save(record);
+  }
+  // entitlements: one row per (deviceId, productId) — the single-row
+  // lookup only tagged the FIRST row, leaving the rest invisible to the
+  // account-union restore (F39.1's blast radius). Iterate every row.
+  const rows = app.findRecordsByFilter(
+    "entitlements",
+    "deviceId = {:deviceId}",
+    "",
+    -1,
+    0,
+    { deviceId: deviceId },
+  );
+  for (const record of rows || []) {
     if (record.get("accountId") === accountId) continue;
     record.set("accountId", accountId);
     app.save(record);
