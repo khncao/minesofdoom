@@ -425,11 +425,7 @@ function IapPanel({
         key={product.id}
         style={{ ...styles.flexCenteredRow, gap: 6, alignItems: "flex-start" }}
       >
-        <ProductPreview
-          productId={product.id}
-          line={product.line}
-          compact
-        />
+        <ProductPreview productId={product.id} line={product.line} compact />
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={styles.text}>
             {text.title}
@@ -534,9 +530,7 @@ function IapPanel({
                   a ready-made body, or the default generated look. */}
               {onPickBundledSprite != null && (
                 <View style={{ gap: 3 }}>
-                  <Text
-                    style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}
-                  >
+                  <Text style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}>
                     {t("iap.skinSprites")}
                   </Text>
                   <View
@@ -612,9 +606,7 @@ function IapPanel({
                   16×16 shape an upload decodes to, no files needed. */}
               {onUploadSkinPickaxe != null && (
                 <View style={{ gap: 3 }}>
-                  <Text
-                    style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}
-                  >
+                  <Text style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}>
                     {t("iap.skinPickaxe")}
                   </Text>
                   <View style={{ flexDirection: "row", gap: 4 }}>
@@ -842,9 +834,7 @@ function IapPanel({
               </>
             )}
             {line === "skin" ? (
-              IAP_PRODUCT_LIST.filter((p) => p.line === line).map(
-                renderSkinRow,
-              )
+              IAP_PRODUCT_LIST.filter((p) => p.line === line).map(renderSkinRow)
             ) : (
               // Grid of cards (todo: "implement cosmetic shop with grid
               // view cards and larger previews") — previews at card size,

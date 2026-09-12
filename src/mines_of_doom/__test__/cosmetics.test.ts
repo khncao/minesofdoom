@@ -167,7 +167,9 @@ describe("homage line (plan §4.5 / art todo)", () => {
     const paid = CAVE_THEMES.filter((t) => t.id !== DEFAULT_CAVE_THEME);
     const homage = paid.filter((t) => t.blurb);
     expect(homage.length).toBeGreaterThanOrEqual(5);
-    const maxBaseCost = Math.max(...paid.filter((t) => !t.blurb).map((t) => t.costGems));
+    const maxBaseCost = Math.max(
+      ...paid.filter((t) => !t.blurb).map((t) => t.costGems),
+    );
     for (const t of homage) {
       // Homage themes sit strictly above the base line in price.
       expect(t.costGems).toBeGreaterThan(maxBaseCost);
@@ -207,7 +209,9 @@ describe("critter + hair line (mineral skins: animals & long hair)", () => {
       expect(o.blurb).toBeDefined();
     }
     // The critters cover distinct fur palettes (not one recolor).
-    const palettes = new Set(critters.map((o) => (o.fur ?? []).sort().join(",")));
+    const palettes = new Set(
+      critters.map((o) => (o.fur ?? []).sort().join(",")),
+    );
     expect(palettes.size).toBe(critters.length);
   });
 
@@ -307,9 +311,7 @@ describe("rosterDisplay", () => {
     // Monotonic WITHIN each type (legendary's bigger base is deliberate —
     // the premium crew stays imposing even far up the shaft).
     for (const kind of ["normal", "fast", "legendary"] as const) {
-      const scales = items
-        .filter((i) => i.kind === kind)
-        .map((i) => i.scale);
+      const scales = items.filter((i) => i.kind === kind).map((i) => i.scale);
       for (let i = 1; i < scales.length; i++) {
         expect(scales[i]).toBeLessThan(scales[i - 1]);
       }

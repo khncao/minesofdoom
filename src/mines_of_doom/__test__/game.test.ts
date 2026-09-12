@@ -667,7 +667,7 @@ describe("migrateSaveData", () => {
         "0": "classic",
         "3": "magma",
         "-1": "night", // negative slot
-        "a": "night", // non-numeric slot
+        a: "night", // non-numeric slot
         "1.5": "night", // non-integer slot
         "007": "goldrush", // canonicalizes to "7"
         "9": "not-an-outfit", // unknown outfit id
@@ -691,7 +691,7 @@ describe("migrateSaveData", () => {
           "0": "classic",
           "2": "magma",
           "9": "junk",
-          "x": "night",
+          x: "night",
         },
       },
       12345,
@@ -1893,7 +1893,7 @@ describe("stale-save detection (Tier 0 #2)", () => {
     expect(save.saveTime).toBe(0);
   });
 
-  test("buildSaveData migrates lastActiveDay (absent/junk → \"\", real kept)", () => {
+  test('buildSaveData migrates lastActiveDay (absent/junk → "", real kept)', () => {
     const now = Date.now();
     const base = { saveVersion: 11, minerals: 1 };
     expect(buildSaveData(migrateSaveData({ ...base }), now).lastActiveDay).toBe(

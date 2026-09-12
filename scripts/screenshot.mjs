@@ -55,7 +55,12 @@ const richSave = {
   totalPrestiges: 0,
   playSeconds: 900,
   lastActiveDay: "",
-  completedTiers: ["miner-power", "fast-miner", "cave-theme", "legendary-miner"],
+  completedTiers: [
+    "miner-power",
+    "fast-miner",
+    "cave-theme",
+    "legendary-miner",
+  ],
   completedAchievements: [],
   playerSeed: 123456789,
   ownedCosmetics: [
@@ -74,11 +79,11 @@ const richSave = {
   ownedCaveThemes: ["natural"],
   selectedCaveTheme: "natural",
   minerOutfits: {
-    "0": "night",
-    "1": "goldrush",
-    "2": "crystal",
-    "3": "magma",
-    "4": "marmot",
+    0: "night",
+    1: "goldrush",
+    2: "crystal",
+    3: "magma",
+    4: "marmot",
   },
 };
 
@@ -93,15 +98,11 @@ async function main() {
 
   // Serve the static build through the e2e server (test-mode ads, no
   // Google traffic) on our own port.
-  const server = spawn(
-    process.execPath,
-    ["e2e/web/server.mjs"],
-    {
-      cwd: ROOT,
-      env: { ...process.env, E2E_WEB_PORT: String(PORT), E2E_WEB_DIST: DIST },
-      stdio: "ignore",
-    },
-  );
+  const server = spawn(process.execPath, ["e2e/web/server.mjs"], {
+    cwd: ROOT,
+    env: { ...process.env, E2E_WEB_PORT: String(PORT), E2E_WEB_DIST: DIST },
+    stdio: "ignore",
+  });
   // Give the server a moment to bind, then probe it.
   await waitForServer();
 
@@ -113,13 +114,10 @@ async function main() {
     });
 
     // Seed the rich save BEFORE the app boots (the loader reads it cold).
-    await page.addInitScript(
-      (save) => {
-        localStorage.setItem("save", JSON.stringify(save));
-        localStorage.setItem("onboardingDone", "true");
-      },
-      richSave,
-    );
+    await page.addInitScript((save) => {
+      localStorage.setItem("save", JSON.stringify(save));
+      localStorage.setItem("onboardingDone", "true");
+    }, richSave);
 
     await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded" });
     await page.getByTestId("mining-canvas").waitFor({

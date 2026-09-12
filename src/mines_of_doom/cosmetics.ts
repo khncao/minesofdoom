@@ -64,13 +64,7 @@ export type PickaxeCosmetic = {
 };
 
 /** Shared skin-tone pool (all outfits). */
-const SKIN_TONES = [
-  "#ffdbb4",
-  "#f2c9a0",
-  "#e0ac69",
-  "#c68642",
-  "#8d5524",
-];
+const SKIN_TONES = ["#ffdbb4", "#f2c9a0", "#e0ac69", "#c68642", "#8d5524"];
 
 export const OUTFITS: OutfitCosmetic[] = [
   {
@@ -326,7 +320,8 @@ export const COSMETIC_PREVIEW_SEED = 42;
 export function rollMinerLook(seed: number, outfitId: string): MinerLook {
   const outfit = getOutfit(outfitId);
   const rng = mulberry32(seed);
-  const pick = <T,>(arr: T[]): T => arr[Math.floor(rng() * arr.length) % arr.length];
+  const pick = <T>(arr: T[]): T =>
+    arr[Math.floor(rng() * arr.length) % arr.length];
   const species: MinerSpecies = outfit.species ?? "human";
   return {
     skin: pick(species === "animal" ? (outfit.fur ?? SKIN_TONES) : SKIN_TONES),
@@ -514,14 +509,16 @@ export const CAVE_THEMES: CaveTheme[] = [
     id: "gothic",
     name: "Fog & Lantern",
     costGems: 150,
-    blurb: "moonlit fog, lantern glow, one drop of blood — a gothic hunt tribute",
+    blurb:
+      "moonlit fog, lantern glow, one drop of blood — a gothic hunt tribute",
     tints: ["#5a6a58", "#4a5a68", "#3a4a58", "#582828", "#1f2230"],
   },
   {
     id: "cherry",
     name: "Cherry & Indigo",
     costGems: 170,
-    blurb: "blossom over indigo night, gold at the bottom — a samurai-era tribute",
+    blurb:
+      "blossom over indigo night, gold at the bottom — a samurai-era tribute",
     tints: ["#c890a4", "#8a6a94", "#5a5a88", "#3a3a64", "#a89052"],
   },
 ];
@@ -549,9 +546,6 @@ export function getCaveThemeCost(id: string): number | undefined {
  * a bad tier index can't go out of range).
  */
 export function getThemeTint(theme: CaveTheme, tierId: number): string {
-  const idx = Math.min(
-    Math.max(0, Math.floor(tierId)),
-    theme.tints.length - 1,
-  );
+  const idx = Math.min(Math.max(0, Math.floor(tierId)), theme.tints.length - 1);
   return theme.tints[idx];
 }
