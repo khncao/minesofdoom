@@ -28,6 +28,7 @@ import {
   getResistantComboReset,
   getFastMinerOutput,
   getGemChance,
+  getGemPurchaseCost,
   getGemChanceCost,
   getLegendaryMinerCost,
   getLegendaryMinerOutput,
@@ -227,14 +228,25 @@ describe("getMineralsPerSec", () => {
 
 describe("gem chance upgrade", () => {
   test("base chance at level 0, +1% per level, capped at 20", () => {
-    expect(getGemChance(0)).toBeCloseTo(0.05);
-    expect(getGemChance(1)).toBeCloseTo(0.05 + gemChancePerLevel);
-    expect(getGemChance(5)).toBeCloseTo(0.05 + 5 * gemChancePerLevel);
-    expect(getGemChance(GEM_CHANCE_MAX_LEVELS)).toBeCloseTo(0.25);
+    expect(getGemChance(0)).toBeCloseTo(0.03);
+    expect(getGemChance(1)).toBeCloseTo(0.03 + gemChancePerLevel);
+    expect(getGemChance(5)).toBeCloseTo(0.03 + 5 * gemChancePerLevel);
+    expect(getGemChance(GEM_CHANCE_MAX_LEVELS)).toBeCloseTo(0.23);
     // Over-cap levels don't stack past the cap.
     expect(getGemChance(GEM_CHANCE_MAX_LEVELS + 5)).toBe(
       getGemChance(GEM_CHANCE_MAX_LEVELS),
     );
+  });
+});
+
+describe("gem purchase escalation (2026-07-14 todo)", () => {
+  test("first buy is flat, then 1.5× per lifetime buy; inputs clamped", () => {
+    expect(getGemPurchaseCost(0)).toBe(100000);
+    expect(getGemPurchaseCost(1)).toBe(110000);
+    expect(getGemPurchaseCost(2)).toBe(121000);
+    expect(getGemPurchaseCost(10)).toBe(Math.round(100000 * 1.1 ** 10));
+    expect(getGemPurchaseCost(-3)).toBe(100000);
+    expect(getGemPurchaseCost(Number.NaN)).toBe(100000);
   });
 });
 

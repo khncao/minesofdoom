@@ -27,14 +27,23 @@ function fullCollectionCost(): number {
 }
 
 describe("cosmetic pricing vs. the free gem economy (guardrail 1: F2P viable)", () => {
-  it("a full free collection is earnable within a 30-day free-player horizon", () => {
-    // The persona plays past prestige (no early stop) so the 30-day horizon
+  it("a full free collection is earnable within a 45-day free-player horizon", () => {
+    // The persona plays past prestige (no early stop) so the horizon
     // reflects a dedicated free player's total gem faucet, not just the
     // first run. Income must cover the whole collection on top of everything
     // the persona already sinks into miners/upgrades.
+    //
+    // 45 days (was 30): the escalating mineral→gem price (todo "gems
+    // should be rarer…") self-limits the mint button after ~40 lifetime
+    // buys, so drops carry the faucet now and the full collection
+    // crosses the cost between day 42 and day 45 (deterministic persona:
+    // 1634 at day 42, 1782 at day 45 vs the 1675 collection cost). This
+    // keeps guardrail 1 — free players reach the same end-state, only
+    // slower — while the intended scarcity is in effect. A future change
+    // that pushes the crossover past 45 days fails this test on purpose.
     const report = simulateFreePath(
       { ...DEFAULT_FREE_PATH_PERSONA, stopAtFirstPrestige: false },
-      30,
+      45,
     );
     const totalGemsEarned = report.gemGains.drops + report.gemGains.mints;
     expect(totalGemsEarned).toBeGreaterThan(0);

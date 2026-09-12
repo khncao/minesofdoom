@@ -21,6 +21,7 @@ import {
   getLegendaryMinerCost,
   getMinerPowerUpgradeCost,
   getGemChanceCost,
+  getGemPurchaseCost,
   getClickBoostCost,
   getComboResistCost,
   gemMineralCost,
@@ -382,6 +383,31 @@ describe("useGameEngine — spending", () => {
     expect(result.current.gameState.gems).toBe(1);
     expect(result.current.gameState.minerals).toBe(0n);
     expect(result.current.gameState.totalGemsMinted).toBe(1);
+  });
+
+  it("the gem buy price escalates with each lifetime purchase", async () => {
+    // 2026-07-14 todo: "buying gems with minerals should increase in price
+    // after each purchase" — the first buy is flat, the second costs ×1.5,
+    // so the mineral faucet dries up instead of scaling.
+    const second = getGemPurchaseCost(1);
+    const { result } = await renderEngine({
+      minerals: BigInt(gemMineralCost + second),
+    });
+    await act(async () => {
+      result.current.buyGem();
+      result.current.buyGem();
+      await Promise.resolve();
+    });
+    expect(result.current.gameState.gems).toBe(2);
+    expect(result.current.gameState.gemsBoughtWithMinerals).toBe(2);
+    expect(result.current.gameState.minerals).toBe(0n);
+    // The third buy (225k) is now unaffordable — same state, no-op.
+    await act(async () => {
+      result.current.buyGem();
+      await Promise.resolve();
+    });
+    expect(result.current.gameState.gems).toBe(2);
+    expect(result.current.gameState.minerals).toBe(0n);
   });
 
   it("the gem upgrade lines spend gems at their curves and cap", async () => {

@@ -25,6 +25,7 @@ import ComboIndicator from "./components/ComboIndicator";
 import ComboSaveIndicator from "./components/ComboSaveIndicator";
 import PurchaseButtons from "./components/PurchaseButtons";
 import MiningCanvas from "./components/MiningCanvas";
+import CaveBackground from "src/components/CaveBackground";
 import MenuPanel from "./components/MenuPanel";
 import type { AccountSettingsProps } from "./components/AccountTab";
 import SavePill from "./components/SavePill";
@@ -1528,6 +1529,14 @@ export default function MinesOfDoom() {
           { paddingTop: insets.top, paddingBottom: insets.bottom },
         ]}
       >
+        {/* Full-screen cave background (todo 2026-07-14 #3): parallax
+            rows + jagged foreground walls covering the WHOLE screen,
+            not just the mining area. pointerEvents: none inside. */}
+        <CaveBackground
+          depth={depth}
+          tint={caveTint}
+          emojiArt={settingsData.emojiArt}
+        />
         {/* Tablet/wide fix (todo): the game column is width-capped and
             centered (styles.contentColumn); the full-bleed overlays
             (toasts, onboarding) deliberately stay OUTSIDE it so their
@@ -1711,10 +1720,10 @@ export default function MinesOfDoom() {
             and the keypad strip below renders only while the on-screen
             keypad setting is on. */}
           <View style={styles.playArea}>
-            {/* The cave breaks out of the width-capped column on wide
-              web screens (styles.canvasFullBleed) — full-bleed cave,
-              capped content (todo: "background canvas should still
-              cover whole screen"). */}
+            {/* The cave play area breaks out of the width-capped column
+              on wide web screens (styles.canvasFullBleed) — full-bleed
+              play area, capped content. (The cave itself now lives at
+              the screen root, todo 2026-07-14 #3.) */}
             <View
               style={[
                 styles.canvasWrap,
@@ -1722,8 +1731,6 @@ export default function MinesOfDoom() {
               ]}
             >
               <MiningCanvas
-                depth={depth}
-                tint={caveTint}
                 minerals={gameState.minerals}
                 gems={gameState.gems}
                 miners={gameState.miners}
@@ -1824,6 +1831,7 @@ export default function MinesOfDoom() {
                       visible={visiblePurchases}
                       minerals={gameState.minerals}
                       gems={gameState.gems}
+                      gemsBoughtWithMinerals={gameState.gemsBoughtWithMinerals}
                       clickPower={gameState.clickPower}
                       minerPower={gameState.minerPower}
                       minerPowerUnlocked={gameState.completedTiers.includes(

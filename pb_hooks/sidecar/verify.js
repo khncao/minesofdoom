@@ -130,16 +130,21 @@ function parseSidecarConfig(env) {
   const e = env || {};
   const cfg = {
     play: null,
-    playPackage: typeof e.PLAY_PACKAGE === "string" && e.PLAY_PACKAGE.length > 0
-      ? e.PLAY_PACKAGE
-      : "com.minus4kelvin.minesofdoom",
+    playPackage:
+      typeof e.PLAY_PACKAGE === "string" && e.PLAY_PACKAGE.length > 0
+        ? e.PLAY_PACKAGE
+        : "com.minus4kelvin.minesofdoom",
     apple: null,
   };
   const saRaw = readMaybeFile(e.PLAY_SERVICE_ACCOUNT_JSON);
   if (saRaw) {
     try {
       const sa = JSON.parse(saRaw);
-      if (sa && typeof sa.client_email === "string" && typeof sa.private_key === "string") {
+      if (
+        sa &&
+        typeof sa.client_email === "string" &&
+        typeof sa.private_key === "string"
+      ) {
         cfg.play = sa;
       }
     } catch {
@@ -173,19 +178,29 @@ function parseSidecarConfig(env) {
   // Stripe (web): empty key → web verifies nothing (fail closed, like the
   // other platforms). STRIPE_API_VERSION pins the API version; empty means
   // "let Stripe use the account default" (no version pinned in the repo).
-  if (typeof e.STRIPE_SECRET_KEY === "string" && e.STRIPE_SECRET_KEY.trim().length > 0) {
+  if (
+    typeof e.STRIPE_SECRET_KEY === "string" &&
+    e.STRIPE_SECRET_KEY.trim().length > 0
+  ) {
     cfg.stripe = {
       secretKey: e.STRIPE_SECRET_KEY.trim(),
       apiVersion:
-        typeof e.STRIPE_API_VERSION === "string" && e.STRIPE_API_VERSION.trim().length > 0
+        typeof e.STRIPE_API_VERSION === "string" &&
+        e.STRIPE_API_VERSION.trim().length > 0
           ? e.STRIPE_API_VERSION.trim()
           : null,
     };
   }
-  if (typeof e.GOOGLE_CLIENT_ID === "string" && e.GOOGLE_CLIENT_ID.trim().length > 0) {
+  if (
+    typeof e.GOOGLE_CLIENT_ID === "string" &&
+    e.GOOGLE_CLIENT_ID.trim().length > 0
+  ) {
     cfg.googleClientId = e.GOOGLE_CLIENT_ID.trim();
   }
-  if (typeof e.APPLE_BUNDLE_ID === "string" && e.APPLE_BUNDLE_ID.trim().length > 0) {
+  if (
+    typeof e.APPLE_BUNDLE_ID === "string" &&
+    e.APPLE_BUNDLE_ID.trim().length > 0
+  ) {
     cfg.appleBundleId = e.APPLE_BUNDLE_ID.trim();
   }
   // Stripe web checkout CREATION (the /stripe/checkout route the browser
@@ -198,13 +213,21 @@ function parseSidecarConfig(env) {
   //   MDOOM_WEB_BASE_URL      the web app origin+base path (no trailing
   //     slash) — the hosted page's success/cancel return to here. Must be
   //     https (the production deploy) for the route to arm.
-  if (typeof e.MDOOM_STRIPE_PRICE_MAP === "string" && e.MDOOM_STRIPE_PRICE_MAP.trim().length > 0) {
+  if (
+    typeof e.MDOOM_STRIPE_PRICE_MAP === "string" &&
+    e.MDOOM_STRIPE_PRICE_MAP.trim().length > 0
+  ) {
     try {
       const parsed = JSON.parse(e.MDOOM_STRIPE_PRICE_MAP);
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
         const map = {};
         for (const [k, v] of Object.entries(parsed)) {
-          if (typeof k === "string" && k.length > 0 && typeof v === "string" && v.length > 0) {
+          if (
+            typeof k === "string" &&
+            k.length > 0 &&
+            typeof v === "string" &&
+            v.length > 0
+          ) {
             map[k] = v;
           }
         }
@@ -214,7 +237,10 @@ function parseSidecarConfig(env) {
       /* malformed JSON → no price map → /stripe/checkout stays 503 (fail closed) */
     }
   }
-  if (typeof e.MDOOM_WEB_BASE_URL === "string" && e.MDOOM_WEB_BASE_URL.trim().length > 0) {
+  if (
+    typeof e.MDOOM_WEB_BASE_URL === "string" &&
+    e.MDOOM_WEB_BASE_URL.trim().length > 0
+  ) {
     cfg.webBaseUrl = e.MDOOM_WEB_BASE_URL.trim().replace(/\/+$/, "");
   }
   return cfg;
@@ -259,16 +285,29 @@ async function getPlayAccessToken(serviceAccount, ctx) {
  * purchaseState === 0 is the minting condition; a populated productIds
  * list must agree with the requested SKU.
  */
-async function verifyPlayPurchase(serviceAccount, packageId, productId, token, ctx) {
+async function verifyPlayPurchase(
+  serviceAccount,
+  packageId,
+  productId,
+  token,
+  ctx,
+) {
   const accessToken = await getPlayAccessToken(serviceAccount, ctx);
-  if (!accessToken) return { valid: false, reason: "play token exchange failed" };
+  if (!accessToken)
+    return { valid: false, reason: "play token exchange failed" };
   const url =
     PLAY_PUBLISHER_BASE +
-    "/applications/" + encodeURIComponent(packageId) +
-    "/purchases/products/" + encodeURIComponent(productId) +
-    "/tokens/" + encodeURIComponent(token) +
-    "?access_token=" + encodeURIComponent(accessToken);
-  const res = await ctx.fetch(url, { headers: { "Content-Type": "application/json" } });
+    "/applications/" +
+    encodeURIComponent(packageId) +
+    "/purchases/products/" +
+    encodeURIComponent(productId) +
+    "/tokens/" +
+    encodeURIComponent(token) +
+    "?access_token=" +
+    encodeURIComponent(accessToken);
+  const res = await ctx.fetch(url, {
+    headers: { "Content-Type": "application/json" },
+  });
   if (!res.ok) return { valid: false, reason: "play lookup " + res.status };
   const data = await res.json().catch(() => null);
   if (data && data.purchaseState === 0) {
@@ -276,7 +315,10 @@ async function verifyPlayPurchase(serviceAccount, packageId, productId, token, c
     if (ids.length === 0 || ids.includes(productId)) return { valid: true };
     return { valid: false, reason: "play productIds mismatch" };
   }
-  return { valid: false, reason: "play purchaseState=" + (data ? data.purchaseState : "?") };
+  return {
+    valid: false,
+    reason: "play purchaseState=" + (data ? data.purchaseState : "?"),
+  };
 }
 
 // -- Apple (iOS) ---------------------------------------------------------------
@@ -305,7 +347,8 @@ function buildAppleJwt(appleCfg, nowSec) {
  */
 function verifySignedTransactionInfo(signedInfo, rootCerts) {
   const parts = typeof signedInfo === "string" ? signedInfo.split(".") : null;
-  if (!parts || parts.length !== 3) return { ok: false, reason: "malformed jws" };
+  if (!parts || parts.length !== 3)
+    return { ok: false, reason: "malformed jws" };
   let header;
   let payload;
   try {
@@ -314,13 +357,19 @@ function verifySignedTransactionInfo(signedInfo, rootCerts) {
   } catch {
     return { ok: false, reason: "unparsable jws" };
   }
-  if (header.alg !== "ES256" || !Array.isArray(header.x5c) || header.x5c.length < 1) {
+  if (
+    header.alg !== "ES256" ||
+    !Array.isArray(header.x5c) ||
+    header.x5c.length < 1
+  ) {
     return { ok: false, reason: "bad jws header" };
   }
   const signature = Buffer.from(parts[2], "base64url");
   let chain;
   try {
-    chain = header.x5c.map((b64) => new crypto.X509Certificate(Buffer.from(b64, "base64")));
+    chain = header.x5c.map(
+      (b64) => new crypto.X509Certificate(Buffer.from(b64, "base64")),
+    );
   } catch {
     return { ok: false, reason: "bad x5c chain" };
   }
@@ -361,32 +410,44 @@ async function verifyApplePurchase(appleCfg, productId, transactionId, ctx) {
     "Content-Type": "application/json",
   };
   const certRes = await ctx.fetch(base + "/oauth/certificates", { headers });
-  if (!certRes.ok) return { valid: false, reason: "apple certs " + certRes.status };
+  if (!certRes.ok)
+    return { valid: false, reason: "apple certs " + certRes.status };
   const certData = await certRes.json().catch(() => null);
-  const contents = (certData && Array.isArray(certData.certificateContents))
-    ? certData.certificateContents
-    : [];
+  const contents =
+    certData && Array.isArray(certData.certificateContents)
+      ? certData.certificateContents
+      : [];
   let rootCerts;
   try {
-    rootCerts = contents.map((b64) => new crypto.X509Certificate(Buffer.from(b64, "base64")));
+    rootCerts = contents.map(
+      (b64) => new crypto.X509Certificate(Buffer.from(b64, "base64")),
+    );
   } catch {
     return { valid: false, reason: "apple certs unparsable" };
   }
   if (rootCerts.length === 0) return { valid: false, reason: "no apple certs" };
 
   const lookRes = await ctx.fetch(
-    base + "/inApps/v1/transactions/lookup/" + encodeURIComponent(transactionId),
+    base +
+      "/inApps/v1/transactions/lookup/" +
+      encodeURIComponent(transactionId),
     { headers },
   );
-  if (lookRes.status === 404) return { valid: false, reason: "transaction not found" };
-  if (!lookRes.ok) return { valid: false, reason: "apple lookup " + lookRes.status };
+  if (lookRes.status === 404)
+    return { valid: false, reason: "transaction not found" };
+  if (!lookRes.ok)
+    return { valid: false, reason: "apple lookup " + lookRes.status };
   const lookData = await lookRes.json().catch(() => null);
-  const infos = (lookData && Array.isArray(lookData.transactionInfo))
-    ? lookData.transactionInfo
-    : [];
+  const infos =
+    lookData && Array.isArray(lookData.transactionInfo)
+      ? lookData.transactionInfo
+      : [];
   const expectedEnv = APPLE_ENV_NAME[appleCfg.env];
   for (const info of infos) {
-    const v = verifySignedTransactionInfo(info && info.signedTransactionInfo, rootCerts);
+    const v = verifySignedTransactionInfo(
+      info && info.signedTransactionInfo,
+      rootCerts,
+    );
     if (!v.ok) continue;
     const p = v.payload || {};
     if (String(p.transactionId) !== String(transactionId)) continue;
@@ -394,7 +455,8 @@ async function verifyApplePurchase(appleCfg, productId, transactionId, ctx) {
     if (p.environment !== expectedEnv) continue;
     if (p.transactionReason !== 1) continue; // 1 = purchase (not offer/refund/replacement)
     if (p.revocationDate != null) continue;
-    if (typeof p.purchaseDate === "number" && p.purchaseDate > ctx.nowSec + 60) continue;
+    if (typeof p.purchaseDate === "number" && p.purchaseDate > ctx.nowSec + 60)
+      continue;
     return { valid: true };
   }
   return { valid: false, reason: "no matching transaction" };
@@ -417,8 +479,10 @@ function checkIdentityClaims(claims, { nowSec, issuerOk, audOk }) {
   const aud = Array.isArray(c.aud) ? c.aud : [c.aud];
   if (!audOk(aud)) return "bad audience";
   if (typeof c.exp !== "number" || c.exp <= nowSec) return "token expired";
-  if (typeof c.iat === "number" && c.iat > nowSec + 300) return "token iat in the future";
-  if (typeof c.sub !== "string" || c.sub.length < 1 || c.sub.length > 64) return "bad sub";
+  if (typeof c.iat === "number" && c.iat > nowSec + 300)
+    return "token iat in the future";
+  if (typeof c.sub !== "string" || c.sub.length < 1 || c.sub.length > 64)
+    return "bad sub";
   return null;
 }
 
@@ -444,16 +508,25 @@ async function verifyGoogleIdentity(idToken, clientId, ctx) {
   if (header.alg !== "RS256" || typeof header.kid !== "string") {
     return { valid: false, reason: "bad google token header" };
   }
-  const res = await ctx.fetch(GOOGLE_JWKS_URL, { headers: { Accept: "application/json" } });
+  const res = await ctx.fetch(GOOGLE_JWKS_URL, {
+    headers: { Accept: "application/json" },
+  });
   if (!res.ok) return { valid: false, reason: "google jwks " + res.status };
   const data = await res.json().catch(() => null);
   const keys = data && Array.isArray(data.keys) ? data.keys : [];
-  const jwk = keys.find((k) => k && k.kid === header.kid && k.kty === "RSA" && k.use !== "enc");
+  const jwk = keys.find(
+    (k) => k && k.kid === header.kid && k.kty === "RSA" && k.use !== "enc",
+  );
   if (!jwk) return { valid: false, reason: "google kid not found" };
   const pub = jwkToPublicKey(jwk);
   if (!pub) return { valid: false, reason: "google key unparsable" };
   const [h64, p64] = idToken.split(".");
-  const sigOk = crypto.verify("RSA-SHA256", Buffer.from(h64 + "." + p64), pub, decoded.signature);
+  const sigOk = crypto.verify(
+    "RSA-SHA256",
+    Buffer.from(h64 + "." + p64),
+    pub,
+    decoded.signature,
+  );
   if (!sigOk) return { valid: false, reason: "bad google signature" };
   const reason = checkIdentityClaims(claims, {
     nowSec: ctx.nowSec,
@@ -477,18 +550,30 @@ async function verifyAppleIdentity(idToken, bundleId, ctx) {
   if (header.alg !== "ES256" || typeof header.kid !== "string") {
     return { valid: false, reason: "bad apple token header" };
   }
-  const res = await ctx.fetch(APPLE_ID_KEYS_URL, { headers: { Accept: "application/json" } });
+  const res = await ctx.fetch(APPLE_ID_KEYS_URL, {
+    headers: { Accept: "application/json" },
+  });
   if (!res.ok) return { valid: false, reason: "apple keys " + res.status };
   const data = await res.json().catch(() => null);
   const keys = data && Array.isArray(data.keys) ? data.keys : [];
   const jwk = keys.find(
-    (k) => k && k.kid === header.kid && k.kty === "EC" && k.crv === "P-256" && k.use !== "enc",
+    (k) =>
+      k &&
+      k.kid === header.kid &&
+      k.kty === "EC" &&
+      k.crv === "P-256" &&
+      k.use !== "enc",
   );
   if (!jwk) return { valid: false, reason: "apple kid not found" };
   const pub = jwkToPublicKey(jwk);
   if (!pub) return { valid: false, reason: "apple key unparsable" };
   const [h64, p64] = idToken.split(".");
-  const sigOk = crypto.verify("SHA256", Buffer.from(h64 + "." + p64), pub, decoded.signature);
+  const sigOk = crypto.verify(
+    "SHA256",
+    Buffer.from(h64 + "." + p64),
+    pub,
+    decoded.signature,
+  );
   if (!sigOk) return { valid: false, reason: "bad apple signature" };
   const reason = checkIdentityClaims(claims, {
     nowSec: ctx.nowSec,
@@ -510,16 +595,18 @@ async function verifyIdentity({ provider, idToken, cfg, ctx }) {
   };
   try {
     if (provider === "google") {
-      if (!cfg || !cfg.googleClientId) return { valid: false, reason: "google not configured" };
+      if (!cfg || !cfg.googleClientId)
+        return { valid: false, reason: "google not configured" };
       return await verifyGoogleIdentity(idToken, cfg.googleClientId, context);
     }
     if (provider === "apple") {
-      if (!cfg || !cfg.appleBundleId) return { valid: false, reason: "apple not configured" };
+      if (!cfg || !cfg.appleBundleId)
+        return { valid: false, reason: "apple not configured" };
       return await verifyAppleIdentity(idToken, cfg.appleBundleId, context);
     }
     return { valid: false, reason: "unknown provider" };
   } catch (err) {
-    return { valid: false, reason: String(err && err.message || err) };
+    return { valid: false, reason: String((err && err.message) || err) };
   }
 }
 
@@ -536,7 +623,13 @@ async function verifyIdentity({ provider, idToken, cfg, ctx }) {
  * ones, so the key itself pins the environment — no livemode field check
  * needed.
  */
-async function verifyStripeCheckout(stripeCfg, productId, sessionId, deviceId, ctx) {
+async function verifyStripeCheckout(
+  stripeCfg,
+  productId,
+  sessionId,
+  deviceId,
+  ctx,
+) {
   const fetch = ctx && ctx.fetch;
   if (!fetch) return { valid: false, reason: "no fetch in context" };
   if (!/^[A-Za-z0-9_-]{10,128}$/.test(String(sessionId))) {
@@ -553,18 +646,29 @@ async function verifyStripeCheckout(stripeCfg, productId, sessionId, deviceId, c
   );
   const data = await res.json().catch(() => null);
   if (!res.ok || !data || data.object !== "checkout.session") {
-    return { valid: false, reason: "stripe session not found (http " + res.status + ")" };
+    return {
+      valid: false,
+      reason: "stripe session not found (http " + res.status + ")",
+    };
   }
   if (data.payment_status !== "paid") {
-    return { valid: false, reason: "stripe session not paid (" + data.payment_status + ")" };
+    return {
+      valid: false,
+      reason: "stripe session not paid (" + data.payment_status + ")",
+    };
   }
-  const meta = data.metadata && typeof data.metadata === "object" ? data.metadata : {};
+  const meta =
+    data.metadata && typeof data.metadata === "object" ? data.metadata : {};
   if (meta.mdoomProductId !== productId) {
     return { valid: false, reason: "stripe session product mismatch" };
   }
   // Device binding: the session was created for THIS device's purchase; a
   // session id copied to another device must not mint there.
-  if (typeof deviceId === "string" && deviceId.length > 0 && meta.mdoomDeviceId !== deviceId) {
+  if (
+    typeof deviceId === "string" &&
+    deviceId.length > 0 &&
+    meta.mdoomDeviceId !== deviceId
+  ) {
     return { valid: false, reason: "stripe session device mismatch" };
   }
   return { valid: true };
@@ -585,13 +689,28 @@ async function verifyStripeCheckout(stripeCfg, productId, sessionId, deviceId, c
  *
  * Never throws; `{ ok: false, reason }` on every failure path.
  */
-async function createStripeCheckoutSession(stripeCfg, priceMap, webBaseUrl, productId, deviceId, ctx) {
+async function createStripeCheckoutSession(
+  stripeCfg,
+  priceMap,
+  webBaseUrl,
+  productId,
+  deviceId,
+  ctx,
+) {
   const fetch = ctx && ctx.fetch;
   if (!fetch) return { ok: false, reason: "no fetch in context" };
-  if (!stripeCfg || typeof stripeCfg.secretKey !== "string" || stripeCfg.secretKey.length === 0) {
+  if (
+    !stripeCfg ||
+    typeof stripeCfg.secretKey !== "string" ||
+    stripeCfg.secretKey.length === 0
+  ) {
     return { ok: false, reason: "stripe not configured" };
   }
-  if (!priceMap || typeof priceMap[productId] !== "string" || priceMap[productId].length === 0) {
+  if (
+    !priceMap ||
+    typeof priceMap[productId] !== "string" ||
+    priceMap[productId].length === 0
+  ) {
     return { ok: false, reason: "product not in price map" };
   }
   if (typeof webBaseUrl !== "string" || !/^https:\/\//.test(webBaseUrl)) {
@@ -612,7 +731,10 @@ async function createStripeCheckoutSession(stripeCfg, priceMap, webBaseUrl, prod
   // flags back (MinesOfDoom.tsx) and cleans the URL.
   params.set(
     "success_url",
-    base + "?iap=success&iap_product=" + encodeURIComponent(productId) + "&iap_sid={CHECKOUT_SESSION_ID}",
+    base +
+      "?iap=success&iap_product=" +
+      encodeURIComponent(productId) +
+      "&iap_sid={CHECKOUT_SESSION_ID}",
   );
   params.set("cancel_url", base + "?iap=cancel");
   params.set("metadata[mdoomDeviceId]", deviceId);
@@ -634,8 +756,16 @@ async function createStripeCheckoutSession(stripeCfg, priceMap, webBaseUrl, prod
     return { ok: false, reason: "stripe unreachable" };
   }
   const data = await res.json().catch(() => null);
-  if (!res.ok || !data || typeof data.id !== "string" || !/^cs_/.test(data.id)) {
-    return { ok: false, reason: "stripe session create failed (http " + res.status + ")" };
+  if (
+    !res.ok ||
+    !data ||
+    typeof data.id !== "string" ||
+    !/^cs_/.test(data.id)
+  ) {
+    return {
+      ok: false,
+      reason: "stripe session create failed (http " + res.status + ")",
+    };
   }
   return { ok: true, sessionId: data.id, mdoomSession };
 }
@@ -655,14 +785,21 @@ const STRIPE_SIGNATURE_TOLERANCE_SEC = 300;
  * webhook lands here (docs/security-audit.md S2).
  * Pure + total: returns { ok } or { ok: false, reason }; never throws.
  */
-function verifyStripeWebhookSignature(secret, rawPayload, signatureHeader, nowSec) {
+function verifyStripeWebhookSignature(
+  secret,
+  rawPayload,
+  signatureHeader,
+  nowSec,
+) {
   if (typeof secret !== "string" || secret.length === 0) {
     return { ok: false, reason: "webhook secret not configured" };
   }
   if (typeof signatureHeader !== "string" || signatureHeader.length === 0) {
     return { ok: false, reason: "missing Stripe-Signature header" };
   }
-  const timestamp = Number((signatureHeader.match(/(?:^|,)\s*t=([^,]+)/) || [])[1]);
+  const timestamp = Number(
+    (signatureHeader.match(/(?:^|,)\s*t=([^,]+)/) || [])[1],
+  );
   const v1s = (signatureHeader.match(/(?:^|,)\s*v1=([^,]+)/g) || []).map(
     (entry) => entry.split("=").slice(1).join("=").trim(),
   );
@@ -672,7 +809,11 @@ function verifyStripeWebhookSignature(secret, rawPayload, signatureHeader, nowSe
   if (v1s.length === 0) {
     return { ok: false, reason: "no v1 signature in header" };
   }
-  if (Math.abs((Number.isFinite(nowSec) ? nowSec : Date.now() / 1000) - timestamp) > STRIPE_SIGNATURE_TOLERANCE_SEC) {
+  if (
+    Math.abs(
+      (Number.isFinite(nowSec) ? nowSec : Date.now() / 1000) - timestamp,
+    ) > STRIPE_SIGNATURE_TOLERANCE_SEC
+  ) {
     return { ok: false, reason: "signature timestamp out of tolerance" };
   }
   const expected = crypto
@@ -682,35 +823,58 @@ function verifyStripeWebhookSignature(secret, rawPayload, signatureHeader, nowSe
   for (const candidate of v1s) {
     const a = Buffer.from(expected);
     const b = Buffer.from(candidate);
-    if (a.length === b.length && crypto.timingSafeEqual(a, b)) return { ok: true };
+    if (a.length === b.length && crypto.timingSafeEqual(a, b))
+      return { ok: true };
   }
   return { ok: false, reason: "signature mismatch" };
 }
 
-async function verifyPurchase({ platform, productId, token, deviceId, cfg, ctx }) {
+async function verifyPurchase({
+  platform,
+  productId,
+  token,
+  deviceId,
+  cfg,
+  ctx,
+}) {
   const context = {
     fetch: ctx && ctx.fetch,
     nowSec: ctx && Number.isFinite(ctx.nowSec) ? ctx.nowSec : Date.now() / 1000,
   };
   try {
     if (platform === "android") {
-      if (!cfg || !cfg.play) return { valid: false, reason: "android not configured" };
-      return await verifyPlayPurchase(cfg.play, cfg.playPackage, productId, token, context);
+      if (!cfg || !cfg.play)
+        return { valid: false, reason: "android not configured" };
+      return await verifyPlayPurchase(
+        cfg.play,
+        cfg.playPackage,
+        productId,
+        token,
+        context,
+      );
     }
     if (platform === "ios") {
-      if (!cfg || !cfg.apple) return { valid: false, reason: "ios not configured" };
+      if (!cfg || !cfg.apple)
+        return { valid: false, reason: "ios not configured" };
       if (!/^\d{1,32}$/.test(String(token))) {
         return { valid: false, reason: "ios token is not a transaction id" };
       }
       return await verifyApplePurchase(cfg.apple, productId, token, context);
     }
     if (platform === "web") {
-      if (!cfg || !cfg.stripe) return { valid: false, reason: "web not configured" };
-      return await verifyStripeCheckout(cfg.stripe, productId, token, deviceId, context);
+      if (!cfg || !cfg.stripe)
+        return { valid: false, reason: "web not configured" };
+      return await verifyStripeCheckout(
+        cfg.stripe,
+        productId,
+        token,
+        deviceId,
+        context,
+      );
     }
     return { valid: false, reason: "unknown platform" };
   } catch (err) {
-    return { valid: false, reason: String(err && err.message || err) };
+    return { valid: false, reason: String((err && err.message) || err) };
   }
 }
 

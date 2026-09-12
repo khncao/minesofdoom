@@ -464,6 +464,102 @@ export function buildCaveRow(
 }
 
 // ---------------------------------------------------------------------------
+// Foreground cave walls (todo 2026-07-14 #3 — full-screen background with
+// parallax layers): short vertical rock columns for the screen's LEFT and
+// RIGHT edges, rendered OVER the scrolling tile rows at a faster parallax
+// rate so the shaft reads as being INSIDE the cave. Strips repeat
+// vertically with period CAVE_WALL_TILE_H, so the wall can scroll any
+// distance by wrapping within one period (the repeat makes the wrap
+// content-seamless by construction — no row re-indexing needed).
+// ---------------------------------------------------------------------------
+
+/** Vertical repeat period of a wall strip (px). */
+export const CAVE_WALL_TILE_H = CAVE_TILE_PX * 6;
+
+/**
+ * Adaptive wall column width for a container width: wide screens get
+ * thicker walls, phones stay at one tile. 4px steps keep the pixel-art
+ * grid crisp; clamped to [CAVE_TILE_PX, 96].
+ */
+export function caveWallWidthPx(width: number): number {
+  if (!Number.isFinite(width) || width <= 0) return CAVE_TILE_PX;
+  const target = Math.round(width / 28 / 4) * 4;
+  return Math.min(96, Math.max(CAVE_TILE_PX, target));
+}
+
+/**
+ * One wall strip: a `widthPx` × CAVE_WALL_TILE_H column of solid rock with
+ * a jagged inner edge (the side facing the shaft) cut in 2px steps, a dark
+ * edge accent along the cut, a few ore flecks, and (deterministically)
+ * maybe a crystal. Deterministic in (side, tint, widthPx).
+ */
+export function buildCaveWall(
+  side: "left" | "right",
+  tint: string,
+  widthPx: number,
+): PixelGrid {
+  const w = Math.max(CAVE_TILE_PX, Math.round(widthPx));
+  const h = CAVE_WALL_TILE_H;
+  const grid = createGrid(w, h);
+  const [light, base, dark] = rockShades(tint);
+  const edge = pathEdgeColor(tint);
+  const gem = gemColor(tint);
+  const rng = mulberry32(
+    hashSeed(w * 7919 + (side === "left" ? 31 : 97), 0x5eed),
+  );
+  // Base rock: the same 2×2 shade noise + strata falloff as the tile rows.
+  for (let by = 0; by < h / 2; by++) {
+    for (let bx = 0; bx < w / 2; bx++) {
+      const r = rng();
+      const shade = r < 0.3 ? dark : r < 0.8 ? base : light;
+      const color = mixHex(shade, "#000000", ((by * 2) / h) * 0.3);
+      setPixel(grid, bx * 2, by * 2, color);
+      setPixel(grid, bx * 2 + 1, by * 2, color);
+      setPixel(grid, bx * 2, by * 2 + 1, color);
+      setPixel(grid, bx * 2 + 1, by * 2 + 1, color);
+    }
+  }
+  // A few ore flecks anywhere (the cut below may clip some — that reads
+  // as veins running into the shaft edge).
+  const flecks = 2 + Math.floor(rng() * 2);
+  for (let i = 0; i < flecks; i++) {
+    const fx = 2 + Math.floor(rng() * Math.max(1, w - 6));
+    const fy = 2 + Math.floor(rng() * (h - 4));
+    const color = ORE_COLORS[Math.floor(rng() * ORE_COLORS.length)];
+    for (let dy = 0; dy < 2; dy++) hline(grid, fx, fx + 1, fy + dy, color);
+  }
+  // Occasional crystal, also drawn before the cut (same clipping logic).
+  if (rng() < 0.3) {
+    const gx = 3 + Math.floor(rng() * Math.max(1, w - 8));
+    const gy = 8 + Math.floor(rng() * (h - 18));
+    for (let dy = -1; dy <= 1; dy++) {
+      hline(grid, gx - 1 + Math.abs(dy), gx + 1 - Math.abs(dy), gy + dy, gem);
+    }
+    setPixel(grid, gx, gy, "#ffffff");
+  }
+  // Jagged inner edge: a bounded random walk per 2px row keeps the cut
+  // organic; at least 12px of rock always survives on the outer side.
+  const maxCut = w - 12;
+  let cut = Math.max(2, Math.floor(w / 4));
+  for (let i = 0; i < h / 2; i++) {
+    cut = Math.max(0, Math.min(maxCut, cut + Math.floor(rng() * 5) - 2));
+    for (let dy = 0; dy < 2; dy++) {
+      const y = i * 2 + dy;
+      if (side === "left") {
+        // Inner edge = the strip's RIGHT side: clear the rightmost cut px.
+        for (let x = w - cut; x < w; x++) grid[y][x] = null;
+        grid[y][w - cut - 1] = edge;
+      } else {
+        // Inner edge = the LEFT side: clear the leftmost cut px.
+        for (let x = 0; x < cut; x++) grid[y][x] = null;
+        grid[y][cut] = edge;
+      }
+    }
+  }
+  return grid;
+}
+
+// ---------------------------------------------------------------------------
 // Caching + public API
 // ---------------------------------------------------------------------------
 
@@ -495,6 +591,27 @@ export function caveRowUri(opts: {
   let uri = cache.get(key);
   if (uri == null) {
     uri = gridToPngDataUri(buildCaveRow(tier, strip, opts.tint, opts.widthPx));
+    cache.set(key, uri);
+  }
+  return uri;
+}
+
+/**
+ * Cached PNG data URI for a foreground cave-wall strip (todo #3). The
+ * strip content is what repeats vertically (CAVE_WALL_TILE_H), so the
+ * cache stays small: one entry per (side, width, tint).
+ */
+export function caveWallUri(opts: {
+  tint: string;
+  side: "left" | "right";
+  /** Container width in px — sizes the column (see caveWallWidthPx). */
+  widthPx?: number;
+}): string {
+  const w = caveWallWidthPx(opts.widthPx ?? 0);
+  const key = `wall|${opts.side}|${w}|${opts.tint}`;
+  let uri = cache.get(key);
+  if (uri == null) {
+    uri = gridToPngDataUri(buildCaveWall(opts.side, opts.tint, w));
     cache.set(key, uri);
   }
   return uri;

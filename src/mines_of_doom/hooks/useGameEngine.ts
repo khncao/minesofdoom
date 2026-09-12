@@ -16,7 +16,7 @@ import {
   computeOfflineMinerals,
   computeOfflineTopUpMinerals,
   createEmptySaveData,
-  gemMineralCost,
+  getGemPurchaseCost,
   mulFloats,
   getClickBoostCost,
   getClickBoostMultiplier,
@@ -590,11 +590,17 @@ export function useGameEngine(
   // Affordability-guarded like the other purchases.
   const buyGem = useCallback(() => {
     setGameState((n: SaveData) => {
-      if (n.minerals < BigInt(gemMineralCost)) return n;
+      // Escalating price (todo: "buying gems with minerals should
+      // increase in price after each purchase"): the cost depends on how
+      // many gems THIS save has bought, so the button is a fallback
+      // faucet, not the main gem source.
+      const cost = getGemPurchaseCost(n.gemsBoughtWithMinerals);
+      if (n.minerals < BigInt(cost)) return n;
       return {
         ...n,
-        minerals: n.minerals - BigInt(gemMineralCost),
+        minerals: n.minerals - BigInt(cost),
         gems: n.gems + 1,
+        gemsBoughtWithMinerals: n.gemsBoughtWithMinerals + 1,
         totalGemsMinted: n.totalGemsMinted + 1,
       };
     });

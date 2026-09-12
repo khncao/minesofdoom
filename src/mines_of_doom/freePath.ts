@@ -29,7 +29,7 @@
 import {
   PRESTIGE_LEVELS,
   computeOfflineMinerals,
-  gemMineralCost,
+  getGemPurchaseCost,
   getClickBoostCost,
   getClickBoostMultiplier,
   getClickUpgradeCost,
@@ -130,6 +130,10 @@ export function simulateFreePath(
   let dailyStreak = 0;
   // Combo is session-scoped (like the app): it resets at each session start.
   let combo = 0;
+  // Lifetime gem purchases — drives the escalating buy price (item 2 of the
+  // 2026-07-14 todo: gems must be scarce enough that minting is a
+  // deliberate sink, so the simulation buys at the escalating cost too).
+  let gemBuys = 0;
 
   const earned = {
     answers: 0,
@@ -179,10 +183,13 @@ export function simulateFreePath(
       clickPower += 1;
     }
     // 4. Mint a gem (the free player's gem faucet) while the gem hoard is
-    //    thin — the gem sinks below are the hoard's purpose.
-    if (gems < 40 && minerals >= gemMineralCost) {
-      minerals -= gemMineralCost;
+    //    thin — the gem sinks below are the hoard's purpose. The cost
+    //    escalates with every lifetime buy (getGemPurchaseCost), so a
+    //    normal player mints a handful of gems, not an infinite stream.
+    if (gems < 40 && minerals >= getGemPurchaseCost(gemBuys)) {
+      minerals -= getGemPurchaseCost(gemBuys);
       gems += 1;
+      gemBuys += 1;
       gemGains.mints += 1;
     }
     // 5. Gem upgrade lines & second/third miner types, in "when you meet
@@ -192,9 +199,7 @@ export function simulateFreePath(
       gems -= getFastMinerCost(fastMiners);
       fastMiners += 1;
     }
-    if (
-      gems >= getGemChanceCost(gemChanceLevels)
-    ) {
+    if (gems >= getGemChanceCost(gemChanceLevels)) {
       gems -= getGemChanceCost(gemChanceLevels);
       gemChanceLevels += 1;
     }
@@ -223,7 +228,9 @@ export function simulateFreePath(
       const comboMult = getComboMultiplier(combo);
       // floor: the simulation accumulates fractional minerals; the engine's
       // getDepth runs on integer (bigint) minerals.
-      const depthBonus = getDepthTier(getDepth(Math.floor(lifetime))).clickBonus;
+      const depthBonus = getDepthTier(
+        getDepth(Math.floor(lifetime)),
+      ).clickBonus;
       addGain(
         Math.max(1, persona.expectedEquationValue) *
           clickPower *
@@ -255,7 +262,10 @@ export function simulateFreePath(
     // floor: see answer() above — the engine's getDepth takes integers.
     const depthBonus = getDepthTier(getDepth(Math.floor(lifetime))).clickBonus;
     addGain(
-      clickPower * depthBonus * prestige * getClickBoostMultiplier(clickBoostLevels),
+      clickPower *
+        depthBonus *
+        prestige *
+        getClickBoostMultiplier(clickBoostLevels),
       "taps",
     );
   };
@@ -303,11 +313,12 @@ export function simulateFreePath(
       ) {
         return {
           reached: true,
-          days: (day - 1) + t / sessionSeconds,
+          days: day - 1 + t / sessionSeconds,
           simulatedDays: maxDays,
           lifetimeMinerals: lifetime,
           earned,
           gemGains,
+          gemPurchases: gemBuys,
           perDay,
         };
       }
@@ -332,6 +343,7 @@ export function simulateFreePath(
     lifetimeMinerals: lifetime,
     earned,
     gemGains,
+    gemPurchases: gemBuys,
     perDay,
   };
 }
@@ -363,6 +375,8 @@ export type FreePathReport = {
     drops: number;
     mints: number;
   };
+  /** Lifetime gem mints bought with minerals (escalating price). */
+  gemPurchases: number;
   /** Total lifetime minerals per source (should sum to lifetimeMinerals). */
   earned: {
     answers: number;

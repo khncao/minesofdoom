@@ -13,7 +13,6 @@ import DebrisParticles, {
   DebrisParticlesRef,
 } from "src/components/DebrisParticles";
 import BlockBreak, { BlockBreakRef } from "src/components/BlockBreak";
-import CaveBackground from "src/components/CaveBackground";
 import FloatingTextLayer, { FloatingTextRef } from "./FloatingTextLayer";
 import { formatNumber } from "src/utils/format";
 import {
@@ -40,8 +39,6 @@ const CURRENCY_EMOJI = { fontSize: 20 };
 const MINE_HOLD_MS = 300;
 
 const MiningCanvas = memo(function MiningCanvas({
-  depth,
-  tint,
   minerals,
   gems,
   miners,
@@ -61,9 +58,6 @@ const MiningCanvas = memo(function MiningCanvas({
   pocket,
   onPocketCollect,
 }: {
-  depth: bigint;
-  /** Cave background tint for the current depth tier. */
-  tint: string;
   minerals: bigint;
   gems: number;
   miners: number;
@@ -162,7 +156,6 @@ const MiningCanvas = memo(function MiningCanvas({
       accessibilityRole="button"
       accessibilityLabel={t("a11y.holdToMine")}
     >
-      <CaveBackground depth={depth} tint={tint} emojiArt={emojiArt} />
       <FloatingTextLayer ref={floatingTextRef} />
       {pocket != null &&
         (() => {

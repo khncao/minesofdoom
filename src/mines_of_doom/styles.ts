@@ -65,7 +65,9 @@ export const styles = StyleSheet.create({
   },
   canvas: {
     flex: 1,
-    backgroundColor: "#2f1f1f",
+    // Transparent: the full-screen cave background (CaveBackground at the
+    // screen root, todo 2026-07-14 #3) shows through. The old solid
+    // #2f1f1f is gone — the cave wash is the background now.
     overflow: "hidden",
   },
   // Upgrades drawer header (todo: upgrades menu as a side hidden overlay

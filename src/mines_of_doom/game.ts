@@ -62,6 +62,15 @@ export type SaveData = {
   maxDepth: bigint;
   minersOwnedEver: number;
   totalGemsMinted: number;
+  /**
+   * Lifetime count of gems BOUGHT with minerals (the buy-a-gem button).
+   * Drives the escalating purchase price (todo "gems should be more rare
+   * ... increase in price after each purchase"): every purchase makes the
+   * next one cost GEM_PURCHASE_ESCALATION× more, so the mineral buy stays
+   * a fallback faucet, never the main gem source. Lifetime like the other
+   * gem stats (gems survive prestige, so the counter does too).
+   */
+  gemsBoughtWithMinerals: number;
   totalGemsSpent: number;
   totalPrestiges: number;
   // Lifetime ACTIVE time in the mine, whole seconds (todo: statistics
@@ -172,7 +181,7 @@ export type SettingsData = {
 };
 
 export const saveDataKey = "save";
-export const saveVersion = 11;
+export const saveVersion = 12;
 export const settingsDataKey = "settings";
 export const equationSettingsKey = "equationSettings";
 
@@ -335,6 +344,22 @@ const migrations: Record<
       playSeconds: Math.max(0, Math.floor(num(data.playSeconds, 0))),
     };
   },
+  // 11 -> 12: escalating gem purchase (todo "buying gems with minerals
+  // should increase in price after each purchase"). Old saves have never
+  // bought a gem this way, so the counter starts at 0 — the first purchase
+  // stays at the flat base price.
+  11: (data) => {
+    const num = (v: unknown, fallback: number) =>
+      typeof v === "number" && Number.isFinite(v) ? v : fallback;
+    return {
+      ...data,
+      saveVersion: 12,
+      gemsBoughtWithMinerals: Math.max(
+        0,
+        Math.floor(num(data.gemsBoughtWithMinerals, 0)),
+      ),
+    };
+  },
   // 7 -> 8: tier-4 cosmetic line (cave themes). Old saves own just the free
   // default and haven't changed the cave look; junk ids are dropped and the
   // free default is always kept owned, like every other cosmetic field.
@@ -429,6 +454,10 @@ export function buildSaveData(
     maxDepth: mineral(migrated.maxDepth, 0n),
     minersOwnedEver: num(migrated.minersOwnedEver, 0),
     totalGemsMinted: num(migrated.totalGemsMinted, 0),
+    gemsBoughtWithMinerals: Math.max(
+      0,
+      Math.floor(num(migrated.gemsBoughtWithMinerals, 0)),
+    ),
     totalGemsSpent: num(migrated.totalGemsSpent, 0),
     totalPrestiges: num(migrated.totalPrestiges, 0),
     playSeconds: Math.max(0, Math.floor(num(migrated.playSeconds, 0))),
@@ -552,12 +581,32 @@ export const msPerTick = 1000;
  * pays the soft rate, and vice versa.
  */
 export const HARD_MODE_PAYOUT = 2;
-export const gemChance = 0.05;
+export const gemChance = 0.03;
 /** Base gem chance added per level of the gem chance upgrade. */
 export const gemChancePerLevel = 0.01;
-/** Gem chance upgrade cap: 5% base + 20 levels = 25%. */
+/** Gem chance upgrade cap: 3% base + 20 levels = 23%. */
 export const GEM_CHANCE_MAX_LEVELS = 20;
 export const gemMineralCost = 100000;
+/**
+ * Mineral-buy escalation (todo "gems should be more rare and buying gems
+ * with minerals should increase in price after each purchase"): the first
+ * buy is flat gemMineralCost; each subsequent lifetime buy costs this
+ * factor× more, so the button self-limits as a convenience fallback
+ * instead of a gem faucet (after ~40 lifetime buys the cost outpaces a
+ * free player's mint cadence). The factor is deliberately mild (×1.1):
+ * a steeper curve would push the free-path full-collection crossover
+ * (cosmeticsBalance benchmark, 45-day horizon) out of reach — guardrail 1
+ * (F2P viable, slower) wins over scarcity drama.
+ */
+export const GEM_PURCHASE_ESCALATION = 1.1;
+/** Mineral cost of the NEXT gem purchase, given how many were bought. */
+export function getGemPurchaseCost(purchasesSoFar: number): number {
+  const n =
+    Number.isFinite(purchasesSoFar) && purchasesSoFar > 0
+      ? Math.floor(purchasesSoFar)
+      : 0;
+  return Math.round(gemMineralCost * Math.pow(GEM_PURCHASE_ESCALATION, n));
+}
 // Cap offline earnings at 8 hours of mining
 export const maxOfflineTicks = 8 * 60 * 60;
 /**
@@ -763,6 +812,7 @@ export function createEmptySaveData(): SaveData {
     maxDepth: 0n,
     minersOwnedEver: 0,
     totalGemsMinted: 0,
+    gemsBoughtWithMinerals: 0,
     totalGemsSpent: 0,
     totalPrestiges: 0,
     playSeconds: 0,

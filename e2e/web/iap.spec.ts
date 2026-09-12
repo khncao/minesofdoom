@@ -98,12 +98,12 @@ test.describe("web IAP — purchase round-trip", () => {
       // PENDING_VERIFY_KEY in iapProvider.web.ts) with a FORGED entry —
       // a session id no sidecar ever issued — before the app loads.
       await page.addInitScript(() => {
-        localStorage.setItem(
-           "iapPendingVerifies",
-           JSON.stringify([
-            { productId: "packGold", token: "cs_forged_never_issued" },
-           ]),
-        );
+         localStorage.setItem(
+            "iapPendingVerifies",
+            JSON.stringify([
+               { productId: "packGold", token: "cs_forged_never_issued" },
+            ]),
+         );
       });
 
       await bootApp(page);
@@ -137,13 +137,14 @@ test.describe("web IAP — purchase round-trip", () => {
       // A failed verify is NEVER dropped from the pending queue (pass 58
       // semantics), while the verified issued pair is. And the real
       // purchase still granted its pack.
-      const queue = await page.evaluate(() =>
-         JSON.parse(
-          localStorage.getItem("iapPendingVerifies") ?? "[]",
-         ) as unknown,
+      const queue = await page.evaluate(
+         () =>
+            JSON.parse(
+               localStorage.getItem("iapPendingVerifies") ?? "[]",
+            ) as unknown,
       );
       expect(queue).toEqual([
-       { productId: "packGold", token: "cs_forged_never_issued" },
+         { productId: "packGold", token: "cs_forged_never_issued" },
       ]);
       await page.locator('[aria-label="Shop"]').click();
       await expect(page.getByText(/Gold Pickaxe\s*✓/)).toBeVisible();

@@ -1,10 +1,12 @@
 import { DEPTH_TIERS } from "src/mines_of_doom/game";
 import {
   buildCaveRow,
+  buildCaveWall,
   CAVE_EGG_KINDS,
   CAVE_METERS_PER_ROW,
   CAVE_PATH_TILES,
   CAVE_PX_PER_METER,
+  CAVE_WALL_TILE_H,
   CAVE_STRIPS_PER_TIER,
   CAVE_STRIP_WIDTH,
   CAVE_TILE_PX,
@@ -12,6 +14,8 @@ import {
   cavePathTiles,
   caveRowStartForDepth,
   caveRowUri,
+  caveWallUri,
+  caveWallWidthPx,
   caveTierForDepth,
   caveTranslateForDepth,
   clearCaveTileCache,
@@ -448,5 +452,67 @@ describe("caveRowUri", () => {
     expect(caveRowUri({ depth: 12, tint: "#8fa8b8", widthPx: 100 })).toBe(
       narrow,
     );
+  });
+});
+
+describe("foreground cave walls (todo 2026-07-14 #3)", () => {
+  const tint = "#a0856a";
+
+  test("caveWallWidthPx: 4px steps, clamped [24, 96]", () => {
+    expect(caveWallWidthPx(0)).toBe(24);
+    expect(caveWallWidthPx(360)).toBe(24); // 360/28=13 → 12
+    expect(caveWallWidthPx(1280)).toBe(44); // 1280/28=46 → 44
+    expect(caveWallWidthPx(100000)).toBe(96);
+    expect(caveWallWidthPx(NaN)).toBe(24);
+    // Every produced width is a multiple of 4 (crisp pixel grid).
+    for (const w of [0, 360, 1280, 4000, 100000]) {
+      expect(caveWallWidthPx(w) % 4).toBe(0);
+    }
+  });
+
+  test("buildCaveWall: sized, solid outer band, cut-in inner edge", () => {
+    const w = 48;
+    // Left wall: outer band = leftmost 12px, the cut opens to the right.
+    const grid = buildCaveWall("left", tint, w);
+    expect(grid.length).toBe(CAVE_WALL_TILE_H);
+    for (let y = 0; y < CAVE_WALL_TILE_H; y++) {
+      expect(grid[y].length).toBe(w);
+      // maxCut = w-12, so the jagged walk can never eat into the outer
+      // 12px band — a hole reaching the screen edge would break the
+      // "standing inside the shaft" illusion.
+      for (let x = 0; x < 12; x++) expect(grid[y][x]).not.toBeNull();
+    }
+    // The inner edge is cut in (deterministic seed: row 0 cut >= 1).
+    expect(grid[0][w - 1]).toBeNull();
+    let clearRows = 0;
+    for (let y = 0; y < CAVE_WALL_TILE_H; y++) {
+      if (grid[y][w - 1] == null) clearRows++;
+    }
+    expect(clearRows).toBeGreaterThan(0);
+    // Right wall mirrors it: outer band = rightmost 12px, cut opens left.
+    const gridR = buildCaveWall("right", tint, w);
+    for (let y = 0; y < CAVE_WALL_TILE_H; y++) {
+      for (let x = w - 12; x < w; x++) expect(gridR[y][x]).not.toBeNull();
+    }
+    // Row 0's cut lands at x=10 (edge accent at x===cut); the walk
+    // never floors below x=2 for this seed, so column 0 is always clear.
+    expect(gridR[0][9]).toBeNull();
+    expect(gridR[0][10]).not.toBeNull();
+    for (let y = 0; y < CAVE_WALL_TILE_H; y++) expect(gridR[y][0]).toBeNull();
+  });
+
+  test("wall strips are deterministic and differ by side/tint/width", () => {
+    const left1 = caveWallUri({ tint, side: "left", widthPx: 1280 });
+    expect(caveWallUri({ tint, side: "left", widthPx: 1280 })).toBe(left1);
+    const right = caveWallUri({ tint, side: "right", widthPx: 1280 });
+    expect(right).not.toBe(left1);
+    const otherTint = caveWallUri({
+      tint: "#8fa8b8",
+      side: "left",
+      widthPx: 1280,
+    });
+    expect(otherTint).not.toBe(left1);
+    const narrow = caveWallUri({ tint, side: "left", widthPx: 360 });
+    expect(narrow).not.toBe(left1);
   });
 });

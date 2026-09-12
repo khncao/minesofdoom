@@ -63,9 +63,18 @@ describe("parseSidecarConfig: stripe checkout knobs", () => {
   });
 
   it("empty / non-object JSON → no price map", () => {
-    expect(parseSidecarConfig({ ...ENV, MDOOM_STRIPE_PRICE_MAP: "{}" }).stripePriceMap).toBeUndefined();
-    expect(parseSidecarConfig({ ...ENV, MDOOM_STRIPE_PRICE_MAP: "[1,2]" }).stripePriceMap).toBeUndefined();
-    expect(parseSidecarConfig({ ...ENV, MDOOM_STRIPE_PRICE_MAP: '"x"' }).stripePriceMap).toBeUndefined();
+    expect(
+      parseSidecarConfig({ ...ENV, MDOOM_STRIPE_PRICE_MAP: "{}" })
+        .stripePriceMap,
+    ).toBeUndefined();
+    expect(
+      parseSidecarConfig({ ...ENV, MDOOM_STRIPE_PRICE_MAP: "[1,2]" })
+        .stripePriceMap,
+    ).toBeUndefined();
+    expect(
+      parseSidecarConfig({ ...ENV, MDOOM_STRIPE_PRICE_MAP: '"x"' })
+        .stripePriceMap,
+    ).toBeUndefined();
   });
 
   it("drops non-string map entries", () => {
@@ -80,11 +89,16 @@ describe("parseSidecarConfig: stripe checkout knobs", () => {
 // -- createStripeCheckoutSession (pure) --------------------------------------
 
 /** A scripted fake Stripe API; records the calls. */
-function fakeStripe(reply = { id: "cs_test_999", object: "checkout.session" }, status = 200) {
+function fakeStripe(
+  reply = { id: "cs_test_999", object: "checkout.session" },
+  status = 200,
+) {
   const calls = [];
   const fetch = async (url, init) => {
     const form =
-      typeof init.body === "string" ? new URLSearchParams(init.body) : init.body;
+      typeof init.body === "string"
+        ? new URLSearchParams(init.body)
+        : init.body;
     calls.push({ url, init, form });
     return {
       ok: status >= 200 && status < 300,
@@ -195,7 +209,12 @@ describe("createStripeCheckoutSession (pure)", () => {
       cfg.webBaseUrl,
       "packGold",
       "dev_x",
-      { ...CTX, fetch: async () => { throw new Error("net down"); } },
+      {
+        ...CTX,
+        fetch: async () => {
+          throw new Error("net down");
+        },
+      },
     );
     expect(out.ok).toBe(false);
   });
@@ -237,15 +256,18 @@ function httpRequest(url, { method = "GET", headers = {}, body = null } = {}) {
 
 async function withServer(env, stripeFetch) {
   const started = await new Promise((resolve) => {
-    const { server, cfg } = startServer({ env, listen: false, fetch: stripeFetch });
+    const { server, cfg } = startServer({
+      env,
+      listen: false,
+      fetch: stripeFetch,
+    });
     server.listen(0, "127.0.0.1", () => resolve({ server, cfg }));
   });
   const port = started.server.address().port;
   return {
     base: `http://127.0.0.1:${port}`,
     cfg: started.cfg,
-    stop: () =>
-      new Promise((resolve) => started.server.close(() => resolve())),
+    stop: () => new Promise((resolve) => started.server.close(() => resolve())),
   };
 }
 
@@ -397,7 +419,10 @@ describe("POST /stripe/checkout (CORS)", () => {
     const s = await withServer(ENV, fake.fetch);
     const res = await httpRequest(`${s.base}/stripe/checkout`, {
       method: "POST",
-      headers: { Origin: "https://evil.example", "Content-Type": "application/json" },
+      headers: {
+        Origin: "https://evil.example",
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ deviceId: "dev_cors", productId: "packGold" }),
     });
     expect(res.status).toBe(200);
