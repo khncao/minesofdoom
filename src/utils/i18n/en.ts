@@ -222,6 +222,11 @@ export const en = {
   "settings.tooltipEmojiArt": "Emoji art (low-end mode)",
   "settings.tooltipHaptics": "Haptic feedback",
   "settings.tooltipReduceEffects": "Reduce effects",
+  "settings.tooltipTextSize": "Text size",
+  "settings.textSize": "Text size",
+  "settings.textSizeHelp":
+    "Scales the text across the whole game UI (85–130%). Applies immediately " +
+    "and is saved on your device.",
   "settings.tooltipShowAll": "Always show all upgrade buttons",
   "settings.gainFormula":
     "Minerals mined per correct answer = answer × click power × combo " +

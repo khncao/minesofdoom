@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
+import { T as Text } from "src/mines_of_doom/textScale";
 import { useT } from "src/hooks/useI18n";
 
 export interface MuteToggleProps {

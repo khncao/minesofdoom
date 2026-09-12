@@ -1,5 +1,6 @@
 import { memo, useEffect, useState } from "react";
-import { Pressable, Text } from "react-native";
+import { Pressable } from "react-native";
+import { T as Text } from "../textScale";
 import { useT } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
 import { styles } from "../styles";

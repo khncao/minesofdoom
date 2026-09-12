@@ -1,15 +1,6 @@
 import React, { memo, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-  Text,
-  type ViewStyle,
-} from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View, type ViewStyle } from "react-native";
+import { T as Text } from "src/mines_of_doom/textScale";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useT } from "src/hooks/useI18n";
 

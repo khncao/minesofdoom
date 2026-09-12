@@ -1,6 +1,6 @@
 import React from "react";
-import { Linking, Text } from "react-native";
-
+import { Linking } from "react-native";
+import { T as Text } from "src/mines_of_doom/textScale";
 export interface WebsiteLinkProps {
   url?: string;
 }

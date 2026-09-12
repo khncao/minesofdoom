@@ -8,7 +8,8 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, View } from "react-native";
+import { T as Text } from "./textScale";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useContent, useI18n } from "src/hooks/useI18n";
 import { useLocalStorage } from "src/hooks/useLocalStorage";
@@ -139,6 +140,7 @@ import {
 import LoadingScreen from "./components/LoadingScreen";
 import AdRewardsPanel from "./components/AdRewardsPanel";
 import IapPanel from "./components/IapPanel";
+import TextScaleProvider, { nextTextScale } from "./textScale";
 
 export default function MinesOfDoom() {
   // currently doesn't mute android touch sounds, but can in the future
@@ -165,6 +167,16 @@ export default function MinesOfDoom() {
     "onScreenKeypad",
     Platform.OS !== "web",
   );
+
+  // UI text size (gap-ranking.md Tier 1 #2): a GLOBAL scale for the whole
+  // game UI (4 steps, 85%–130%, see TEXT_SCALE_STEPS in textScale.tsx),
+  // NOT an OS font-accessibility proxy — the native OS font setting is a
+  // different, independent lever (and on web it barely exists), so this
+  // is a plain display preference like `mute` and `onScreenKeypad`:
+  // persisted in AsyncStorage, applied immediately. The stored value IS
+  // the step multiplier (1 = default); the provider sanitizes on read,
+  // so a hand-edited blob can never leave the band.
+  const [textScale, setTextScale] = useLocalStorage<number>("textScale", 1);
 
   // The upgrades side drawer (todo: "upgrades menu as a side hidden
   // overlay on the canvas") holds the purchase list ONLY — the
@@ -1044,6 +1056,13 @@ export default function MinesOfDoom() {
     },
     [setOnScreenKeypad],
   );
+  // Text-size stepper (settings row): −/+ move one step; nextTextScale
+  // clamps at both ends and sanitizes the current value, so any stored
+  // blob lands back on a valid step before moving.
+  const handleTextScaleChange = useCallback(
+    (dir: -1 | 1) => setTextScale(nextTextScale(textScale, dir)),
+    [setTextScale, textScale],
+  );
   // Keypad handlers: setTextInput (useState) and handleSubmit (useCallback)
   // are stable, so these are stable too and the memoized keypad skips
   // re-rendering on the per-tick parent renders.
@@ -1654,6 +1673,10 @@ export default function MinesOfDoom() {
 
   return (
     <Context.Provider value={contextValue}>
+      {/* Whole-UI text scale (textScale.tsx): every <T/> in the tree
+          reads this; the provider sanitizes the stored step and is
+          OUTSIDE the container View so overlays/tooltips/drawers scale. */}
+      <TextScaleProvider scale={textScale}>
       <View
         style={[
           styles.container,
@@ -1701,6 +1724,8 @@ export default function MinesOfDoom() {
               onMuteChange={handleMuteChange}
               onScreenKeypad={onScreenKeypad}
               onKeypadChange={handleKeypadSettingChange}
+              textScale={textScale}
+              onTextScaleChange={handleTextScaleChange}
               hardModeUnlocked={gameState.completedTiers.includes(
                 HARD_MODE_UNLOCK_TIER,
               )}
@@ -2055,6 +2080,7 @@ export default function MinesOfDoom() {
         )}
         <StatusBar style="auto" />
       </View>
+      </TextScaleProvider>
     </Context.Provider>
   );
 }

@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Text } from "react-native";
+import { T as Text } from "../textScale";
 import {
   Equation,
   MultiplySymbol,

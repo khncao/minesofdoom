@@ -5,7 +5,8 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { Animated, Easing, Image, Text } from "react-native";
+import { Animated, Easing, Image } from "react-native";
+import { T as Text } from "../textScale";
 import { Context } from "../Context";
 import { getPickaxe, getPickaxeFeel, rollMinerLook } from "../cosmetics";
 import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/pixelArt";

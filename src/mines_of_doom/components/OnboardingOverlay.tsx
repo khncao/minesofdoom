@@ -1,5 +1,6 @@
 import { memo, useEffect, useState } from "react";
-import { Pressable, Switch, Text, View } from "react-native";
+import { Pressable, Switch, View } from "react-native";
+import { T as Text } from "../textScale";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useT } from "src/hooks/useI18n";
 import {

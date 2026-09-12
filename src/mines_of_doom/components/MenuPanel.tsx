@@ -1,5 +1,6 @@
 import { memo, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
+import { T as Text } from "../textScale";
 import BottomModal from "src/components/BottomModal";
 import { useT } from "src/hooks/useI18n";
 import MuteToggle from "src/components/MuteToggle";
@@ -58,6 +59,8 @@ function MenuPanel({
         onMuteChange,
         onScreenKeypad,
         onKeypadChange,
+        textScale,
+        onTextScaleChange,
         hardModeUnlocked,
         stats,
         session,
@@ -87,6 +90,9 @@ function MenuPanel({
          *  unlike the SettingsData switches, which wait for the Save tap. */
         onScreenKeypad: boolean;
         onKeypadChange: (newVal: boolean) => void;
+        /** UI text scale step multiplier (1 = default); see textScale.tsx. */
+        textScale: number;
+        onTextScaleChange: (dir: -1 | 1) => void;
         hardModeUnlocked: boolean;
         /** Lifetime save data — feeds the goals/records views' derived progress. */
         stats: SaveData;
@@ -125,6 +131,8 @@ function MenuPanel({
                                 }
                                 onScreenKeypad={onScreenKeypad}
                                 onKeypadChange={onKeypadChange}
+                                textScale={textScale}
+                                onTextScaleChange={onTextScaleChange}
                                 hardModeUnlocked={hardModeUnlocked}
                         />
                 ),
@@ -135,6 +143,8 @@ function MenuPanel({
                         onChangeEquationSettings,
                         onScreenKeypad,
                         onKeypadChange,
+                        textScale,
+                        onTextScaleChange,
                         hardModeUnlocked,
                 ],
         );

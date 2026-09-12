@@ -6,8 +6,8 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Animated, Easing, Text, View } from "react-native";
-
+import { Animated, Easing, View } from "react-native";
+import { T as Text } from "../textScale";
 export type FloatingTextRef = {
   /** Optional size (px) lets big gains float bigger (see juice.ts). */
   spawn: (text: string, color?: string, size?: number) => void;

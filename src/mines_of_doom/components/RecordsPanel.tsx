@@ -1,5 +1,6 @@
 import { memo } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { T as Text } from "../textScale";
 import { useContent, useT } from "src/hooks/useI18n";
 import { formatDuration, formatNumber } from "src/utils/format";
 import { SaveData } from "../game";

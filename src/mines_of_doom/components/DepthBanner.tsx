@@ -1,5 +1,6 @@
 import { memo } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { T as Text } from "../textScale";
 import { emojis } from "src/utils/graphics/emojis";
 import { formatNumber } from "src/utils/format";
 import { styles } from "../styles";

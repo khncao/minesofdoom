@@ -1,6 +1,6 @@
 import { forwardRef, memo, useImperativeHandle, useRef, useState } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
-
+import { Animated, StyleSheet, View } from "react-native";
+import { T as Text } from "src/mines_of_doom/textScale";
 export interface BlockBreakRef {
   trigger: () => void;
 }

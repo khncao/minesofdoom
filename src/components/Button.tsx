@@ -1,13 +1,6 @@
 import React from "react";
-import {
-  FlexStyle,
-  Pressable,
-  StyleProp,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-
+import { FlexStyle, Pressable, StyleProp, StyleSheet, View } from "react-native";
+import { T as Text } from "src/mines_of_doom/textScale";
 export type ButtonTone = "mineral" | "gem";
 
 export interface ButtonProps {

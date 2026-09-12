@@ -3,7 +3,8 @@ import {
   type ErrorInfo,
   type ReactNode,
 } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
+import { T as Text } from "../textScale";
 import Button from "src/components/Button";
 import { getLocale, translate } from "src/utils/i18n/i18n";
 import type { Vars } from "src/utils/i18n/en";

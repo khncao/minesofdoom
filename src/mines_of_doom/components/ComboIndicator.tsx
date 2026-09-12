@@ -1,5 +1,6 @@
 import { memo } from "react";
-import { Animated, Text, View } from "react-native";
+import { Animated, View } from "react-native";
+import { T as Text } from "../textScale";
 import { useT } from "src/hooks/useI18n";
 import { getComboTierProgress } from "../game";
 import { styles } from "../styles";

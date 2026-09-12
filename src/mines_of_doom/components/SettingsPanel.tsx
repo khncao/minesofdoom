@@ -1,5 +1,6 @@
 import { memo, useState } from "react";
-import { Pressable, Switch, Text, View } from "react-native";
+import { Pressable, Switch, View } from "react-native";
+import { T as Text, sanitizeTextScale } from "../textScale";
 import IntegerInput from "src/components/IntegerInput";
 import Tooltip from "src/components/Tooltip";
 import { useI18n } from "src/hooks/useI18n";
@@ -87,6 +88,8 @@ const SettingsContent = memo(function SettingsContent({
   onScreenKeypad,
   onKeypadChange,
   hardModeUnlocked,
+  textScale,
+  onTextScaleChange,
 }: {
   settingsData: SettingsData;
   onChangeSettingsData: (newSettings: SettingsData) => void;
@@ -100,6 +103,9 @@ const SettingsContent = memo(function SettingsContent({
   /** Tier-5 (Motherlode) complete → the switch is live, otherwise it
    *  renders locked (visible-but-locked, plan §4.6). */
   hardModeUnlocked: boolean;
+  /** UI text scale in percent (100 = default); see textScale.tsx. */
+  textScale: number;
+  onTextScaleChange: (dir: -1 | 1) => void;
 }) {
   const { t } = useI18n();
   return (
@@ -286,6 +292,61 @@ const SettingsContent = memo(function SettingsContent({
               });
             }}
           />
+        </View>
+      </Tooltip>
+      {/* UI text size (Tier 1 #2 of gap-ranking.md): a global text scale
+          for small screens — NOT an OS font-accessibility proxy (the
+          native OS font setting is a different, independent lever), so
+          the row is honest about what it does. Applies immediately,
+          like the keypad row above (AsyncStorage preference). */}
+      <Tooltip
+        label={t("settings.tooltipTextSize")}
+        content={t("settings.textSizeHelp")}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Text style={{ ...styles.text, fontSize: 11 }}>
+            {t("settings.textSize")}
+          </Text>
+          <View style={{ flex: 1 }} />
+          <Pressable
+            testID="text-size-minus"
+            onPress={() => onTextScaleChange(-1)}
+            style={{
+              minWidth: 28,
+              paddingVertical: 3,
+              paddingHorizontal: 8,
+              borderRadius: 4,
+              backgroundColor: "#2b2b2b",
+            }}
+          >
+            <Text style={{ ...styles.text, fontSize: 13, color: "#fff" }}>
+              −
+            </Text>
+          </Pressable>
+          <Text style={{ ...styles.text, fontSize: 11 }}>
+            {Math.round(sanitizeTextScale(textScale) * 100)}%
+          </Text>
+          <Pressable
+            testID="text-size-plus"
+            onPress={() => onTextScaleChange(1)}
+            style={{
+              minWidth: 28,
+              paddingVertical: 3,
+              paddingHorizontal: 8,
+              borderRadius: 4,
+              backgroundColor: "#2b2b2b",
+            }}
+          >
+            <Text style={{ ...styles.text, fontSize: 13, color: "#fff" }}>
+              +
+            </Text>
+          </Pressable>
         </View>
       </Tooltip>
       {/* Cave ambience (todo: "Music / ambient loop", features.md §7 gap):

@@ -1,5 +1,6 @@
 import { memo, type ReactNode, useMemo } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
+import { T as Text } from "../textScale";
 import Button from "src/components/Button";
 import { useT } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";

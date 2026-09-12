@@ -1,5 +1,6 @@
 import { memo, useState } from "react";
-import { Text, TextInput, View } from "react-native";
+import { TextInput, View } from "react-native";
+import { T as Text } from "../textScale";
 import Button from "src/components/Button";
 import { useI18n } from "src/hooks/useI18n";
 import type { AuthAccountInfo, AuthSigninOutcome } from "../auth";

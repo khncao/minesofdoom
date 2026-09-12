@@ -251,12 +251,24 @@ repo is not equipped to make.
     along. Pass 32 adds a control-surface companion: `settings:min-floor`
     (F32.3) — the range has a model floor (`minNumber`, fixed at 0) but
     no UI writer; only the ceiling is exposed.
- 2. **Text size / UI scaling** (+ high-contrast second step) (pass 3,
-    accessibility) — "the cheapest high-impact item in the playbooks":
-    `styles.ts` hard-codes `fontSize: 11–12` with no OS scaling; a
-    kid-skewed audience argues strongly. High-contrast /
+ 2. ~~**Text size / UI scaling**~~ (+ high-contrast second step) (pass 3,
+    accessibility) — **DONE 2026-09-12 (pass 81, F81.1)**: a whole-UI
+    text scale, not an OS proxy — `src/mines_of_doom/textScale.tsx` owns
+    four steps (85/100/115/130 %; `TEXT_SCALE_STEPS`, sanitized on read
+    so a hand-edited blob can never leave the band) and a `T` Text
+    wrapper that multiplies each Text's numeric `fontSize` at render
+    time (rounded, floored at 8 px so tiny labels don't vanish;
+    `lineHeight` untouched, so line-height ratios hold). Every component
+    now imports `{ T as Text }` — JSX is unchanged, the shared
+    `StyleSheet.create` constants are never mutated (identity-preserving
+    walk). Settings row: −/+ stepper (85–130 %), persisted in
+    AsyncStorage like the other display prefs, applies immediately
+    (`settings.textSize` keys en/es). Explicitly NOT an OS-font
+    accessibility proxy (native OS font scaling is a different lever;
+    `allowFontScaling` still composes on top). Nets: `textScale.test.ts`
+    pins the band, the sanitization, and the style walk. High-contrast /
     color-independence (gem-pocket discovery currently reads mostly
-    from canvas color) is the follow-on step on the same settings row.
+    from canvas color) remains the follow-on step on the same row.
  3. ~~**`web-ambient-unlock`**~~ (pass 22, F22.4(b)) — **DONE 2026-09-10**
     (landed as a bug-fix inside the web sign-in e2e work, commit
     `49c472f`): `useSounds.ts` gesture-gates the ambient bed — web

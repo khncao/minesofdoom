@@ -1,5 +1,6 @@
 import { memo } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { T as Text } from "../textScale";
 import Button from "src/components/Button";
 import { useT } from "src/hooks/useI18n";
 import { AnalyticsState, summarizeAnalytics } from "../analytics";

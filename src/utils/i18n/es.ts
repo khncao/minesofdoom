@@ -215,6 +215,11 @@ export const es: Record<TranslationKey, string> = {
   "settings.tooltipEmojiArt": "Arte de emoji (modo ligero)",
   "settings.tooltipHaptics": "Retroalimentación háptica",
   "settings.tooltipReduceEffects": "Reducir efectos",
+  "settings.tooltipTextSize": "Tamaño del texto",
+  "settings.textSize": "Tamaño del texto",
+  "settings.textSizeHelp":
+    "Escala el texto de toda la interfaz del juego (85–130 %). Se aplica al " +
+    "instante y se guarda en tu dispositivo.",
   "settings.tooltipIdleReminder": "Recordatorio de inactividad",
   "settings.tooltipShowAll": "Mostrar siempre todos los botones de mejora",
   "settings.gainFormula":

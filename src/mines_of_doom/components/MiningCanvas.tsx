@@ -6,7 +6,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { Animated, Easing, Image, Text, View } from "react-native";
+import { Animated, Easing, Image, View } from "react-native";
+import { T as Text } from "../textScale";
 import { useT } from "src/hooks/useI18n";
 import Miner from "./Miner";
 import DebrisParticles, {

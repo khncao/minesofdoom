@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Modal, View, Text } from "react-native";
+import { Modal, View } from "react-native";
+import { T as Text } from "src/mines_of_doom/textScale";
 import { useT } from "src/hooks/useI18n";
 
 export interface ConfirmableButtonProps {

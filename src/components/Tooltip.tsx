@@ -1,6 +1,6 @@
 import { memo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-
+import { Pressable, StyleSheet, View } from "react-native";
+import { T as Text } from "src/mines_of_doom/textScale";
 /**
  * Long-press tooltip: wraps any touchable content and shows a small bubble
  * above it while pressed. Works with touch (long-press) and mouse (hold).

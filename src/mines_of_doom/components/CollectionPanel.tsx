@@ -1,5 +1,6 @@
 import { memo, useMemo } from "react";
-import { Image, Text, View } from "react-native";
+import { Image, View } from "react-native";
+import { T as Text } from "../textScale";
 import { useContent, useT } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
 import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/pixelArt";

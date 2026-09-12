@@ -1,5 +1,6 @@
 import { memo, useState } from "react";
-import { Switch, Text, TextInput, View } from "react-native";
+import { Switch, TextInput, View } from "react-native";
+import { T as Text } from "../textScale";
 import Button from "src/components/Button";
 import ConfirmableButton from "src/components/ConfirmableButton";
 import IntegerInput from "src/components/IntegerInput";

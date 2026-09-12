@@ -6,16 +6,8 @@ import {
   memo,
   useRef,
 } from "react";
-import {
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  type ViewStyle,
-} from "react-native";
+import { Animated, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View, type ViewStyle } from "react-native";
+import { T as Text } from "../textScale";
 import { styles } from "../styles";
 
 /**
@@ -31,6 +23,11 @@ type AvoidingViewProps = {
   style?: ViewStyle;
   behavior?: "height" | "padding";
 };
+// SAFETY: both RN components satisfy AvoidingViewProps structurally (the
+// prop subset here — behavior only exists natively; web ignores it) but
+// their declared prop types don't overlap, so each branch needs a bridge
+// cast through unknown. The union is used only with `behavior` passed on
+// native and nothing passed on web (see the JSX below), which both accept.
 const AvoidingView: ComponentType<AvoidingViewProps> =
   Platform.OS === "web"
     ? (View as unknown as ComponentType<AvoidingViewProps>)

@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import { Animated, StyleSheet, View } from "react-native";
+import { T as Text } from "../textScale";
 import { useT } from "src/hooks/useI18n";
 
 /**

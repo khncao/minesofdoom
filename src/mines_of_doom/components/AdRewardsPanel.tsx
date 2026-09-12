@@ -1,5 +1,6 @@
 import { memo, useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { T as Text } from "../textScale";
 import BottomModal from "src/components/BottomModal";
 import Button from "src/components/Button";
 import { useI18n } from "src/hooks/useI18n";

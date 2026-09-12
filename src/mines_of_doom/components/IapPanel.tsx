@@ -1,5 +1,6 @@
 import { memo, useMemo } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { Image, Pressable, View } from "react-native";
+import { T as Text } from "../textScale";
 import BottomModal from "src/components/BottomModal";
 import Button from "src/components/Button";
 import { useContent, useI18n } from "src/hooks/useI18n";

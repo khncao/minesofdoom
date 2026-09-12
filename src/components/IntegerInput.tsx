@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
-
+import { StyleSheet, TextInput, View } from "react-native";
+import { T as Text } from "src/mines_of_doom/textScale";
 export interface IntegerInputProps {
   defaultValue?: number;
   label?: string;
