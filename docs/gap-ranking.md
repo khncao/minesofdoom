@@ -151,6 +151,24 @@ repo is not equipped to make.
     `analytics:leaderboard-open` into the family. The only measurement
     that turns pass 27's IA candidates from a hunch into data; same
     local-stamp-now, cohort-later split as item 1.
+    **Resolved (pass 77, 2026-09-25).** `AnalyticsState.firstUse` is the
+    closed-vocab `Record<FirstUseFeature, firstUseMs>` stamped by
+    `recordFeatureFirstUse` — null-estimating like every other `record*`
+    fold and idempotent on re-fire (StrictMode / repeated opens); the
+    field rides the existing parse machinery (`firstUse` absent on
+    legacy records → `{}`; hand-edited out-of-vocab keys dropped). Wired
+    to all six touch points: `handleDailyEquationStart`,
+    `handleWeeklyClaim`, `handleExportSaveCode` (the delete-format
+    export reuses the same string, so one stamp covers both), the account
+    hook settling to status `"in"` (the single point every sign-in path
+    passes — login, register, provider), `LeaderboardPanel`'s onOpen, and
+    the goals/records/collection menu tabs via a new `MenuPanel.onFirstUse`
+    seam. `summarizeAnalytics` lists stamped features with local day keys
+    (vocab order, omitted when none), so the About-tab readout answers
+    "which entries does a player actually find, and when" — the F27.4
+    local half. The pass-27 IA candidates (`ia:arrival-toast`,
+    `ia:header-device-audit`, `ia:pill-labels`) can now adopt on data;
+    the cohort half still waits on item 1's opt-in upload.
 12. **`deploy:prod-env-gate`** (pass 28) — the one trust-chain
     weakness pass 28 found, and the only one where a silent
     failure is a money leak, not a UX bug: the sandbox flag
@@ -4430,13 +4448,16 @@ record (below); the cohort half waits on `telemetry:opt-in-cohort`
 **Candidates (documented, not planned)** — in rough order of value per
 line:
 
-+ `analytics:feature-first-use` — the one-shot stamp family on the
-  existing local record: first daily-equation start, first weekly
-  contract claim, first leaderboard open, first records / collection /
-  goals tab open, first save-code export, first cloud link. Generalizes
-  pass 24's `analytics:leaderboard-open` into the family and is the
-  Tier-0 precondition for every other item here (F27.4). Same
-  local-stamp-now, cohort-later split as Tier 0 item 1.
++ `analytics:feature-first-use` — **shipped in pass 77** (Tier 0 item
+  11): `firstUse` on the existing record, the closed `FirstUseFeature`
+  vocab, stamped at all six touch points, listed in the summary readout.
+  The remaining half is cohort visibility (Tier 0 item 1). Was: the
+  one-shot stamp family on the existing local record: first daily-
+  equation start, first weekly contract claim, first leaderboard open,
+  first records / collection / goals tab open, first save-code export,
+  first cloud link. Generalizes pass 24's `analytics:leaderboard-open`
+  into the family and is the Tier-0 precondition for every other item
+  here (F27.4). Same local-stamp-now, cohort-later split as Tier 0 item 1.
 + `ia:arrival-toast` — a one-shot toast (or ~week-limited badge) when a
   gated entry point *becomes* available (🏆, 🎬) and when a tier unlock
   adds content (hard-mode line, cave themes), stamped with an
