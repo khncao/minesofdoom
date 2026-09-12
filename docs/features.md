@@ -29,7 +29,10 @@ of Pressable so rapid tapping doesn't double-render).
   keypad** (default on native — a 3-column digit strip beside the
   upgrades list: 56 px keys that flex-shrink to a 44 px floor on short
   screens so a bottom row is never clipped off the edge, ⌫ held clears
-  the answer, 12-digit cap; the input is deliberately un-focusable while
+  the answer, 12-digit cap, every keypress fires the light cave-tap
+  haptic tick, and the two input boundaries — `=` with nothing typed
+  and a digit past the cap — shake the answer box visually only (no
+  sound, haptic, or penalty); the input is deliberately un-focusable while
   the onboarding overlay is up, an e2e-discovered fix) or the OS
   keyboard (default on web — autofocused numeric field, Enter submits,
   `KeyboardAvoidingView` on native, a plain read-only box on web where the

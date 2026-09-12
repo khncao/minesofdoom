@@ -1004,12 +1004,19 @@ export default function MinesOfDoom() {
     });
 
   // Answer submits mark idle-reminder activity too (the other half of
-  // the core loop after cave taps): the wrapper is what AnswerInput /
-  // NumericKeypad receive as onSubmit.
+  // the core loop after cave taps): the wrapper is what AnswerInput
+  // receives as onSubmit (the keypad gets its own variant below, which
+  // adds the empty-submit boundary cue).
   const handleSubmitActivity = useCallback(() => {
     markActivity();
     handleSubmit();
   }, [markActivity, handleSubmit]);
+
+  // The displayed answer, mirrored for the stable keypad callbacks below:
+  // reading the state in a dependency would re-identify a handler every
+  // keystroke and re-render the memoized keypad.
+  const textInputRef = useRef(textInput);
+  textInputRef.current = textInput;
 
   // Equation-of-the-day entry point: force today's equation into the main
   // display and enter the soft-wrong mode. The button is disabled once
@@ -1082,21 +1089,47 @@ export default function MinesOfDoom() {
     (dir: -1 | 1) => setTextScale(nextTextScale(textScale, dir)),
     [setTextScale, textScale],
   );
-  // Keypad handlers: setTextInput (useState) and handleSubmit (useCallback)
-  // are stable, so these are stable too and the memoized keypad skips
-  // re-rendering on the per-tick parent renders.
+  // Keypad handlers: setTextInput (useState), handleSubmit (useCallback),
+  // shake (useShakeInput) and haptic (useHaptics) are all stable, so
+  // these are stable too and the memoized keypad skips re-rendering on
+  // the per-tick parent renders.
+  //
+  // Feel (todo: "refine the on-screen keypad"): every keypress gets the
+  // same light "tap" tick a cave tap does (50 ms throttle in useHaptics
+  // keeps fast typing from buzzing), and the two input BOUNDARIES —
+  // an empty `=` and a digit past the 12-digit cap — get a VISUAL-ONLY
+  // shake: no sound, no haptic, no penalty, no roll (F53.1 stands —
+  // these are input limits, not wrong answers).
   const handleKeypadDigit = useCallback(
-    (digit: string) =>
-      setTextInput((old) =>
-        old.length >= MAX_ANSWER_LENGTH ? old : old + digit,
-      ),
-    [setTextInput],
+    (digit: string) => {
+      if (textInputRef.current.length >= MAX_ANSWER_LENGTH) {
+        shake();
+        return;
+      }
+      haptic("tap", 1);
+      setTextInput((old) => old + digit);
+    },
+    [haptic, shake, setTextInput],
   );
-  const handleKeypadBackspace = useCallback(
-    () => setTextInput((old) => old.slice(0, -1)),
-    [setTextInput],
-  );
-  const handleKeypadClear = useCallback(() => setTextInput(""), [setTextInput]);
+  const handleKeypadBackspace = useCallback(() => {
+    haptic("tap", 1);
+    setTextInput((old) => old.slice(0, -1));
+  }, [haptic, setTextInput]);
+  const handleKeypadClear = useCallback(() => {
+    haptic("tap", 1);
+    setTextInput("");
+  }, [haptic, setTextInput]);
+  // Submit: empty answers get the boundary shake and stop there (the
+  // guard in handleSubmit still owns the no-op, so this only adds the
+  // cue); non-empty submits are the plain activity-marked path.
+  const handleKeypadSubmit = useCallback(() => {
+    markActivity();
+    if (textInputRef.current.trim() === "") {
+      shake();
+      return;
+    }
+    handleSubmit();
+  }, [handleSubmit, markActivity, shake]);
 
   // Crash-context tracing (plan "Adjust"): the unreproducible Android
   // `describe` crash is diagnosed from its next occurrence, and a stack
@@ -2055,7 +2088,7 @@ export default function MinesOfDoom() {
                   onDigit={handleKeypadDigit}
                   onBackspace={handleKeypadBackspace}
                   onClear={handleKeypadClear}
-                  onSubmit={handleSubmitActivity}
+                  onSubmit={handleKeypadSubmit}
                 />
               )}
               {/* The upgrades drawer (todo: upgrades menu as a side hidden
