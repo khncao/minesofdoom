@@ -162,9 +162,16 @@ export const en = {
   "a11y.dailyEquationPending":
     "Equation of the Day: unsolved (+{bonus} minerals)",
   "a11y.dailyEquationSolved": "Equation of the Day: solved today",
-  "a11y.weeklyClaimable": "Claim weekly contract: +{bonus} minerals",
-  "a11y.weeklyProgress": "Weekly contract: {done} of {total} goals complete",
-  "a11y.weeklyClaimed": "Weekly contract claimed for this week",
+  "a11y.weeklyClaimable": "Open weekly contract — claim +{bonus} minerals",
+  "a11y.weeklyProgress":
+    "Open weekly contract — {done} of {total} goals complete",
+  "a11y.weeklyClaimed": "Open weekly contract — claimed for this week",
+  "weekly.title": "WEEKLY CONTRACT",
+  "weekly.statusInProgress": "{done} of {total} tasks done this week",
+  "weekly.statusClaimable": "All tasks complete — claim your bonus",
+  "weekly.statusClaimed": "Claimed this week — the new contract opens Monday",
+  "weekly.resetNote": "Tasks and the bonus reset every Monday",
+  "weekly.claim": "CLAIM +{bonus} MINERALS",
 
   // --- Save button ---------------------------------------------------------
   "a11y.save": "Save game",

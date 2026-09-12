@@ -157,10 +157,19 @@ export const es: Record<TranslationKey, string> = {
   "a11y.dailyEquationPending":
     "Ecuación del día: sin resolver (+{bonus} minerales)",
   "a11y.dailyEquationSolved": "Ecuación del día: resuelta hoy",
-  "a11y.weeklyClaimable": "Reclamar contrato semanal: +{bonus} minerales",
+  "a11y.weeklyClaimable":
+    "Abrir contrato semanal — reclamar +{bonus} minerales",
   "a11y.weeklyProgress":
-    "Contrato semanal: {done} de {total} objetivos completados",
-  "a11y.weeklyClaimed": "Contrato semanal reclamado esta semana",
+    "Abrir contrato semanal — {done} de {total} objetivos completados",
+  "a11y.weeklyClaimed":
+    "Abrir contrato semanal — reclamado esta semana",
+  "weekly.title": "CONTRATO SEMANAL",
+  "weekly.statusInProgress":
+    "{done} de {total} tareas completadas esta semana",
+  "weekly.statusClaimable": "Todas las tareas completadas — reclama tu bonus",
+  "weekly.statusClaimed": "Reclamado esta semana — el nuevo contrato abre el lunes",
+  "weekly.resetNote": "Las tareas y el bonus se reinician cada lunes",
+  "weekly.claim": "RECLAMAR +{bonus} MINERALES",
 
   // --- Save button ---------------------------------------------------------
   "a11y.save": "Guardar partida",

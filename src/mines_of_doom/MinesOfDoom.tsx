@@ -1833,11 +1833,10 @@ export default function MinesOfDoom() {
                 />
               )}
               <WeeklyContractButton
+                progress={weeklyContract.progress}
                 claimable={weeklyContract.claimable}
                 claimed={weeklyContract.claimed}
                 bonus={weeklyContract.bonus}
-                done={weeklyContract.doneCount}
-                total={weeklyContract.total}
                 onClaim={handleWeeklyClaim}
               />
               {/* The daily question's 📅 icon renders ONLY while the auto

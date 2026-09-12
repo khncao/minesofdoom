@@ -104,6 +104,9 @@ export function useWeeklyChallenge({
     doneCount: info.doneCount,
     total: WEEKLY_GOALS.length,
     claimed: state?.claimed ?? false,
+    /** Per-goal deltas for the status sheet (todo: "weekly contract should
+     *  always be clickable and status is known"). */
+    progress: info.progress,
     claim,
   };
 }
