@@ -66,7 +66,8 @@ export const en = {
   "toast.idleReminder":
     "The mine keeps collecting while you're away, and your progress autosaves — " +
     "come back to check the haul!",
-  "toast.gemPocket": "A mineral pocket formed in the cave — tap it for a bonus!",
+  "toast.gemPocket":
+    "A mineral pocket formed in the cave — tap it for a bonus!",
   "toast.gemPocketCollected": "Mineral pocket: +{bonus} minerals",
   "toast.saved": "Game saved",
   "toast.settingsSaved": "Saved",

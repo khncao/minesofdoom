@@ -581,7 +581,8 @@ export const es: Record<TranslationKey, string> = {
   "a11y.clearAnswer": "Borrar toda la respuesta",
   "a11y.submitAnswer": "Enviar respuesta",
   "a11y.holdToMine": "Mantén pulsado para minar",
-  "a11y.gemPocket": "Bolsillo de minerales: toca para recoger +{bonus} minerales",
+  "a11y.gemPocket":
+    "Bolsillo de minerales: toca para recoger +{bonus} minerales",
   "a11y.digit": "Dígito {d}",
   "a11y.holdToClear": "Mantén pulsado para borrar toda la respuesta",
   "a11y.closeSettings": "Cerrar ajustes",

@@ -1933,11 +1933,21 @@ export default function MinesOfDoom() {
             )}
           </View>
         </View>
-        {showMessage && (
-          <View style={styles.messageOverlay} pointerEvents="none">
+        {/* The live region stays mounted so screen readers announce each
+            message change (a live region that mounts together with its
+            content is not reliably announced). On web, RN maps
+            accessibilityLiveRegion to aria-live; natively it drives the
+            platform announce. pointerEvents="none" as before — the region
+            never intercepts input. */}
+        <View
+          style={styles.messageOverlay}
+          pointerEvents="none"
+          accessibilityLiveRegion="polite"
+        >
+          {showMessage ? (
             <Text style={styles.messageText}>{showMessage}</Text>
-          </View>
-        )}
+          ) : null}
+        </View>
         {!onboardingLoading && onboardingDone !== true && (
           <OnboardingOverlay
             onDismiss={() => {

@@ -37,10 +37,7 @@ export function useDailyBonus({
   // key actually differs, so it's a no-op re-render otherwise.
   const [dayKey, setDayKey] = useState(() => getLocalDayKey(Date.now()));
   useEffect(() => {
-    const id = setInterval(
-      () => setDayKey(getLocalDayKey(Date.now())),
-      60000,
-    );
+    const id = setInterval(() => setDayKey(getLocalDayKey(Date.now())), 60000);
     return () => clearInterval(id);
   }, []);
 
