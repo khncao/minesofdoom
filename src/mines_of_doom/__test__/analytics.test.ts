@@ -6,6 +6,7 @@ import {
   D7_RETENTION_MS,
   emptyAnalyticsState,
   parseAnalytics,
+  recordAdOutcome,
   recordAdView,
   recordAppOpen,
   recordCosmeticPurchase,
@@ -82,11 +83,35 @@ describe("recordAppOpen", () => {
 });
 
 describe("recordAdView", () => {
-  it("stamps the first ad view once", () => {
-    const s = recordAdView(null, day(3));
+  it("stamps the first ad view once, with the kind of the first tap", () => {
+    const s = recordAdView(null, day(3), "gemRolls");
     expect(s.firstAdViewDay).toBe(getLocalDayKey(day(3)));
-    const again = recordAdView(s, day(5));
+    expect(s.firstAdKind).toBe("gemRolls");
+    // A later tap of a different kind never overwrites the first.
+    const again = recordAdView(s, day(5), "comboSave");
     expect(again.firstAdViewDay).toBe(getLocalDayKey(day(3)));
+    expect(again.firstAdKind).toBe("gemRolls");
+  });
+});
+
+describe("recordAdOutcome", () => {
+  it("stamps the first attempt's outcome once", () => {
+    let s = emptyAnalyticsState(day(1));
+    s = recordAdOutcome(s, day(3), "closed");
+    expect(s.firstAdOutcome).toBe("closed");
+    // A later rewarded attempt never rewrites the first-attempt outcome.
+    s = recordAdOutcome(s, day(4), "rewarded");
+    expect(s.firstAdOutcome).toBe("closed");
+  });
+
+  it("stamps the view day and kind together, outcome follows", () => {
+    let s = recordAdView(null, day(2), "offlineDouble");
+    s = recordAdOutcome(s, day(2), "rewarded");
+    expect(s).toMatchObject({
+      firstAdViewDay: getLocalDayKey(day(2)),
+      firstAdKind: "offlineDouble",
+      firstAdOutcome: "rewarded",
+    });
   });
 });
 
@@ -231,7 +256,8 @@ describe("parseAnalytics", () => {
   it("round-trips a full record (incl. both per-purchase logs)", () => {
     let s = emptyAnalyticsState(day(1));
     s = recordAppOpen(s, day(2));
-    s = recordAdView(s, day(2));
+    s = recordAdView(s, day(2), "gemRolls");
+    s = recordAdOutcome(s, day(2), "rewarded");
     s = recordIapPurchase(s, day(3), "packGold");
     s = recordPrestige(s, day(4));
     s = recordCosmeticPurchase(
@@ -264,6 +290,31 @@ describe("parseAnalytics", () => {
     const legacy = { ...emptyAnalyticsState(day(1)) };
     delete (legacy as Record<string, unknown>).firstTierDay;
     expect(parseAnalytics(JSON.stringify(legacy))!.firstTierDay).toEqual({});
+  });
+
+  it("drops invalid first-ad stamps (a hand-edited record must not crash the panel)", () => {
+    const bad = parseAnalytics(
+      JSON.stringify({
+        firstOpenMs: day(1),
+        firstAdKind: "notAKind",
+        firstAdOutcome: "meh",
+      }),
+    );
+    expect(bad).not.toBeNull();
+    expect(bad!.firstAdKind).toBe("");
+    expect(bad!.firstAdOutcome).toBe("");
+    const good = parseAnalytics(
+      JSON.stringify({
+        firstOpenMs: day(1),
+        firstAdKind: "gemRolls",
+        firstAdOutcome: "error",
+      }),
+    );
+    expect(good!.firstAdKind).toBe("gemRolls");
+    expect(good!.firstAdOutcome).toBe("error");
+    // Pre-F26.4 records (fields absent) default to "" — the summary
+    // line renders bare, exactly as before.
+    expect(good!.firstAdViewDay).toBe("");
   });
 
   it("migrates a legacy record: cosmetic + IAP log fields default in", () => {
@@ -382,7 +433,8 @@ describe("summarizeAnalytics", () => {
   it("renders the fixed field block in a stable order, then the recent rows", () => {
     let s = emptyAnalyticsState(day(1));
     s = recordAppOpen(s, day(3));
-    s = recordAdView(s, day(2));
+    s = recordAdView(s, day(2), "comboSave");
+    s = recordAdOutcome(s, day(2), "error");
     s = recordPrestige(s, day(9));
     s = recordIapPurchase(s, day(4), "packGold");
     s = recordCosmeticPurchase(
@@ -410,6 +462,16 @@ describe("summarizeAnalytics", () => {
     expect(lines[14]).toBe("recent cosmetics   (last 1 of 1)");
     expect(lines[16]).toBe("recent iap   (last 1 of 1)");
     expect(lines.at(-1)).toBe(`  ${getLocalDayKey(day(4))}  packGold`);
+  });
+
+  it("decorates the first-ad-view line with the first kind and outcome", () => {
+    let s = emptyAnalyticsState(day(1));
+    s = recordAdView(s, day(2), "offlineTopUp");
+    s = recordAdOutcome(s, day(2), "closed");
+    const text = summarizeAnalytics(s);
+    expect(text).toContain(
+      `first ad view   ${getLocalDayKey(day(2))} (offlineTopUp, closed)`,
+    );
   });
 
   it("says 'never' for un-fired one-shot fields and omits the variable blocks when empty", () => {

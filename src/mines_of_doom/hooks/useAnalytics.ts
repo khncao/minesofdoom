@@ -4,6 +4,7 @@ import {
   AnalyticsState,
   analyticsKey,
   parseAnalytics,
+  recordAdOutcome,
   recordAdView,
   recordAppOpen,
   recordCosmeticPurchase,
@@ -13,6 +14,7 @@ import {
   type CosmeticPurchasePath,
   type CosmeticLine,
 } from "../analytics";
+import type { AdKind, AdResult } from "../ads";
 import type { IapProductId } from "../iaps";
 
 /**
@@ -85,9 +87,18 @@ export function useAnalytics() {
   // so a double invocation (strict mode) stays a no-op for the one-shot
   // first-occurrence markers and only ever re-stamps lastOpenMs-class
   // fields the caller doesn't care about here.
-  const onAdView = useCallback(() => {
+  const onAdView = useCallback((kind: AdKind) => {
     const now = Date.now();
-    persist(recordAdView(stateRef.current, now));
+    persist(recordAdView(stateRef.current, now, kind));
+  }, [persist]);
+
+  /**
+   * A rewarded ad attempt settled (F26.4): the claim lifecycle fires it
+   * with the provider's result. Only the first attempt's outcome is
+   * stamped — the fold is idempotent like every other first-\* marker.
+   */
+  const onAdOutcome = useCallback((outcome: AdResult) => {
+    persist(recordAdOutcome(stateRef.current, Date.now(), outcome));
   }, [persist]);
 
   /**
@@ -153,6 +164,7 @@ export function useAnalytics() {
     state,
     loaded,
     onAdView,
+    onAdOutcome,
     onIapPurchase,
     onPrestige,
     onTierMilestone,

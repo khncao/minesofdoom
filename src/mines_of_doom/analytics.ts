@@ -14,6 +14,8 @@
  */
 
 import type { IapProductId } from "./iaps";
+import type { AdKind, AdResult } from "./ads";
+import { AD_KIND_VALUES, AD_OUTCOME_VALUES } from "./ads";
 import { getLocalDayKey } from "./dailyBonus";
 
 /** AsyncStorage key for the analytics record. */
@@ -44,6 +46,19 @@ export type AnalyticsState = {
    * "watch" — recorded whether or not they finish the ad.
    */
   firstAdViewDay: string;
+  /**
+   * The kind of the FIRST rewarded-ad tap ("" = not yet observed; invalid
+   * persisted values drop to "" at parse time). "First" semantics: a later
+   * tap of a different kind never overwrites it (F26.4 — the hook seam
+   * already carried the kind, the fold dropped it).
+   */
+  firstAdKind: string;
+  /**
+   * The outcome of the FIRST rewarded-ad attempt ("" = not yet observed):
+   * "rewarded" | "closed" | "error" — the ad pipeline's failure modes
+   * (no fill / early close) are otherwise invisible (F26.4).
+   */
+  firstAdOutcome: string;
   /** Local day of the first IAP purchase (wired when the store SDK ships). */
   firstIapPurchaseDay: string;
   /** Total IAP purchases (receipt count, guardrail 5). */
@@ -141,6 +156,8 @@ export function emptyAnalyticsState(now: number): AnalyticsState {
     d1Retention: false,
     d7Retention: false,
     firstAdViewDay: "",
+    firstAdKind: "",
+    firstAdOutcome: "",
     firstIapPurchaseDay: "",
     iapPurchases: 0,
     iapPurchaseLog: [],
@@ -181,11 +198,31 @@ export function recordAppOpen(
 export function recordAdView(
   state: AnalyticsState | null,
   now: number,
+  kind: AdKind,
 ): AnalyticsState {
   const s = state ?? emptyAnalyticsState(now);
   return s.firstAdViewDay !== ""
     ? s
-    : { ...s, firstAdViewDay: getLocalDayKey(now) };
+    : { ...s, firstAdViewDay: getLocalDayKey(now), firstAdKind: kind };
+}
+
+/**
+ * The outcome of a rewarded-ad attempt (F26.4): only the FIRST attempt's
+ * outcome is stamped (first-\* semantics — a later attempt, rewarded or
+ * not, never overwrites it). Fired by the claim lifecycle after the
+ * provider settles, so "rewarded" = the first tap actually played an ad,
+ * "closed" = the player bailed, "error" = the ad never showed (no fill /
+ * no provider) — the failure modes the day stamp alone can't see.
+ */
+export function recordAdOutcome(
+  state: AnalyticsState | null,
+  now: number,
+  outcome: AdResult,
+): AnalyticsState {
+  const s = state ?? emptyAnalyticsState(now);
+  return s.firstAdOutcome !== ""
+    ? s
+    : { ...s, firstAdOutcome: outcome };
 }
 
 /**
@@ -319,6 +356,8 @@ export function parseAnalytics(raw: string | null): AnalyticsState | null {
     d1Retention: bool(o.d1Retention),
     d7Retention: bool(o.d7Retention),
     firstAdViewDay: str(o.firstAdViewDay),
+    firstAdKind: validAdKind(o.firstAdKind),
+    firstAdOutcome: validAdOutcome(o.firstAdOutcome),
     firstIapPurchaseDay: str(o.firstIapPurchaseDay),
     iapPurchases: Math.max(0, Math.floor(num(o.iapPurchases, 0))),
     iapPurchaseLog: sanitizeIapPurchaseLog(o.iapPurchaseLog),
@@ -412,6 +451,40 @@ function isIapPurchaseEvent(e: unknown): e is IapPurchaseEvent {
  * the tier-milestone stamps (pass 23 — the gate moments, data-driven by
  * whichever tiers have been observed).
  */
+/**
+ * Parse-time validation of the first-ad stamps: a persisted value outside
+ * the AdKind/AdResult vocab (hand-edited record) drops to "" — the same
+ * corruption guard the other fields get. The value lists live in ads.ts
+ * next to the types, so the vocab can't drift.
+ */
+function validAdKind(v: unknown): string {
+  return typeof v === "string" && (AD_KIND_VALUES as readonly string[]).includes(v)
+    ? v
+    : "";
+}
+
+function validAdOutcome(v: unknown): string {
+  return typeof v === "string" &&
+    (AD_OUTCOME_VALUES as readonly string[]).includes(v)
+    ? v
+    : "";
+}
+
+/**
+ * The "first ad view" summary line: the day plus the first-attempt kind
+ * and outcome in parentheses when stamped. Pre-F26.4 records (and fresh
+ * records, where the day is "never") render exactly the bare line.
+ */
+function adViewLine(state: AnalyticsState): string {
+  const day = state.firstAdViewDay === "" ? "never" : state.firstAdViewDay;
+  if (state.firstAdKind === "") return day;
+  const extra =
+    state.firstAdOutcome === ""
+      ? state.firstAdKind
+      : `${state.firstAdKind}, ${state.firstAdOutcome}`;
+  return `${day} (${extra})`;
+}
+
 export function summarizeAnalytics(state: AnalyticsState): string {
   const day = (d: string) => (d === "" ? "never" : d);
   const yesno = (b: boolean) => (b ? "yes" : "no");
@@ -421,7 +494,9 @@ export function summarizeAnalytics(state: AnalyticsState): string {
     `active days     ${state.activeDays}`,
     `d1 retention    ${yesno(state.d1Retention)}`,
     `d7 retention    ${yesno(state.d7Retention)}`,
-    `first ad view   ${day(state.firstAdViewDay)}`,
+    // kind/outcome decorate the day only when stamped (pre-F26.4 records
+    // — and fresh records — render the bare line, exactly as before).
+    `first ad view   ${adViewLine(state)}`,
     `iap purchases   ${state.iapPurchases}`,
     `first iap       ${day(state.firstIapPurchaseDay)}`,
     `cosmetic purchases   ${state.cosmeticPurchases}`,

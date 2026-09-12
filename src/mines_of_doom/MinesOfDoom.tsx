@@ -1209,6 +1209,7 @@ export default function MinesOfDoom() {
     state: analytics,
     onPrestige,
     onAdView: onFirstAdView,
+    onAdOutcome: onFirstAdOutcome,
     onIapPurchase: onFirstIap,
     onTierMilestone,
     onCosmeticPurchase,
@@ -1238,6 +1239,7 @@ export default function MinesOfDoom() {
     claimComboSave,
     displayMessage,
     onAdView: onFirstAdView,
+    onAdOutcome: onFirstAdOutcome,
   });
 
   // Let an expired combo save go (the panel's countdown and the claim guard

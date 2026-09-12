@@ -5,6 +5,7 @@ import { formatNumber } from "src/utils/format";
 import {
   AdKind,
   AdProvider,
+  AdResult,
   AdRewardsState,
   AD_COMBO_SAVES_PER_DAY,
   AD_GEM_ROLLS_PER_DAY,
@@ -37,6 +38,7 @@ export function useAdRewards({
   claimComboSave,
   displayMessage,
   onAdView,
+  onAdOutcome,
 }: {
   provider: AdProvider;
   /** Engine callback: grant gems (ad gem rolls). */
@@ -59,6 +61,12 @@ export function useAdRewards({
   displayMessage: (message: string, timeout: number) => void;
   /** Fired when the player taps "watch" (analytics first-ad-view). */
   onAdView?: (kind: AdKind) => void;
+  /**
+   * Fired when a rewarded ad attempt settles (F26.4): the provider's
+   * result, for the analytics first-ad-outcome stamp — the "rewarded" vs
+   * "closed" vs "error" split the tap stamp alone can't see.
+   */
+  onAdOutcome?: (outcome: AdResult) => void;
 }) {
   const { t } = useI18n();
   const [state, setState] = useLocalStorage<AdRewardsState | null>(
@@ -109,6 +117,7 @@ export function useAdRewards({
       provider
         .showRewarded(kind)
         .then((result) => {
+          onAdOutcome?.(result);
           if (result === "rewarded") {
             if (kind === "gemRolls") {
               grantGems(eligibility.gems);
@@ -165,6 +174,7 @@ export function useAdRewards({
       claimComboSave,
       displayMessage,
       onAdView,
+      onAdOutcome,
       setState,
       t,
     ],

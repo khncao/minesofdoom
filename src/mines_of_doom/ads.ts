@@ -25,12 +25,27 @@ import { isAdSenseConfigured } from "./storeConfig";
 /** The kinds of rewards a completed ad can grant. */
 export type AdKind = "gemRolls" | "offlineDouble" | "offlineTopUp" | "comboSave";
 
+/** The AdKind values as a runtime list (validation of persisted records). */
+export const AD_KIND_VALUES: readonly AdKind[] = [
+  "gemRolls",
+  "offlineDouble",
+  "offlineTopUp",
+  "comboSave",
+];
+
 /**
  * Outcome of a rewarded ad session. Only "rewarded" entitles the player to
  * the reward; "closed" means the player bailed before finishing, "error"
  * means the ad never showed (no network, no fill, no provider).
  */
 export type AdResult = "rewarded" | "closed" | "error";
+
+/** The AdResult values as a runtime list (validation of persisted records). */
+export const AD_OUTCOME_VALUES: readonly AdResult[] = [
+  "rewarded",
+  "closed",
+  "error",
+];
 
 /**
  * Provider abstraction (plan §5.1: "gate behind a provider abstraction so

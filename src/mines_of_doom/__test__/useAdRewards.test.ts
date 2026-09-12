@@ -82,6 +82,7 @@ function makeProps(overrides: Partial<AdRewardsProps> = {}): AdRewardsProps {
     claimComboSave: jest.fn(),
     displayMessage: jest.fn(),
     onAdView: jest.fn(),
+    onAdOutcome: jest.fn(),
     ...overrides,
   };
 }
@@ -170,6 +171,25 @@ describe("useAdRewards — claim lifecycle", () => {
     expect(stored.dayKey).toBe(today());
     expect(stored.rollsUsed).toBe(1);
     expect(stored.rewardsToday).toBe(1);
+  });
+
+  it("fires onAdOutcome with the provider's result (F26.4 first-ad-outcome)", async () => {
+    const provider = makeProvider("closed");
+    const onAdOutcome = makeProps().onAdOutcome;
+    const result = await renderAdRewards(
+      makeProps({ provider, onAdOutcome }),
+    );
+    await claim(result, "gemRolls");
+    expect(onAdOutcome).toHaveBeenCalledTimes(1);
+    expect(onAdOutcome).toHaveBeenCalledWith("closed");
+    // The seam fires on every attempt; the first-attempt fold lives in
+    // recordAdOutcome (covered in analytics.test.ts).
+    const provider2 = makeProvider("rewarded");
+    const result2 = await renderAdRewards(
+      makeProps({ provider: provider2, onAdOutcome }),
+    );
+    await claim(result2, "gemRolls");
+    expect(onAdOutcome).toHaveBeenLastCalledWith("rewarded");
   });
 
   it("gemRolls: a bailed ad grants nothing and meters nothing", async () => {
