@@ -43,9 +43,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: "Mines of Idle Doomath",
   slug: "minesofdoom",
   scheme: "com.minus4kelvin.minesofdoom",
-  version: "1.0.8",
+  version: "1.0.9",
   android: {
-    versionCode: 8,
+    versionCode: 9,
     adaptiveIcon: {
       foregroundImage: pickaxePng,
       backgroundColor: "#ffffff",
