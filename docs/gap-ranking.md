@@ -40,6 +40,18 @@ repo is not equipped to make.
    conversion. D1 is the named retention driver; the first session is
    its biggest lever (the 60-second-playable rule). Onboarding
    dismissal is currently the only onboarding signal.
+
+   **Resolved (pass 78, 2026-09-25).** The funnel is now measurable from
+   the local record: `appOpens` folds every load in `recordAppOpen`
+   (session 1→2 conversion = the `app opens` line, rendered from 2),
+   `firstAnswerMs` stamps the first correct equation (time-to-core,
+   rendered with `+Δs` since first open — the 60-second-playable rule
+   gets its number), and `onboardingStepMs`/`onboardingEndMs`/`onboardingCompleted`
+   stamp per-step reach and tour end (`skipped` vs `completed`).
+   All three parse-migrate legacy records and render in the debug
+   summary. Remaining: first-*session* length (needs a per-session
+   start/end pair, not just stamps) — the other four signals are in.
+   The onboarding overlay itself is unchanged (no UX change).
 3. **`free-path:motherlode-target` + `economy:offline-sim-fix`**
    (passes 25/19) — benchmark integrity: CI pins F2P only at the
    *opening* (first prestige ≤ 7 days); time-to-t5 is unpinned, and
