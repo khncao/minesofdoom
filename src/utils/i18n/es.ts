@@ -345,6 +345,19 @@ export const es: Record<TranslationKey, string> = {
     "mientras no estás y que el progreso se guarda solo. Aparece a lo sumo " +
     "una vez por sesión y no da ninguna recompensa — es información, no un " +
     "temporizador. Desactivado: silencio.",
+  "settings.tooltipAutoDailyEquation": "Ecuación del día automática",
+  "settings.autoDailyEquation": "Ecuación del día automática: ",
+  "settings.autoDailyEquationHelp":
+    "Activado (por defecto): mientras la ecuación del día siga sin resolver, " +
+    "aparece sola en la pantalla principal — los errores ahí no cuestan nada " +
+    "y resolverla paga el bonus diario fijo. Desactivado: vuelve el botón 📅 " +
+    "a la parte superior y la empiezas tú.",
+  "settings.tooltipAutoDailyBonus": "Recompensa diaria automática",
+  "settings.autoDailyBonus": "Recompensa diaria automática: ",
+  "settings.autoDailyBonusHelp":
+    "Activado (por defecto): el bonus de la racha de días se reclama solo en " +
+    "cuanto está disponible — sigue saliendo el aviso habitual. Desactivado: " +
+    "vuelve el botón 🎁 a la parte superior y lo reclamas tú.",
   "settings.emojiArt": "Arte de emoji (modo ligero): ",
   "settings.emojiArtHelp":
     "Desactivado (por defecto): mineros, monedas, escombros y el fondo de la " +

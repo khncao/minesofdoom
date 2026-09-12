@@ -178,6 +178,25 @@ export type SettingsData = {
    * migration).
    */
   notation: NumberNotation;
+  /**
+   * Auto equation of the day (ON by default): while today's equation is
+   * still unsolved it pops into the main display on its own — the daily-
+   * equation mode, at most once per local day (see the auto-start effect
+   * in MinesOfDoom.tsx) — and the 📅 header icon stays away. Off: the
+   * 📅 header button returns as the manual entry point. Old settings
+   * never carry the field — the settings merge supplies the default (no
+   * migration).
+   */
+  autoDailyEquation: boolean;
+  /**
+   * Auto daily bonus (ON by default): the login-streak bonus claims itself
+   * the moment it becomes claimable (at most once per local day — see the
+   * auto-claim effect in MinesOfDoom.tsx; the usual claim toast still
+   * plays) and the 🎁 header icon stays away. Off: the 🎁 header button
+   * returns and the player claims manually. Old settings never carry the
+   * field — the settings merge supplies the default (no migration).
+   */
+  autoDailyBonus: boolean;
 };
 
 export const saveDataKey = "save";
@@ -870,6 +889,8 @@ export const defaultSettingsData = {
   soundVolume: 100,
   musicVolume: 50,
   notation: "compact" as NumberNotation,
+  autoDailyEquation: true,
+  autoDailyBonus: true,
 };
 
 /**

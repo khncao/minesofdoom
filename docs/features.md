@@ -87,7 +87,12 @@ of Pressable so rapid tapping doesn't double-render).
 - **Daily bonus / streak** — 10k base × streak through day 6, then a
   250k day-7 milestone (worth more than days 1–6 combined) for streaks
   7+; stored separately from the save so a lost streak never costs
-  progress (`dailyBonus.ts`, `components/DailyBonusButton.tsx`).
+  progress (`dailyBonus.ts`, `components/DailyBonusButton.tsx`). The idle
+  reward pops up by itself: with the "Auto daily bonus" setting on
+  (default) a claimable bonus claims itself once per local day — same
+  grant path, same claim toast, no header icon; turning the setting off
+  brings the 🎁 header button back as the manual entry point (todo:
+  "remove the icon, pop it up automatically").
 - **Weekly contract** — a recurring contract on a longer cadence than the
   daily bonus: 3 goals that are DELTAS on the save's monotonic lifetime
   metrics (answer 75 equations / mine 500k minerals / own 2 more miners
@@ -102,10 +107,14 @@ of Pressable so rapid tapping doesn't double-render).
 - **Equation of the day** — one fixed equation per local day, the SAME
   equation for every player/device (FNV-1a day-key seed → mulberry32 →
   `getSeededEquation`, always-soft classic+percent+missing shape); a 📅
-  header button forces it into the main display, where wrong answers are
+  equation; with the "Auto equation of the day" setting on (default) it
+  starts itself — at most once per local day — while unsolved, so the 📅
+  header icon stays out of the top row; turning the setting off brings
+  the icon back as the manual entry point. In mode, wrong answers are
   penalty-free and a solve pays a flat 25k bonus once per day. Solved-day
-  lives in its own AsyncStorage key, like the daily bonus (`dailyEquation.ts`,
-  `hooks/useDailyEquation.ts`, `components/DailyEquationButton.tsx`).
+  lives in its own AsyncStorage key, like the daily bonus
+  (`dailyEquation.ts`, `hooks/useDailyEquation.ts`,
+  `components/DailyEquationButton.tsx`).
 - **Local records** — personal-best panel (depth, combo, minerals/sec, …)
   over the same lifetime stats a live leaderboard would use (`records.ts`,
   `components/RecordsPanel.tsx`). Since the statistics-detail todo it also

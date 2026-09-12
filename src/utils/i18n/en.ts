@@ -292,6 +292,19 @@ export const en = {
     "message reminds you that the mine keeps collecting while you're away and " +
     "your progress autosaves. It shows at most once per session and pays " +
     "nothing — information, not a timer. Off: it stays quiet.",
+  "settings.tooltipAutoDailyEquation": "Auto equation of the day",
+  "settings.autoDailyEquation": "Auto equation of the day: ",
+  "settings.autoDailyEquationHelp":
+    "On (default): while today's equation is still unsolved it pops into the " +
+    "main display on its own — wrong answers there are penalty-free and a " +
+    "solve pays the flat daily bonus. Off: the 📅 button returns to the top " +
+    "row and you start it when you like.",
+  "settings.tooltipAutoDailyBonus": "Auto daily bonus",
+  "settings.autoDailyBonus": "Auto daily bonus: ",
+  "settings.autoDailyBonusHelp":
+    "On (default): the login-streak bonus claims itself the moment it's " +
+    "available — the usual claim toast still shows. Off: the 🎁 button " +
+    "returns to the top row and you claim it yourself.",
   "settings.haptics": "Haptic feedback: ",
   "settings.hapticsHelp":
     "On (default): the device vibrates on the events that carry the game's " +

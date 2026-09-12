@@ -99,6 +99,10 @@ export function useDailyBonus({
   }, [grantMinerals, setState, displayMessage, t]);
 
   return {
+    // The local day key the status was derived for: callers that act once
+    // PER DAY (the auto-claim effect in MinesOfDoom) key their once-per-day
+    // guards on it instead of re-deriving getLocalDayKey themselves.
+    dayKey,
     claimable: info.claimable,
     bonus: info.bonus,
     streak: state?.streak ?? 0,

@@ -986,6 +986,32 @@ export default function MinesOfDoom() {
     t,
   ]);
 
+  // Auto equation of the day (todo: the daily question pops up on its own;
+  // the 📅 header icon only renders while this toggle is OFF): with the
+  // toggle on (default) an unsolved daily equation starts itself, at most
+  // once per local day — the per-dayKey ref guard is what makes a repeated
+  // render (and a manual exit-then-restart on the same day) a no-op.
+  // Onboarding-gated like the gem pocket: the tutorial owns the display
+  // first. A solved day is skipped outright (nothing pops up, nothing to
+  // solve), so a returning player never sees the equation again today.
+  const dailyEquationAutoRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!settingsData.autoDailyEquation) return;
+    if (onboardingLoading || onboardingDone !== true) return;
+    if (dailyEquation.solved || dailyEquationModeRef.current) return;
+    if (dailyEquationAutoRef.current === dailyEquation.dayKey) return;
+    dailyEquationAutoRef.current = dailyEquation.dayKey;
+    handleDailyEquationStart();
+  }, [
+    settingsData.autoDailyEquation,
+    onboardingLoading,
+    onboardingDone,
+    dailyEquation.solved,
+    dailyEquationMode,
+    dailyEquation.dayKey,
+    handleDailyEquationStart,
+  ]);
+
   const handleMuteChange = useCallback(
     (newVal: boolean) => setMute(newVal),
     [setMute],
@@ -1125,6 +1151,30 @@ export default function MinesOfDoom() {
     noteCrashEvent("daily bonus claimed");
     dailyClaim();
   }, [dailyClaim]);
+
+  // Auto daily bonus (todo: the idle reward pops up on its own; the 🎁
+  // header icon only renders while this toggle is OFF): with the toggle
+  // on (default) a claimable streak bonus claims itself, at most once per
+  // local day. `claim` is internally claimable-guarded and synchronously
+  // re-points its state ref, so a stray double-call can never pay twice —
+  // the per-dayKey ref just keeps the effect honest. Onboarding-gated
+  // like the auto equation above.
+  const dailyBonusAutoRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!settingsData.autoDailyBonus) return;
+    if (onboardingLoading || onboardingDone !== true) return;
+    if (!dailyBonus.claimable) return;
+    if (dailyBonusAutoRef.current === dailyBonus.dayKey) return;
+    dailyBonusAutoRef.current = dailyBonus.dayKey;
+    dailyClaim();
+  }, [
+    settingsData.autoDailyBonus,
+    onboardingLoading,
+    onboardingDone,
+    dailyBonus.claimable,
+    dailyBonus.dayKey,
+    dailyClaim,
+  ]);
 
   // Weekly contract (todo: "weekly challenges"): the same additive grant
   // path as the daily bonus; progress is a derived delta on the live save
@@ -1584,13 +1634,18 @@ export default function MinesOfDoom() {
             {/* The upgrades button floats over the cave instead (todo:
               "move upgrades button floating over the canvas") — see the
               canvasWrap below; the header row keeps every OTHER entry. */}
-            <DailyBonusButton
-              claimable={dailyBonus.claimable}
-              bonus={dailyBonus.bonus}
-              streak={dailyBonus.streak}
-              freezes={dailyBonus.freezes}
-              onClaim={handleDailyClaim}
-            />
+            {/* The idle reward's 🎁 icon renders ONLY while the auto-claim
+              toggle is off (todo: remove the icon, pop it up instead): on
+              (default) the effect above claims the bonus itself. */}
+            {!settingsData.autoDailyBonus && (
+              <DailyBonusButton
+                claimable={dailyBonus.claimable}
+                bonus={dailyBonus.bonus}
+                streak={dailyBonus.streak}
+                freezes={dailyBonus.freezes}
+                onClaim={handleDailyClaim}
+              />
+            )}
             <WeeklyContractButton
               claimable={weeklyContract.claimable}
               claimed={weeklyContract.claimed}
@@ -1599,11 +1654,16 @@ export default function MinesOfDoom() {
               total={weeklyContract.total}
               onClaim={handleWeeklyClaim}
             />
-            <DailyEquationButton
-              solved={dailyEquation.solved}
-              bonus={dailyEquation.bonus}
-              onStart={handleDailyEquationStart}
-            />
+            {/* The daily question's 📅 icon renders ONLY while the auto
+              toggle is off (todo: remove the icon, pop it up instead): on
+              (default) the effect above starts the equation itself. */}
+            {!settingsData.autoDailyEquation && (
+              <DailyEquationButton
+                solved={dailyEquation.solved}
+                bonus={dailyEquation.bonus}
+                onStart={handleDailyEquationStart}
+              />
+            )}
             {/* The trophy renders only while the provider is available
               (plan §Leaderboard "Availability gate"): hidden until the
               Pocketbase URL is configured, same rule as the ad/IAP

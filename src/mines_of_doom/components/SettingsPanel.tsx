@@ -521,6 +521,64 @@ const SettingsContent = memo(function SettingsContent({
           />
         </View>
       </Tooltip>
+      {/* Auto equation of the day (todo: daily question pops up by itself):
+          on (default) the daily equation starts itself while unsolved and
+          the 📅 icon stays out of the top row; off, the icon returns as the
+          manual entry point (see the auto-start effect in MinesOfDoom). */}
+      <Tooltip
+        label={t("settings.tooltipAutoDailyEquation")}
+        content={t("settings.autoDailyEquationHelp")}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Text style={{ ...styles.text, fontSize: 11 }}>
+            {t("settings.autoDailyEquation")}
+          </Text>
+          <Switch
+            value={settingsData.autoDailyEquation}
+            onValueChange={(newVal) => {
+              onChangeSettingsData({
+                ...settingsData,
+                autoDailyEquation: newVal,
+              });
+            }}
+          />
+        </View>
+      </Tooltip>
+      {/* Auto daily bonus (todo: idle reward without the icon): on
+          (default) the streak bonus claims itself when claimable and the
+          🎁 icon stays out of the top row; off, the icon returns and the
+          player taps it (see the auto-claim effect in MinesOfDoom). */}
+      <Tooltip
+        label={t("settings.tooltipAutoDailyBonus")}
+        content={t("settings.autoDailyBonusHelp")}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Text style={{ ...styles.text, fontSize: 11 }}>
+            {t("settings.autoDailyBonus")}
+          </Text>
+          <Switch
+            value={settingsData.autoDailyBonus}
+            onValueChange={(newVal) => {
+              onChangeSettingsData({
+                ...settingsData,
+                autoDailyBonus: newVal,
+              });
+            }}
+          />
+        </View>
+      </Tooltip>
       <Tooltip
         label={t("settings.tooltipEmojiArt")}
         content={t("settings.emojiArtHelp")}
