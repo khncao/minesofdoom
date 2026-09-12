@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import { Image, Pressable, View } from "react-native";
 import { T as Text } from "../textScale";
 import BottomModal from "src/components/BottomModal";
@@ -9,13 +9,18 @@ import {
   IapPackLine,
   IapProduct,
   IapProductId,
+  IAP_PACK_GRANTS,
   IAP_PRODUCT_LIST,
   getIapPackCosmetic,
   getIapProductPreview,
   isIapProductEquipped,
   isIapProductOwned,
 } from "../iaps";
-import { getPickaxe, rollMinerLook } from "../cosmetics";
+import {
+  ROSTER_ASSIGNABLE_SLOTS,
+  getPickaxe,
+  rollMinerLook,
+} from "../cosmetics";
 import { CustomSkinSave, customSkinGridKey } from "../customSkin";
 import { BUNDLED_SPRITES } from "../bundledSprites";
 import { SKIN_SAMPLE_PICKAXES, SKIN_SAMPLE_SOUNDS } from "../skinSamples";
@@ -44,45 +49,110 @@ import { styles } from "../styles";
  * store's own record on each launch. Copy states plainly that
  * everything is optional and the game stays fully free (guardrails 1 & 4):
  * no urgency language, no default-checked options, no misleading icons.
+ *
+ * Catalog layout (todo: "implement cosmetic shop with grid view cards and
+ * larger previews"): pickaxes, outfits and cave themes render as a GRID of
+ * cards with 2–3× larger previews; the custom-skin line keeps its control
+ * rows (uploads/samples are row-shaped, cards don't fit them).
+ *
+ * Per-crew customization (todo: "allow visual customization (iap
+ * cosmetic) of hired miners individually"): the Outfits group carries a
+ * "worn by" wearer selector — 👤 You or one of the visible hired crew
+ * slots (see ROSTER_ASSIGNABLE_SLOTS). Selecting a crew slot makes every
+ * owned outfit card offer Wear / Revert for that hire; the free default
+ * is You (equip/reroll as before). Pickaxes and cave themes always act
+ * on the player.
  */
 /**
- * Shop-row thumbnail (todo: "Show cosmetic previews in shop listings"): the
- * actual sprite / palette the pack grants (getIapProductPreview), so a
- * player can see the item before buying.
+ * Shop-card preview (todo: "Show cosmetic previews in shop listings" +
+ * "grid view cards and larger previews"): the actual sprite / palette the
+ * pack grants (getIapProductPreview) blown up to card size, so a player
+ * can see the item before buying.
  */
-function ProductThumb({ productId }: { productId: IapProductId }) {
+function ProductPreview({
+  productId,
+  line,
+  compact = false,
+}: {
+  productId: IapProductId;
+  line: IapPackLine;
+  /** Row-sized thumb (the custom-skin line's control rows). */
+  compact?: boolean;
+}) {
   const preview = getIapProductPreview(productId);
   if (preview.kind === "sprite") {
     return (
-      <View style={{ width: 26, alignItems: "center" }}>
-        <Image
-          source={{ uri: preview.uri }}
-          style={{ width: 22, height: 22 }}
-          accessibilityRole="image"
-        />
-      </View>
+      <Image
+        source={{ uri: preview.uri }}
+        style={
+          compact
+            ? { width: 24, height: 24 }
+            : line === "pickaxe"
+              ? styles.shopPickaxePreview
+              : styles.shopOutfitPreview
+        }
+        accessibilityRole="image"
+      />
     );
   }
   if (preview.kind === "swatches") {
     return (
-      <View style={{ width: 26, alignItems: "center" }}>
-        <View style={{ flexDirection: "row", gap: 2 }}>
-          {preview.tints.map((tint, i) => (
-            <View
-              key={i}
-              style={{
-                width: 5,
-                height: 22,
-                borderRadius: 2,
-                backgroundColor: tint,
-              }}
-            />
-          ))}
-        </View>
+      <View style={{ flexDirection: "row", gap: 3, alignItems: "flex-end" }}>
+        {preview.tints.map((tint, i) => (
+          <View
+            key={i}
+            style={{
+              width: 10,
+              height: 16 + i * 6,
+              borderRadius: 3,
+              backgroundColor: tint,
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.15)",
+            }}
+          />
+        ))}
       </View>
     );
   }
   return null;
+}
+
+/** The "worn by" selector chip (per-crew customization): a wearer target
+ *  for outfit assignments — the player, or one hired crew slot. */
+function WearerChip({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      onPress={onPress}
+      style={{
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: active ? "#ffd54f" : "rgba(255,255,255,0.35)",
+        backgroundColor: active ? "rgba(255,213,79,0.18)" : "rgba(0,0,0,0.3)",
+      }}
+    >
+      <Text
+        style={{
+          ...styles.text,
+          fontSize: 12,
+          fontWeight: active ? "bold" : "normal",
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
 }
 
 function IapPanel({
@@ -96,19 +166,24 @@ function IapPanel({
   selectedOutfit,
   selectedPickaxe,
   selectedCaveTheme,
+  /** Hired normal crew count — the individually-customizable roster slots. */
+  miners,
+  /**
+   * Owned-filtered per-crew outfit overrides (the engine's minerOutfits
+   * filtered by the caller to owned ids): roster slot decimal string →
+   * outfit id. A slot without an override wears the player's selection.
+   */
+  minerOutfits,
   purchasing,
   entitlements,
   saveOwnedCosmeticIds,
   themesLocked,
-  /**
-   * The device-local custom-skin slot (useCustomSkin) — the packSkin row
-   * joins its unlock/equip flags (the grant is not a save field) and its
-   * uploads power the upload/clear controls below the row.
-   */
   customSkin,
   onBuyGems,
   onPurchase,
   onSelect,
+  onAssignMinerOutfit,
+  onClearMinerOutfit,
   onReroll,
   onUploadSkinImage,
   onUploadSkinPickaxe,
@@ -140,13 +215,15 @@ function IapPanel({
   selectedOutfit: string;
   selectedPickaxe: string;
   selectedCaveTheme: string;
+  /** Hired normal crew count (per-crew customization scope). */
+  miners: number;
+  /** Owned-filtered per-crew outfit overrides (see the prop doc above). */
+  minerOutfits: Record<string, string>;
   purchasing: IapProductId | null;
   /** This device's store entitlements (the cash-buy record). */
   entitlements: IapEntitlements;
   /** Cosmetic/theme ids the current save already owns (any source). */
   saveOwnedCosmeticIds: string[];
-  // (customSkin, onUploadSkinImage, onUploadSkinAudio, onClearSkin:
-  //  typed inline above — the skin slot lives outside the save.)
   /** Tier-4 goal unlock (goals.ts): the GEM buy of cave themes stays
    *  locked until Crystal Kingdom (visible-but-locked rule, as the old
    *  gem shop enforced); the cash packs are store products and stay
@@ -195,11 +272,24 @@ function IapPanel({
   onPurchase: (id: IapProductId) => void;
   /** Equip an owned cosmetic/theme (the save's select action). */
   onSelect: (id: IapProductId) => void;
+  /** Assign an OWNED outfit to a hired miner slot (free; no-op if the
+   *  slot is out of range or the outfit isn't owned). */
+  onAssignMinerOutfit: (slot: number, outfitId: string) => void;
+  /** Revert a hired miner slot to the player's selected outfit. */
+  onClearMinerOutfit: (slot: number) => void;
   /** The seeded "reroll look" randomizer. */
   onReroll: () => void;
 }) {
   const { t } = useI18n();
   const content = useContent();
+
+  // Per-crew customization wearer (todo: "allow visual customization (iap
+  // cosmetic) of hired miners individually"): -1 = the player; 0…hired-1 =
+  // the visible crew slots. Outfit cards act on this wearer; pickaxes and
+  // cave themes always act on the player. Defaults to the player; a slot
+  // beyond the current crew is never offered.
+  const [wearer, setWearer] = useState(-1);
+  const hiredSlots = Math.max(0, Math.min(miners, ROSTER_ASSIGNABLE_SLOTS));
 
   const playerUri = useMemo(
     () => minerSpriteUri(rollMinerLook(playerSeed, selectedOutfit)),
@@ -210,7 +300,107 @@ function IapPanel({
     [selectedPickaxe],
   );
 
-  const renderProduct = (product: IapProduct) => {
+  /** Grid card for a pickaxe / outfit / cave-theme product (todo:
+   *  "cosmetic shop with grid view cards and larger previews"). Outfit
+   *  cards act on the selected wearer (You = equip, crew slot = assign);
+   *  pickaxes/themes act on the player as before. */
+  const renderCard = (product: IapProduct) => {
+    const text = content("iap", product.id, {
+      title: product.label,
+      detail: product.blurb,
+    });
+    const grant = getIapPackCosmetic(product.id);
+    const owned = isIapProductOwned(
+      product.id,
+      entitlements,
+      saveOwnedCosmeticIds,
+      customSkin.unlocked,
+    );
+    const gemsAffordable = gems >= grant.costGems;
+    const gemLocked = product.line === "caveTheme" && themesLocked;
+    const isOutfit = product.line === "outfit";
+    // The granted cosmetic id (the wearer comparison + the assign target).
+    const outfitId = IAP_PACK_GRANTS[product.id].id;
+    // Equipped state depends on the wearer for outfit cards: the player's
+    // selection, or the selected crew slot's override ("worn by"). The
+    // owned-only filter on `minerOutfits` means a stale (not-owned)
+    // override never reads as worn here — same fallback as the renderer.
+    let equipped = false;
+    let wornBySelected = false;
+    if (isOutfit && wearer >= 0) {
+      wornBySelected = minerOutfits[String(wearer)] === outfitId;
+      equipped = wornBySelected;
+    } else {
+      equipped = isIapProductEquipped(
+        product.id,
+        selectedOutfit,
+        selectedPickaxe,
+        selectedCaveTheme,
+        customSkin.equipped,
+      );
+    }
+    return (
+      <View key={product.id} style={styles.shopCard}>
+        <View style={styles.shopCardPreview}>
+          <ProductPreview productId={product.id} line={product.line} />
+        </View>
+        <Text style={styles.shopCardTitle} numberOfLines={2}>
+          {text.title}
+          {owned ? " ✓" : ""}
+        </Text>
+        {owned ? (
+          <View style={{ alignItems: "center", gap: 4, alignSelf: "stretch" }}>
+            <Button
+              tone="gem"
+              disabled={equipped}
+              title={
+                equipped
+                  ? isOutfit && wearer >= 0
+                    ? t("iap.worn")
+                    : t("iap.equipped")
+                  : isOutfit && wearer >= 0
+                    ? t("iap.wear")
+                    : t("iap.equip")
+              }
+              onPress={() => {
+                if (isOutfit && wearer >= 0) {
+                  onAssignMinerOutfit(wearer, outfitId);
+                } else {
+                  onSelect(product.id);
+                }
+              }}
+            />
+            {wornBySelected && (
+              <Button
+                title={t("iap.revert")}
+                onPress={() => onClearMinerOutfit(wearer)}
+              />
+            )}
+          </View>
+        ) : (
+          <View style={{ gap: 4, alignSelf: "stretch" }}>
+            <Button
+              tone="gem"
+              disabled={!gemsAffordable || gemLocked || purchasing != null}
+              title={`${grant.costGems} ${emojis.gem}`}
+              onPress={() => onBuyGems(product.id)}
+            />
+            {cashAvailable && (
+              <Button
+                disabled={purchasing != null}
+                title={purchasing === product.id ? "…" : product.priceLabel}
+                onPress={() => onPurchase(product.id)}
+              />
+            )}
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  /** The custom-skin line keeps its control ROWS (uploads/samples are
+   *  row-shaped; cards don't fit them) — the pre-grid row layout. */
+  const renderSkinRow = (product: IapProduct) => {
     const text = content("iap", product.id, {
       title: product.label,
       detail: product.blurb,
@@ -230,13 +420,16 @@ function IapPanel({
       customSkin.equipped,
     );
     const gemsAffordable = gems >= pack.costGems;
-    const gemLocked = product.line === "caveTheme" && themesLocked;
     return (
       <View
         key={product.id}
         style={{ ...styles.flexCenteredRow, gap: 6, alignItems: "flex-start" }}
       >
-        <ProductThumb productId={product.id} />
+        <ProductPreview
+          productId={product.id}
+          line={product.line}
+          compact
+        />
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={styles.text}>
             {text.title}
@@ -263,126 +456,59 @@ function IapPanel({
             {/* The custom-skin row: upload controls (both platforms) +
                 clear — the slot is device-local, uploads live in the
                 customSkin save slot, not the game save. */}
-            {product.line === "skin" && (
-              <>
-                {onUploadSkinImage != null ? (
-                  <View style={{ flexDirection: "row", gap: 4 }}>
+            <>
+              {onUploadSkinImage != null ? (
+                <View style={{ flexDirection: "row", gap: 4 }}>
+                  <Button
+                    tone="gem"
+                    title={t("iap.skinUploadImage")}
+                    onPress={onUploadSkinImage}
+                  />
+                  {onUploadSkinAudio != null && (
                     <Button
                       tone="gem"
-                      title={t("iap.skinUploadImage")}
-                      onPress={onUploadSkinImage}
+                      title={t("iap.skinUploadAudio")}
+                      onPress={onUploadSkinAudio}
                     />
-                    {onUploadSkinAudio != null && (
-                      <Button
-                        tone="gem"
-                        title={t("iap.skinUploadAudio")}
-                        onPress={onUploadSkinAudio}
-                      />
-                    )}
-                  </View>
-                ) : (
-                  <Text style={{ ...styles.text, fontSize: 10, opacity: 0.7 }}>
-                    {t("iap.skinUploadsUnavailable")}
-                  </Text>
-                )}
-                {/* The sample swing sounds (skinSamples.ts — todo: "add a
-                    few sample sprites and sounds to custom skin iap"):
-                    tap-to-equip ready-made clips — the same WAV data-URI
-                    shape an upload stores, no files needed. The active
-                    row highlight mirrors the sprite library below. */}
-                {SKIN_SAMPLE_SOUNDS.length > 0 &&
-                  onPickSkinSampleSound != null && (
-                    <View style={{ gap: 3 }}>
-                      <Text
-                        style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}
-                      >
-                        {t("iap.skinSoundSamples")}
-                      </Text>
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          flexWrap: "wrap",
-                          gap: 4,
-                        }}
-                      >
-                        {SKIN_SAMPLE_SOUNDS.map((s) => {
-                          const active = customSkin.audio === s.uri;
-                          return (
-                            <Pressable
-                              key={s.id}
-                              testID={`skin-sample-sound-${s.id}`}
-                              accessibilityRole="button"
-                              accessibilityLabel={
-                                content("skinSample", s.id, { title: s.name })
-                                  .title
-                              }
-                              onPress={() => onPickSkinSampleSound(s.id)}
-                              style={{
-                                width: 30,
-                                height: 30,
-                                borderRadius: 4,
-                                borderWidth: active ? 2 : 1,
-                                borderColor: active
-                                  ? "#ffd54f"
-                                  : "rgba(255,255,255,0.3)",
-                                backgroundColor: "rgba(0,0,0,0.25)",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              <Text style={{ fontSize: 16 }}>{s.glyph}</Text>
-                            </Pressable>
-                          );
-                        })}
-                      </View>
-                    </View>
                   )}
-                {/* The bundled sprite library (bundledSprites.ts — CC0
-                    2D art, see public/assets/sprites/CREDITS.txt): pick
-                    a ready-made body, or the default generated look. */}
-                {onPickBundledSprite != null && (
+                </View>
+              ) : (
+                <Text style={{ ...styles.text, fontSize: 10, opacity: 0.7 }}>
+                  {t("iap.skinUploadsUnavailable")}
+                </Text>
+              )}
+              {/* The sample swing sounds (skinSamples.ts — todo: "add a
+                  few sample sprites and sounds to custom skin iap"):
+                  tap-to-equip ready-made clips — the same WAV data-URI
+                  shape an upload stores, no files needed. The active
+                  row highlight mirrors the sprite library below. */}
+              {SKIN_SAMPLE_SOUNDS.length > 0 &&
+                onPickSkinSampleSound != null && (
                   <View style={{ gap: 3 }}>
                     <Text
                       style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}
                     >
-                      {t("iap.skinSprites")}
+                      {t("iap.skinSoundSamples")}
                     </Text>
                     <View
-                      style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}
+                      style={{
+                        flexDirection: "row",
+                        flexWrap: "wrap",
+                        gap: 4,
+                      }}
                     >
-                      <Pressable
-                        testID="skin-sprite-default"
-                        accessibilityRole="button"
-                        accessibilityLabel={t("iap.skinSpriteDefault")}
-                        onPress={() => onPickBundledSprite(null)}
-                        style={{
-                          width: 30,
-                          height: 30,
-                          borderRadius: 4,
-                          borderWidth: 1,
-                          borderColor:
-                            customSkin.artId == null
-                              ? "#ffd54f"
-                              : "rgba(255,255,255,0.3)",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          backgroundColor: "rgba(0,0,0,0.25)",
-                        }}
-                      >
-                        <Text style={{ fontSize: 14 }}>⛏️</Text>
-                      </Pressable>
-                      {BUNDLED_SPRITES.map((s) => {
-                        const active = customSkin.artId === s.id;
+                      {SKIN_SAMPLE_SOUNDS.map((s) => {
+                        const active = customSkin.audio === s.uri;
                         return (
                           <Pressable
                             key={s.id}
-                            testID={`skin-sprite-${s.id}`}
+                            testID={`skin-sample-sound-${s.id}`}
                             accessibilityRole="button"
                             accessibilityLabel={
-                              content("bundledSprite", s.id, { title: s.name })
+                              content("skinSample", s.id, { title: s.name })
                                 .title
                             }
-                            onPress={() => onPickBundledSprite(s.id)}
+                            onPress={() => onPickSkinSampleSound(s.id)}
                             style={{
                               width: 30,
                               height: 30,
@@ -392,127 +518,197 @@ function IapPanel({
                                 ? "#ffd54f"
                                 : "rgba(255,255,255,0.3)",
                               backgroundColor: "rgba(0,0,0,0.25)",
+                              alignItems: "center",
+                              justifyContent: "center",
                             }}
                           >
-                            <Image
-                              source={{ uri: s.uri }}
-                              style={{ width: "100%", height: "100%" }}
-                              resizeMode="contain"
-                            />
+                            <Text style={{ fontSize: 16 }}>{s.glyph}</Text>
                           </Pressable>
                         );
                       })}
                     </View>
                   </View>
                 )}
-                {/* The pickaxe slot (todo: "Custom skin generator —
-                    pickaxe slot"): a 16×16 upload replaces the player's
-                    pickaxe sprite — full-sprite override (the
-                    swing/wind-up frames rotate the one image, so it
-                    covers every frame). The sample row below is the
-                    ready-made set (skinSamples.ts — todo: "add a few
-                    sample sprites…"): tap-to-equip grids of the same
-                    16×16 shape an upload decodes to, no files needed. */}
-                {onUploadSkinPickaxe != null && (
-                  <View style={{ gap: 3 }}>
-                    <Text
-                      style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}
+              {/* The bundled sprite library (bundledSprites.ts — CC0
+                  2D art, see public/assets/sprites/CREDITS.txt): pick
+                  a ready-made body, or the default generated look. */}
+              {onPickBundledSprite != null && (
+                <View style={{ gap: 3 }}>
+                  <Text
+                    style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}
+                  >
+                    {t("iap.skinSprites")}
+                  </Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      flexWrap: "wrap",
+                      gap: 4,
+                    }}
+                  >
+                    <Pressable
+                      testID="skin-sprite-default"
+                      accessibilityRole="button"
+                      accessibilityLabel={t("iap.skinSpriteDefault")}
+                      onPress={() => onPickBundledSprite(null)}
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 4,
+                        borderWidth: 1,
+                        borderColor:
+                          customSkin.artId == null
+                            ? "#ffd54f"
+                            : "rgba(255,255,255,0.3)",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: "rgba(0,0,0,0.25)",
+                      }}
                     >
-                      {t("iap.skinPickaxe")}
-                    </Text>
-                    <View style={{ flexDirection: "row", gap: 4 }}>
-                      <Button
-                        tone="gem"
-                        title={t("iap.skinUploadPickaxe")}
-                        onPress={onUploadSkinPickaxe}
-                      />
-                      {customSkin.pickaxeGrid != null &&
-                        onClearSkinPickaxe != null && (
-                          <Button
-                            tone="gem"
-                            title={t("iap.skinClearPickaxe")}
-                            onPress={onClearSkinPickaxe}
+                      <Text style={{ fontSize: 14 }}>⛏️</Text>
+                    </Pressable>
+                    {BUNDLED_SPRITES.map((s) => {
+                      const active = customSkin.artId === s.id;
+                      return (
+                        <Pressable
+                          key={s.id}
+                          testID={`skin-sprite-${s.id}`}
+                          accessibilityRole="button"
+                          accessibilityLabel={
+                            content("bundledSprite", s.id, {
+                              title: s.name,
+                            }).title
+                          }
+                          onPress={() => onPickBundledSprite(s.id)}
+                          style={{
+                            width: 30,
+                            height: 30,
+                            borderRadius: 4,
+                            borderWidth: active ? 2 : 1,
+                            borderColor: active
+                              ? "#ffd54f"
+                              : "rgba(255,255,255,0.3)",
+                            backgroundColor: "rgba(0,0,0,0.25)",
+                          }}
+                        >
+                          <Image
+                            source={{ uri: s.uri }}
+                            style={{ width: "100%", height: "100%" }}
+                            resizeMode="contain"
                           />
-                        )}
-                    </View>
-                    {SKIN_SAMPLE_PICKAXES.length > 0 &&
-                      onPickSkinSamplePickaxe != null && (
-                        <View style={{ gap: 3 }}>
-                          <Text
-                            style={{
-                              ...styles.text,
-                              fontSize: 11,
-                              opacity: 0.7,
-                            }}
-                          >
-                            {t("iap.skinPickaxeSamples")}
-                          </Text>
-                          <View
-                            style={{
-                              flexDirection: "row",
-                              flexWrap: "wrap",
-                              gap: 4,
-                            }}
-                          >
-                            {SKIN_SAMPLE_PICKAXES.map((s) => {
-                              const active =
-                                customSkin.pickaxeGrid != null &&
-                                customSkinGridKey(customSkin.pickaxeGrid) ===
-                                  customSkinGridKey(s.grid);
-                              return (
-                                <Pressable
-                                  key={s.id}
-                                  testID={`skin-sample-pickaxe-${s.id}`}
-                                  accessibilityRole="button"
-                                  accessibilityLabel={
-                                    content("skinSample", s.id, {
-                                      title: s.name,
-                                    }).title
-                                  }
-                                  onPress={() => onPickSkinSamplePickaxe(s.id)}
-                                  style={{
-                                    width: 30,
-                                    height: 30,
-                                    borderRadius: 4,
-                                    borderWidth: active ? 2 : 1,
-                                    borderColor: active
-                                      ? "#ffd54f"
-                                      : "rgba(255,255,255,0.3)",
-                                    backgroundColor: "rgba(0,0,0,0.25)",
-                                  }}
-                                >
-                                  <Image
-                                    source={{ uri: s.uri }}
-                                    style={{ width: "100%", height: "100%" }}
-                                    resizeMode="contain"
-                                  />
-                                </Pressable>
-                              );
-                            })}
-                          </View>
-                        </View>
-                      )}
+                        </Pressable>
+                      );
+                    })}
                   </View>
-                )}
-                {(customSkin.grid != null ||
-                  customSkin.artId != null ||
-                  customSkin.audio != null ||
-                  customSkin.pickaxeGrid != null) &&
-                  onClearSkin != null && (
+                </View>
+              )}
+              {/* The pickaxe slot (todo: "Custom skin generator —
+                  pickaxe slot"): a 16×16 upload replaces the player's
+                  pickaxe sprite — full-sprite override (the
+                  swing/wind-up frames rotate the one image, so it
+                  covers every frame). The sample row below is the
+                  ready-made set (skinSamples.ts — todo: "add a few
+                  sample sprites…"): tap-to-equip grids of the same
+                  16×16 shape an upload decodes to, no files needed. */}
+              {onUploadSkinPickaxe != null && (
+                <View style={{ gap: 3 }}>
+                  <Text
+                    style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}
+                  >
+                    {t("iap.skinPickaxe")}
+                  </Text>
+                  <View style={{ flexDirection: "row", gap: 4 }}>
                     <Button
                       tone="gem"
-                      title={t("iap.skinClear")}
-                      onPress={onClearSkin}
+                      title={t("iap.skinUploadPickaxe")}
+                      onPress={onUploadSkinPickaxe}
                     />
-                  )}
-              </>
-            )}
+                    {customSkin.pickaxeGrid != null &&
+                      onClearSkinPickaxe != null && (
+                        <Button
+                          tone="gem"
+                          title={t("iap.skinClearPickaxe")}
+                          onPress={onClearSkinPickaxe}
+                        />
+                      )}
+                  </View>
+                  {SKIN_SAMPLE_PICKAXES.length > 0 &&
+                    onPickSkinSamplePickaxe != null && (
+                      <View style={{ gap: 3 }}>
+                        <Text
+                          style={{
+                            ...styles.text,
+                            fontSize: 11,
+                            opacity: 0.7,
+                          }}
+                        >
+                          {t("iap.skinPickaxeSamples")}
+                        </Text>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            flexWrap: "wrap",
+                            gap: 4,
+                          }}
+                        >
+                          {SKIN_SAMPLE_PICKAXES.map((s) => {
+                            const active =
+                              customSkin.pickaxeGrid != null &&
+                              customSkinGridKey(customSkin.pickaxeGrid) ===
+                                customSkinGridKey(s.grid);
+                            return (
+                              <Pressable
+                                key={s.id}
+                                testID={`skin-sample-pickaxe-${s.id}`}
+                                accessibilityRole="button"
+                                accessibilityLabel={
+                                  content("skinSample", s.id, {
+                                    title: s.name,
+                                  }).title
+                                }
+                                onPress={() => onPickSkinSamplePickaxe(s.id)}
+                                style={{
+                                  width: 30,
+                                  height: 30,
+                                  borderRadius: 4,
+                                  borderWidth: active ? 2 : 1,
+                                  borderColor: active
+                                    ? "#ffd54f"
+                                    : "rgba(255,255,255,0.3)",
+                                  backgroundColor: "rgba(0,0,0,0.25)",
+                                }}
+                              >
+                                <Image
+                                  source={{ uri: s.uri }}
+                                  style={{ width: "100%", height: "100%" }}
+                                  resizeMode="contain"
+                                />
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    )}
+                </View>
+              )}
+              {(customSkin.grid != null ||
+                customSkin.artId != null ||
+                customSkin.audio != null ||
+                customSkin.pickaxeGrid != null) &&
+                onClearSkin != null && (
+                  <Button
+                    tone="gem"
+                    title={t("iap.skinClear")}
+                    onPress={onClearSkin}
+                  />
+                )}
+            </>
           </View>
         ) : (
           <View style={{ flexDirection: "row", gap: 4 }}>
             <Button
               tone="gem"
-              disabled={!gemsAffordable || gemLocked || purchasing != null}
+              disabled={!gemsAffordable || purchasing != null}
               title={`${pack.costGems} ${emojis.gem}`}
               onPress={() => onBuyGems(product.id)}
             />
@@ -609,7 +805,62 @@ function IapPanel({
                 {t("iap.groupSkinDetail")}
               </Text>
             )}
-            {IAP_PRODUCT_LIST.filter((p) => p.line === line).map(renderProduct)}
+            {line === "outfit" && (
+              <>
+                {/* Per-crew customization (todo: "allow visual customization
+                    (iap cosmetic) of hired miners individually"): the wearer
+                    selector. Outfits are free to move around once owned; the
+                    crew slots offered are exactly the hires the column
+                    renders (ROSTER_ASSIGNABLE_SLOTS), so every assignment
+                    is visible in the shaft. */}
+                <Text style={{ ...styles.text, fontSize: 11, color: "#999" }}>
+                  {t("iap.outfitsDetail")}
+                </Text>
+                <View style={{ gap: 4 }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      flexWrap: "wrap",
+                      gap: 4,
+                    }}
+                  >
+                    <WearerChip
+                      label={t("iap.wearerYou")}
+                      active={wearer === -1}
+                      onPress={() => setWearer(-1)}
+                    />
+                    {Array.from({ length: hiredSlots }, (_, k) => (
+                      <WearerChip
+                        key={k}
+                        label={t("iap.wearerMiner", { n: k + 1 })}
+                        active={wearer === k}
+                        onPress={() => setWearer(k)}
+                      />
+                    ))}
+                  </View>
+                </View>
+              </>
+            )}
+            {line === "skin" ? (
+              IAP_PRODUCT_LIST.filter((p) => p.line === line).map(
+                renderSkinRow,
+              )
+            ) : (
+              // Grid of cards (todo: "implement cosmetic shop with grid
+              // view cards and larger previews") — previews at card size,
+              // wrap 3 across on phone-to-tablet widths.
+              <View
+                style={{
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: 6,
+                }}
+              >
+                {IAP_PRODUCT_LIST.filter((p) => p.line === line).map(
+                  renderCard,
+                )}
+              </View>
+            )}
           </View>
         ))}
 

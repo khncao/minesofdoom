@@ -103,6 +103,17 @@ export type SaveData = {
   // one. Like every cosmetic, they survive a sunk shaft.
   ownedCaveThemes: string[];
   selectedCaveTheme: string;
+  /**
+   * Per-roster-miner outfit overrides (todo: "allow visual customization
+   * (iap cosmetic) of hired miners individually"): a map of roster slot
+   * index (decimal string, "0", "1", …) → OWNED outfit id. A hired miner
+   * with an override wears that outfit instead of the player's selected
+   * one; a missing / unknown / not-owned entry falls back to the selected
+   * outfit at render time. Assignments are free (an already-owned outfit
+   * moved from the player to a crew member) and — like every cosmetic —
+   * survive a sunk shaft, so a re-hired crew keeps its look.
+   */
+  minerOutfits: Record<string, string>;
 };
 
 // NOTE: equation settings are persisted separately under equationSettingsKey;
@@ -220,7 +231,7 @@ export type SettingsData = {
 };
 
 export const saveDataKey = "save";
-export const saveVersion = 12;
+export const saveVersion = 13;
 export const settingsDataKey = "settings";
 export const equationSettingsKey = "equationSettings";
 
@@ -399,6 +410,17 @@ const migrations: Record<
       ),
     };
   },
+  // 12 -> 13: per-roster-miner outfit overrides (todo: "allow visual
+  // customization (iap cosmetic) of hired miners individually"). Old saves
+  // have no assignments — every hire wears the player's selected outfit,
+  // the pre-update behavior. Any existing (future/imported) record is
+  // sanitized the same way buildSaveData sanitizes on read, so a corrupt
+  // blob can't mint a slot/outfit pair the UI can't render.
+  12: (data) => ({
+    ...data,
+    saveVersion: 13,
+    minerOutfits: sanitizeMinerOutfits(data.minerOutfits),
+  }),
   // 7 -> 8: tier-4 cosmetic line (cave themes). Old saves own just the free
   // default and haven't changed the cave look; junk ids are dropped and the
   // free default is always kept owned, like every other cosmetic field.
@@ -554,7 +576,33 @@ export function buildSaveData(
       isCaveThemeId(migrated.selectedCaveTheme)
         ? migrated.selectedCaveTheme
         : DEFAULT_CAVE_THEME,
+    minerOutfits: sanitizeMinerOutfits(migrated.minerOutfits),
   };
+}
+
+/**
+ * Validate a parsed per-miner outfit override map (todo: "allow visual
+ * customization … of hired miners individually"): keep only canonical
+ * non-negative integer slot keys mapped to KNOWN outfit ids. Junk keys,
+ * junk values and non-objects drop out, so a hand-edited save blob can
+ * never mint a slot/outfit pair the UI can't render (ownership is
+ * checked again at render time — a legitimate import can carry a slot
+ * whose outfit this save doesn't own yet).
+ */
+export function sanitizeMinerOutfits(value: unknown): Record<string, string> {
+  if (value == null || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  const out: Record<string, string> = {};
+  for (const [key, outfitId] of Object.entries(value)) {
+    if (typeof outfitId !== "string" || !isOutfitId(outfitId)) continue;
+    // Canonical decimal slot keys only ("0", "5", … — "007" == "7").
+    if (!/^\d+$/.test(key)) continue;
+    const slot = Number(key);
+    if (!Number.isSafeInteger(slot) || slot < 0) continue;
+    out[String(slot)] = outfitId;
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -903,6 +951,8 @@ export function createEmptySaveData(): SaveData {
     selectedPickaxe: DEFAULT_PICKAXE,
     ownedCaveThemes: [...DEFAULT_OWNED_CAVE_THEMES],
     selectedCaveTheme: DEFAULT_CAVE_THEME,
+    // No per-miner overrides yet — every hire wears the selected outfit.
+    minerOutfits: {},
   };
 }
 

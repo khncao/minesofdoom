@@ -508,6 +508,80 @@ describe("useGameEngine — spending", () => {
     expect(result.current.gameState.selectedOutfit).toBe("classic");
   });
 
+  it("assignMinerOutfit / clearMinerOutfit move an OWNED outfit onto a hired slot", async () => {
+    const { result } = await renderEngine({ gems: 15, miners: 3 });
+    // Give the save the night outfit (the gem buy auto-selects it to the
+    // player, which the assignment below must NOT undo).
+    await act(async () => {
+      result.current.buyCosmetic("night");
+      await Promise.resolve();
+    });
+    await act(async () => {
+      result.current.assignMinerOutfit(1, "night");
+      await Promise.resolve();
+    });
+    const s = result.current.gameState;
+    expect(s.minerOutfits).toEqual({ "1": "night" });
+    // Assignment never touches the player's equipped look.
+    expect(s.selectedOutfit).toBe("night");
+
+    // Assigning the same outfit again is a no-op (no state churn).
+    await act(async () => {
+      result.current.assignMinerOutfit(1, "night");
+      await Promise.resolve();
+    });
+    expect(result.current.gameState.minerOutfits).toEqual({ "1": "night" });
+
+    // Revert slot 1 back to the player's look.
+    await act(async () => {
+      result.current.clearMinerOutfit(1);
+      await Promise.resolve();
+    });
+    expect(result.current.gameState.minerOutfits).toEqual({});
+    // Clearing an unassigned slot is a no-op.
+    await act(async () => {
+      result.current.clearMinerOutfit(2);
+      await Promise.resolve();
+    });
+    expect(result.current.gameState.minerOutfits).toEqual({});
+  });
+
+  it("assignMinerOutfit refuses unowned outfits, unknown ids and junk slots", async () => {
+    const { result } = await renderEngine({ miners: 2 });
+    // "magma" is not owned (defaults are classic + steel).
+    await act(async () => {
+      result.current.assignMinerOutfit(0, "magma");
+      result.current.assignMinerOutfit(0, "not-an-outfit");
+      result.current.assignMinerOutfit(-1, "classic");
+      result.current.assignMinerOutfit(Number.NaN, "classic");
+      await Promise.resolve();
+    });
+    expect(result.current.gameState.minerOutfits).toEqual({});
+    // The free default outfit IS assignable.
+    await act(async () => {
+      result.current.assignMinerOutfit(0, "classic");
+      await Promise.resolve();
+    });
+    expect(result.current.gameState.minerOutfits).toEqual({ "0": "classic" });
+  });
+
+  it("per-miner assignments survive a prestige (re-hired crew keeps its look)", async () => {
+    const { result } = await renderEngine({
+      gems: 15,
+      miners: 1,
+      minerOutfits: { "0": "night" },
+      ownedCosmetics: [...createEmptySaveData().ownedCosmetics, "night"],
+      selectedOutfit: "night",
+    });
+    await act(async () => {
+      result.current.sinkNewShaft();
+      await Promise.resolve();
+    });
+    const s = result.current.gameState;
+    // Cosmetic state is preserved across the shaft reset.
+    expect(s.minerOutfits).toEqual({ "0": "night" });
+  });
+
   it("buyCaveTheme / selectCaveTheme spend gems and auto-select", async () => {
     const { result } = await renderEngine({ gems: 25 });
     await act(async () => {

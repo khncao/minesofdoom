@@ -568,6 +568,16 @@ export const en = {
   "iap.groupSkin": "Custom skin",
   "iap.groupSkinDetail":
     "Your own pixels: upload a body image and a swing sound (one-time unlock).",
+  // Per-crew customization (todo: "allow visual customization (iap
+  // cosmetic) of hired miners individually"): owned outfits are free to
+  // move — the wearer selector picks who an outfit card acts on.
+  "iap.outfitsDetail":
+    "Owned outfits are free to assign — give each hired miner their own look in the shaft.",
+  "iap.wearerYou": "👤 You",
+  "iap.wearerMiner": "Miner {n}",
+  "iap.wear": "Wear",
+  "iap.worn": "✓ Worn",
+  "iap.revert": "Revert",
   "iap.skinUploadImage": "Upload image",
   "iap.skinUploadAudio": "Upload sound",
   "iap.skinPickaxe": "Pickaxe",

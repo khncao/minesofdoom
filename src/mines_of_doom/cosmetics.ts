@@ -345,6 +345,84 @@ export function rosterSeed(playerSeed: number, index: number): number {
 }
 
 // ---------------------------------------------------------------------------
+// Crew column layout (todo: "have miners line up down the middle vertically
+// along the mine background shaft"): the whole crew stacks in ONE vertical
+// column down the middle of the cave — the player at the front (bottom),
+// hired miners receding up the shaft behind them, each row a little smaller
+// (depth perspective). Pure so the layout is unit-testable; MiningCanvas
+// just maps the items to <Miner/>s (far-most first, so the nearest ends up
+// adjacent to the player). Only the first few slots of each type render — a
+// phone-sized column can't stack a 400-strong crew — and that same cap
+// (ROSTER_ASSIGNABLE_SLOTS, the normal-crew limit) defines how many hires
+// the shop offers per-miner outfit customization for, so every assignable
+// slot is always visible.
+// ---------------------------------------------------------------------------
+export type RosterKind = "normal" | "fast" | "legendary";
+
+export type RosterDisplayItem = {
+  kind: RosterKind;
+  /** Index within the type (the roster slot key for minerOutfits when
+   *  `kind` is "normal"; fast/legendary share the player's look). */
+  index: number;
+  /** Render scale: shrinks with shaft depth (position in the column). */
+  scale: number;
+};
+
+/** Max visible crew rows per type (see rosterDisplay). */
+export const ROSTER_MAX_PER_TYPE: Record<RosterKind, number> = {
+  normal: 4,
+  fast: 2,
+  legendary: 1,
+};
+
+/** The individually-customizable roster slots (the normal-crew cap). */
+export const ROSTER_ASSIGNABLE_SLOTS = ROSTER_MAX_PER_TYPE.normal;
+
+/** Base sprite scale per crew type (the front row of each type). */
+const ROSTER_BASE_SCALE: Record<RosterKind, number> = {
+  normal: 0.5,
+  fast: 0.4,
+  legendary: 0.55,
+};
+
+/** Scale shrink per row as the crew recedes up the shaft. */
+const ROSTER_SHRINK = 0.9;
+
+/**
+ * The visible crew column: the nearest (normal) hires first, then fast,
+ * then legendary (the farthest), each following row smaller. Counts are
+ * clamped to ROSTER_MAX_PER_TYPE per type and stay in hire order, so the
+ * shop's per-miner slots (0..ROSTER_ASSIGNABLE_SLOTS-1) always line up
+ * with what's on screen.
+ */
+export function rosterDisplay(
+  normal: number,
+  fast: number,
+  legendary: number,
+): RosterDisplayItem[] {
+  const items: RosterDisplayItem[] = [];
+  const counts: Record<RosterKind, number> = {
+    normal: Math.max(0, Math.floor(normal)),
+    fast: Math.max(0, Math.floor(fast)),
+    legendary: Math.max(0, Math.floor(legendary)),
+  };
+  let depthPos = 0; // 0 = nearest to the player
+  const kinds: RosterKind[] = ["normal", "fast", "legendary"];
+  for (const kind of kinds) {
+    const count = counts[kind];
+    for (let i = 0; i < Math.min(count, ROSTER_MAX_PER_TYPE[kind]); i++) {
+      items.push({
+        kind,
+        index: i,
+        scale: ROSTER_BASE_SCALE[kind] * Math.pow(ROSTER_SHRINK, depthPos),
+      });
+      depthPos++;
+    }
+  }
+  return items;
+}
+
+// ---------------------------------------------------------------------------
 // Cave themes (plan §4.3 / §5.2 cosmetic line, §4.6 tier-4 "Crystal Kingdom"
 // unlock): a named recolor of the cave background. Purely visual — no
 // gameplay effect. Each theme is a palette of one tint per depth tier

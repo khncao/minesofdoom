@@ -57,6 +57,7 @@ import {
   clampNumberNotation,
   getVisiblePurchases,
   hasAffordablePurchase,
+  sanitizeMinerOutfits,
 } from "../game";
 import type { BuyAllPlan, PurchaseAffordability, PurchaseId } from "../game";
 import { DEFAULT_CAVE_THEME, DEFAULT_CAVE_TINTS } from "../cosmetics";
@@ -642,6 +643,66 @@ describe("migrateSaveData", () => {
     // "classic" comes before "goldrush" in the catalog; "steel" before "gold".
     expect(migrated.selectedOutfit).toBe("classic");
     expect(migrated.selectedPickaxe).toBe("steel");
+  });
+
+  test("v12 save gains empty per-miner outfit assignments (crews share the player look)", () => {
+    const migrated = migrateSaveData({ saveVersion: 12, minerals: 7 });
+    expect(migrated.saveVersion).toBe(saveVersion);
+    expect(migrated.minerOutfits).toEqual({});
+  });
+
+  test("v12 save with a pre-existing assignment map is sanitized, not dropped", () => {
+    const migrated = migrateSaveData({
+      saveVersion: 12,
+      minerOutfits: { "0": "night", "1": "junk-id", "00": "magma" },
+    });
+    // "00" canonicalizes to slot "0", so the later valid entry wins on
+    // that slot; the junk id drops.
+    expect(migrated.minerOutfits).toEqual({ "0": "magma" });
+  });
+
+  test("sanitizeMinerOutfits keeps only canonical integer slots with known outfit ids", () => {
+    expect(
+      sanitizeMinerOutfits({
+        "0": "classic",
+        "3": "magma",
+        "-1": "night", // negative slot
+        "a": "night", // non-numeric slot
+        "1.5": "night", // non-integer slot
+        "007": "goldrush", // canonicalizes to "7"
+        "9": "not-an-outfit", // unknown outfit id
+        "10": 42, // non-string outfit id
+      }),
+    ).toEqual({ "0": "classic", "3": "magma", "7": "goldrush" });
+  });
+
+  test("sanitizeMinerOutfits rejects non-objects and arrays", () => {
+    expect(sanitizeMinerOutfits(null)).toEqual({});
+    expect(sanitizeMinerOutfits(undefined)).toEqual({});
+    expect(sanitizeMinerOutfits("night")).toEqual({});
+    expect(sanitizeMinerOutfits([["0", "classic"]])).toEqual({});
+    expect(sanitizeMinerOutfits(12)).toEqual({});
+  });
+
+  test("buildSaveData round-trips a valid per-miner outfit map and drops junk", () => {
+    const built = buildSaveData(
+      {
+        minerOutfits: {
+          "0": "classic",
+          "2": "magma",
+          "9": "junk",
+          "x": "night",
+        },
+      },
+      12345,
+    );
+    expect(built.minerOutfits).toEqual({ "0": "classic", "2": "magma" });
+    // An absent field defaults to empty (pre-13 saves never had it).
+    expect(buildSaveData({}, 12345).minerOutfits).toEqual({});
+  });
+
+  test("createEmptySaveData starts with no per-miner assignments", () => {
+    expect(createEmptySaveData().minerOutfits).toEqual({});
   });
 
   test("empty save (all migrations) ends at current version with cosmetics", () => {

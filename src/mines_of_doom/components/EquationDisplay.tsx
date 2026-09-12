@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { View } from "react-native";
 import { T as Text } from "../textScale";
 import {
   Equation,
@@ -30,7 +31,20 @@ const EquationDisplay = memo(function EquationDisplay({
   const payoutMultiplier = getAnswerPayoutMultiplier(equation);
 
   return (
-    <>
+    // Translucent panel (todo: "improve visibility of ui … where
+    // buttons/text are"): the equation readout sits over the cave art
+    // and must stay readable on every cave theme.
+    <View
+      style={{
+        backgroundColor: "rgba(0, 0, 0, 0.35)",
+        borderRadius: 10,
+        paddingHorizontal: 16,
+        paddingVertical: 6,
+        alignItems: "center",
+        marginHorizontal: 8,
+        gap: 2,
+      }}
+    >
       <Text style={styles.text} testID="equation-display">
         {formatEquation(equation, multiplySymbol)}?
       </Text>
@@ -44,7 +58,7 @@ const EquationDisplay = memo(function EquationDisplay({
             })
           : " "}
       </Text>
-    </>
+    </View>
   );
 });
 

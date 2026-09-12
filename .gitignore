@@ -188,3 +188,5 @@ playwright-report/
 
 # Play Store listing screenshots (scripts/playstoress.mjs output)
 /playstore-screenshots/
+# Feature screenshots (scripts/screenshot.mjs output)
+/screenshots/

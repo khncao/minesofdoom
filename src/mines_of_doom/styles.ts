@@ -115,6 +115,12 @@ export const styles = StyleSheet.create({
     textAlign: "center",
     borderColor: "white",
     borderWidth: 1,
+    // Semi-transparent fill (todo: "improve visibility of ui … where
+    // buttons/text are"): the answer box sits over the cave art, so a
+    // dark translucent fill + rounding keeps the input readable on every
+    // cave theme.
+    backgroundColor: "rgba(10, 10, 10, 0.45)",
+    borderRadius: 6,
   },
   // Save-code fields (plan §4.3): small monospace-ish boxes. The exported
   // code must stay user-selectable (long-press to copy), unlike the rest
@@ -144,6 +150,13 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 12,
     alignSelf: "stretch",
     justifyContent: "space-between",
+    // Translucent bar (todo: "improve visibility of ui … where
+    // buttons/text are"): the depth/rate readout sits over the cave, so
+    // it gets a dark box behind it.
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    borderRadius: 8,
+    marginHorizontal: 8,
+    paddingBottom: 4,
   },
   depthText: {
     color: "#b0a090",
@@ -170,6 +183,14 @@ export const styles = StyleSheet.create({
   comboContainer: {
     alignItems: "center",
     gap: 1,
+    // Translucent bar (todo: "improve visibility of ui … where
+    // buttons/text are"): the combo readout sits over the cave, so it
+    // gets a dark box behind it.
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    marginHorizontal: 8,
   },
   comboProgressTrack: {
     alignSelf: "stretch",
@@ -229,7 +250,9 @@ export const styles = StyleSheet.create({
   // daily bonus + the leaderboard/ads/IAP entry points moved UP from the
   // old footer, so nothing the player needs is behind the OS keyboard.
   // It wraps on narrow screens; the canvas minHeight below it keeps the
-  // cave visible even when everything is shown.
+  // cave visible even when everything is shown. The whole row sits on a
+  // translucent bar (todo: "improve visibility of ui … where
+  // buttons/text are") so every entry point reads over the cave art.
   headerRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -237,6 +260,21 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     alignSelf: "stretch",
     paddingTop: 2,
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    borderRadius: 12,
+    marginHorizontal: 6,
+    padding: 5,
+    gap: 4,
+  },
+  // The "hold to mine" hint pill (todo: "improve visibility of ui …"):
+  // the small caption under the crew column gets a translucent backdrop
+  // so it reads on any cave theme.
+  hintPill: {
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    marginTop: 4,
   },
   // The ⚒ UPGRADES button in the top menu row: opens the side drawer
   // over the canvas (hidden by default — the canvas has the room).
@@ -429,5 +467,47 @@ export const styles = StyleSheet.create({
   setupChipText: {
     ...onboardingText,
     fontSize: 11,
+  },
+  // Cosmetic shop grid (todo: "implement cosmetic shop with grid view cards
+  // and larger previews"): one card per pack, wrapping 3 across on phone-to-
+  // tablet widths. Previews are 2–3× the old list thumbs; the card is a
+  // semi-transparent chip so the cave behind a scrollable sheet stays dimmed
+  // and separated (todo: "improve visibility of ui with semi-transparent
+  // boxes … where buttons/text are").
+  shopCard: {
+    flexBasis: "30%",
+    flexGrow: 1,
+    minWidth: 96,
+    backgroundColor: "rgba(20, 20, 20, 0.55)",
+    borderWidth: 1,
+    borderColor: "rgba(140, 140, 140, 0.35)",
+    borderRadius: 10,
+    padding: 6,
+    gap: 4,
+    alignItems: "center",
+    alignSelf: "flex-start",
+  },
+  shopCardPreview: {
+    height: 62,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  // Outfit bodies are ~square; pickaxes are slim — 48px vs 44px reads
+  // similarly on the card.
+  shopOutfitPreview: {
+    width: 50,
+    height: 50,
+  },
+  shopPickaxePreview: {
+    width: 44,
+    height: 44,
+  },
+  shopCardTitle: {
+    color: "#fff",
+    fontSize: 11,
+    textAlign: "center",
+    minHeight: 28,
+    userSelect: "none",
   },
 });

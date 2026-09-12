@@ -579,6 +579,17 @@ export const es: Record<TranslationKey, string> = {
   "iap.groupSkin": "Piel personalizada",
   "iap.groupSkinDetail":
     "Tus propios píxeles: sube una imagen de cuerpo y un sonido de balanceo (desbloqueo único).",
+  // Personalización por minero (todo: "allow visual customization (iap
+  // cosmetic) of hired miners individually"): los trajes comprados se
+  // mueven gratis — el selector de portador elige sobre quién actúa una
+  // tarjeta de traje.
+  "iap.outfitsDetail":
+    "Los trajes comprados se asignan gratis — dale a cada minero su propio aspecto en la mina.",
+  "iap.wearerYou": "👤 Tú",
+  "iap.wearerMiner": "Minero {n}",
+  "iap.wear": "Vestir",
+  "iap.worn": "✓ Puesto",
+  "iap.revert": "Revertir",
   "iap.skinUploadImage": "Subir imagen",
   "iap.skinUploadAudio": "Subir sonido",
   "iap.skinPickaxe": "Pico",

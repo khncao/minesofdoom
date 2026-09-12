@@ -252,6 +252,8 @@ export default function MinesOfDoom() {
     buyCustomSkin,
     selectCosmetic,
     rerollPlayerSeed,
+    assignMinerOutfit,
+    clearMinerOutfit,
     buyCaveTheme,
     selectCaveTheme,
     grantIapCosmetics,
@@ -1537,6 +1539,19 @@ export default function MinesOfDoom() {
     [gameState.ownedCosmetics, gameState.ownedCaveThemes],
   );
 
+  // Per-crew outfit overrides filtered to OWNED ids (todo: "allow visual
+  // customization (iap cosmetic) of hired miners individually"): the
+  // renderer and the shop read this map, and an import can carry a slot
+  // whose outfit this save doesn't own — such a slot falls back to the
+  // selected outfit, exactly like a missing assignment.
+  const ownedMinerOutfits = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const [slot, outfitId] of Object.entries(gameState.minerOutfits)) {
+      if (gameState.ownedCosmetics.includes(outfitId)) out[slot] = outfitId;
+    }
+    return out;
+  }, [gameState.minerOutfits, gameState.ownedCosmetics]);
+
   // Free-path progress (guardrail 5): every prestige sunk live in this
   // session (the record keeps both the count and the first-prestige day).
   // The ref starts null so a loaded save that already has prestiges isn't
@@ -1881,6 +1896,10 @@ export default function MinesOfDoom() {
                 purchasing={iap.purchasing}
                 entitlements={iap.entitlements}
                 saveOwnedCosmeticIds={saveOwnedCosmeticIds}
+                miners={gameState.miners}
+                minerOutfits={ownedMinerOutfits}
+                onAssignMinerOutfit={assignMinerOutfit}
+                onClearMinerOutfit={clearMinerOutfit}
                 themesLocked={
                   !gameState.completedTiers.includes(CAVE_THEME_UNLOCK_TIER)
                 }
@@ -1985,6 +2004,7 @@ export default function MinesOfDoom() {
                   playerSeed={gameState.playerSeed}
                   outfitId={gameState.selectedOutfit}
                   pickaxeId={gameState.selectedPickaxe}
+                  minerOutfits={ownedMinerOutfits}
                   playerBodyUri={customSkinBodyUri}
                   playerPickaxeUri={customSkinPickaxeUri}
                   reduceMotion={reduceMotion}

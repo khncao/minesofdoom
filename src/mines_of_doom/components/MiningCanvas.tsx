@@ -21,7 +21,7 @@ import {
   mineralChunkSpriteUri,
 } from "src/utils/graphics/pixelArt";
 import { emojis } from "src/utils/graphics/emojis";
-import { rosterSeed } from "../cosmetics";
+import { rosterDisplay, rosterSeed } from "../cosmetics";
 import { styles } from "../styles";
 import { GemPocket, pocketPosition } from "../gemPocket";
 
@@ -45,6 +45,7 @@ const MiningCanvas = memo(function MiningCanvas({
   miners,
   fastMiners,
   legendaryMiners,
+  minerOutfits = undefined,
   onTap,
   playerPickaxeAnimRef,
   debrisRef,
@@ -67,6 +68,14 @@ const MiningCanvas = memo(function MiningCanvas({
   fastMiners: number;
   /** Tier-5 endgame miner type: the premium raw-output crew. */
   legendaryMiners: number;
+  /**
+   * Per-crew outfit overrides (todo: "allow visual customization (iap
+   * cosmetic) of hired miners individually"): roster slot decimal string →
+   * owned outfit id (the caller filters to owned). A normal-crew miner
+   * with an override wears it instead of the player's selected outfit;
+   * fast/legendary miners always wear the player's look.
+   */
+  minerOutfits?: Record<string, string>;
   onTap: () => void;
   playerPickaxeAnimRef: MutableRefObject<() => void>;
   /** Seeded sprite variants (cosmetics). */
@@ -134,6 +143,14 @@ const MiningCanvas = memo(function MiningCanvas({
     loop.start();
     return () => loop.stop();
   }, [pocket, reduceMotion, pocketScale]);
+
+  // The visible crew column (todo: "have miners line up down the middle
+  // vertically along the mine background shaft"): rosterDisplay picks which
+  // hires render (capped for a phone-sized column) and how small each row
+  // is as it recedes up the shaft. Fast/legendary variants seed off 1000/
+  // 2000+index as before so their sprite variants can't collide with the
+  // normal-miner column.
+  const rosterItems = rosterDisplay(miners, fastMiners, legendaryMiners);
 
   return (
     /*
@@ -250,86 +267,68 @@ const MiningCanvas = memo(function MiningCanvas({
           </Text>
         </View>
 
-        <View style={{ position: "relative", alignItems: "center" }}>
-          <Miner
-            key={"player"}
-            animateRef={playerPickaxeAnimRef}
-            isPlayer={true}
-            windingUp={holding}
-            seed={playerSeed}
-            outfitId={outfitId}
-            pickaxeId={pickaxeId}
-            reduceMotion={reduceMotion}
-            emojiArt={emojiArt}
-            bodyOverrideUri={playerBodyUri}
-            pickaxeOverrideUri={playerPickaxeUri}
-          />
-          <DebrisParticles
-            ref={debrisRef}
-            reduceMotion={reduceMotion}
-            emojiArt={emojiArt}
-          />
-          <BlockBreak ref={blockBreakRef} />
+        <View style={{ alignItems: "center", marginTop: 2 }}>
+          {/* Crew column, far-most first: the nearest (normal) hires sit
+              right above the player, the far legendary rows at the top.
+              Each row wears its per-miner outfit override when assigned
+              (normal crew only), else the player's selected outfit. */}
+          {[...rosterItems].reverse().map((item) => (
+            <Miner
+              key={`${item.kind}-${item.index}`}
+              scale={item.scale}
+              reactOnTick={true}
+              seed={rosterSeed(
+                playerSeed,
+                item.kind === "normal"
+                  ? item.index
+                  : item.kind === "fast"
+                    ? 1000 + item.index
+                    : 2000 + item.index,
+              )}
+              outfitId={
+                item.kind === "normal"
+                  ? (minerOutfits?.[String(item.index)] ?? outfitId)
+                  : outfitId
+              }
+              pickaxeId={pickaxeId}
+              reduceMotion={reduceMotion}
+              emojiArt={emojiArt}
+            />
+          ))}
+          <View style={{ position: "relative", alignItems: "center" }}>
+            <Miner
+              key={"player"}
+              animateRef={playerPickaxeAnimRef}
+              isPlayer={true}
+              windingUp={holding}
+              seed={playerSeed}
+              outfitId={outfitId}
+              pickaxeId={pickaxeId}
+              reduceMotion={reduceMotion}
+              emojiArt={emojiArt}
+              bodyOverrideUri={playerBodyUri}
+              pickaxeOverrideUri={playerPickaxeUri}
+            />
+            <DebrisParticles
+              ref={debrisRef}
+              reduceMotion={reduceMotion}
+              emojiArt={emojiArt}
+            />
+            <BlockBreak ref={blockBreakRef} />
+          </View>
         </View>
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "center",
-            flexWrap: "wrap",
-          }}
-        >
-          {[...Array(Math.min(miners, 50))].map((_, idx) => (
-            <Miner
-              key={idx}
-              scale={0.5}
-              reactOnTick={true}
-              seed={rosterSeed(playerSeed, idx)}
-              outfitId={outfitId}
-              pickaxeId={pickaxeId}
-              reduceMotion={reduceMotion}
-              emojiArt={emojiArt}
-            />
-          ))}
-          {/* Fast miners: smaller, seed offset by 1000 so their sprite
-              variants can't collide with the normal-miner row. */}
-          {[...Array(Math.min(fastMiners, 50))].map((_, idx) => (
-            <Miner
-              key={`fast-${idx}`}
-              scale={0.35}
-              reactOnTick={true}
-              seed={rosterSeed(playerSeed, 1000 + idx)}
-              outfitId={outfitId}
-              pickaxeId={pickaxeId}
-              reduceMotion={reduceMotion}
-              emojiArt={emojiArt}
-            />
-          ))}
-          {/* Legendary miners (tier-5 endgame): the premium crew, seed
-              offset by 2000 so their sprite variants can't collide with
-              either of the other two rows. */}
-          {[...Array(Math.min(legendaryMiners, 50))].map((_, idx) => (
-            <Miner
-              key={`legendary-${idx}`}
-              scale={0.55}
-              reactOnTick={true}
-              seed={rosterSeed(playerSeed, 2000 + idx)}
-              outfitId={outfitId}
-              pickaxeId={pickaxeId}
-              reduceMotion={reduceMotion}
-              emojiArt={emojiArt}
-            />
-          ))}
+        <View style={styles.hintPill}>
+          <Text
+            style={{
+              ...styles.text,
+              opacity: 0.6,
+              fontSize: 11,
+              userSelect: "none",
+            }}
+          >
+            {t("ui.holdToMineHint")}
+          </Text>
         </View>
-        <Text
-          style={{
-            ...styles.text,
-            opacity: 0.6,
-            fontSize: 11,
-            userSelect: "none",
-          }}
-        >
-          {t("ui.holdToMineHint")}
-        </Text>
       </View>
     </View>
   );

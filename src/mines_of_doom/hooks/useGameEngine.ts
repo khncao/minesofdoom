@@ -744,6 +744,41 @@ export function useGameEngine(
     setGameState((n: SaveData) => ({ ...n, playerSeed: seed }));
   }, []);
 
+  // Per-crew outfit overrides (todo: "allow visual customization (iap
+  // cosmetic) of hired miners individually"): assigning is FREE — the
+  // outfit must already be owned (the shop offers only owned rows) — and
+  // never touches the player's own equipped look. The slot is the normal-
+  // miner roster index (the key rosterDisplay renders and the shop's wearer
+  // chips offer). Unknown ids / out-of-range slots / not-owned outfits are
+  // no-ops (button state may be stale).
+  const assignMinerOutfit = useCallback((slot: number, outfitId: string) => {
+    const index = Math.floor(slot);
+    if (!Number.isFinite(index) || index < 0) return;
+    if (!isOutfitId(outfitId)) return;
+    setGameState((n: SaveData) => {
+      if (!n.ownedCosmetics.includes(outfitId)) return n;
+      const key = String(index);
+      if (n.minerOutfits[key] === outfitId) return n;
+      return {
+        ...n,
+        minerOutfits: { ...n.minerOutfits, [key]: outfitId },
+      };
+    });
+  }, []);
+
+  // Revert a hired miner slot to the player's selected outfit.
+  const clearMinerOutfit = useCallback((slot: number) => {
+    const index = Math.floor(slot);
+    if (!Number.isFinite(index) || index < 0) return;
+    setGameState((n: SaveData) => {
+      const key = String(index);
+      if (n.minerOutfits[key] == null) return n;
+      const next = { ...n.minerOutfits };
+      delete next[key];
+      return { ...n, minerOutfits: next };
+    });
+  }, []);
+
   // Tier-4 unlock: buy a cave theme (cave background recolor) with gems;
   // auto-selects it. Unknown ids and unaffordable prices are no-ops (button
   // state may be stale). Gem spend counts toward totalGemsSpent.
@@ -1214,6 +1249,8 @@ export function useGameEngine(
     buyCosmetic,
     selectCosmetic,
     rerollPlayerSeed,
+    assignMinerOutfit,
+    clearMinerOutfit,
     buyCaveTheme,
     buyCustomSkin,
     selectCaveTheme,

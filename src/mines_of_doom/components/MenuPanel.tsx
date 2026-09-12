@@ -204,7 +204,18 @@ function MenuPanel({
 
         return (
                 <BottomModal
-                        pressable={<Text style={{ fontSize: 30 }}>☰</Text>}
+                        pressable={
+                                // Lighter menu glyph (todo: "Change color
+                                // of menu button (3 lines) to a lighter
+                                // color"): the bare ☰ inherited the
+                                // platform default text color (black on
+                                // web) — invisible over the dark cave. An
+                                // explicit light color keeps the 3-line
+                                // menu button readable everywhere.
+                                <Text style={{ fontSize: 30, color: "#eee" }}>
+                                        ☰
+                                </Text>
+                        }
                         accessibilityLabel={t("main.a11yMenu")}
                         scrollable
                         // The six views are a few screens tall each — a 90% bottom sheet

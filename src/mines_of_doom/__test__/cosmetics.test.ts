@@ -21,6 +21,9 @@ import {
   isPickaxeId,
   rosterSeed,
   rollMinerLook,
+  rosterDisplay,
+  ROSTER_MAX_PER_TYPE,
+  ROSTER_ASSIGNABLE_SLOTS,
 } from "../cosmetics";
 
 const HEX6 = /^#[0-9a-f]{6}$/i;
@@ -280,5 +283,76 @@ describe("rosterSeed", () => {
 
   test("follows the player seed (reroll reshuffles the crew)", () => {
     expect(rosterSeed(1, 3)).not.toBe(rosterSeed(2, 3));
+  });
+});
+
+describe("rosterDisplay", () => {
+  test("empty crew renders nothing", () => {
+    expect(rosterDisplay(0, 0, 0)).toEqual([]);
+  });
+
+  test("a small crew lines up nearest-first: normal, fast, legendary", () => {
+    const items = rosterDisplay(2, 1, 1);
+    expect(items.map((i) => i.kind)).toEqual([
+      "normal",
+      "normal",
+      "fast",
+      "legendary",
+    ]);
+    expect(items.map((i) => i.index)).toEqual([0, 1, 0, 0]);
+  });
+
+  test("each following row of a type shrinks (depth perspective), never grows", () => {
+    const items = rosterDisplay(4, 2, 1);
+    // Monotonic WITHIN each type (legendary's bigger base is deliberate —
+    // the premium crew stays imposing even far up the shaft).
+    for (const kind of ["normal", "fast", "legendary"] as const) {
+      const scales = items
+        .filter((i) => i.kind === kind)
+        .map((i) => i.scale);
+      for (let i = 1; i < scales.length; i++) {
+        expect(scales[i]).toBeLessThan(scales[i - 1]);
+      }
+    }
+    // The nearest normal hire is always the biggest crew row.
+    expect(items[0].scale).toBeGreaterThan(items[items.length - 1].scale);
+  });
+
+  test("types are capped per ROSTER_MAX_PER_TYPE and stay in hire order", () => {
+    const items = rosterDisplay(50, 10, 5);
+    expect(items.filter((i) => i.kind === "normal")).toHaveLength(
+      ROSTER_MAX_PER_TYPE.normal,
+    );
+    expect(items.filter((i) => i.kind === "fast")).toHaveLength(
+      ROSTER_MAX_PER_TYPE.fast,
+    );
+    expect(items.filter((i) => i.kind === "legendary")).toHaveLength(
+      ROSTER_MAX_PER_TYPE.legendary,
+    );
+    // Slots 0..cap-1 only — the shop's assignable slots map 1:1 to these.
+    const normalSlots = items
+      .filter((i) => i.kind === "normal")
+      .map((i) => i.index);
+    expect(normalSlots).toEqual(
+      Array.from({ length: ROSTER_MAX_PER_TYPE.normal }, (_, i) => i),
+    );
+    // The nearest row renders first (first hire at the front).
+    expect(items[0]).toMatchObject({ kind: "normal", index: 0 });
+  });
+
+  test("the assignable-slot cap matches the visible normal crew", () => {
+    expect(ROSTER_ASSIGNABLE_SLOTS).toBe(ROSTER_MAX_PER_TYPE.normal);
+    const items = rosterDisplay(ROSTER_ASSIGNABLE_SLOTS, 0, 0);
+    // Every offered slot has exactly one visible miner.
+    expect(items).toHaveLength(ROSTER_ASSIGNABLE_SLOTS);
+    expect(items.map((i) => i.index)).toEqual(
+      Array.from({ length: ROSTER_ASSIGNABLE_SLOTS }, (_, i) => i),
+    );
+  });
+
+  test("junk (negative / fractional / NaN) counts are clamped to zero", () => {
+    expect(rosterDisplay(Number.NaN, -3, 2.9).map((i) => i.kind)).toEqual([
+      "legendary",
+    ]);
   });
 });
