@@ -1,6 +1,8 @@
 import {
   COSMETIC_PURCHASE_LOG_MAX,
   D1_RETENTION_MS,
+  IAP_PURCHASE_LOG_MAX,
+  SUMMARY_RECENT_MAX,
   D7_RETENTION_MS,
   emptyAnalyticsState,
   parseAnalytics,
@@ -93,6 +95,32 @@ describe("recordIapPurchase", () => {
     s = recordIapPurchase(s, day(4));
     expect(s.iapPurchases).toBe(2);
     expect(s.firstIapPurchaseDay).toBe(getLocalDayKey(day(2)));
+    // No product id supplied: the counter moves, the log stays empty.
+    expect(s.iapPurchaseLog).toEqual([]);
+  });
+
+  it("records a row per product id (newest last) when one is given", () => {
+    let s = recordIapPurchase(null, day(2), "packSkin");
+    s = recordIapPurchase(s, day(4), "packGold");
+    s = recordIapPurchase(s, day(6), "packSkin");
+    expect(s.iapPurchases).toBe(3);
+    expect(s.iapPurchaseLog).toEqual([
+      { product: "packSkin", day: getLocalDayKey(day(2)) },
+      { product: "packGold", day: getLocalDayKey(day(4)) },
+      { product: "packSkin", day: getLocalDayKey(day(6)) },
+    ]);
+  });
+
+  it("keeps the IAP log bounded (newest last) past the cap", () => {
+    let s = emptyAnalyticsState(day(1));
+    const ids = ["packSkin", "packGold", "packDamsel"] as const;
+    for (let i = 0; i < IAP_PURCHASE_LOG_MAX + 4; i++) {
+      s = recordIapPurchase(s, day(2), ids[i % ids.length]);
+    }
+    expect(s.iapPurchases).toBe(IAP_PURCHASE_LOG_MAX + 4);
+    expect(s.iapPurchaseLog).toHaveLength(IAP_PURCHASE_LOG_MAX);
+    // Last recorded row (i = IAP_PURCHASE_LOG_MAX + 3 ≡ 1 (mod 3)).
+    expect(s.iapPurchaseLog.at(-1)?.product).toBe("packGold");
   });
 });
 
@@ -173,11 +201,11 @@ describe("parseAnalytics", () => {
     expect(parseAnalytics(JSON.stringify([1, 2]))).toBeNull();
   });
 
-  it("round-trips a full record (incl. the per-purchase log)", () => {
+  it("round-trips a full record (incl. both per-purchase logs)", () => {
     let s = emptyAnalyticsState(day(1));
     s = recordAppOpen(s, day(2));
     s = recordAdView(s, day(2));
-    s = recordIapPurchase(s, day(3));
+    s = recordIapPurchase(s, day(3), "packGold");
     s = recordPrestige(s, day(4));
     s = recordCosmeticPurchase(
       s,
@@ -186,18 +214,45 @@ describe("parseAnalytics", () => {
     );
     const parsed = parseAnalytics(JSON.stringify(s));
     expect(parsed).toEqual(s);
+    expect(parsed!.iapPurchaseLog).toEqual([
+      { product: "packGold", day: getLocalDayKey(day(3)) },
+    ]);
   });
 
-  it("migrates a legacy record: cosmetic fields default in", () => {
+  it("migrates a legacy record: cosmetic + IAP log fields default in", () => {
     const legacy = { ...emptyAnalyticsState(day(1)) };
     delete (legacy as Record<string, unknown>).firstCosmeticPurchaseDay;
     delete (legacy as Record<string, unknown>).cosmeticPurchases;
     delete (legacy as Record<string, unknown>).cosmeticPurchaseLog;
+    delete (legacy as Record<string, unknown>).iapPurchaseLog;
     const parsed = parseAnalytics(JSON.stringify(legacy));
     expect(parsed).not.toBeNull();
     expect(parsed!.firstCosmeticPurchaseDay).toBe("");
     expect(parsed!.cosmeticPurchases).toBe(0);
     expect(parsed!.cosmeticPurchaseLog).toEqual([]);
+    expect(parsed!.iapPurchaseLog).toEqual([]);
+  });
+
+  it("drops malformed IAP log rows and re-caps a hand-edited oversized log", () => {
+    const good = { product: "packGold", day: "2026-05-02" };
+    const parsed = parseAnalytics(
+      JSON.stringify({
+        firstOpenMs: day(1),
+        iapPurchaseLog: [good, null, 42, { product: "", day: "x" }, { day: "x" }],
+      }),
+    );
+    expect(parsed).not.toBeNull();
+    expect(parsed!.iapPurchaseLog).toEqual([good]);
+    const oversized = {
+      firstOpenMs: day(1),
+      iapPurchaseLog: Array.from(
+        { length: IAP_PURCHASE_LOG_MAX + 5 },
+        (_, i) => ({ ...good, day: `d${i}` }),
+      ),
+    };
+    const reCapped = parseAnalytics(JSON.stringify(oversized));
+    expect(reCapped!.iapPurchaseLog).toHaveLength(IAP_PURCHASE_LOG_MAX);
+    expect(reCapped!.iapPurchaseLog.at(-1)?.day).toBe("d104");
   });
 
   it("drops malformed log entries and re-caps a hand-edited oversized log", () => {
@@ -277,31 +332,45 @@ describe("parseAnalytics", () => {
 });
 
 describe("summarizeAnalytics", () => {
-  it("renders one line per field, in a stable order", () => {
+  it("renders the fixed field block in a stable order, then the recent rows", () => {
     let s = emptyAnalyticsState(day(1));
     s = recordAppOpen(s, day(3));
     s = recordAdView(s, day(2));
     s = recordPrestige(s, day(9));
+    s = recordIapPurchase(s, day(4), "packGold");
     s = recordCosmeticPurchase(
       s,
       { line: "outfit", id: "night", path: "gems", gems: 0 },
       day(5),
     );
     const lines = summarizeAnalytics(s).split("\n");
-    expect(lines).toHaveLength(12);
+    // 12 fixed fields + iap-by-product (header + 1) + recent cosmetics
+    // (header + 1) + recent iap (header + 1).
+    expect(lines).toHaveLength(18);
     expect(lines[0]).toContain(s.firstOpenDay);
     expect(lines[2]).toContain(`active days     ${s.activeDays}`);
     expect(lines[3]).toContain("d1 retention");
+    expect(lines[6]).toContain("iap purchases   1");
     expect(lines[8]).toContain("cosmetic purchases   1");
     expect(lines[9]).toContain(
       `first cosmetic       ${getLocalDayKey(day(5))}`,
     );
     expect(lines[10]).toContain("prestiges       1");
+    // The variable blocks come after the fixed block: iap-by-product
+    // (header + 1), recent cosmetics (header + 1), recent iap (header + 1).
+    expect(lines[12]).toBe("iap by product   (1 logged)");
+    expect(lines[13]).toContain("packGold");
+    expect(lines[14]).toBe("recent cosmetics   (last 1 of 1)");
+    expect(lines[16]).toBe("recent iap   (last 1 of 1)");
+    expect(lines.at(-1)).toBe(`  ${getLocalDayKey(day(4))}  packGold`);
   });
 
-  it("says 'never' for un-fired one-shot fields and reflects counts", () => {
+  it("says 'never' for un-fired one-shot fields and omits the variable blocks when empty", () => {
     const fresh = emptyAnalyticsState(day(1));
-    const text = summarizeAnalytics(fresh);
+    const lines = summarizeAnalytics(fresh).split("\n");
+    // A fresh record has no purchase rows, so no variable blocks.
+    expect(lines).toHaveLength(12);
+    const text = lines.join("\n");
     expect(text).toContain("first ad view   never");
     expect(text).toContain("iap purchases   0");
     expect(text).toContain("cosmetic purchases   0");
@@ -309,4 +378,51 @@ describe("summarizeAnalytics", () => {
     expect(text).toContain("first prestige  never");
     expect(text).toContain("d1 retention    no");
   });
+
+  it("shows per-product IAP counts aggregated from the log", () => {
+    let s = emptyAnalyticsState(day(1));
+    s = recordIapPurchase(s, day(2), "packSkin");
+    s = recordIapPurchase(s, day(3), "packGold");
+    s = recordIapPurchase(s, day(4), "packSkin");
+    const text = summarizeAnalytics(s);
+    expect(text).toContain("iap by product   (3 logged)");
+    // padEnd'd columns — match the value, not the exact spacing.
+    expect(text).toMatch(/packGold\s+1\n/);
+    expect(text).toMatch(/packSkin\s+2\n/);
+  });
+
+  it("caps the recent-row blocks at SUMMARY_RECENT_MAX (newest kept)", () => {
+    let s = emptyAnalyticsState(day(1));
+    for (let i = 0; i < SUMMARY_RECENT_MAX + 5; i++) {
+      s = recordIapPurchase(s, day(2), "packGold");
+      s = recordCosmeticPurchase(
+        s,
+        { line: "outfit", id: `c${i}`, path: "gems", gems: i },
+        day(2),
+      );
+    }
+    const text = summarizeAnalytics(s);
+    const cosmeticBlock = summarizeRecentBlock(text, "recent cosmetics");
+    const iapBlock = summarizeRecentBlock(text, "recent iap");
+    expect(cosmeticBlock).toHaveLength(SUMMARY_RECENT_MAX);
+    expect(iapBlock).toHaveLength(SUMMARY_RECENT_MAX);
+    // Newest rows survive: the last recorded ids, not the first.
+    expect(cosmeticBlock.at(-1)).toContain(
+      `outfit:c${SUMMARY_RECENT_MAX + 4}`,
+    );
+    expect(iapBlock.at(-1)).toContain("packGold");
+  });
 });
+
+/** The indented rows of one variable block in the summary text. */
+function summarizeRecentBlock(text: string, header: string): string[] {
+  const lines = text.split("\n");
+  const start = lines.findIndex((l) => l.startsWith(header));
+  if (start === -1) return [];
+  const rows: string[] = [];
+  for (const l of lines.slice(start + 1)) {
+    if (l.startsWith("  ")) rows.push(l);
+    else break;
+  }
+  return rows;
+}

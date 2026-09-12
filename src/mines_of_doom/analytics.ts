@@ -13,6 +13,7 @@
  * and data-deletion requests are a `removeItem` (`useAnalytics.clear`).
  */
 
+import type { IapProductId } from "./iaps";
 import { getLocalDayKey } from "./dailyBonus";
 
 /** AsyncStorage key for the analytics record. */
@@ -47,6 +48,14 @@ export type AnalyticsState = {
   firstIapPurchaseDay: string;
   /** Total IAP purchases (receipt count, guardrail 5). */
   iapPurchases: number;
+  /**
+   * Bounded per-purchase log (F26.3: IAP had no per-event log — "which
+   * product sold" was not measurable on-device). Newest last, capped; the
+   * catalog is small, the cap only exists so a hand-edited record can't
+   * bloat the AsyncStorage row. Pre-dates products with no id are counted
+   * in `iapPurchases` but leave no row.
+   */
+  iapPurchaseLog: IapPurchaseEvent[];
   /** Local day of the player's first prestige (free-path progress). */
   firstPrestigeDay: string;
   /** Total prestiges sunk (free-path progress, guardrail 5). */
@@ -86,6 +95,24 @@ export type CosmeticPurchaseEvent = {
 /** Newest-last cap on the per-purchase log (see the state field). */
 export const COSMETIC_PURCHASE_LOG_MAX = 100;
 
+/** One IAP purchase (the "day" field is stamped by the recorder). */
+export type IapPurchaseEvent = {
+  /** The product purchased (a pack id, e.g. "packSkin"). */
+  product: IapProductId;
+  /** Local day key of the purchase. */
+  day: string;
+};
+
+/** Newest-last cap on the IAP per-purchase log (see the state field). */
+export const IAP_PURCHASE_LOG_MAX = 100;
+
+/**
+ * How many rows of each per-purchase log `summarizeAnalytics` renders
+ * (the rest stay in the record; the readout is a debug surface, not an
+ * export — F26.3).
+ */
+export const SUMMARY_RECENT_MAX = 10;
+
 /**
  * D1/D7 windows. "D1" here means "came back on a later LOCAL DAY than the
  * first open within ~2 calendar days" (D7: within ~8). Local-day
@@ -109,6 +136,7 @@ export function emptyAnalyticsState(now: number): AnalyticsState {
     firstAdViewDay: "",
     firstIapPurchaseDay: "",
     iapPurchases: 0,
+    iapPurchaseLog: [],
     firstPrestigeDay: "",
     prestiges: 0,
     firstCosmeticPurchaseDay: "",
@@ -152,16 +180,30 @@ export function recordAdView(
     : { ...s, firstAdViewDay: getLocalDayKey(now) };
 }
 
-/** A store purchase completed + validated (wired when RevenueCat ships). */
+/**
+ * A store purchase completed + validated (wired when RevenueCat ships).
+ * `productId` (known at every call site — the IAP hook fires it per pack)
+ * adds a row to the per-purchase log, so the per-product counts the debug
+ * readout shows are measurable on-device (F26.3). Omitted only by callers
+ * that genuinely don't have an id (pre-2026-09 callers; the counter still
+ * increments).
+ */
 export function recordIapPurchase(
   state: AnalyticsState | null,
   now: number,
+  productId?: IapProductId,
 ): AnalyticsState {
   const s = state ?? emptyAnalyticsState(now);
   return {
     ...s,
     firstIapPurchaseDay: s.firstIapPurchaseDay || getLocalDayKey(now),
     iapPurchases: s.iapPurchases + 1,
+    iapPurchaseLog:
+      productId === undefined
+        ? s.iapPurchaseLog
+        : [...s.iapPurchaseLog, { product: productId, day: getLocalDayKey(now) }].slice(
+            -IAP_PURCHASE_LOG_MAX,
+          ),
   };
 }
 
@@ -245,6 +287,7 @@ export function parseAnalytics(raw: string | null): AnalyticsState | null {
     firstAdViewDay: str(o.firstAdViewDay),
     firstIapPurchaseDay: str(o.firstIapPurchaseDay),
     iapPurchases: Math.max(0, Math.floor(num(o.iapPurchases, 0))),
+    iapPurchaseLog: sanitizeIapPurchaseLog(o.iapPurchaseLog),
     firstPrestigeDay: str(o.firstPrestigeDay),
     // Legacy records predate the counter: a stamped first day implies ≥1.
     prestiges: Math.max(
@@ -285,16 +328,41 @@ function isCosmeticPurchaseEvent(e: unknown): e is CosmeticPurchaseEvent {
 }
 
 /**
+ * Corruption guard for the IAP per-purchase log: same posture as the
+ * cosmetic log's (non-empty product string, string day, newest last,
+ * capped). Product ids are not checked against the catalog — same stance
+ * as the cosmetic log's item `id` — so a downgraded client reading a
+ * newer record's rows keeps them rather than silently losing them.
+ */
+function sanitizeIapPurchaseLog(raw: unknown): IapPurchaseEvent[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(isIapPurchaseEvent).slice(-IAP_PURCHASE_LOG_MAX);
+}
+
+function isIapPurchaseEvent(e: unknown): e is IapPurchaseEvent {
+  if (typeof e !== "object" || e === null) return false;
+  const o = e as Record<string, unknown>;
+  return (
+    typeof o.product === "string" &&
+    o.product !== "" &&
+    typeof o.day === "string"
+  );
+}
+
+/**
  * One-line-per-field human-readable summary of the record — rendered in
  * Settings → "Local stats (debug)" (selectable, so it can be copied or
  * long-press-shared off-device) and the format a data-deletion/export
  * request expects. Deliberately plain text: no PII, stable field order,
- * "never" for one-shot fields that haven't fired.
+ * "never" for one-shot fields that haven't fired. After the fixed field
+ * block come two variable blocks (only when non-empty): per-product IAP
+ * counts and the newest SUMMARY_RECENT_MAX rows of each per-purchase log
+ * (F26.3 — the readout reflects the record, not just its counters).
  */
 export function summarizeAnalytics(state: AnalyticsState): string {
   const day = (d: string) => (d === "" ? "never" : d);
   const yesno = (b: boolean) => (b ? "yes" : "no");
-  return [
+  const lines = [
     `first open      ${state.firstOpenDay}`,
     `last open       ${state.lastOpenDay}`,
     `active days     ${state.activeDays}`,
@@ -307,5 +375,45 @@ export function summarizeAnalytics(state: AnalyticsState): string {
     `first cosmetic       ${day(state.firstCosmeticPurchaseDay)}`,
     `prestiges       ${state.prestiges}`,
     `first prestige  ${day(state.firstPrestigeDay)}`,
-  ].join("\n");
+  ];
+  // Per-product IAP counts ("which product sold", F26.3) — only products
+  // with at least one recorded row; purchases recorded before the log
+  // existed are in the counter but have no row, and that is the honest
+  // shape of the data.
+  if (state.iapPurchaseLog.length > 0) {
+    const counts = new Map<IapProductId, number>();
+    for (const e of state.iapPurchaseLog) {
+      counts.set(e.product, (counts.get(e.product) ?? 0) + 1);
+    }
+    lines.push(
+      `iap by product   (${state.iapPurchaseLog.length} logged)`,
+    );
+    const sorted = [...counts.entries()].sort((a, b) =>
+      a[0].localeCompare(b[0]),
+    );
+    for (const [product, n] of sorted) {
+      lines.push(`  ${product.padEnd(14)} ${n}`);
+    }
+  }
+  const recentCosmetics = state.cosmeticPurchaseLog.slice(-SUMMARY_RECENT_MAX);
+  if (recentCosmetics.length > 0) {
+    lines.push(
+      `recent cosmetics   (last ${recentCosmetics.length} of ${state.cosmeticPurchaseLog.length})`,
+    );
+    for (const e of recentCosmetics) {
+      lines.push(
+        `  ${e.day}  ${e.line}:${e.id}  ${e.path}  gems=${e.gems}`,
+      );
+    }
+  }
+  const recentIap = state.iapPurchaseLog.slice(-SUMMARY_RECENT_MAX);
+  if (recentIap.length > 0) {
+    lines.push(
+      `recent iap   (last ${recentIap.length} of ${state.iapPurchaseLog.length})`,
+    );
+    for (const e of recentIap) {
+      lines.push(`  ${e.day}  ${e.product}`);
+    }
+  }
+  return lines.join("\n");
 }

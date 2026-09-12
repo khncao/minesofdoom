@@ -60,6 +60,19 @@ repo is not equipped to make.
    the layer: surface the stored record (`cosmeticPurchaseLog` last-N
    rows, per-product IAP counts) in `summarizeAnalytics`; the debug
    section currently hides the rows it counts.
+   **Resolved** (pass 73): `summarizeAnalytics` now appends three
+   bounded variable blocks after the 12 fixed fields — `iap by product`
+   (counts aggregated from the log), `recent cosmetics` (last 10 log
+   rows: day, line:id, path, gems), `recent iap` (last 10: day, product) —
+   each block omitted when its log is empty, so a fresh record still
+   renders exactly 12 lines. The mirror-image half of the F26.3 finding
+   also landed: `recordIapPurchase` gained an optional product id and a
+   bounded `iapPurchaseLog` (100 rows, newest last, same parse-time
+   sanitization as the cosmetic log), and the existing
+   `useIap.onPurchased(id)` call sites now carry the id through
+   `useAnalytics.onIapPurchase` — so "which product sold" is measurable
+   on-device for the 25-SKU catalogue too. The settings panel needed no
+   change (it renders the summary lines).
 5. **Failure-class events** (pass 21 F21.2, pass 11) —
    `save-failure-event` (Nth consecutive failed local write),
    `stale-resolution-event` (the client already knows when a push
@@ -4203,10 +4216,13 @@ line:
   the Play Data Safety section gains one data category. This is the only
   candidate that turns per-device booleans into fractions; until it lands,
   guardrail 5 is single-player. (F26.1. The big one.)
-+ `analytics:readout-completeness` — surface what is stored: last-N
-  `cosmeticPurchaseLog` rows (plus per-product IAP counts, if any log is
-  added) in `summarizeAnalytics`, so the debug section reflects the
-  record. Cheapest item in the layer. (F26.3.)
++ `analytics:readout-completeness` — **landed in pass 73** (F26.3
+  fully): `summarizeAnalytics` surfaces the last-10 `cosmeticPurchaseLog`
+  rows plus per-product IAP counts, and `recordIapPurchase` now takes an
+  optional product id into a bounded 100-row `iapPurchaseLog` (the
+  `useIap.onPurchased(id)` seam already carried the id at every call
+  site — the hook seam just dropped it). Both blocks capped, bounded,
+  and omitted when empty. (F26.3.)
 + `analytics:first-ad-kind` — stamp the first rewarded ad kind next to the
   day (the hook already carries it; the fold drops it), and if it's being
   touched, a first-ad-outcome stamp for the `closed` / `error` failure

@@ -12,6 +12,7 @@ import {
   type CosmeticPurchasePath,
   type CosmeticLine,
 } from "../analytics";
+import type { IapProductId } from "../iaps";
 
 /**
  * Local event logging (guardrail 5 "measure before scaling"). Owns the
@@ -88,9 +89,15 @@ export function useAnalytics() {
     persist(recordAdView(stateRef.current, now));
   }, [persist]);
 
-  const onIapPurchase = useCallback(() => {
+  /**
+   * A pack was purchased (the IAP hook fires it per product id, both at
+   * purchase time and on restore — each product fires at most once, merge
+   * is additive). The id goes into the per-purchase log so the per-
+   * product counts are measurable on-device (F26.3).
+   */
+  const onIapPurchase = useCallback((productId?: IapProductId) => {
     const now = Date.now();
-    persist(recordIapPurchase(stateRef.current, now));
+    persist(recordIapPurchase(stateRef.current, now, productId));
   }, [persist]);
 
   const onPrestige = useCallback(() => {
