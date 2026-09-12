@@ -5679,6 +5679,13 @@ suites, so the *logic* is netted — but the handler wiring between
 validation and record I/O (the layer where F39.1 lives) is exercised
 only for `stripe/webhook`. The money path's coverage map: webhook
 backup ✔ (with the F39.1 divergence), primary verify ✘, restore ✘.
+**Partially closed (pass 69, 2026-09-12):** `pb_hooks/__test__/handlerVerify.test.js`
+now drives the real `handleVerify` (two products/one device, re-verify
+idempotency) and `handleRestore` (both-rows recovery, account-union,
+no-device rows) — plus `register` and the sign-in backfill — against the
+production-faithful fake. Still untested: `handleCloudPush`/`Pull`,
+`handleLeaderboardSubmit`/`Top`/`Rank`, `handleDelete`, and the remaining
+auth handlers (login/google/apple/link/set-password/logout).
 
 **F39.3 — Recorded, not a defect.**
 
