@@ -129,6 +129,16 @@ export type AnalyticsState = {
    * half of the FTUE funnel.
    */
   onboardingCompleted: boolean;
+  /**
+   * Stale-save detections (docs/gap-ranking.md Tier 0 #13): how many loads
+   * found a save with no active play in the last STALE_SAVE_DAYS local days
+   * (game.ts isStaleSave). The "left for a month, came back" cohort —
+   * folded once per local day (recordStaleReturn is idempotent per day,
+   * so a strict-mode double fire can't inflate the count).
+   */
+  staleReturns: number;
+  /** Local day key of the most recent stale-return fold ("" = never). */
+  lastStaleReturnDay: string;
 };
 
 /** The three cosmetic lines the catalog is organized by. */
@@ -208,6 +218,31 @@ export function emptyAnalyticsState(now: number): AnalyticsState {
     onboardingStepMs: {},
     onboardingEndMs: 0,
     onboardingCompleted: false,
+    staleReturns: 0,
+    lastStaleReturnDay: "",
+  };
+}
+
+/**
+ * A loaded save was STALE — no active play in the last STALE_SAVE_DAYS
+ * local days (the caller checked game.ts isStaleSave; this fold only
+ * counts). Fired once per local day: same-day re-fires (strict mode, hot
+ * reload) are no-ops, so a returner is counted once even if the session
+ * is dropped and resumed in a day. "Count", not "day": a player who was
+ * away 30 days AND another 30 days later shows two returns — that's the
+ * curve, not a dedup bug.
+ */
+export function recordStaleReturn(
+  state: AnalyticsState | null,
+  now: number,
+): AnalyticsState {
+  const s = state ?? emptyAnalyticsState(now);
+  const day = getLocalDayKey(now);
+  if (s.lastStaleReturnDay === day) return s;
+  return {
+    ...s,
+    staleReturns: s.staleReturns + 1,
+    lastStaleReturnDay: day,
   };
 }
 
@@ -482,6 +517,9 @@ export function parseAnalytics(raw: string | null): AnalyticsState | null {
     onboardingStepMs: sanitizeOnboardingStepMs(o.onboardingStepMs),
     onboardingEndMs: num(o.onboardingEndMs, 0),
     onboardingCompleted: bool(o.onboardingCompleted),
+    // Legacy records predate stale-return tracking → 0.
+    staleReturns: Math.max(0, Math.floor(num(o.staleReturns, 0))),
+    lastStaleReturnDay: str(o.lastStaleReturnDay),
   };
 }
 
@@ -781,6 +819,9 @@ export function summarizeAnalytics(state: AnalyticsState): string {
   if (state.appOpens >= 2) {
     lines.push(`app opens      ${state.appOpens}`);
   }
+  if (state.staleReturns > 0) {
+    lines.push(`stale returns  ${state.staleReturns}`);
+  }
   return lines.join("\n");
 }
 
@@ -828,6 +869,8 @@ export type CohortRecord = {
     iap: number;
     prestiges: number;
     cosmetics: number;
+    /** Stale-save detections (Tier 0 #13 — the lapsed-player cohort). */
+    staleReturns: number;
   };
   /** FTUE funnel: time-to-first-answer + onboarding completion. */
   ftue: {
@@ -875,6 +918,7 @@ export function buildCohortRecord(st: AnalyticsState): CohortRecord {
       iap: st.iapPurchases,
       prestiges: st.prestiges,
       cosmetics: st.cosmeticPurchases,
+      staleReturns: st.staleReturns,
     },
     ftue: {
       firstAnswerSec,

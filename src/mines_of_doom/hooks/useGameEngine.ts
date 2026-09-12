@@ -43,6 +43,7 @@ import {
 } from "../game";
 import { getAchievementBonus } from "../achievements";
 import { getTierBonus } from "../goals";
+import { getLocalDayKey } from "../dailyBonus";
 import {
   getCaveThemeCost,
   getCostGems,
@@ -184,6 +185,16 @@ export function useGameEngine(
         }
       };
 
+      // A fresh state is a REAL save once it's established: stamp saveTime
+      // (the stale-detection fallback for un-stamped saves) so the empty
+      // save this session now owns can't be misread as an old one 30 days
+      // from now.
+      const establishFreshSave = () => {
+        setGameState((n: SaveData) =>
+          n.saveTime > 0 ? n : { ...n, saveTime: Date.now() },
+        );
+      };
+
       let raw: string | null;
       try {
         raw = await getSaveData();
@@ -192,9 +203,11 @@ export function useGameEngine(
         // The read itself failed — a save probably exists but is unreadable;
         // flag it so the cloud-recovery path gets a chance.
         setSaveLoadFailed(true);
+        establishFreshSave();
         return finish(null, 0n, 0n);
       }
       if (raw == null) {
+        establishFreshSave();
         return finish(null, 0n, 0n);
       }
 
@@ -212,9 +225,11 @@ export function useGameEngine(
           console.warn("Failed to back up corrupt save", e);
         }
         setSaveLoadFailed(true);
+        establishFreshSave();
         return finish(null, 0n, 0n);
       }
       if (parsed == null || typeof parsed !== "object") {
+        establishFreshSave();
         setSaveLoadFailed(true);
         return finish(null, 0n, 0n);
       }
@@ -355,6 +370,19 @@ export function useGameEngine(
       // reports the whole absence as `elapsed`, so the clock takes the
       // capped live-tick contribution, never the raw elapsed.
       playSecondsRef.current += activePlaySeconds(elapsed, activeRef.current);
+      // Stale-save stamp (Tier 0 #13): the last day the app saw ACTIVE play,
+      // once per local day. Same activeRef gate as the play clock — a
+      // backgrounded tab or app never stamps. The set bails to the same
+      // state object once stamped, so at most one extra state update per
+      // calendar day.
+      if (activeRef.current) {
+        const day = getLocalDayKey(now);
+        if (gameStateRef.current.lastActiveDay !== day) {
+          setGameState((n: SaveData) =>
+            n.lastActiveDay === day ? n : { ...n, lastActiveDay: day },
+          );
+        }
+      }
       if (
         gameStateRef.current.miners > 0 ||
         gameStateRef.current.fastMiners > 0 ||

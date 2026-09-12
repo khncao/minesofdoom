@@ -47,6 +47,7 @@ import {
   getVisiblePurchases,
   hasAffordablePurchase,
   mulFloats,
+  isStaleSave,
 } from "./game";
 import {
   createSessionBaseline,
@@ -1136,8 +1137,21 @@ export default function MinesOfDoom() {
     onFirstAnswer,
     onOnboardingStep,
     onOnboardingEnd,
+    onStaleReturn,
     clear: onClearAnalytics,
   } = useAnalytics();
+
+  // Stale-save detection (Tier 0 #2): once the save is loaded, check it
+  // against game.ts isStaleSave and fold a hit into the local analytics
+  // record (the fold is idempotent per local day; lastActiveDay flips to
+  // "today" on the first active tick, so the check converges off).
+  useEffect(() => {
+    if (!isLoaded || !gameState) return;
+    if (isStaleSave(gameState.lastActiveDay, gameState.saveTime, Date.now())) {
+      onStaleReturn();
+    }
+  }, [isLoaded, gameState, onStaleReturn]);
+
   // Fill the engine's forwarder with the real callback (the render-
   // body assignment keeps the engine's callback stable and always
   // current — same ref pattern as autosaveSecondsRef above).

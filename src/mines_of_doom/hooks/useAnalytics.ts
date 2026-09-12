@@ -10,6 +10,7 @@ import {
   recordFirstAnswer,
   recordOnboardingEnd,
   recordOnboardingStep,
+  recordStaleReturn,
   recordCosmeticPurchase,
   recordFeatureFirstUse,
   recordIapPurchase,
@@ -171,6 +172,14 @@ export function useAnalytics() {
   }, [persist]);
 
   /**
+   * A loaded save was stale (docs/gap-ranking.md Tier 0 #13): the fold is
+   * idempotent per local day, so the caller fires unguarded once per load.
+   */
+  const onStaleReturn = useCallback(() => {
+    persist(recordStaleReturn(stateRef.current, Date.now()));
+  }, [persist]);
+
+  /**
    * A cosmetic was bought (features.md pass-16 `cosmetics:analytics`):
    * the per-purchase line — which line, which item, gems vs pack path,
    * gem balance at the moment. Fired by the engine gem buys ("gems")
@@ -213,6 +222,7 @@ export function useAnalytics() {
     onFirstAnswer,
     onOnboardingStep,
     onOnboardingEnd,
+    onStaleReturn,
     clear,
   };
 }

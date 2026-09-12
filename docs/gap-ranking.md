@@ -210,6 +210,30 @@ repo is not equipped to make.
     The release-gate item (or a deploy-time assert): production
     reports the flag unset and the sidecar `/healthz` is
     `configured: true` per platform. Hours of work.
+13. **`analytics:stale-save`** (pass 80) — the lapsed-player cohort the
+    reactivation audit (Tier 1, return-experience items) needs before it
+    can be designed: how many loads find a save with no active play in
+    the last STALE_SAVE_DAYS (30) local days? `game.ts: isStaleSave` is
+    pure calendar-day arithmetic (dailyBonus' `localDayKeyDaysAgo`,
+    DST-exact) over two stamps: `SaveData.lastActiveDay` (local day key,
+    stamped by the engine tick loop while ACTIVE — the same `activeRef`
+    gate as the play clock, so a backgrounded app never stamps; "" on
+    legacy saves, forward-compat like the other migration fields) and,
+    as the un-stamped fallback, `saveTime` (the last SAVE epoch — stamped
+    on the fresh/corrupt/absent load paths, `establishFreshSave`, so a
+    brand-new save can't be misread as 30 days old next month; a fresh
+    save's saveTime 0 is never stale). `MinesOfDoom` checks the loaded
+    save in an effect and folds a hit via `useAnalytics.onStaleReturn` →
+    `recordStaleReturn` — idempotent per local day (strict-mode double
+    fire can't inflate), "count" not "day" (two 30-day absences show two
+    returns — that's the curve, not a dedup bug). The fold rides the
+    existing plumbing end to end: parse-migrates legacy records, the
+    debug readout shows `stale returns` when > 0, and the opt-in cohort
+    record (item 1) carries `counts.staleReturns` — the lapsed-cohort
+    size is measurable on the same default-off telemetry row the GDPR
+    delete already erases. 10 tests (window/boundary/fallback, migration,
+    fold idempotency, parse defaults, summary). Gates: tsc clean, 89
+    suites / 1382 tests, lint clean.
 
 ## Tier 1 — Real feature gaps, ranked by impact-per-line
 

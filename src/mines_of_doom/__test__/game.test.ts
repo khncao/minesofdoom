@@ -1,9 +1,12 @@
+import { getLocalDayKey, localDayKeyDaysAgo } from "../dailyBonus";
 import {
   CLICK_BOOST_MAX_LEVELS,
   COMBO_RESIST_MAX_LEVELS,
   COMBO_TIER_SIZE,
   LIVE_PLAY_TICK_CAP,
+  STALE_SAVE_DAYS,
   activePlaySeconds,
+  isStaleSave,
   DEPTH_TIERS,
   GEM_CHANCE_MAX_LEVELS,
   computeBuyAll,
@@ -1780,5 +1783,70 @@ describe("catchUpTicks (F40.2 — the absence economy's catch-up, extracted from
     expect(catchUpTicks(t0, t0 + 365 * 24 * 60 * 60 * 1000)).toBe(
       maxOfflineTicks,
     );
+  });
+});
+
+describe("stale-save detection (Tier 0 #2)", () => {
+  // Local noon — same convention as the daily-bonus tests: noon±24h stays
+  // on the expected local day in the DST regimes CI runs.
+  const day = (d: number) => new Date(2026, 5, d, 12, 0, 0).getTime();
+  const key = (ms: number) => getLocalDayKey(ms);
+  const ago = (ms: number, n: number) => localDayKeyDaysAgo(ms, n);
+
+  test("a save stamped active inside the window is not stale", () => {
+    const now = day(20);
+    expect(isStaleSave(ago(now, 1), 0, now)).toBe(false);
+    expect(isStaleSave(key(now), 0, now)).toBe(false); // stamped today
+    expect(isStaleSave(ago(now, STALE_SAVE_DAYS - 1), 0, now)).toBe(false);
+  });
+
+  test("a save stamped active STALE_SAVE_DAYS+ local days ago is stale", () => {
+    const now = day(40);
+    expect(isStaleSave(ago(now, STALE_SAVE_DAYS + 1), 0, now)).toBe(true);
+    // Exactly the boundary (30 days ago) is still inside the window.
+    expect(isStaleSave(ago(now, STALE_SAVE_DAYS), 0, now)).toBe(false);
+  });
+
+  test("an un-stamped legacy save falls back to saveTime", () => {
+    const now = day(35);
+    // 31 days of save silence (epoch) → stale...
+    expect(isStaleSave("", now - (STALE_SAVE_DAYS + 1) * 86_400_000, now)).toBe(
+      true,
+    );
+    // ...29 days → not stale.
+    expect(isStaleSave("", now - (STALE_SAVE_DAYS - 1) * 86_400_000, now)).toBe(
+      false,
+    );
+  });
+
+  test("a fresh save (saveTime 0, no stamp) is never stale", () => {
+    const now = day(35);
+    expect(isStaleSave("", 0, now)).toBe(false);
+  });
+
+  test("createEmptySaveData is un-stamped and unsaved (saveTime 0)", () => {
+    const save = createEmptySaveData();
+    expect(save.lastActiveDay).toBe("");
+    // A fresh save carries saveTime 0 until the engine establishes it
+    // (establishFreshSave) — so isStaleSave("", 0, now) can never flag it.
+    expect(save.saveTime).toBe(0);
+  });
+
+  test("buildSaveData migrates lastActiveDay (absent/junk → \"\", real kept)", () => {
+    const now = Date.now();
+    const base = { saveVersion: 11, minerals: 1 };
+    expect(buildSaveData(migrateSaveData({ ...base }), now).lastActiveDay).toBe(
+      "",
+    );
+    expect(
+      buildSaveData(migrateSaveData({ ...base, lastActiveDay: 42 }), now)
+        .lastActiveDay,
+    ).toBe("");
+    expect(
+      buildSaveData(
+        migrateSaveData({ ...base, lastActiveDay: "2026-07-01" }),
+        now,
+      ).lastActiveDay,
+    ).toBe("2026-07-01");
   });
 });

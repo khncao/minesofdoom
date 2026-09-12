@@ -10,6 +10,7 @@ import {
   isOutfitId,
   isPickaxeId,
 } from "./cosmetics";
+import { localDayKeyDaysAgo } from "./dailyBonus";
 import { Equation, Ops } from "src/utils/math/equations";
 import type { NumberNotation } from "src/utils/format";
 
@@ -79,6 +80,12 @@ export type SaveData = {
   // count), flushed into state at save time. Display stat for the records
   // panel; never gates progression.
   playSeconds: number;
+  // Local day key (yyyy-MM-dd, see dailyBonus.getLocalDayKey) of the last
+  // day the app saw ACTIVE play (stamped by the engine tick loop). Stale-
+  // save detection (docs/gap-ranking.md Tier 0 #13) reads it at load time;
+  // "" on legacy saves (buildSaveData's default) and on a fresh save before
+  // the first active tick.
+  lastActiveDay: string;
   // Goal tier ids whose completion celebration has already fired (the
   // completion itself is derived from lifetime stats in goals.ts).
   completedTiers: string[];
@@ -493,6 +500,11 @@ export function buildSaveData(
     totalGemsSpent: num(migrated.totalGemsSpent, 0),
     totalPrestiges: num(migrated.totalPrestiges, 0),
     playSeconds: Math.max(0, Math.floor(num(migrated.playSeconds, 0))),
+    // Stale-save stamp ("" on legacy saves — buildSaveData's job, no
+    // migration version bump: absent field → default, like the other
+    // forward-compat fields).
+    lastActiveDay:
+      typeof migrated.lastActiveDay === "string" ? migrated.lastActiveDay : "",
     completedTiers: Array.isArray(migrated.completedTiers)
       ? migrated.completedTiers.filter(
           (t): t is string => typeof t === "string",
@@ -679,6 +691,40 @@ export function activePlaySeconds(
 }
 
 /**
+ * Stale-save window (docs/gap-ranking.md Tier 0 #13): a save whose last
+ * active play predates STALE_SAVE_DAYS full local days is "stale" — the
+ * analytics record stamps a stale-return fold for it (the "players who
+ * left for a month and came back" cohort).
+ */
+export const STALE_SAVE_DAYS = 30;
+
+/**
+ * Is a loaded save stale — no active play in the last STALE_SAVE_DAYS local
+ * days? Pure calendar-day arithmetic (dailyBonus' localDayKeyDaysAgo is
+ * DST-exact) and total over any save shape:
+ *  - "" lastActiveDay (legacy save, no stamp) falls back to saveTime — the
+ *    last SAVE epoch, which is only slightly less precise than the active
+ *    tick stamp and exactly right for a 30-day window. saveTime 0 (a fresh,
+ *    never-saved save) is never stale.
+ *  - A save stamped within the window (or stamped today) is not stale.
+ */
+export function isStaleSave(
+  lastActiveDay: string,
+  saveTime: number,
+  now: number,
+): boolean {
+  if (lastActiveDay !== "") {
+    return lastActiveDay < localDayKeyDaysAgo(now, STALE_SAVE_DAYS);
+  }
+  return (
+    typeof saveTime === "number" &&
+    Number.isFinite(saveTime) &&
+    saveTime > 0 &&
+    now - saveTime > STALE_SAVE_DAYS * 24 * 60 * 60 * 1000
+  );
+}
+
+/**
  * Whole-tick elapsed time between two wall-clock timestamps, clamped to
  * the catch-up range: the tick loop banks time while backgrounded and pays
  * it out on the next fire. A negative or clock-skew reading pays nothing,
@@ -848,6 +894,7 @@ export function createEmptySaveData(): SaveData {
     totalGemsSpent: 0,
     totalPrestiges: 0,
     playSeconds: 0,
+    lastActiveDay: "",
     completedTiers: [],
     completedAchievements: [],
     playerSeed: Math.floor(Math.random() * 2147483647) || 1,

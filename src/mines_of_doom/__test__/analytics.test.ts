@@ -12,6 +12,7 @@ import {
   recordFirstAnswer,
   recordOnboardingEnd,
   recordOnboardingStep,
+  recordStaleReturn,
   recordCosmeticPurchase,
   recordFeatureFirstUse,
   recordIapPurchase,
@@ -83,6 +84,40 @@ describe("recordAppOpen", () => {
     const late = day(20);
     expect(recordAppOpen(s, late).d1Retention).toBe(true);
     expect(s.d7Retention).toBe(true);
+  });
+});
+
+describe("recordStaleReturn", () => {
+  it("establishes the record and counts one return", () => {
+    const s = recordStaleReturn(null, day(1));
+    expect(s.staleReturns).toBe(1);
+    expect(s.lastStaleReturnDay).toBe(getLocalDayKey(day(1)));
+  });
+
+  it("is idempotent within a local day (strict-mode double fire can't inflate)", () => {
+    const s = recordStaleReturn(
+      recordStaleReturn(null, day(1)),
+      day(1) + 3600 * 1000,
+    );
+    expect(s.staleReturns).toBe(1);
+  });
+
+  it("counts each separate return, not just the first", () => {
+    const s = recordStaleReturn(recordStaleReturn(null, day(1)), day(40));
+    expect(s.staleReturns).toBe(2);
+  });
+
+  it("summarizes the count, and parse defaults legacy records to zero", () => {
+    const s = recordStaleReturn(null, day(1));
+    expect(summarizeAnalytics(s)).toContain("stale returns");
+    expect(summarizeAnalytics(emptyAnalyticsState(day(1)))).not.toContain(
+      "stale returns",
+    );
+    const parsed = parseAnalytics(
+      JSON.stringify({ firstOpenMs: day(1), activeDays: 1 }),
+    );
+    expect(parsed?.staleReturns).toBe(0);
+    expect(parsed?.lastStaleReturnDay).toBe("");
   });
 });
 
