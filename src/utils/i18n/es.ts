@@ -161,13 +161,12 @@ export const es: Record<TranslationKey, string> = {
     "Abrir contrato semanal — reclamar +{bonus} minerales",
   "a11y.weeklyProgress":
     "Abrir contrato semanal — {done} de {total} objetivos completados",
-  "a11y.weeklyClaimed":
-    "Abrir contrato semanal — reclamado esta semana",
+  "a11y.weeklyClaimed": "Abrir contrato semanal — reclamado esta semana",
   "weekly.title": "CONTRATO SEMANAL",
-  "weekly.statusInProgress":
-    "{done} de {total} tareas completadas esta semana",
+  "weekly.statusInProgress": "{done} de {total} tareas completadas esta semana",
   "weekly.statusClaimable": "Todas las tareas completadas — reclama tu bonus",
-  "weekly.statusClaimed": "Reclamado esta semana — el nuevo contrato abre el lunes",
+  "weekly.statusClaimed":
+    "Reclamado esta semana — el nuevo contrato abre el lunes",
   "weekly.resetNote": "Las tareas y el bonus se reinician cada lunes",
   "weekly.claim": "RECLAMAR +{bonus} MINERALES",
 

@@ -42,7 +42,7 @@
  *                                       update one language's listing
  *   images [--lang=en-US] [--imageType=..]
  *                                       list store images (ids for delete)
- *   upload-image --file=.. --imageType=phoneScreenshot [--lang=en-US]
+ *   upload-image --file=.. --imageType=phoneScreenshots [--lang=en-US]
  *                                       (the current API orders images by upload
  *                                       sequence; --order=N is not supported)
  *   delete-image --imageType=.. --id=.. [--lang=en-US]
@@ -95,17 +95,18 @@ const ROOT = path.resolve(
   "../..",
 );
 const DEFAULT_APP = "com.minus4kelvin.minesofdoom";
+// Values must match the AppImageType enum (v3): screenshot types are PLURAL
+// and the promo graphic is "promotionalGraphic" — the API rejects anything else.
 const IMAGE_TYPES = [
-  "phoneScreenshot",
-  "sevenInchScreenshot",
-  "tenInchScreenshot",
-  "tvScreenshot",
-  "wearOsScreenshot",
-  "promoGraphic",
+  "phoneScreenshots",
+  "sevenInchScreenshots",
+  "tenInchScreenshots",
+  "tvScreenshots",
+  "wearOsScreenshots",
+  "promotionalGraphic",
   "tvBanner",
   "appIcon",
   "featureGraphic",
-  "icon",
 ];
 
 // ---------- arg parsing ----------
@@ -113,7 +114,8 @@ const IMAGE_TYPES = [
 function parseArgs(argv) {
   const args = { _: [] };
   for (const raw of argv) {
-    const m = raw.match(/^--([\w-]+)(?:=(.*))?$/);
+    // `s` flag: `.` must match newlines so --full="…multi-line…" parses.
+    const m = raw.match(/^--([\w-]+)(?:=(.*))?$/s);
     if (m) {
       args[m[1]] = m[2] === undefined ? true : m[2];
     } else {
@@ -381,7 +383,10 @@ async function cmdUpload(pub) {
     const { data } = await pub.edits.bundles.upload({
       packageName: app,
       editId: edit.id,
-      media: { mimeType: "application/octet-stream", body: createReadStream(p) },
+      media: {
+        mimeType: "application/octet-stream",
+        body: createReadStream(p),
+      },
     });
     return data;
   });
@@ -492,7 +497,8 @@ async function cmdCreateProduct(pub) {
     packageName: app,
     requestBody: { price: basePrice },
   });
-  if (!conv.regionVersion?.version) fail("API did not return a regions version");
+  if (!conv.regionVersion?.version)
+    fail("API did not return a regions version");
 
   let configs;
   if (args["auto-convert-prices"] === true) {
@@ -555,8 +561,8 @@ async function cmdCreateProduct(pub) {
 async function cmdActivateProduct(pub) {
   const { sku } = args;
   if (!sku) fail("activate-product needs --sku=…");
-  const { data } = await pub.monetization.onetimeproducts.purchaseOptions
-    .batchUpdateStates({
+  const { data } =
+    await pub.monetization.onetimeproducts.purchaseOptions.batchUpdateStates({
       packageName: app,
       productId: String(sku),
       requestBody: {

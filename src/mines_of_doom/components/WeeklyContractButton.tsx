@@ -53,9 +53,7 @@ const WeeklyContractButton = memo(function WeeklyContractButton({
       pressable={
         // Bright while claimable (something to do), softer otherwise —
         // never dimmed so low it reads as broken: the tap always works.
-        <Text style={{ fontSize: 30, opacity: claimable ? 1 : 0.75 }}>
-          📜
-        </Text>
+        <Text style={{ fontSize: 30, opacity: claimable ? 1 : 0.75 }}>📜</Text>
       }
       accessibilityLabel={label}
       testID="weekly-contract-button"
@@ -85,10 +83,8 @@ const WeeklyContractButton = memo(function WeeklyContractButton({
           <View key={p.goal.id} style={{ gap: 1 }}>
             <Text style={{ ...styles.text, fontSize: 11 }}>
               {p.done ? "✅" : "▶"} {p.goal.label} —{" "}
-              {formatNumber(
-                p.current >= p.target ? p.target : p.current,
-              )}
-              /{formatNumber(p.target)}
+              {formatNumber(p.current >= p.target ? p.target : p.current)}/
+              {formatNumber(p.target)}
             </Text>
             <View
               style={{
