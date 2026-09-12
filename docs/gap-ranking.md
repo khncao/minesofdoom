@@ -5683,9 +5683,23 @@ backup ✔ (with the F39.1 divergence), primary verify ✘, restore ✘.
 now drives the real `handleVerify` (two products/one device, re-verify
 idempotency) and `handleRestore` (both-rows recovery, account-union,
 no-device rows) — plus `register` and the sign-in backfill — against the
-production-faithful fake. Still untested: `handleCloudPush`/`Pull`,
-`handleLeaderboardSubmit`/`Top`/`Rank`, `handleDelete`, and the remaining
-auth handlers (login/google/apple/link/set-password/logout).
+production-faithful fake.
+**Data plane closed (pass 70, 2026-09-12):** `pb_hooks/__test__/handlerDataPlane.test.js`
+(18 tests) covers the rest of the NON-AUTH surface on the same
+production-faithful fake (now extracted to the shared
+`fakeDatastore.js` — the pass-69 file refactored on top of it):
+`handleCloudPush` (last-write-wins — an OLDER push never clobbers a
+newer stored blob; the 30/hour write budget 429s), `handleCloudPull`
+(newest-wins merge across every device linked to the account; the
+caller's own row wins a timestamp tie), the leaderboard trio (submit is
+a merge — bests only go up, achievement sets union; top-N ordering +
+limit; rank = strictly-above + 1), and `handleDelete` (device scope
+wipes cloudSaves/leaderboard/events but PRESERVES entitlements — the
+refund/restore guarantee; account scope additionally erases the
+account's entitlements, sessions, and account row). Still untested: the
+remaining auth handlers (login/google/apple/link/set-password/logout) —
+their pure halves (KDF, sessions, provider-merge) stay netted by
+`logic.test.js`.
 
 **F39.3 — Recorded, not a defect.**
 
