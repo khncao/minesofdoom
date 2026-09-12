@@ -1115,10 +1115,53 @@ export default function MinesOfDoom() {
     [setOnboardingDone],
   );
 
-  const handleExportSaveCode = useCallback(
-    () => exportSaveCode(settingsData, equationSettings, onboardingDone),
-    [exportSaveCode, settingsData, equationSettings, onboardingDone],
-  );
+  // Local event logging (guardrail 5, "measure before scaling"): the
+  // app-open record happens inside the hook (after its stored record has
+  // loaded); the milestones are fired from the effects below. The hook is
+  // the single owner of the record — Settings only displays it.
+  const {
+    state: analytics,
+    onPrestige,
+    onAdView: onFirstAdView,
+    onAdOutcome: onFirstAdOutcome,
+    onIapPurchase: onFirstIap,
+    onTierMilestone,
+    onCosmeticPurchase,
+    onFeatureFirstUse,
+    clear: onClearAnalytics,
+  } = useAnalytics();
+  // Fill the engine's forwarder with the real callback (the render-
+  // body assignment keeps the engine's callback stable and always
+  // current — same ref pattern as autosaveSecondsRef above).
+  onCosmeticPurchaseRef.current = onCosmeticPurchase;
+  onTierMilestoneRef.current = onTierMilestone;
+
+  // F27.4 first-use stamp: first cloud link — the account hook's status
+  // settling to "in" is the single point every sign-in path (login,
+  // register, provider) passes through; the fold is idempotent, so a
+  // repeated effect fire is a no-op.
+  useEffect(() => {
+    if (account.status === "in") onFeatureFirstUse("cloud-link");
+  }, [account.status, onFeatureFirstUse]);
+
+  // F27.4 first-use stamp: first leaderboard open (the panel's onToggle
+  // fires it; the fold is idempotent).
+  const handleLeaderboardOpen = useCallback(() => {
+    onFeatureFirstUse("leaderboard-open");
+  }, [onFeatureFirstUse]);
+
+  const handleExportSaveCode = useCallback(() => {
+    // F27.4 first-use stamp: exporting a save code at all (the
+    // export-with-data-deletion format is the same string).
+    onFeatureFirstUse("save-code-export");
+    return exportSaveCode(settingsData, equationSettings, onboardingDone);
+  }, [
+    exportSaveCode,
+    settingsData,
+    equationSettings,
+    onboardingDone,
+    onFeatureFirstUse,
+  ]);
 
   const handleImportSaveCode = useCallback(
     (code: string): boolean => {
@@ -1198,28 +1241,10 @@ export default function MinesOfDoom() {
   const weeklyClaim = weeklyContract.claim;
   const handleWeeklyClaim = useCallback(() => {
     noteCrashEvent("weekly contract claimed");
+    onFeatureFirstUse("weekly-claim");
     weeklyClaim();
-  }, [weeklyClaim]);
+  }, [weeklyClaim, onFeatureFirstUse]);
 
-  // Local event logging (guardrail 5, "measure before scaling"): the
-  // app-open record happens inside the hook (after its stored record has
-  // loaded); the milestones are fired from the effects below. The hook is
-  // the single owner of the record — Settings only displays it.
-  const {
-    state: analytics,
-    onPrestige,
-    onAdView: onFirstAdView,
-    onAdOutcome: onFirstAdOutcome,
-    onIapPurchase: onFirstIap,
-    onTierMilestone,
-    onCosmeticPurchase,
-    clear: onClearAnalytics,
-  } = useAnalytics();
-  // Fill the engine's forwarder with the real callback (the render-
-  // body assignment keeps the engine's callback stable and always
-  // current — same ref pattern as autosaveSecondsRef above).
-  onCosmeticPurchaseRef.current = onCosmeticPurchase;
-  onTierMilestoneRef.current = onTierMilestone;
 
   // Rewarded ads (plan §5.1): the provider is picked in ads.ts behind the
   // documented swap point (selectAdProvider — see its docs): dev builds run
@@ -1638,6 +1663,7 @@ export default function MinesOfDoom() {
               session={sessionStats}
               analytics={analytics}
               onClearAnalytics={onClearAnalytics}
+              onFirstUse={onFeatureFirstUse}
               cloudSave={cloudSaveSettings}
               account={accountSettings}
             />
@@ -1687,6 +1713,7 @@ export default function MinesOfDoom() {
               <LeaderboardPanel
                 handle={leaderboard}
                 isDevSim={leaderboardProvider.id === "dev-sim"}
+                onOpen={handleLeaderboardOpen}
               />
             )}
             {adRewards.available && (

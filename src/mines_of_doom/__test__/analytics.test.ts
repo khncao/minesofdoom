@@ -10,6 +10,7 @@ import {
   recordAdView,
   recordAppOpen,
   recordCosmeticPurchase,
+  recordFeatureFirstUse,
   recordIapPurchase,
   recordPrestige,
   recordTierMilestone,
@@ -547,3 +548,72 @@ function summarizeRecentBlock(text: string, header: string): string[] {
   }
   return rows;
 }
+
+describe("recordFeatureFirstUse (F27.4 first-use stamps)", () => {
+  const t0 = Date.UTC(2026, 5, 10, 12, 0, 0);
+
+  it("stamps the first use and never moves it on re-fire", () => {
+    const a = recordFeatureFirstUse(
+      emptyAnalyticsState(t0),
+      "daily-equation",
+      t0 + 1000,
+    );
+    expect(a.firstUse["daily-equation"]).toBe(t0 + 1000);
+    // Idempotent: a later re-fire (strict mode, repeated opens) is a no-op.
+    const b = recordFeatureFirstUse(a, "daily-equation", t0 + 999_999);
+    expect(b.firstUse["daily-equation"]).toBe(t0 + 1000);
+  });
+
+  it("stamps features independently and establishes the record from null",
+    () => {
+      const a = recordFeatureFirstUse(null, "cloud-link", t0);
+      expect(a.firstOpenMs).toBe(t0); // like every other record*: null → fresh
+      expect(a.firstUse).toEqual({ "cloud-link": t0 });
+      const b = recordFeatureFirstUse(a, "leaderboard-open", t0 + 5);
+      expect(b.firstUse).toEqual({
+        "cloud-link": t0,
+        "leaderboard-open": t0 + 5,
+      });
+    });
+
+  it("parseAnalytics migrates a legacy record (no firstUse) to an empty map",
+    () => {
+      const a = recordFeatureFirstUse(null, "weekly-claim", t0);
+      const legacy = JSON.parse(JSON.stringify(a)) as Record<string, unknown>;
+      delete legacy.firstUse;
+      const parsed = parseAnalytics(JSON.stringify(legacy));
+      expect(parsed).not.toBeNull();
+      expect(parsed!.firstUse).toEqual({});
+    });
+
+  it("parseAnalytics drops hand-edited keys outside the closed vocab",
+    () => {
+      const a = recordFeatureFirstUse(null, "weekly-claim", t0);
+      const junk = JSON.stringify({
+        ...a,
+        firstUse: { "weekly-claim": t0, bogus: 1, "goals-tab": "soon" },
+      });
+      const parsed = parseAnalytics(junk);
+      expect(parsed!.firstUse).toEqual({ "weekly-claim": t0 });
+    });
+
+  it("the summary lists stamped features with local day keys, in vocab order",
+    () => {
+      const a = recordFeatureFirstUse(null, "save-code-export", t0);
+      const b = recordFeatureFirstUse(a, "goals-tab", t0 + 2 * 3_600_000);
+      const s = summarizeAnalytics(b);
+      expect(s).toContain("first use  (2)");
+      expect(s).toContain("save-code-export");
+      expect(s).toContain("goals-tab");
+      // Vocab order: save-code-export is later in FIRST_USE_FEATURES than
+      // goals-tab, so goals-tab's line comes first in the block.
+      const firstUseBlock = s
+        .split("\n")
+        .filter((l) => l.startsWith("  ") && l.includes("-"));
+      expect(firstUseBlock[0]).toContain("goals-tab");
+      // Omitted when nothing fired.
+      expect(summarizeAnalytics(emptyAnalyticsState(t0))).not.toContain(
+        "first use",
+      );
+    });
+});

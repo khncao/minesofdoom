@@ -94,6 +94,13 @@ export type AnalyticsState = {
    * exists so a hand-edited record can't bloat the AsyncStorage row).
    */
   cosmeticPurchaseLog: CosmeticPurchaseEvent[];
+  /**
+   * One-shot first-use stamps (F27.4): epoch ms per gated feature
+   * (FirstUseFeature) — "which entry points do players actually find, and
+   * when", answerable from the local record. Absent key = never observed;
+   * unknown keys are dropped at parse time (closed vocab).
+   */
+  firstUse: Record<string, number>;
 };
 
 /** The three cosmetic lines the catalog is organized by. */
@@ -167,6 +174,7 @@ export function emptyAnalyticsState(now: number): AnalyticsState {
     cosmeticPurchases: 0,
     cosmeticPurchaseLog: [],
     firstTierDay: {},
+    firstUse: {},
   };
 }
 
@@ -374,6 +382,7 @@ export function parseAnalytics(raw: string | null): AnalyticsState | null {
     // newest last, capped (a hand-edited record can't bloat the log).
     cosmeticPurchaseLog: sanitizeCosmeticPurchaseLog(o.cosmeticPurchaseLog),
     firstTierDay: sanitizeFirstTierDay(o.firstTierDay),
+    firstUse: sanitizeFirstUse(o.firstUse),
   };
 }
 
@@ -437,6 +446,67 @@ function isIapPurchaseEvent(e: unknown): e is IapPurchaseEvent {
     o.product !== "" &&
     typeof o.day === "string"
   );
+}
+
+/**
+ * The first-use stamp family (F27.4, docs/gap-ranking.md pass 27): one
+ * one-shot timestamp per gated entry point, so "which of the eight entries
+ * do players actually find, and when" is answerable from the local record
+ * (read in the About tab, exportable like every other field — nothing
+ * leaves the device). The vocab is CLOSED: a typo'd feature is a type
+ * error at the call site, and sanitizeFirstUse drops unknown keys a
+ * hand-edited record might carry.
+ */
+export const FIRST_USE_FEATURES = [
+  "daily-equation",
+  "weekly-claim",
+  "leaderboard-open",
+  "records-tab",
+  "collection-tab",
+  "goals-tab",
+  "save-code-export",
+  "cloud-link",
+] as const;
+export type FirstUseFeature = (typeof FIRST_USE_FEATURES)[number];
+
+const FIRST_USE_FEATURE_SET: ReadonlySet<string> = new Set(
+  FIRST_USE_FEATURES,
+);
+
+/**
+ * Corruption guard for the first-use stamps: keep only keys from the closed
+ * FirstUseFeature vocab with finite numeric timestamps (a hand-edited record
+ * must not bloat the row or reach the debug panel with junk).
+ */
+function sanitizeFirstUse(raw: unknown): Record<string, number> {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return {};
+  }
+  const out: Record<string, number> = {};
+  for (const [feature, ts] of Object.entries(raw)) {
+    if (FIRST_USE_FEATURE_SET.has(feature) && typeof ts === "number") {
+      out[feature] = ts;
+    }
+  }
+  return out;
+}
+
+/**
+ * Stamp the first use of a gated feature (F27.4). Idempotent per feature —
+ * re-firing (strict mode, repeated opens) never moves the stamp, so call
+ * sites fire unguarded at the natural moment (button press, view switch,
+ * sign-in settle). `state` may be null: the stamp establishes the record,
+ * exactly like every other record* here.
+ */
+export function recordFeatureFirstUse(
+  state: AnalyticsState | null,
+  feature: FirstUseFeature,
+  now: number,
+): AnalyticsState {
+  const prev = state ?? emptyAnalyticsState(now);
+  const firstUse = { ...(prev.firstUse ?? {}) };
+  if (!(feature in firstUse)) firstUse[feature] = now;
+  return { ...prev, firstUse };
 }
 
 /**
@@ -555,6 +625,15 @@ export function summarizeAnalytics(state: AnalyticsState): string {
     lines.push(`tier first days   (${tierDays.length})`);
     for (const [tierId, d] of tierDays) {
       lines.push(`  ${tierId}  ${d}`);
+    }
+  }
+  // First-use stamps (F27.4): data-driven — one line per stamped feature in
+  // the closed vocab order, local day key, omitted when none fired yet.
+  const firstUsed = FIRST_USE_FEATURES.filter((f) => f in state.firstUse);
+  if (firstUsed.length > 0) {
+    lines.push(`first use  (${firstUsed.length})`);
+    for (const f of firstUsed) {
+      lines.push(`  ${f}  ${getLocalDayKey(state.firstUse[f])}`);
     }
   }
   return lines.join("\n");

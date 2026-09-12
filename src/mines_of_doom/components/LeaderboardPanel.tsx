@@ -29,10 +29,14 @@ import { styles } from "../styles";
 const LeaderboardPanel = memo(function LeaderboardPanel({
   handle,
   isDevSim,
+  onOpen,
 }: {
   handle: LeaderboardHandle;
   /** Dev build (the labeled in-memory row, same rule as the cloud sim). */
   isDevSim: boolean;
+  /** First-use stamp seam (F27.4): fired on every open; the analytics
+   *  fold makes it a no-op after the first one. */
+  onOpen?: () => void;
 }) {
   const t = useT();
   const { rows, yourRank, status, refresh, displayName, setDisplayName } =
@@ -47,7 +51,10 @@ const LeaderboardPanel = memo(function LeaderboardPanel({
       onToggle={(open) => {
         // Refresh on open: the 60s cache in the hook makes a reopen
         // within a minute free, and the 5s throttle guards the rest.
-        if (open) refresh();
+        if (open) {
+          refresh();
+          onOpen?.();
+        }
       }}
     >
       <View style={{ gap: 10, padding: 12 }}>

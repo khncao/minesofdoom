@@ -16,6 +16,7 @@ import CollectionContent from "./CollectionPanel";
 import { SaveData, SettingsData } from "../game";
 import { SessionStats } from "../session";
 import { styles } from "../styles";
+import type { FirstUseFeature } from "../analytics";
 
 type MenuView =
         | "settings"
@@ -64,6 +65,7 @@ function MenuPanel({
         onClearAnalytics,
         cloudSave,
         account,
+        onFirstUse,
 }: {
         settingsData: SettingsData;
         onChangeSettingsData: (newSettings: SettingsData) => void;
@@ -103,6 +105,9 @@ function MenuPanel({
         /** Optional-account settings bundle (see AccountSettingsProps); the
          *  section hides itself while the provider is unavailable. */
         account: AccountSettingsProps;
+        /** First-use stamps (F27.4): fired on the goals/records/collection
+         *  tab presses; the analytics fold keeps them one-shot. */
+        onFirstUse?: (feature: FirstUseFeature) => void;
 }) {
         const t = useT();
         const [view, setView] = useState<MenuView>("settings");
@@ -237,23 +242,34 @@ function MenuPanel({
                                         <MenuNavButton
                                                 label={t("menu.goals")}
                                                 active={view === "goals"}
-                                                onPress={() => setView("goals")}
+                                                onPress={() => {
+                                                        onFirstUse?.(
+                                                                "goals-tab"
+                                                        );
+                                                        setView("goals");
+                                                }}
                                                 testID="menu-tab-goals"
                                         />
                                         <MenuNavButton
                                                 label={t("menu.records")}
                                                 active={view === "records"}
-                                                onPress={() =>
-                                                        setView("records")
-                                                }
+                                                onPress={() => {
+                                                        onFirstUse?.(
+                                                                "records-tab"
+                                                        );
+                                                        setView("records");
+                                                }}
                                                 testID="menu-tab-records"
                                         />
                                         <MenuNavButton
                                                 label={t("menu.collection")}
                                                 active={view === "collection"}
-                                                onPress={() =>
-                                                        setView("collection")
-                                                }
+                                                onPress={() => {
+                                                        onFirstUse?.(
+                                                                "collection-tab"
+                                                        );
+                                                        setView("collection");
+                                                }}
                                                 testID="menu-tab-collection"
                                         />
                                         <MenuNavButton

@@ -8,11 +8,13 @@ import {
   recordAdView,
   recordAppOpen,
   recordCosmeticPurchase,
+  recordFeatureFirstUse,
   recordIapPurchase,
   recordPrestige,
   recordTierMilestone,
   type CosmeticPurchasePath,
   type CosmeticLine,
+  type FirstUseFeature,
 } from "../analytics";
 import type { AdKind, AdResult } from "../ads";
 import type { IapProductId } from "../iaps";
@@ -131,6 +133,16 @@ export function useAnalytics() {
   );
 
   /**
+   * A gated feature was used for the first time (F27.4): one-shot stamp
+   * per FirstUseFeature on the local record. Idempotent — call sites fire
+   * unguarded at the natural moment (button press, view switch, sign-in
+   * settle); re-fires are no-ops.
+   */
+  const onFeatureFirstUse = useCallback((feature: FirstUseFeature) => {
+    persist(recordFeatureFirstUse(stateRef.current, feature, Date.now()));
+  }, [persist]);
+
+  /**
    * A cosmetic was bought (features.md pass-16 `cosmetics:analytics`):
    * the per-purchase line — which line, which item, gems vs pack path,
    * gem balance at the moment. Fired by the engine gem buys ("gems")
@@ -169,6 +181,7 @@ export function useAnalytics() {
     onPrestige,
     onTierMilestone,
     onCosmeticPurchase,
+    onFeatureFirstUse,
     clear,
   };
 }
