@@ -521,6 +521,35 @@ const SettingsContent = memo(function SettingsContent({
           />
         </View>
       </Tooltip>
+      {/* Share anonymous usage stats (todo #1, OFF by default): a reduced
+          local-analytics record (day keys/booleans/counters) is uploaded
+          at most once per local day and stored as one row per device;
+          the GDPR delete erases it. Guardrail 5 — measure before scaling. */}
+      <Tooltip
+        label={t("settings.tooltipAnalyticsShare")}
+        content={t("settings.analyticsShareHelp")}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Text style={{ ...styles.text, fontSize: 11 }}>
+            {t("settings.analyticsShare")}
+          </Text>
+          <Switch
+            value={settingsData.analyticsShare}
+            onValueChange={(newVal) => {
+              onChangeSettingsData({
+                ...settingsData,
+                analyticsShare: newVal,
+              });
+            }}
+          />
+        </View>
+      </Tooltip>
       {/* Auto equation of the day (todo: daily question pops up by itself):
           on (default) the daily equation starts itself while unsolved and
           the 📅 icon stays out of the top row; off, the icon returns as the

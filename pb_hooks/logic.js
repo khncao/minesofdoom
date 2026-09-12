@@ -89,6 +89,14 @@ const DEVICE_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const WRITE_LIMIT_PER_HOUR = 30;
 const WRITE_WINDOW_MS = 60 * 60 * 1000;
 
+// The opt-in cohort record (docs/gap-ranking.md Tier 0 #1): a REDUCED copy
+// of the client's local analytics record (analytics.ts buildCohortRecord —
+// day keys, booleans, counters; never save data, never the per-purchase
+// logs, never absolute timestamps). One row per device in `events`
+// (kind="analytics"); 4KB is ~4x the largest real record (~1KB), well
+// under the events payload text cap.
+const TELEMETRY_PAYLOAD_MAX_CHARS = 4000;
+
 // eslint-disable-next-line no-control-regex -- control chars in a deviceId are exactly what we reject
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/g;
 
@@ -300,6 +308,31 @@ function shapeTopRow(record, rank) {
  */
 function writeBudgetExceeded(recentCount) {
  return Number(recentCount) >= WRITE_LIMIT_PER_HOUR;
+}
+
+/**
+ * Validate a POST /api/app/telemetry/push body. `record` must be a plain
+ * JSON object (never an array, never a scalar) whose SERIALIZED form fits
+ * the cap — the canonical length is measured on the server-side stringify,
+ * so a hostile client can't smuggle a long key in that the client-side
+ * check wouldn't have seen. The handler stores that same stringified form
+ * as the row payload, so validated length === stored length.
+ */
+function validateTelemetryPush(body) {
+ const b = body || {};
+ if (!validDeviceId(b.deviceId)) return badResult("invalid deviceId");
+ if (
+  typeof b.record !== "object" ||
+  b.record === null ||
+  Array.isArray(b.record)
+ ) {
+  return badResult("record must be a JSON object");
+ }
+ const payload = JSON.stringify(b.record);
+ if (payload.length > TELEMETRY_PAYLOAD_MAX_CHARS) {
+  return badResult("record exceeds the size cap");
+ }
+ return { ok: true, value: { deviceId: b.deviceId, payload } };
 }
 
 // -- accounts / optional login (docs/store-integration.md) ---------------
@@ -718,6 +751,8 @@ module.exports = {
  parseAchievementIds,
  shapeTopRow,
  writeBudgetExceeded,
+ TELEMETRY_PAYLOAD_MAX_CHARS,
+ validateTelemetryPush,
  // accounts / optional login
  EMAIL_RE,
  PASSWORD_MIN_LENGTH,

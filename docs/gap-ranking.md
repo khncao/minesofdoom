@@ -35,6 +35,25 @@ repo is not equipped to make.
    lands, guardrail 5 is single-player. Opt-in, default off; the GDPR
    delete endpoint and per-device write-budget precedent already
    cover the rows.
+
+   **Resolved (pass 79, 2026-09-25).** The reduced record now uploads
+   to the pre-staged `events` collection end to end: the client folds
+   the local analytics state into `buildCohortRecord` (first-day flags
+   + counters only; no names, no save data) and `pushCohortRecord`
+   POSTs it to the new `telemetry/push` handler (device-scoped, the
+   same 30/hour write budget as every other write, upserting ONE
+   `events` row per device — `kind="analytics"`, overwritten on each
+   push, erased by the existing GDPR delete). Cadence and consent: a
+   default-OFF settings row (`analyticsShare`, i18n en/es) the player
+   flips in Settings; while ON, at most one push per local day
+   (client-side dayKey guard, retry-on-next-analytics-event if a push
+   failed). The server re-validates the record shape and length
+   (`validateTelemetryPush`, 4 KB cap) — the client is not trusted.
+   Follow-up (not built, ranked below): the server-side aggregation
+   that turns per-device rows into the actual D1/D7 fractions —
+   `telemetry/summary` — so the owner-facing readout this item exists
+   to enable is queryable.
+
 2. **FTUE funnel instrumentation** (pass 7) — time-to-core, per-step
    drop-off, tour completion, first-session length, session 1→2
    conversion. D1 is the named retention driver; the first session is

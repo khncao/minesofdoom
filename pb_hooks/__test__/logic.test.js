@@ -101,8 +101,12 @@ describe("validateCloudPush", () => {
     expect(L.validateCloudPush({ ...base, updatedAt: 0 }).ok).toBe(false);
     expect(L.validateCloudPush({ ...base, updatedAt: -5 }).ok).toBe(false);
     expect(L.validateCloudPush({ ...base, updatedAt: NaN }).ok).toBe(false);
-    expect(L.validateCloudPush({ ...base, updatedAt: L.TIMESTAMP_CAP + 1 }).ok).toBe(false);
-    expect(L.validateCloudPush({ ...base, updatedAt: "1700000000000" }).ok).toBe(false);
+    expect(
+      L.validateCloudPush({ ...base, updatedAt: L.TIMESTAMP_CAP + 1 }).ok,
+    ).toBe(false);
+    expect(
+      L.validateCloudPush({ ...base, updatedAt: "1700000000000" }).ok,
+    ).toBe(false);
   });
 
   test("rejects an invalid deviceId", () => {
@@ -138,7 +142,7 @@ describe("validateLeaderboardSubmit", () => {
   test("accepts a well-formed submit and sanitizes the name", () => {
     const v = L.validateLeaderboardSubmit({
       ...base,
-      displayName: "  \u0007Big\u0000 Digger (truncated)" ,
+      displayName: "  \u0007Big\u0000 Digger (truncated)",
     });
     expect(v.ok).toBe(true);
     expect(v.value.displayName).toBe("Big Digger (trun");
@@ -154,21 +158,36 @@ describe("validateLeaderboardSubmit", () => {
   });
 
   test("rejects stats at/above the sanity caps (dropped, not clamped)", () => {
-    expect(L.validateLeaderboardSubmit({ ...base, bestDepth: L.BEST_DEPTH_CAP }).ok).toBe(false);
-    expect(L.validateLeaderboardSubmit({ ...base, maxCombo: L.MAX_COMBO_CAP }).ok).toBe(false);
     expect(
-      L.validateLeaderboardSubmit({ ...base, lifetimeMinerals: L.LIFETIME_MINERALS_CAP }).ok,
+      L.validateLeaderboardSubmit({ ...base, bestDepth: L.BEST_DEPTH_CAP }).ok,
+    ).toBe(false);
+    expect(
+      L.validateLeaderboardSubmit({ ...base, maxCombo: L.MAX_COMBO_CAP }).ok,
+    ).toBe(false);
+    expect(
+      L.validateLeaderboardSubmit({
+        ...base,
+        lifetimeMinerals: L.LIFETIME_MINERALS_CAP,
+      }).ok,
     ).toBe(false);
   });
 
   test("rejects negative / non-integer stats", () => {
-    expect(L.validateLeaderboardSubmit({ ...base, bestDepth: -1 }).ok).toBe(false);
-    expect(L.validateLeaderboardSubmit({ ...base, bestDepth: 12.5 }).ok).toBe(false);
-    expect(L.validateLeaderboardSubmit({ ...base, maxCombo: "25" }).ok).toBe(false);
+    expect(L.validateLeaderboardSubmit({ ...base, bestDepth: -1 }).ok).toBe(
+      false,
+    );
+    expect(L.validateLeaderboardSubmit({ ...base, bestDepth: 12.5 }).ok).toBe(
+      false,
+    );
+    expect(L.validateLeaderboardSubmit({ ...base, maxCombo: "25" }).ok).toBe(
+      false,
+    );
   });
 
   test("rejects an invalid deviceId", () => {
-    expect(L.validateLeaderboardSubmit({ ...base, deviceId: "" }).ok).toBe(false);
+    expect(L.validateLeaderboardSubmit({ ...base, deviceId: "" }).ok).toBe(
+      false,
+    );
   });
 });
 
@@ -233,8 +252,23 @@ describe("shapeTopRow", () => {
   });
 
   test("survives a corrupt stored achievementIds value", () => {
-    expect(L.shapeTopRow({ achievementIds: "{nope", displayName: "d", bestDepth: 1, maxCombo: 1 }, 1).achievementCount).toBe(0);
-    expect(L.shapeTopRow({ achievementIds: null, displayName: "d", bestDepth: 1, maxCombo: 1 }, 1).achievementCount).toBe(0);
+    expect(
+      L.shapeTopRow(
+        {
+          achievementIds: "{nope",
+          displayName: "d",
+          bestDepth: 1,
+          maxCombo: 1,
+        },
+        1,
+      ).achievementCount,
+    ).toBe(0);
+    expect(
+      L.shapeTopRow(
+        { achievementIds: null, displayName: "d", bestDepth: 1, maxCombo: 1 },
+        1,
+      ).achievementCount,
+    ).toBe(0);
   });
 });
 
@@ -250,7 +284,8 @@ describe("writeBudgetExceeded", () => {
 
 // -- accounts / optional login --------------------------------------------------
 
-const sha256 = (s) => require("crypto").createHash("sha256").update(s).digest("hex");
+const sha256 = (s) =>
+  require("crypto").createHash("sha256").update(s).digest("hex");
 
 describe("email / password validation", () => {
   test("accepts normal emails, normalized to lowercase + trimmed", () => {
@@ -287,7 +322,9 @@ describe("email / password validation", () => {
     expect(v.value.email).toBe("digger@example.com");
     expect(v.value.password).toBe("12345678");
     expect(L.validateEmailCredentials("nope", "12345678").ok).toBe(false);
-    expect(L.validateEmailCredentials("digger@example.com", "short").ok).toBe(false);
+    expect(L.validateEmailCredentials("digger@example.com", "short").ok).toBe(
+      false,
+    );
   });
 });
 
@@ -296,7 +333,11 @@ describe("password hashing (iterated-SHA-256 KDF, injected sha256)", () => {
 
   test("hashPassword emits the KDF format and round-trips", () => {
     const stored = L.hashPassword("correct horse", salt, sha256);
-    expect(stored.startsWith("pbkdf2-sha256:" + L.PASSWORD_KDF_ITERATIONS + ":" + salt + ":")).toBe(true);
+    expect(
+      stored.startsWith(
+        "pbkdf2-sha256:" + L.PASSWORD_KDF_ITERATIONS + ":" + salt + ":",
+      ),
+    ).toBe(true);
     expect(L.verifyPassword("correct horse", stored, sha256)).toBe(true);
     expect(L.passwordNeedsUpgrade(stored)).toBe(false);
   });
@@ -311,8 +352,12 @@ describe("password hashing (iterated-SHA-256 KDF, injected sha256)", () => {
   });
 
   test("kdfSha256 is deterministic, iteration- and salt-sensitive, 1-iter == plain", () => {
-    expect(L.kdfSha256("pw", salt, 3, sha256)).toBe(L.kdfSha256("pw", salt, 3, sha256));
-    expect(L.kdfSha256("pw", salt, 3, sha256)).not.toBe(L.kdfSha256("pw", salt, 4, sha256));
+    expect(L.kdfSha256("pw", salt, 3, sha256)).toBe(
+      L.kdfSha256("pw", salt, 3, sha256),
+    );
+    expect(L.kdfSha256("pw", salt, 3, sha256)).not.toBe(
+      L.kdfSha256("pw", salt, 4, sha256),
+    );
     expect(L.kdfSha256("pw", salt, 3, sha256)).not.toBe(
       L.kdfSha256("pw", "ffffffffffffffff", 3, sha256),
     ); // different salt → different digest
@@ -332,7 +377,9 @@ describe("password hashing (iterated-SHA-256 KDF, injected sha256)", () => {
     expect(L.verifyPassword("x", "bcrypt:zzz", sha256)).toBe(false);
     expect(L.verifyPassword("x", "sha256::deadbeef", sha256)).toBe(false);
     expect(L.verifyPassword("x", "sha256:ab:cd:ef", sha256)).toBe(false);
-    expect(L.verifyPassword("x", "pbkdf2-sha256:notanumber:abc:def", sha256)).toBe(false);
+    expect(
+      L.verifyPassword("x", "pbkdf2-sha256:notanumber:abc:def", sha256),
+    ).toBe(false);
   });
 });
 
@@ -354,7 +401,9 @@ describe("randomHex / session tokens", () => {
     expect(L.validSessionToken("")).toBe(false);
     expect(L.validSessionToken("short".repeat(0) || "tooshort")).toBe(false);
     expect(L.validSessionToken("a".repeat(129))).toBe(false);
-    expect(L.validSessionToken("has space".repeat(3) + "a".repeat(13))).toBe(false);
+    expect(L.validSessionToken("has space".repeat(3) + "a".repeat(13))).toBe(
+      false,
+    );
     expect(L.validSessionToken(42)).toBe(false);
   });
 });
@@ -390,7 +439,11 @@ describe("normalizeProviderClaims", () => {
       email: "Digger@Example.com",
       emailVerified: true,
     });
-    expect(v).toEqual({ provider: "google", sub: "g-123", email: "digger@example.com" });
+    expect(v).toEqual({
+      provider: "google",
+      sub: "g-123",
+      email: "digger@example.com",
+    });
     const u = L.normalizeProviderClaims("google", {
       sub: "g-123",
       email: "digger@example.com",
@@ -400,7 +453,10 @@ describe("normalizeProviderClaims", () => {
   });
 
   test("apple: the email Apple returns is always trusted (incl. proxy)", () => {
-    const v = L.normalizeProviderClaims("apple", { sub: "ap|Ae1", email: "x@privaterelay.appleid.com" });
+    const v = L.normalizeProviderClaims("apple", {
+      sub: "ap|Ae1",
+      email: "x@privaterelay.appleid.com",
+    });
     expect(v.email).toBe("x@privaterelay.appleid.com");
   });
 
@@ -413,35 +469,84 @@ describe("normalizeProviderClaims", () => {
 });
 
 describe("resolveProviderAccount (the provider-agnostic merge)", () => {
-  const emailAccount = { id: "acct-1", email: "digger@example.com", googleId: "", appleId: "", passwordHash: "sha256:s:h" };
-  const googleAccount = { id: "acct-2", email: "g@example.com", googleId: "g-999", appleId: "", passwordHash: "" };
-  const appleNoEmail = { id: "acct-3", email: "", googleId: "", appleId: "ap|hidden", passwordHash: "" };
+  const emailAccount = {
+    id: "acct-1",
+    email: "digger@example.com",
+    googleId: "",
+    appleId: "",
+    passwordHash: "sha256:s:h",
+  };
+  const googleAccount = {
+    id: "acct-2",
+    email: "g@example.com",
+    googleId: "g-999",
+    appleId: "",
+    passwordHash: "",
+  };
+  const appleNoEmail = {
+    id: "acct-3",
+    email: "",
+    googleId: "",
+    appleId: "ap|hidden",
+    passwordHash: "",
+  };
 
   test("1) an account keyed on THIS provider's sub wins (re-login)", () => {
-    const index = { byGoogleId: { "g-999": googleAccount }, byAppleId: {}, byEmail: {} };
-    const r = L.resolveProviderAccount(index, { provider: "google", sub: "g-999", email: "g@example.com" });
+    const index = {
+      byGoogleId: { "g-999": googleAccount },
+      byAppleId: {},
+      byEmail: {},
+    };
+    const r = L.resolveProviderAccount(index, {
+      provider: "google",
+      sub: "g-999",
+      email: "g@example.com",
+    });
     expect(r.action).toBe("signin");
     expect(r.account).toBe(googleAccount);
     // apple's sub never matches a google index
-    const r2 = L.resolveProviderAccount(index, { provider: "apple", sub: "ap|x", email: "" });
+    const r2 = L.resolveProviderAccount(index, {
+      provider: "apple",
+      sub: "ap|x",
+      email: "",
+    });
     expect(r2.action).toBe("create");
   });
 
   test("2) else a verified email signs into the shared account (Google → email account)", () => {
-    const index = { byGoogleId: {}, byAppleId: {}, byEmail: { "digger@example.com": emailAccount } };
-    const r = L.resolveProviderAccount(index, { provider: "google", sub: "g-new", email: "Digger@Example.com" });
+    const index = {
+      byGoogleId: {},
+      byAppleId: {},
+      byEmail: { "digger@example.com": emailAccount },
+    };
+    const r = L.resolveProviderAccount(index, {
+      provider: "google",
+      sub: "g-new",
+      email: "Digger@Example.com",
+    });
     expect(r.action).toBe("signin");
     expect(r.account).toBe(emailAccount);
   });
 
   test("3) else create — provider sub set, email kept (empty for proxy)", () => {
     const index = { byGoogleId: {}, byAppleId: {}, byEmail: {} };
-    const r = L.resolveProviderAccount(index, { provider: "apple", sub: "ap|new", email: "" });
+    const r = L.resolveProviderAccount(index, {
+      provider: "apple",
+      sub: "ap|new",
+      email: "",
+    });
     expect(r.action).toBe("create");
     expect(r.account).toEqual({ appleId: "ap|new", email: "" });
-    const r2 = L.resolveProviderAccount(index, { provider: "google", sub: "g-new", email: "fresh@example.com" });
+    const r2 = L.resolveProviderAccount(index, {
+      provider: "google",
+      sub: "g-new",
+      email: "fresh@example.com",
+    });
     expect(r2.action).toBe("create");
-    expect(r2.account).toEqual({ googleId: "g-new", email: "fresh@example.com" });
+    expect(r2.account).toEqual({
+      googleId: "g-new",
+      email: "fresh@example.com",
+    });
   });
 
   test("provider sub match beats a conflicting email (the sub row is authoritative)", () => {
@@ -450,7 +555,11 @@ describe("resolveProviderAccount (the provider-agnostic merge)", () => {
       byGoogleId: {},
       byEmail: { "real@example.com": emailAccount },
     };
-    const r = L.resolveProviderAccount(index, { provider: "apple", sub: "ap|hidden", email: "real@example.com" });
+    const r = L.resolveProviderAccount(index, {
+      provider: "apple",
+      sub: "ap|hidden",
+      email: "real@example.com",
+    });
     expect(r.action).toBe("signin");
     expect(r.account).toBe(appleNoEmail);
   });
@@ -462,7 +571,9 @@ describe("resolveProviderLink (the signed-in direction of the merge)", () => {
   });
 
   test("re-linking the sub the account already carries is a noop (idempotent)", () => {
-    expect(L.resolveProviderLink("acct-1", "acct-1")).toEqual({ action: "noop" });
+    expect(L.resolveProviderLink("acct-1", "acct-1")).toEqual({
+      action: "noop",
+    });
   });
 
   test("a sub owned by ANOTHER account is refused — never steal, never merge", () => {
@@ -494,11 +605,12 @@ describe("accountShape", () => {
 
 describe("cross-device helpers", () => {
   test("unionEntitlements dedupes, drops non-strings, keeps order", () => {
-    expect(L.unionEntitlements([["remove_ads", "pack_x"], ["pack_x", null, 42, "pack_y"]])).toEqual([
-      "remove_ads",
-      "pack_x",
-      "pack_y",
-    ]);
+    expect(
+      L.unionEntitlements([
+        ["remove_ads", "pack_x"],
+        ["pack_x", null, 42, "pack_y"],
+      ]),
+    ).toEqual(["remove_ads", "pack_x", "pack_y"]);
     expect(L.unionEntitlements(null)).toEqual([]);
     expect(L.unionEntitlements([null, { ok: 1 }])).toEqual([]);
   });
@@ -514,8 +626,19 @@ describe("cross-device helpers", () => {
   });
 
   test("bestLeaderboardRow picks max depth; ties keep the first", () => {
-    expect(L.bestLeaderboardRow([{ bestDepth: 10 }, { bestDepth: 99 }, { bestDepth: 10 }]).bestDepth).toBe(99);
-    expect(L.bestLeaderboardRow([{ bestDepth: 5, id: 1 }, { bestDepth: 5, id: 2 }]).id).toBe(1);
+    expect(
+      L.bestLeaderboardRow([
+        { bestDepth: 10 },
+        { bestDepth: 99 },
+        { bestDepth: 10 },
+      ]).bestDepth,
+    ).toBe(99);
+    expect(
+      L.bestLeaderboardRow([
+        { bestDepth: 5, id: 1 },
+        { bestDepth: 5, id: 2 },
+      ]).id,
+    ).toBe(1);
     expect(L.bestLeaderboardRow([])).toBe(null);
   });
 });
@@ -549,7 +672,9 @@ describe("validateStripeWebhookEvent (web IAP webhook)", () => {
 
   test("a missing/oversized event id refuses", () => {
     expect(L.validateStripeWebhookEvent(ev({ id: "" })).ok).toBe(false);
-    expect(L.validateStripeWebhookEvent(ev({ id: "a".repeat(129) })).ok).toBe(false);
+    expect(L.validateStripeWebhookEvent(ev({ id: "a".repeat(129) })).ok).toBe(
+      false,
+    );
   });
 
   test("the wrong event type refuses", () => {
@@ -561,14 +686,22 @@ describe("validateStripeWebhookEvent (web IAP webhook)", () => {
   test("a missing session object refuses", () => {
     expect(L.validateStripeWebhookEvent(ev({ data: {} })).ok).toBe(false);
     expect(
-      L.validateStripeWebhookEvent(ev({ data: { object: { metadata: {} } } })).ok,
+      L.validateStripeWebhookEvent(ev({ data: { object: { metadata: {} } } }))
+        .ok,
     ).toBe(false);
   });
 
   test("an unknown productId refuses (not in PRODUCTS)", () => {
     expect(
       L.validateStripeWebhookEvent(
-        ev({ data: { object: { id: "cs", metadata: { mdoomProductId: "nope", mdoomDeviceId: "d" } } } }),
+        ev({
+          data: {
+            object: {
+              id: "cs",
+              metadata: { mdoomProductId: "nope", mdoomDeviceId: "d" },
+            },
+          },
+        }),
       ).ok,
     ).toBe(false);
   });
@@ -576,8 +709,54 @@ describe("validateStripeWebhookEvent (web IAP webhook)", () => {
   test("an invalid deviceId refuses", () => {
     expect(
       L.validateStripeWebhookEvent(
-        ev({ data: { object: { id: "cs", metadata: { mdoomProductId: "packGold", mdoomDeviceId: "" } } } }),
+        ev({
+          data: {
+            object: {
+              id: "cs",
+              metadata: { mdoomProductId: "packGold", mdoomDeviceId: "" },
+            },
+          },
+        }),
       ).ok,
     ).toBe(false);
+  });
+});
+
+// The opt-in cohort upload (docs/gap-ranking.md Tier 0 #1): the validator
+// the telemetry/push handler runs before any store I/O. The stored length
+// is the canonical JSON.stringify of the record (the handler stores that
+// exact string), so the cap is measured on the server, not trusted from
+// the client.
+describe("validateTelemetryPush (the opt-in cohort record)", () => {
+  function push(body) {
+    return L.validateTelemetryPush(body);
+  }
+
+  test("a plain-object record passes and returns the canonical payload string", () => {
+    const rec = { days: { d0: { firstDay: 1 } }, booleans: { a: true } };
+    const r = push({ deviceId: "dev-alpha1", record: rec });
+    expect(r.ok).toBe(true);
+    expect(r.value.payload).toBe(JSON.stringify(rec));
+    expect(r.value.deviceId).toBe("dev-alpha1");
+  });
+
+  test("missing/malformed deviceId refuses", () => {
+    expect(push({ record: { a: 1 } }).ok).toBe(false);
+    expect(push({ deviceId: "bad id!", record: { a: 1 } }).ok).toBe(false);
+  });
+
+  test("a non-object record refuses (arrays included — no arrays)", () => {
+    expect(push({ deviceId: "d", record: "s" }).ok).toBe(false);
+    expect(push({ deviceId: "d", record: null }).ok).toBe(false);
+    expect(push({ deviceId: "d", record: [1, 2] }).ok).toBe(false);
+    expect(push({ deviceId: "d" }).ok).toBe(false);
+  });
+
+  test("the size cap is on the SERIALIZED form (hostile long keys count)", () => {
+    const long = "x".repeat(4001);
+    expect(push({ deviceId: "d", record: { [long]: 1 } }).ok).toBe(false);
+    // Right at the cap is allowed (the events payload text field holds it).
+    const fit = "x".repeat(L.TELEMETRY_PAYLOAD_MAX_CHARS - 13); // + 12 for `{"k1":0}`
+    expect(push({ deviceId: "d", record: { [fit]: 0 } }).ok).toBe(true);
   });
 });

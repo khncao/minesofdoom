@@ -320,9 +320,7 @@ export function recordAdOutcome(
   outcome: AdResult,
 ): AnalyticsState {
   const s = state ?? emptyAnalyticsState(now);
-  return s.firstAdOutcome !== ""
-    ? s
-    : { ...s, firstAdOutcome: outcome };
+  return s.firstAdOutcome !== "" ? s : { ...s, firstAdOutcome: outcome };
 }
 
 /**
@@ -346,9 +344,10 @@ export function recordIapPurchase(
     iapPurchaseLog:
       productId === undefined
         ? s.iapPurchaseLog
-        : [...s.iapPurchaseLog, { product: productId, day: getLocalDayKey(now) }].slice(
-            -IAP_PURCHASE_LOG_MAX,
-          ),
+        : [
+            ...s.iapPurchaseLog,
+            { product: productId, day: getLocalDayKey(now) },
+          ].slice(-IAP_PURCHASE_LOG_MAX),
   };
 }
 
@@ -594,9 +593,7 @@ export const FIRST_USE_FEATURES = [
 ] as const;
 export type FirstUseFeature = (typeof FIRST_USE_FEATURES)[number];
 
-const FIRST_USE_FEATURE_SET: ReadonlySet<string> = new Set(
-  FIRST_USE_FEATURES,
-);
+const FIRST_USE_FEATURE_SET: ReadonlySet<string> = new Set(FIRST_USE_FEATURES);
 
 /**
  * Corruption guard for the first-use stamps: keep only keys from the closed
@@ -653,7 +650,8 @@ export function recordFeatureFirstUse(
  * next to the types, so the vocab can't drift.
  */
 function validAdKind(v: unknown): string {
-  return typeof v === "string" && (AD_KIND_VALUES as readonly string[]).includes(v)
+  return typeof v === "string" &&
+    (AD_KIND_VALUES as readonly string[]).includes(v)
     ? v
     : "";
 }
@@ -708,9 +706,7 @@ export function summarizeAnalytics(state: AnalyticsState): string {
     for (const e of state.iapPurchaseLog) {
       counts.set(e.product, (counts.get(e.product) ?? 0) + 1);
     }
-    lines.push(
-      `iap by product   (${state.iapPurchaseLog.length} logged)`,
-    );
+    lines.push(`iap by product   (${state.iapPurchaseLog.length} logged)`);
     const sorted = [...counts.entries()].sort((a, b) =>
       a[0].localeCompare(b[0]),
     );
@@ -724,9 +720,7 @@ export function summarizeAnalytics(state: AnalyticsState): string {
       `recent cosmetics   (last ${recentCosmetics.length} of ${state.cosmeticPurchaseLog.length})`,
     );
     for (const e of recentCosmetics) {
-      lines.push(
-        `  ${e.day}  ${e.line}:${e.id}  ${e.path}  gems=${e.gems}`,
-      );
+      lines.push(`  ${e.day}  ${e.line}:${e.id}  ${e.path}  gems=${e.gems}`);
     }
   }
   const recentIap = state.iapPurchaseLog.slice(-SUMMARY_RECENT_MAX);
@@ -788,4 +782,104 @@ export function summarizeAnalytics(state: AnalyticsState): string {
     lines.push(`app opens      ${state.appOpens}`);
   }
   return lines.join("\n");
+}
+
+// -- The opt-in cohort record (docs/gap-ranking.md Tier 0 #1) -------------
+
+/**
+ * The REDUCED, non-sensitive cohort record uploaded (only after the
+ * player opts in, one row per device, overwritten on each push — see
+ * `pushCohortRecord` in cloudSave.ts). Everything here is a local day
+ * key, a boolean, or a coarse count:
+ *  - never absolute timestamps (epoch ms fields are converted to local
+ *    day keys or to a DURATION, e.g. time-to-first-answer in seconds);
+ *  - never the per-purchase logs (they carry product ids + gem balances —
+ *    cohort stats use the `counts`/`firsts` aggregates instead,
+ *    guardrail 6);
+ *  - never save data, device ids, or the settings record.
+ *
+ * The shape is stable and flat-ish; serialized it is well under the
+ * server's 4KB cap (worst case: every first-occurrence key filled +
+ * every tier + every feature first-use — hundreds of chars).
+ */
+export type CohortRecord = {
+  /** Retention cohort: the two retention flags + distinct active days. */
+  retention: {
+    d1: 0 | 1;
+    d7: 0 | 1;
+    activeDays: number;
+    appOpens: number;
+  };
+  /** First-occurrence LOCAL DAY keys ("" = not yet observed). */
+  firsts: {
+    adView: string;
+    iap: string;
+    prestige: string;
+    cosmetic: string;
+    /** tier id (t1–t5) → local day key of first completion. */
+    tier: Record<string, string>;
+    /** feature id → local day key of first use. */
+    firstUse: Record<string, string>;
+  };
+  /** The first rewarded-ad tap/outcome (pipeline failure modes). */
+  ads: { kind: string; outcome: string };
+  /** Coarse lifetime counts (receipt/prestige/purchase tallies). */
+  counts: {
+    iap: number;
+    prestiges: number;
+    cosmetics: number;
+  };
+  /** FTUE funnel: time-to-first-answer + onboarding completion. */
+  ftue: {
+    /** firstAnswerMs − firstOpenMs in whole seconds (0 = not yet). */
+    firstAnswerSec: number;
+    onboardingCompleted: 0 | 1;
+    /** Distinct onboarding steps seen (0–4). */
+    onboardingStepsSeen: number;
+  };
+};
+
+/**
+ * Build the cohort record from the local analytics state. Pure and
+ * total over any valid AnalyticsState (legacy records parse with every
+ * field present). The `days` of a record stay derived (local day keys
+ * are timezone-stable per device; the server stores the record whole).
+ */
+export function buildCohortRecord(st: AnalyticsState): CohortRecord {
+  const firstUse: Record<string, string> = {};
+  for (const [feature, ms] of Object.entries(st.firstUse)) {
+    if (typeof ms === "number" && ms > 0)
+      firstUse[feature] = getLocalDayKey(ms);
+  }
+  const firstAnswerSec =
+    st.firstAnswerMs > 0 && st.firstOpenMs > 0
+      ? Math.max(0, Math.floor((st.firstAnswerMs - st.firstOpenMs) / 1000))
+      : 0;
+  return {
+    retention: {
+      d1: st.d1Retention ? 1 : 0,
+      d7: st.d7Retention ? 1 : 0,
+      activeDays: st.activeDays,
+      appOpens: st.appOpens,
+    },
+    firsts: {
+      adView: st.firstAdViewDay,
+      iap: st.firstIapPurchaseDay,
+      prestige: st.firstPrestigeDay,
+      cosmetic: st.firstCosmeticPurchaseDay,
+      tier: { ...st.firstTierDay },
+      firstUse,
+    },
+    ads: { kind: st.firstAdKind, outcome: st.firstAdOutcome },
+    counts: {
+      iap: st.iapPurchases,
+      prestiges: st.prestiges,
+      cosmetics: st.cosmeticPurchases,
+    },
+    ftue: {
+      firstAnswerSec,
+      onboardingCompleted: st.onboardingCompleted ? 1 : 0,
+      onboardingStepsSeen: Object.keys(st.onboardingStepMs).length,
+    },
+  };
 }

@@ -38,6 +38,12 @@
  *   /api/app/leaderboard/top     → { rows: [{ rank, displayName, bestDepth,
  *                                           maxCombo, achievementCount }] }
  *   /api/app/leaderboard/rank    → { entry: { rank, bestDepth } | null }
+ *   /api/app/telemetry/push      → { ok: true }   // the OPT-IN cohort
+ *                               //  record: one `events` row per device
+ *                               //  (kind="analytics") — the REDUCED local
+ *                               //  stats (day keys/booleans/counters only,
+ *                               //  4KB cap), sent only after the player
+ *                               //  turns the default-off settings row on
  *   /api/app/delete              → { ok: true, deletedAccount: bool }
  *
  * Optional login (anonymous device default — sign-in is never
@@ -76,18 +82,18 @@
 // the route name is baked straight into the source (a plain closure over a
 // file-level variable would be invisible to the executor).
 function makeHandler(name) {
-  return new Function(
-    "e",
-    'const lib = require(__hooks + "/handlerLib.js"); lib.run(e, "/api/app/' +
-      name +
-      '", "' +
-      name +
-      '");',
-  );
+     return new Function(
+          "e",
+          'const lib = require(__hooks + "/handlerLib.js"); lib.run(e, "/api/app/' +
+               name +
+               '", "' +
+               name +
+               '");',
+     );
 }
 
 function route(name) {
-  routerAdd("POST", "/api/app/" + name, makeHandler(name));
+     routerAdd("POST", "/api/app/" + name, makeHandler(name));
 }
 
 route("verify");
@@ -98,6 +104,7 @@ route("cloud/pull");
 route("leaderboard/submit");
 route("leaderboard/top");
 route("leaderboard/rank");
+route("telemetry/push");
 route("delete");
 route("auth/register");
 route("auth/login");
@@ -109,5 +116,3 @@ route("auth/link");
 route("auth/set-password");
 route("auth/link/google");
 route("auth/link/apple");
-
-

@@ -293,6 +293,15 @@ export const en = {
     "message reminds you that the mine keeps collecting while you're away and " +
     "your progress autosaves. It shows at most once per session and pays " +
     "nothing — information, not a timer. Off: it stays quiet.",
+  "settings.tooltipAnalyticsShare": "Share anonymous usage stats",
+  "settings.analyticsShare": "Share anonymous usage stats: ",
+  "settings.analyticsShareHelp":
+    "Off (default): nothing ever leaves your device. On: once a day we send a " +
+    "small, anonymous record of this device's play pattern (which days, which " +
+    "features, rough totals — no save data, no names, no purchase details) so " +
+    "the free game can be improved before scaling up. You can turn this off " +
+    "any time, and the “Delete my data” action below erases the stored copy " +
+    "along with everything else.",
   "settings.tooltipAutoDailyEquation": "Auto equation of the day",
   "settings.autoDailyEquation": "Auto equation of the day: ",
   "settings.autoDailyEquationHelp":

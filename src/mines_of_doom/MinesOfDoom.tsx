@@ -116,7 +116,9 @@ import {
   useCloudSave,
   type CloudSaveSettingsProps,
 } from "./hooks/useCloudSave";
-import { selectCloudSaveProvider } from "./cloudSave";
+import { pushCohortRecord, selectCloudSaveProvider } from "./cloudSave";
+import { buildCohortRecord } from "./analytics";
+import { getLocalDayKey } from "./dailyBonus";
 import { selectAuthProvider } from "./auth";
 import { selectTokenStore } from "./secureToken";
 import { availableProviderKinds } from "./signinSdks";
@@ -1142,6 +1144,30 @@ export default function MinesOfDoom() {
   onCosmeticPurchaseRef.current = onCosmeticPurchase;
   onTierMilestoneRef.current = onTierMilestone;
 
+  // Opt-in analytics sharing (todo #1, guardrail 5 "measure before
+  // scaling"): while the settings row analyticsShare is ON (OFF by
+  // default), the REDUCED local analytics record uploads at most once
+  // per local day (buildCohortRecord → pushCohortRecord — one row per
+  // device, a few hundred bytes). The dayKey ref is the cadence guard:
+  // the first qualifying render of a local day uploads; a failed upload
+  // keeps the ref clear so the next event retries the same day. Flipping
+  // the toggle off stops uploads at once; the stored server copy goes
+  // only with the GDPR delete (the settings row says so plainly).
+  const cohortUploadDayRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (analytics === null) return;
+    if (!settingsData.analyticsShare) return;
+    const day = getLocalDayKey(Date.now());
+    if (cohortUploadDayRef.current === day) return;
+    let cancelled = false;
+    pushCohortRecord(buildCohortRecord(analytics)).then((ok) => {
+      if (ok && !cancelled) cohortUploadDayRef.current = day;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [analytics, settingsData.analyticsShare]);
+
   // F27.4 first-use stamp: first cloud link — the account hook's status
   // settling to "in" is the single point every sign-in path (login,
   // register, provider) passes through; the fold is idempotent, so a
@@ -1250,7 +1276,6 @@ export default function MinesOfDoom() {
     onFeatureFirstUse("weekly-claim");
     weeklyClaim();
   }, [weeklyClaim, onFeatureFirstUse]);
-
 
   // Rewarded ads (plan §5.1): the provider is picked in ads.ts behind the
   // documented swap point (selectAdProvider — see its docs): dev builds run

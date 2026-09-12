@@ -25,7 +25,10 @@ function badRequest(error) {
   return { status: 400, json: { error: error } };
 }
 function tooManyRequests() {
-  return { status: 429, json: { error: "write rate limit exceeded; retry later" } };
+  return {
+    status: 429,
+    json: { error: "write rate limit exceeded; retry later" },
+  };
 }
 
 /**
@@ -192,7 +195,9 @@ function handleVerify(app, body) {
   // Optional login: a live session tags the minted row so ANY of the
   // account's devices can restore it (cross-device restore).
   const session = sessionOfToken(app, body.sessionToken);
-  if (logic.writeBudgetExceeded((recentWriteEvents(app, deviceId) || []).length)) {
+  if (
+    logic.writeBudgetExceeded((recentWriteEvents(app, deviceId) || []).length)
+  ) {
     return tooManyRequests();
   }
   // Web (Stripe) verify passes the device id so the sidecar can bind the
@@ -206,7 +211,8 @@ function handleVerify(app, body) {
   if (!verified) return badRequest("token verification failed");
   const row = {
     productId: logic.PRODUCTS[productId],
-    platform: typeof body.platform === "string" ? body.platform.slice(0, 16) : "",
+    platform:
+      typeof body.platform === "string" ? body.platform.slice(0, 16) : "",
     tokenHash: globalThis.$security.sha256(token),
     verifiedAt: new Date().toISOString(),
   };
@@ -214,13 +220,17 @@ function handleVerify(app, body) {
   upsertEntitlementRow(app, deviceId, row);
   spendWriteBudget(app, deviceId);
   const entitlements = session
-    ? logic.unionEntitlements([listEntitlements(app, deviceId), listAccountEntitlements(app, session.account.get("id"))])
+    ? logic.unionEntitlements([
+        listEntitlements(app, deviceId),
+        listAccountEntitlements(app, session.account.get("id")),
+      ])
     : listEntitlements(app, deviceId);
   return ok({ entitlements: entitlements });
 }
 
 function handleRestore(app, body) {
-  if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
+  if (!logic.validDeviceId(body.deviceId))
+    return badRequest("invalid deviceId");
   // Anonymous default: the device's own rows. Signed in: the union with
   // every row the account has linked (a fresh device recovers purchases
   // made on the old one — the cross-device restore the login scope adds).
@@ -280,12 +290,7 @@ function handleStripeWebhook(app, body, headers) {
   if ((seen || []).length > 0) {
     return ok({ processed: false, reason: "duplicate event" });
   }
-  const verified = verifyPurchase(
-    "web",
-    v.productId,
-    v.sessionId,
-    v.deviceId,
-  );
+  const verified = verifyPurchase("web", v.productId, v.sessionId, v.deviceId);
   if (!verified) return badRequest("token verification failed");
   const row = {
     productId: logic.PRODUCTS[v.productId],
@@ -313,12 +318,17 @@ function handleCloudPush(app, body) {
   if (!v.ok) return badRequest(v.error);
   const deviceId = v.value.deviceId;
   const session = sessionOfToken(app, body.sessionToken);
-  if (logic.writeBudgetExceeded((recentWriteEvents(app, deviceId) || []).length)) {
+  if (
+    logic.writeBudgetExceeded((recentWriteEvents(app, deviceId) || []).length)
+  ) {
     return tooManyRequests();
   }
   const record = findDeviceRow(app, "cloudSaves", deviceId);
   const storedUpdatedAt = record ? record.get("updatedAt") : null;
-  const replyUpdatedAt = logic.cloudPushReply(storedUpdatedAt, v.value.updatedAt);
+  const replyUpdatedAt = logic.cloudPushReply(
+    storedUpdatedAt,
+    v.value.updatedAt,
+  );
   // Last-write-wins: the server keeps the newer of (stored, pushed). A tie
   // rewrites the same value — harmless.
   if (replyUpdatedAt === v.value.updatedAt) {
@@ -343,7 +353,8 @@ function cloudSnapshotOf(record) {
 }
 
 function handleCloudPull(app, body) {
-  if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
+  if (!logic.validDeviceId(body.deviceId))
+    return badRequest("invalid deviceId");
   // The device's own row first (a tie keeps it — a stale copy from a
   // sibling device never shadows the local one), then every row linked
   // to the signed-in account. Newest updatedAt wins.
@@ -373,7 +384,9 @@ function handleLeaderboardSubmit(app, body) {
   if (!v.ok) return badRequest(v.error);
   const deviceId = v.value.deviceId;
   const session = sessionOfToken(app, body.sessionToken);
-  if (logic.writeBudgetExceeded((recentWriteEvents(app, deviceId) || []).length)) {
+  if (
+    logic.writeBudgetExceeded((recentWriteEvents(app, deviceId) || []).length)
+  ) {
     return tooManyRequests();
   }
   const record = findDeviceRow(app, "leaderboard", deviceId);
@@ -384,7 +397,9 @@ function handleLeaderboardSubmit(app, body) {
           bestDepth: record.get("bestDepth"),
           maxCombo: record.get("maxCombo"),
           lifetimeMinerals: record.get("lifetimeMinerals"),
-          achievementIds: logic.parseAchievementIds(record.get("achievementIds")),
+          achievementIds: logic.parseAchievementIds(
+            record.get("achievementIds"),
+          ),
         },
         v.value,
       )
@@ -405,14 +420,25 @@ function handleLeaderboardSubmit(app, body) {
 }
 
 function handleLeaderboardTop(app, body) {
-  const limit = Number.isInteger(body.limit) ? Math.min(Math.max(body.limit, 1), 50) : 10;
+  const limit = Number.isInteger(body.limit)
+    ? Math.min(Math.max(body.limit, 1), 50)
+    : 10;
   // deviceId is the unique-per-row tiebreak (v0.4x exposes no created field)
-  const records = app.findRecordsByFilter("leaderboard", "", "-bestDepth,deviceId", limit, 0);
-  return ok({ rows: (records || []).map((record, i) => logic.shapeTopRow(record, i + 1)) });
+  const records = app.findRecordsByFilter(
+    "leaderboard",
+    "",
+    "-bestDepth,deviceId",
+    limit,
+    0,
+  );
+  return ok({
+    rows: (records || []).map((record, i) => logic.shapeTopRow(record, i + 1)),
+  });
 }
 
 function handleLeaderboardRank(app, body) {
-  if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
+  if (!logic.validDeviceId(body.deviceId))
+    return badRequest("invalid deviceId");
   // The player's row is the best across every device linked to the signed-
   // in account (anonymous default: just the device's own row).
   const rows = [];
@@ -428,7 +454,8 @@ function handleLeaderboardRank(app, body) {
       0,
       { accountId: session.account.get("id") },
     );
-    for (const row of accountRows || []) rows.push({ bestDepth: Number(row.get("bestDepth")) });
+    for (const row of accountRows || [])
+      rows.push({ bestDepth: Number(row.get("bestDepth")) });
   }
   const best = logic.bestLeaderboardRow(rows);
   if (best === null) return ok({ entry: null });
@@ -440,13 +467,74 @@ function handleLeaderboardRank(app, body) {
     0,
     { depth: best.bestDepth },
   );
-  return ok({ entry: { rank: (above || []).length + 1, bestDepth: best.bestDepth } });
+  return ok({
+    entry: { rank: (above || []).length + 1, bestDepth: best.bestDepth },
+  });
+}
+
+// -- telemetry (opt-in cohort upload — docs/gap-ranking.md Tier 0 #1) -------
+
+// The events collection is multi-kind (write-budget rows, stripe-event
+// dedup, and now the per-device cohort record), so a device row here is
+// (deviceId, kind) — findDeviceRow alone can't distinguish them.
+function findEventRow(app, deviceId, kind) {
+  try {
+    const rows = app.findRecordsByFilter(
+      "events",
+      "deviceId = {:deviceId} && kind = {:kind}",
+      "",
+      -1,
+      0,
+      { deviceId: deviceId, kind: kind },
+    );
+    return rows && rows.length > 0 ? rows[0] : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
+ * POST /api/app/telemetry/push — the opt-in cohort upload. The CLIENT has
+ * already decided (a default-off settings row the player can flip off any
+ * time; guardrail 5 "measure before scaling"): the server only stores one
+ * reduced record per device (`events`, kind="analytics"), overwritten on
+ * each push (cadence is the client's — at most once a local day). No
+ * session/account involvement: the row is device-scoped and the GDPR
+ * delete below wipes it with the rest of the device's events rows.
+ */
+function handleTelemetryPush(app, body) {
+  const v = logic.validateTelemetryPush(body);
+  if (!v.ok) return badRequest(v.error);
+  const deviceId = v.value.deviceId;
+  if (
+    logic.writeBudgetExceeded((recentWriteEvents(app, deviceId) || []).length)
+  ) {
+    return tooManyRequests();
+  }
+  const row = findEventRow(app, deviceId, "analytics");
+  const now = Date.now();
+  if (row) {
+    row.set("payload", v.value.payload);
+    row.set("ts", now);
+    app.save(row);
+  } else {
+    const created = new Record(app.findCollectionByNameOrId("events"), {
+      deviceId: deviceId,
+      kind: "analytics",
+      payload: v.value.payload,
+      ts: now,
+    });
+    app.save(created);
+  }
+  spendWriteBudget(app, deviceId);
+  return ok({ ok: true });
 }
 
 // -- GDPR -------------------------------------------------------------------
 
 function handleDelete(app, body) {
-  if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
+  if (!logic.validDeviceId(body.deviceId))
+    return badRequest("invalid deviceId");
   // Device scope (the shipped behavior): cloudSaves + leaderboard rows go;
   // `events` rows are pruned by the write budget; `entitlements`
   // intentionally SURVIVE (a refund/restore must remain possible — see the
@@ -527,7 +615,13 @@ function accountIndex(app, provider, claims) {
   if (field && idxKey && claims.sub) {
     idx[idxKey][claims.sub] = findRecordBy(app, "accounts", field, claims.sub);
   }
-  if (claims.email) idx.byEmail[claims.email] = findRecordBy(app, "accounts", "email", claims.email);
+  if (claims.email)
+    idx.byEmail[claims.email] = findRecordBy(
+      app,
+      "accounts",
+      "email",
+      claims.email,
+    );
   return idx;
 }
 
@@ -546,7 +640,9 @@ const HEX_ALPHABET = "0123456789abcdef";
 function secureRandomHex(byteCount) {
   const sec = globalThis.$security;
   if (sec && typeof sec.randomStringWithAlphabet === "function") {
-    return sec.randomStringWithAlphabet(byteCount * 2, HEX_ALPHABET).toLowerCase();
+    return sec
+      .randomStringWithAlphabet(byteCount * 2, HEX_ALPHABET)
+      .toLowerCase();
   }
   return logic.randomHex(byteCount);
 }
@@ -555,8 +651,10 @@ function createAccountRow(app, partial) {
   const row = {
     id: secureRandomHex(logic.ACCOUNT_ID_BYTES),
     email: typeof partial.email === "string" ? partial.email : "",
-    passwordHash: typeof partial.passwordHash === "string" ? partial.passwordHash : "",
-    passwordSalt: typeof partial.passwordSalt === "string" ? partial.passwordSalt : "",
+    passwordHash:
+      typeof partial.passwordHash === "string" ? partial.passwordHash : "",
+    passwordSalt:
+      typeof partial.passwordSalt === "string" ? partial.passwordSalt : "",
     googleId: typeof partial.googleId === "string" ? partial.googleId : "",
     appleId: typeof partial.appleId === "string" ? partial.appleId : "",
     createdAt: Date.now(),
@@ -569,7 +667,6 @@ function createAccountRow(app, partial) {
   // the values come back from the constructor data).
   return record;
 }
-
 
 function createSession(app, account, deviceId) {
   const now = Date.now();
@@ -602,7 +699,9 @@ function sessionOfToken(app, token) {
     return null;
   }
   const accountId = session.get("accountId");
-  const account = accountId ? findRecordBy(app, "accounts", "id", accountId) : null;
+  const account = accountId
+    ? findRecordBy(app, "accounts", "id", accountId)
+    : null;
   if (!account) return null;
   return { session: session, account: account };
 }
@@ -652,7 +751,11 @@ function accountJson(account) {
 }
 
 function signedInReply(account, session) {
-  return { ok: true, token: session.get("token"), account: accountJson(account) };
+  return {
+    ok: true,
+    token: session.get("token"),
+    account: accountJson(account),
+  };
 }
 
 function handleAuthRegister(app, body) {
@@ -661,8 +764,13 @@ function handleAuthRegister(app, body) {
   if (findRecordBy(app, "accounts", "email", v.value.email)) {
     return { status: 409, json: { error: "email already in use" } };
   }
-  if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
-  if (logic.writeBudgetExceeded((recentWriteEvents(app, body.deviceId) || []).length)) {
+  if (!logic.validDeviceId(body.deviceId))
+    return badRequest("invalid deviceId");
+  if (
+    logic.writeBudgetExceeded(
+      (recentWriteEvents(app, body.deviceId) || []).length,
+    )
+  ) {
     return tooManyRequests();
   }
   const salt = secureRandomHex(logic.PASSWORD_SALT_BYTES);
@@ -698,8 +806,13 @@ function handleAuthLogin(app, body) {
     );
     app.save(account);
   }
-  if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
-  if (logic.writeBudgetExceeded((recentWriteEvents(app, body.deviceId) || []).length)) {
+  if (!logic.validDeviceId(body.deviceId))
+    return badRequest("invalid deviceId");
+  if (
+    logic.writeBudgetExceeded(
+      (recentWriteEvents(app, body.deviceId) || []).length,
+    )
+  ) {
     return tooManyRequests();
   }
   const session = createSession(app, account, body.deviceId);
@@ -709,20 +822,33 @@ function handleAuthLogin(app, body) {
 }
 
 function handleAuthProvider(app, provider, body) {
-  if (provider !== "google" && provider !== "apple") return badRequest("unknown provider");
-  if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
+  if (provider !== "google" && provider !== "apple")
+    return badRequest("unknown provider");
+  if (!logic.validDeviceId(body.deviceId))
+    return badRequest("invalid deviceId");
   // Verified by the sidecar (or fake-decoded in sandbox) — an unverified
   // sign-in would be an account takeover, so null is a hard 401.
   const verdict = verifyIdentity(provider, body.idToken);
-  if (!verdict) return { status: 401, json: { error: "token verification failed" } };
+  if (!verdict)
+    return { status: 401, json: { error: "token verification failed" } };
   const claims = logic.normalizeProviderClaims(provider, verdict);
-  if (!claims) return { status: 401, json: { error: "token verification failed" } };
-  if (logic.writeBudgetExceeded((recentWriteEvents(app, body.deviceId) || []).length)) {
+  if (!claims)
+    return { status: 401, json: { error: "token verification failed" } };
+  if (
+    logic.writeBudgetExceeded(
+      (recentWriteEvents(app, body.deviceId) || []).length,
+    )
+  ) {
     return tooManyRequests();
   }
-  const resolved = logic.resolveProviderAccount(accountIndex(app, provider, claims), claims);
+  const resolved = logic.resolveProviderAccount(
+    accountIndex(app, provider, claims),
+    claims,
+  );
   const account =
-    resolved.action === "create" ? createAccountRow(app, resolved.account) : resolved.account;
+    resolved.action === "create"
+      ? createAccountRow(app, resolved.account)
+      : resolved.account;
   // Claim upgrades: pin a provider id / a real email the first time they
   // appear (an Apple proxy-email account gains a provider id at sign-in,
   // and any account gains its email when the provider first carries one).
@@ -756,12 +882,20 @@ function handleAuthSetPassword(app, body) {
   if (!logic.validPassword(body.password)) {
     return badRequest("invalid password");
   }
-  if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
-  if (logic.writeBudgetExceeded((recentWriteEvents(app, body.deviceId) || []).length)) {
+  if (!logic.validDeviceId(body.deviceId))
+    return badRequest("invalid deviceId");
+  if (
+    logic.writeBudgetExceeded(
+      (recentWriteEvents(app, body.deviceId) || []).length,
+    )
+  ) {
     return tooManyRequests();
   }
   const salt = secureRandomHex(logic.PASSWORD_SALT_BYTES);
-  account.set("passwordHash", logic.hashPassword(body.password, salt, sha256hex));
+  account.set(
+    "passwordHash",
+    logic.hashPassword(body.password, salt, sha256hex),
+  );
   account.set("passwordSalt", salt);
   app.save(account);
   spendWriteBudget(app, body.deviceId);
@@ -780,14 +914,18 @@ function handleAuthSetPassword(app, body) {
  * account (resolveProviderLink: never steal, never merge).
  */
 function handleAuthLinkProvider(app, provider, body) {
-  if (provider !== "google" && provider !== "apple") return badRequest("unknown provider");
+  if (provider !== "google" && provider !== "apple")
+    return badRequest("unknown provider");
   const s = sessionOfToken(app, body.token);
   if (!s) return { status: 401, json: { error: "invalid session" } };
-  if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
+  if (!logic.validDeviceId(body.deviceId))
+    return badRequest("invalid deviceId");
   const verdict = verifyIdentity(provider, body.idToken);
-  if (!verdict) return { status: 401, json: { error: "token verification failed" } };
+  if (!verdict)
+    return { status: 401, json: { error: "token verification failed" } };
   const claims = logic.normalizeProviderClaims(provider, verdict);
-  if (!claims) return { status: 401, json: { error: "token verification failed" } };
+  if (!claims)
+    return { status: 401, json: { error: "token verification failed" } };
   const account = s.account;
   const field = logic.providerIdField(provider);
   const existing = account.get(field) || "";
@@ -798,10 +936,17 @@ function handleAuthLinkProvider(app, provider, body) {
     return { status: 409, json: { error: "provider-taken" } };
   }
   const owner = findRecordBy(app, "accounts", field, claims.sub);
-  if (logic.resolveProviderLink(owner ? owner.get("id") : null, account.get("id")).action === "error") {
+  if (
+    logic.resolveProviderLink(owner ? owner.get("id") : null, account.get("id"))
+      .action === "error"
+  ) {
     return { status: 409, json: { error: "provider-taken" } };
   }
-  if (logic.writeBudgetExceeded((recentWriteEvents(app, body.deviceId) || []).length)) {
+  if (
+    logic.writeBudgetExceeded(
+      (recentWriteEvents(app, body.deviceId) || []).length,
+    )
+  ) {
     return tooManyRequests();
   }
   // Claim upgrades (mirrors handleAuthProvider): pin the provider id, and
@@ -842,8 +987,13 @@ function handleAuthLink(app, body) {
   // account.
   const s = sessionOfToken(app, body.token);
   if (!s) return { status: 401, json: { error: "invalid session" } };
-  if (!logic.validDeviceId(body.deviceId)) return badRequest("invalid deviceId");
-  if (logic.writeBudgetExceeded((recentWriteEvents(app, body.deviceId) || []).length)) {
+  if (!logic.validDeviceId(body.deviceId))
+    return badRequest("invalid deviceId");
+  if (
+    logic.writeBudgetExceeded(
+      (recentWriteEvents(app, body.deviceId) || []).length,
+    )
+  ) {
     return tooManyRequests();
   }
   linkDeviceRows(app, s.account.get("id"), body.deviceId);
@@ -862,6 +1012,7 @@ const handlers = {
   "leaderboard/submit": handleLeaderboardSubmit,
   "leaderboard/top": handleLeaderboardTop,
   "leaderboard/rank": handleLeaderboardRank,
+  "telemetry/push": handleTelemetryPush,
   delete: handleDelete,
   "auth/register": handleAuthRegister,
   "auth/login": handleAuthLogin,
@@ -871,7 +1022,8 @@ const handlers = {
   "auth/logout": handleAuthLogout,
   "auth/link": handleAuthLink,
   "auth/set-password": handleAuthSetPassword,
-  "auth/link/google": (app, body) => handleAuthLinkProvider(app, "google", body),
+  "auth/link/google": (app, body) =>
+    handleAuthLinkProvider(app, "google", body),
   "auth/link/apple": (app, body) => handleAuthLinkProvider(app, "apple", body),
 };
 
@@ -896,7 +1048,8 @@ function run(e, path, handlerName) {
     // fails closed on an absent map (see headerValue); the other handlers
     // ignore the third argument.
     const info = e.requestInfo();
-    const body = (info && info.body && typeof info.body === "object") ? info.body : {};
+    const body =
+      info && info.body && typeof info.body === "object" ? info.body : {};
     const headers = info && info.headers;
     const result = handler(globalThis.$app, body, headers);
     e.json(result.status, result.json);
@@ -910,4 +1063,8 @@ function run(e, path, handlerName) {
   }
 }
 
-module.exports = { handlers: handlers, run: run, secureRandomHex: secureRandomHex };
+module.exports = {
+  handlers: handlers,
+  run: run,
+  secureRandomHex: secureRandomHex,
+};

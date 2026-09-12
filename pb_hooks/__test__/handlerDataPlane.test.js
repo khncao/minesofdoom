@@ -134,10 +134,7 @@ describe("cloud/push — last-write-wins", () => {
 
   test("invalid bodies are rejected without touching the datastore", () => {
     expect(
-      lib.handlers["cloud/push"](
-        app,
-        pushBody({ deviceId: "bad id!" }),
-      ).status,
+      lib.handlers["cloud/push"](app, pushBody({ deviceId: "bad id!" })).status,
     ).toBe(400);
     expect(
       lib.handlers["cloud/push"](app, pushBody({ blob: "{nope" })).status,
@@ -232,9 +229,7 @@ describe("cloud/pull — device row + account merge", () => {
   });
 
   test("invalid deviceId → 400", () => {
-    expect(
-      lib.handlers["cloud/pull"](app, { deviceId: "" }).status,
-    ).toBe(400);
+    expect(lib.handlers["cloud/pull"](app, { deviceId: "" }).status).toBe(400);
   });
 });
 
@@ -250,18 +245,15 @@ describe("leaderboard trio — submit merge, top-N, rank", () => {
   afterEach(() => restore());
 
   function submit(over = {}) {
-    return lib.handlers["leaderboard/submit"](
-      app,
-      {
-        deviceId: DEVICE,
-        displayName: "x",
-        bestDepth: 10,
-        maxCombo: 2,
-        lifetimeMinerals: 3,
-        achievementIds: [],
-        ...over,
-      },
-    );
+    return lib.handlers["leaderboard/submit"](app, {
+      deviceId: DEVICE,
+      displayName: "x",
+      bestDepth: 10,
+      maxCombo: 2,
+      lifetimeMinerals: 3,
+      achievementIds: [],
+      ...over,
+    });
   }
 
   test("submit creates a row with a sanitized display name", () => {
@@ -378,8 +370,9 @@ describe("delete — GDPR device scope + account scope", () => {
     expect(
       app.findFirstRecordByData("leaderboard", "deviceId", DEVICE),
     ).toBeNull();
-    expect(app.rows.events.filter((row) => row.get("deviceId") === DEVICE))
-      .toHaveLength(0);
+    expect(
+      app.rows.events.filter((row) => row.get("deviceId") === DEVICE),
+    ).toHaveLength(0);
     // The refund/restore guarantee: entitlements survive a device-scope
     // erase.
     expect(
@@ -441,11 +434,122 @@ describe("delete — GDPR device scope + account scope", () => {
 
   test("invalid deviceId → 400 and nothing is deleted", () => {
     seedDeviceData();
-    expect(
-      lib.handlers.delete(app, { deviceId: "nope nope" }).status,
-    ).toBe(400);
+    expect(lib.handlers.delete(app, { deviceId: "nope nope" }).status).toBe(
+      400,
+    );
     expect(
       app.findFirstRecordByData("cloudSaves", "deviceId", DEVICE),
     ).not.toBeNull();
+  });
+});
+
+// The opt-in cohort upload (docs/gap-ranking.md Tier 0 #1): one reduced
+// record per device in `events` (kind="analytics"), overwritten on each
+// push, under the same write budget as everything else.
+describe("telemetry/push — the opt-in cohort record", () => {
+  let lib;
+  let app;
+  let restore;
+
+  const RECORD = {
+    booleans: { firstDay: 1, adRewarded: 1, iapCompleted: 0 },
+    counters: { clicks: 123, minerals: 456 },
+    days: { d1: { clicks: 10, combo: 5 } },
+  };
+
+  function body(over = {}) {
+    return { deviceId: DEVICE, record: RECORD, ...over };
+  }
+
+  function analyticsRows() {
+    return app.findRecordsByFilter("events", "kind = {:kind}", "", -1, 0, {
+      kind: "analytics",
+    });
+  }
+
+  beforeEach(() => {
+    ({ lib, restore } = loadHandlers());
+    app = makeApp();
+  });
+  afterEach(() => restore());
+
+  test("a push stores the canonical record string as the device's analytics row", () => {
+    const r = lib.handlers["telemetry/push"](app, body());
+    expect(r.status).toBe(200);
+    expect(r.json).toEqual({ ok: true });
+
+    const rows = analyticsRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].get("deviceId")).toBe(DEVICE);
+    expect(rows[0].get("payload")).toBe(JSON.stringify(RECORD));
+
+    // The push counted against the write budget like any other write.
+    const writes = app.findRecordsByFilter(
+      "events",
+      "kind = {:kind}",
+      "",
+      -1,
+      0,
+      { kind: "write" },
+    );
+    expect(writes).toHaveLength(1);
+  });
+
+  test("a second push overwrites the same row, never a second analytics row", () => {
+    lib.handlers["telemetry/push"](app, body());
+    const later = { booleans: { firstDay: 1 }, counters: { clicks: 999 } };
+    lib.handlers["telemetry/push"](app, body({ record: later }));
+
+    const rows = analyticsRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].get("payload")).toBe(JSON.stringify(later));
+  });
+
+  test("cohort rows and write-budget rows coexist for the same device", () => {
+    app.createRecord("events", {
+      id: "ev-w1",
+      deviceId: DEVICE,
+      kind: "write",
+      payload: "",
+      ts: Date.now(),
+    });
+    lib.handlers["telemetry/push"](app, body());
+    expect(analyticsRows()).toHaveLength(1);
+    const writes = app.findRecordsByFilter(
+      "events",
+      "kind = {:kind}",
+      "",
+      -1,
+      0,
+      { kind: "write" },
+    );
+    // The pre-seeded row plus the budget row spendWriteBudget appends for
+    // this push (the cohort upload spends the write budget like any write).
+    expect(writes).toHaveLength(2);
+  });
+
+  test("a device at the write budget gets 429 and no row is written", () => {
+    for (let i = 0; i < 30; i++) {
+      app.createRecord("events", {
+        id: "ev-" + i,
+        deviceId: DEVICE,
+        kind: "write",
+        payload: "",
+        ts: Date.now(),
+      });
+    }
+    const r = lib.handlers["telemetry/push"](app, body());
+    expect(r.status).toBe(429);
+    expect(analyticsRows()).toHaveLength(0);
+  });
+
+  test("invalid bodies are rejected without touching the datastore", () => {
+    expect(
+      lib.handlers["telemetry/push"](app, body({ deviceId: "bad id!" })).status,
+    ).toBe(400);
+    expect(
+      lib.handlers["telemetry/push"](app, body({ record: [1, 2] })).status,
+    ).toBe(400);
+    expect(analyticsRows()).toHaveLength(0);
   });
 });

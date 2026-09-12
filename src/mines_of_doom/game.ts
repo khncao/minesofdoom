@@ -197,6 +197,19 @@ export type SettingsData = {
    * field — the settings merge supplies the default (no migration).
    */
   autoDailyBonus: boolean;
+  /**
+   * Share anonymous usage stats (OFF by default — guardrail 5 "measure
+   * before scaling"): when on, a REDUCED copy of the local analytics
+   * record (day keys, booleans, counters — never save data, never the
+   * per-purchase logs, never absolute timestamps; analytics.ts
+   * buildCohortRecord) is uploaded at most once per local day and stored
+   * as one row per device (cloudSave.ts pushCohortRecord → the backend
+   * telemetry/push endpoint). Flipping it off stops future uploads and
+   * the GDPR delete below erases the stored row with the rest of the
+   * device's events. Old settings never carry the field — the settings
+   * merge supplies the off default (no migration).
+   */
+  analyticsShare: boolean;
 };
 
 export const saveDataKey = "save";
@@ -891,6 +904,7 @@ export const defaultSettingsData = {
   notation: "compact" as NumberNotation,
   autoDailyEquation: true,
   autoDailyBonus: true,
+  analyticsShare: false,
 };
 
 /**

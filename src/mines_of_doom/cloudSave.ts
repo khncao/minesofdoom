@@ -48,9 +48,9 @@ import { getIapDeviceId } from "./iapDeviceId";
  * no server-side notion of "newer save" beyond the client's timestamp).
  */
 export interface CloudSaveSnapshot {
-  blob: string;
-  saveVersion: number;
-  updatedAt: number;
+ blob: string;
+ saveVersion: number;
+ updatedAt: number;
 }
 
 /**
@@ -62,68 +62,71 @@ export interface CloudSaveSnapshot {
  * caller retries on the next cadence (a failed push never blocks play).
  */
 export type CloudSavePushResult =
-  | { status: "accepted"; updatedAt: number }
-  | { status: "stale"; storedUpdatedAt: number }
-  | { status: "error" };
+ | { status: "accepted"; updatedAt: number }
+ | { status: "stale"; storedUpdatedAt: number }
+ | { status: "error" };
 
 export interface CloudSaveProvider {
-  /** Stable id for logs/panels ("noop", "dev-sim", "pocketbase"). */
-  readonly id: string;
-  /** Whether cloud saves can sync on this platform right now. */
-  isAvailable(): boolean;
-  /**
-   * Back up a snapshot. `sessionToken` (optional): the live account
-   * session — with it, the server tags the row with the account (a
-   * sibling device can then restore it) and delete takes the account
-   * target. Null/omitted = the anonymous device default. Resolves
-   * (never rejects) to the outcome; a failure is an "error" outcome, not
-   * a thrown error.
-   */
-  push(
-    snapshot: CloudSaveSnapshot,
-    sessionToken?: string | null,
-  ): Promise<CloudSavePushResult>;
-  /**
-   * Fetch this device's latest snapshot, or null (no backup, network
-   * failure, or a server reply the client can't trust — a bad blob is
-   * "no backup", because importing garbage would be worse than none).
-   * With a `sessionToken`, the newest across the account's linked
-   * devices (a fresh install recovers the old one's backup).
-   */
-  pull(sessionToken?: string | null): Promise<CloudSaveSnapshot | null>;
-  /**
-   * GDPR "delete my data" (plan §Backend). Device scope without a
-   * `sessionToken` (purchases survive); ACCOUNT scope with one (the
-   * legal erasure — entitlements go too, every device signs out). The
-   * settings copy says which one is happening. Resolves true only on 2xx.
-   */
-  delete(sessionToken?: string | null): Promise<boolean>;
+ /** Stable id for logs/panels ("noop", "dev-sim", "pocketbase"). */
+ readonly id: string;
+ /** Whether cloud saves can sync on this platform right now. */
+ isAvailable(): boolean;
+ /**
+  * Back up a snapshot. `sessionToken` (optional): the live account
+  * session — with it, the server tags the row with the account (a
+  * sibling device can then restore it) and delete takes the account
+  * target. Null/omitted = the anonymous device default. Resolves
+  * (never rejects) to the outcome; a failure is an "error" outcome, not
+  * a thrown error.
+  */
+ push(
+  snapshot: CloudSaveSnapshot,
+  sessionToken?: string | null,
+ ): Promise<CloudSavePushResult>;
+ /**
+  * Fetch this device's latest snapshot, or null (no backup, network
+  * failure, or a server reply the client can't trust — a bad blob is
+  * "no backup", because importing garbage would be worse than none).
+  * With a `sessionToken`, the newest across the account's linked
+  * devices (a fresh install recovers the old one's backup).
+  */
+ pull(sessionToken?: string | null): Promise<CloudSaveSnapshot | null>;
+ /**
+  * GDPR "delete my data" (plan §Backend). Device scope without a
+  * `sessionToken` (purchases survive); ACCOUNT scope with one (the
+  * legal erasure — entitlements go too, every device signs out). The
+  * settings copy says which one is happening. Resolves true only on 2xx.
+  */
+ delete(sessionToken?: string | null): Promise<boolean>;
 }
 
 /** Round-trips to a small VPS should not take long (same as IAP). */
 const HTTP_TIMEOUT_MS = 20 * 1000;
 
 /** POST JSON with a timeout; null on any failure (never throws). */
-async function postJson(url: string, body: unknown): Promise<Record<string, unknown> | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    if (!res.ok) return null;
-    const parsed: unknown = await res.json();
-    return typeof parsed === "object" && parsed !== null
-      ? (parsed as Record<string, unknown>)
-      : null;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
+async function postJson(
+ url: string,
+ body: unknown,
+): Promise<Record<string, unknown> | null> {
+ const controller = new AbortController();
+ const timer = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
+ try {
+  const res = await fetch(url, {
+   method: "POST",
+   headers: { "Content-Type": "application/json" },
+   body: JSON.stringify(body),
+   signal: controller.signal,
+  });
+  if (!res.ok) return null;
+  const parsed: unknown = await res.json();
+  return typeof parsed === "object" && parsed !== null
+   ? (parsed as Record<string, unknown>)
+   : null;
+ } catch {
+  return null;
+ } finally {
+  clearTimeout(timer);
+ }
 }
 
 /**
@@ -133,29 +136,29 @@ async function postJson(url: string, body: unknown): Promise<Record<string, unkn
  * obviously-broken rows out of the UI's "restore?" path).
  */
 function parseSnapshot(raw: unknown): CloudSaveSnapshot | null {
-  if (typeof raw !== "object" || raw === null) return null;
-  const { blob, saveVersion, updatedAt } = raw as Partial<CloudSaveSnapshot>;
-  if (
-    typeof blob !== "string" ||
-    blob.length === 0 ||
-    typeof saveVersion !== "number" ||
-    !Number.isInteger(saveVersion) ||
-    saveVersion < 0 ||
-    typeof updatedAt !== "number" ||
-    !Number.isFinite(updatedAt)
-  ) {
-    return null;
-  }
-  return { blob, saveVersion, updatedAt };
+ if (typeof raw !== "object" || raw === null) return null;
+ const { blob, saveVersion, updatedAt } = raw as Partial<CloudSaveSnapshot>;
+ if (
+  typeof blob !== "string" ||
+  blob.length === 0 ||
+  typeof saveVersion !== "number" ||
+  !Number.isInteger(saveVersion) ||
+  saveVersion < 0 ||
+  typeof updatedAt !== "number" ||
+  !Number.isFinite(updatedAt)
+ ) {
+  return null;
+ }
+ return { blob, saveVersion, updatedAt };
 }
 
 export const noopCloudSaveProvider: CloudSaveProvider = {
-  id: "noop",
-  isAvailable: () => false,
-  push: async () => ({ status: "error" }),
-  pull: async () => null,
-  delete: async () => false,
-  // (sessionToken parameters: the no-op ignores them by construction.)
+ id: "noop",
+ isAvailable: () => false,
+ push: async () => ({ status: "error" }),
+ pull: async () => null,
+ delete: async () => false,
+ // (sessionToken parameters: the no-op ignores them by construction.)
 };
 
 /**
@@ -167,17 +170,17 @@ export const noopCloudSaveProvider: CloudSaveProvider = {
  */
 let devSimSnapshot: CloudSaveSnapshot | null = null;
 export const devSimCloudSaveProvider: CloudSaveProvider = {
-  id: "dev-sim",
-  isAvailable: () => true,
-  push: async (snapshot) => {
-    devSimSnapshot = snapshot;
-    return { status: "accepted", updatedAt: snapshot.updatedAt };
-  },
-  pull: async () => devSimSnapshot,
-  delete: async () => {
-    devSimSnapshot = null;
-    return true;
-  },
+ id: "dev-sim",
+ isAvailable: () => true,
+ push: async (snapshot) => {
+  devSimSnapshot = snapshot;
+  return { status: "accepted", updatedAt: snapshot.updatedAt };
+ },
+ pull: async () => devSimSnapshot,
+ delete: async () => {
+  devSimSnapshot = null;
+  return true;
+ },
 };
 
 /**
@@ -186,73 +189,78 @@ export const devSimCloudSaveProvider: CloudSaveProvider = {
  * the Pocketbase URL configured; entry points stay hidden until then.
  */
 export const storeCloudSaveProvider: CloudSaveProvider = {
-  id: "pocketbase",
-  isAvailable: () => isPocketbaseConfigured(),
+ id: "pocketbase",
+ isAvailable: () => isPocketbaseConfigured(),
 
-  async push(snapshot, sessionToken) {
-    if (!isPocketbaseConfigured()) return { status: "error" };
-    const deviceId = await getIapDeviceId();
-    const res = await postJson(`${storeConfig.pocketbaseUrl}/api/app/cloud/push`, {
-      deviceId,
-      blob: snapshot.blob,
-      saveVersion: snapshot.saveVersion,
-      updatedAt: snapshot.updatedAt,
-      ...sessionFields(sessionToken),
-    });
-    const stored = res?.updatedAt;
-    if (typeof stored !== "number" || !Number.isFinite(stored)) {
-      return { status: "error" };
-    }
-    // The server replies with the STORED value (its upsert rule: keep the
-    // newer of stored/pushed). Equal to ours → we won; greater → the
-    // server had a newer snapshot, we lost.
-    return stored === snapshot.updatedAt
-      ? { status: "accepted", updatedAt: stored }
-      : { status: "stale", storedUpdatedAt: stored };
-  },
+ async push(snapshot, sessionToken) {
+  if (!isPocketbaseConfigured()) return { status: "error" };
+  const deviceId = await getIapDeviceId();
+  const res = await postJson(
+   `${storeConfig.pocketbaseUrl}/api/app/cloud/push`,
+   {
+    deviceId,
+    blob: snapshot.blob,
+    saveVersion: snapshot.saveVersion,
+    updatedAt: snapshot.updatedAt,
+    ...sessionFields(sessionToken),
+   },
+  );
+  const stored = res?.updatedAt;
+  if (typeof stored !== "number" || !Number.isFinite(stored)) {
+   return { status: "error" };
+  }
+  // The server replies with the STORED value (its upsert rule: keep the
+  // newer of stored/pushed). Equal to ours → we won; greater → the
+  // server had a newer snapshot, we lost.
+  return stored === snapshot.updatedAt
+   ? { status: "accepted", updatedAt: stored }
+   : { status: "stale", storedUpdatedAt: stored };
+ },
 
-  async pull(sessionToken) {
-    if (!isPocketbaseConfigured()) return null;
-    const deviceId = await getIapDeviceId();
-    const res = await postJson(
-      `${storeConfig.pocketbaseUrl}/api/app/cloud/pull`,
-      { deviceId, ...sessionFields(sessionToken) },
-    );
-    if (res === null) return null;
-    return parseSnapshot(res.snapshot);
-  },
+ async pull(sessionToken) {
+  if (!isPocketbaseConfigured()) return null;
+  const deviceId = await getIapDeviceId();
+  const res = await postJson(
+   `${storeConfig.pocketbaseUrl}/api/app/cloud/pull`,
+   { deviceId, ...sessionFields(sessionToken) },
+  );
+  if (res === null) return null;
+  return parseSnapshot(res.snapshot);
+ },
 
-  async delete(sessionToken) {
-    if (!isPocketbaseConfigured()) return false;
-    const deviceId = await getIapDeviceId();
-    const res = await postJson(`${storeConfig.pocketbaseUrl}/api/app/delete`, {
-      deviceId,
-      ...sessionFields(sessionToken),
-    });
-    return res?.ok === true;
-  },
+ async delete(sessionToken) {
+  if (!isPocketbaseConfigured()) return false;
+  const deviceId = await getIapDeviceId();
+  const res = await postJson(`${storeConfig.pocketbaseUrl}/api/app/delete`, {
+   deviceId,
+   ...sessionFields(sessionToken),
+  });
+  return res?.ok === true;
+ },
 };
 
 /** The optional-login body field: only present while signed in (the
  *  server's sessionOfToken treats a missing/invalid token as "no
  *  session" — the anonymous device default, byte-identical requests). */
-function sessionFields(
-  sessionToken?: string | null,
-): { sessionToken?: string } {
-  return sessionToken === null || sessionToken === undefined || sessionToken === ""
-    ? {}
-    : { sessionToken };
+function sessionFields(sessionToken?: string | null): {
+ sessionToken?: string;
+} {
+ return sessionToken === null ||
+  sessionToken === undefined ||
+  sessionToken === ""
+  ? {}
+  : { sessionToken };
 }
 
 /** The inputs to provider selection — a pure decision so the swap point
  *  stays unit-testable (same pattern as pickIapProvider in iaps.ts). */
 export type CloudSaveProviderSelection = {
-  /** `__DEV__` — the dev build always runs the labeled simulation. */
-  dev: boolean;
-  /** Web target: always the no-op (save codes cover web backup). */
-  web: boolean;
-  /** `isPocketbaseConfigured()` (storeConfig.ts). */
-  pocketbaseConfigured: boolean;
+ /** `__DEV__` — the dev build always runs the labeled simulation. */
+ dev: boolean;
+ /** Web target: always the no-op (save codes cover web backup). */
+ web: boolean;
+ /** `isPocketbaseConfigured()` (storeConfig.ts). */
+ pocketbaseConfigured: boolean;
 };
 
 /**
@@ -265,18 +273,54 @@ export type CloudSaveProviderSelection = {
  *  3. native production: the real provider only once the Pocketbase URL
  *     is configured; until then the no-op keeps entry points hidden.
  */
-export function pickCloudSaveProvider(sel: CloudSaveProviderSelection): CloudSaveProvider {
-  if (sel.dev) return devSimCloudSaveProvider;
-  if (sel.web) return noopCloudSaveProvider;
-  if (!sel.pocketbaseConfigured) return noopCloudSaveProvider;
-  return storeCloudSaveProvider;
+export function pickCloudSaveProvider(
+ sel: CloudSaveProviderSelection,
+): CloudSaveProvider {
+ if (sel.dev) return devSimCloudSaveProvider;
+ if (sel.web) return noopCloudSaveProvider;
+ if (!sel.pocketbaseConfigured) return noopCloudSaveProvider;
+ return storeCloudSaveProvider;
 }
 
 /** The one call the engine uses to get its provider. */
 export function selectCloudSaveProvider(dev: boolean): CloudSaveProvider {
-  return pickCloudSaveProvider({
-    dev,
-    web: Platform.OS === "web",
-    pocketbaseConfigured: isPocketbaseConfigured(),
-  });
+ return pickCloudSaveProvider({
+  dev,
+  web: Platform.OS === "web",
+  pocketbaseConfigured: isPocketbaseConfigured(),
+ });
+}
+
+// -- The opt-in cohort record (docs/gap-ranking.md Tier 0 #1) -------------
+
+/**
+ * Upload the REDUCED cohort record (analytics.ts `buildCohortRecord`) to
+ * the backend. This is the single write the telemetry design contains —
+ * the server stores one row per device (`events`, kind="analytics"),
+ * overwritten on each push, capped at 4KB (validated in
+ * pb_hooks/logic.ts `validateTelemetryPush`).
+ *
+ * OPT-IN contract (guardrail 5, "measure before scaling"): the caller
+ * (MinesOfDoom.tsx) invokes this only when the settings row
+ * `analyticsShare` is on — which is OFF by default, shown plainly, and
+ * the player can flip it off any time (and the GDPR delete wipes the
+ * stored row with the rest of the device's events).
+ *
+ * Never rejects, never blocks: network/HTTP/parse failures resolve
+ * false; the engine's cadence retries on the next local day. No session
+ * token: the row is device-scoped (the same identity cloud saves use).
+ */
+export async function pushCohortRecord(record: unknown): Promise<boolean> {
+ if (Platform.OS === "web") return false;
+ if (!isPocketbaseConfigured()) return false;
+ try {
+  const deviceId = await getIapDeviceId();
+  const url =
+   storeConfig.pocketbaseUrl.trim().replace(/\/+$/, "") +
+   "/api/app/telemetry/push";
+  const res = await postJson(url, { deviceId, record });
+  return res?.ok === true;
+ } catch {
+  return false;
+ }
 }

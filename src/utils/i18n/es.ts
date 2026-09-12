@@ -345,6 +345,16 @@ export const es: Record<TranslationKey, string> = {
     "mientras no estás y que el progreso se guarda solo. Aparece a lo sumo " +
     "una vez por sesión y no da ninguna recompensa — es información, no un " +
     "temporizador. Desactivado: silencio.",
+  "settings.tooltipAnalyticsShare": "Compartir estadísticas de uso anónimas",
+  "settings.analyticsShare": "Compartir estadísticas de uso anónimas: ",
+  "settings.analyticsShareHelp":
+    "Desactivado (por defecto): nada sale nunca de tu dispositivo. Activado: " +
+    "una vez al día enviamos un registro pequeño y anónimo del patrón de " +
+    "juego de este dispositivo (qué días, qué funciones, totales aproximados — " +
+    "sin datos de partida, sin nombres, sin detalles de compras) para poder " +
+    "mejorar el juego gratuito antes de escalarlo. Puedes desactivarlo cuando " +
+    "quieras, y la acción «Borrar mis datos» de abajo borra la copia guardada " +
+    "junto con todo lo demás.",
   "settings.tooltipAutoDailyEquation": "Ecuación del día automática",
   "settings.autoDailyEquation": "Ecuación del día automática: ",
   "settings.autoDailyEquationHelp":
