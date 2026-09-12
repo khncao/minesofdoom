@@ -5696,10 +5696,32 @@ a merge — bests only go up, achievement sets union; top-N ordering +
 limit; rank = strictly-above + 1), and `handleDelete` (device scope
 wipes cloudSaves/leaderboard/events but PRESERVES entitlements — the
 refund/restore guarantee; account scope additionally erases the
-account's entitlements, sessions, and account row). Still untested: the
-remaining auth handlers (login/google/apple/link/set-password/logout) —
-their pure halves (KDF, sessions, provider-merge) stay netted by
-`logic.test.js`.
+account's entitlements, sessions, and account row).
+**Fully closed (pass 71, 2026-09-12):** `pb_hooks/__test__/handlerAuth.test.js`
+(18 tests) covers the remaining auth surface on the same shared fake,
+in identityVerify's FAKE-TOKEN sandbox mode
+(`MDOOM_DEV_FAKE_TOKEN=1` — the token payload is trusted, no network):
+register (account + session + KDF hash + the sign-in backfill tagging
+close every device cloudSave/entitlement row), login (wrong-password
+and unknown-email return the SAME 401 — no credential enumeration;
+a legacy single-iteration `sha256:` hash is transparently upgraded to
+the KDF on successful login and still verifies), provider sign-in
+(first sign-in pins `googleId` + email; a second device with the same
+`sub` signs into the SAME account; a verified email merges into a
+pre-existing email account instead of forking it; unparseable /
+bad-sub tokens are hard 401s that create nothing), me/logout (live
+session returns the account shape; garbage and expired tokens 401,
+expired rows are pruned in place; logout is idempotent),
+set-password (session is the ownership proof; an email-less account is
+refused because login would be unusable; after a change the old
+password 401s and the new one logs in), `auth/link` (a new device's
+anonymous cloudSave/leaderboard rows are attached to the account), and
+`auth/link/google` (a provider id owned by another account is a 409
+"provider-taken" — never steal, never merge; success pins the id and
+an unclaimed verified email). **F39.2 is closed: every handler in the
+`handlers` map now has direct coverage** — verify/restore (pass 69),
+data plane + delete (pass 70), auth (pass 71) — plus the webhook path
+(`handlerStripeWebhook.test.js`).
 
 **F39.3 — Recorded, not a defect.**
 
