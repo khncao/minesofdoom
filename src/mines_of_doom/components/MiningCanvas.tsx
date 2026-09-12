@@ -191,13 +191,17 @@ const MiningCanvas = memo(function MiningCanvas({
                   justifyContent: "center",
                 }}
               >
+                {/*
+                  A MINERAL pocket (it pays minerals, ~8× click power) —
+                  the art matches the currency it pays.
+                */}
                 {emojiArt ? (
                   <Text style={{ fontSize: 26, userSelect: "none" }}>
-                    {emojis.gem}
+                    {emojis.mineral}
                   </Text>
                 ) : (
                   <Image
-                    source={{ uri: gemSpriteUri() }}
+                    source={{ uri: mineralChunkSpriteUri() }}
                     style={{ width: 28, height: 28 }}
                   />
                 )}

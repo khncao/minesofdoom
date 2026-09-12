@@ -136,7 +136,7 @@ of Pressable so rapid tapping doesn't double-render).
   plain-text share, so a share tap always does something honest; a
   user-closed sheet is a no-op, not a re-opened sheet (`shareImage.ts`,
   `shareImage.web.ts`, wired in `components/GoalsPanel.tsx`).
-- **Gem pocket (random in-cave bonus)** — a rare bonus node that
+- **Mineral pocket (random in-cave bonus)** — a rare bonus node that
   forms in the cave while the game is open (per-1s-check 1/120 odds once
   a 5-min post-pocket cooldown has elapsed; the pocket itself lives a
   real 30 s). Tapping it (a quick tap, no hold) pays ~8× the current
@@ -148,7 +148,7 @@ of Pressable so rapid tapping doesn't double-render).
   and the node renders in `components/MiningCanvas.tsx` with its own
   responder (a tap on it never falls through to hold-to-mine), a
   reduce-motion-respecting pulse, seeded position in a HUD-safe zone,
-  and the gem sprite / emoji fallback. Not persisted (a reload never
+  and the mineral sprite / emoji fallback. Not persisted (a reload never
   resurrects or forfeits one) and no spawns or toasts under the
   onboarding overlay. Guardrails held: the window is real, missing it
   costs nothing, odds are identical for every player (`docs/gap-ranking.md`

@@ -66,8 +66,8 @@ export const en = {
   "toast.idleReminder":
     "The mine keeps collecting while you're away, and your progress autosaves — " +
     "come back to check the haul!",
-  "toast.gemPocket": "A gem pocket formed in the cave — tap it for a bonus!",
-  "toast.gemPocketCollected": "Gem pocket: +{bonus} minerals",
+  "toast.gemPocket": "A mineral pocket formed in the cave — tap it for a bonus!",
+  "toast.gemPocketCollected": "Mineral pocket: +{bonus} minerals",
   "toast.saved": "Game saved",
   "toast.settingsSaved": "Saved",
   "toast.invalidSaveCode": "Invalid save code.",
@@ -569,7 +569,7 @@ export const en = {
   "a11y.clearAnswer": "Clear the whole answer",
   "a11y.submitAnswer": "Submit answer",
   "a11y.holdToMine": "Hold to mine",
-  "a11y.gemPocket": "Gem pocket: tap to collect +{bonus} minerals",
+  "a11y.gemPocket": "Mineral pocket: tap to collect +{bonus} minerals",
   "a11y.digit": "Digit {d}",
   "a11y.holdToClear": "Hold to clear the whole answer",
   "a11y.closeSettings": "Close settings",

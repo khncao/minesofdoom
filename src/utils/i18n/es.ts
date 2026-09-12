@@ -54,8 +54,8 @@ export const es: Record<TranslationKey, string> = {
     "La mina sigue recogiendo mientras no estás, y tu progreso se guarda " +
     "automáticamente — ¡vuelve a ver lo acumulado!",
   "toast.gemPocket":
-    "¡Se formó un bolsillo de gemas en la cueva — tócalo para un bonus!",
-  "toast.gemPocketCollected": "Bolsillo de gemas: +{bonus} minerales",
+    "¡Se formó un bolsillo de minerales en la cueva — tócalo para un bonus!",
+  "toast.gemPocketCollected": "Bolsillo de minerales: +{bonus} minerales",
   "toast.saved": "Partida guardada",
   "toast.settingsSaved": "Guardado",
   "toast.invalidSaveCode": "Código de guardado no válido.",
@@ -581,7 +581,7 @@ export const es: Record<TranslationKey, string> = {
   "a11y.clearAnswer": "Borrar toda la respuesta",
   "a11y.submitAnswer": "Enviar respuesta",
   "a11y.holdToMine": "Mantén pulsado para minar",
-  "a11y.gemPocket": "Bolsillo de gemas: toca para recoger +{bonus} minerales",
+  "a11y.gemPocket": "Bolsillo de minerales: toca para recoger +{bonus} minerales",
   "a11y.digit": "Dígito {d}",
   "a11y.holdToClear": "Mantén pulsado para borrar toda la respuesta",
   "a11y.closeSettings": "Cerrar ajustes",
