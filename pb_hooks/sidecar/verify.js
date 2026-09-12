@@ -601,6 +601,10 @@ async function createStripeCheckoutSession(stripeCfg, priceMap, webBaseUrl, prod
   const base = webBaseUrl.replace(/\/+$/, "");
   const params = new URLSearchParams();
   params.set("mode", "payment");
+  // The live account has no default payment method types enabled, so omitting
+  // this list makes Stripe 400 with "No valid payment method types"; pin cards
+  // so session creation is deterministic regardless of dashboard defaults.
+  params.set("payment_method_types[]", "card");
   params.set("line_items[0][price]", priceMap[productId]);
   params.set("line_items[0][quantity]", "1");
   // The {CHECKOUT_SESSION_ID} placeholder is replaced by Stripe with the

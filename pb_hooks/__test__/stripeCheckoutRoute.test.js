@@ -118,6 +118,7 @@ describe("createStripeCheckoutSession (pure)", () => {
     expect(fake.calls[0].init.headers.Authorization).toBe("Bearer sk_test_123");
     const form = fake.calls[0].form;
     expect(form.get("mode")).toBe("payment");
+    expect(form.get("payment_method_types[]")).toBe("card");
     expect(form.get("line_items[0][price]")).toBe("price_packGold");
     expect(form.get("line_items[0][quantity]")).toBe("1");
     expect(form.get("metadata[mdoomDeviceId]")).toBe("dev_testdevice");
