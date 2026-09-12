@@ -3,6 +3,7 @@ import {
   FREE_PATH_TARGET,
   simulateFreePath,
 } from "../freePath";
+import { GOAL_TIERS } from "../goals";
 
 describe("free-path benchmark (plan §5, guardrail 1: F2P is viable)", () => {
   it("a pure free player banks first prestige within ~7 days of normal idle + play", () => {
@@ -58,5 +59,35 @@ describe("free-path benchmark (plan §5, guardrail 1: F2P is viable)", () => {
     });
     expect(report.reached).toBe(true);
     expect(report.days).toBeLessThanOrEqual(30);
+  });
+
+  it("offline earnings are actually paid (regression guard on the close window)", () => {
+    // The sim must model the close window the way the engine's load path
+    // does: saveTime > 0 and now = saveTime + away-time (epoch ms). With a
+    // zeroed/invalid window computeOfflineMinerals silently returns 0 and
+    // the "offline carry" claim above is unmeasured. Guard it.
+    const report = simulateFreePath();
+    expect(report.earned.offline).toBeGreaterThan(0);
+  });
+
+  it("pins time-to-t5: the binding 1B-lifetime t5 target lands by day 100 (measured ~82, pass 72)", () => {
+    // The free-path benchmark previously pinned only first prestige; this
+    // pins the tail — how long the free player takes to reach the t5
+    // goal's binding target (1B lifetime minerals; the other t5 metrics —
+    // depth 1500m, combo 500 — are already far behind that at crossing,
+    // see docs/gap-ranking.md F25.2). The sim runs the whole run at
+    // ×1 prestige, so this is the no-prestige floor; a prestige'd player
+    // is faster. Measured 2026-09-25 (post offline-sim-fix): D81 994.8M
+    // → crosses between D81 and D82; 18 days of slack to 100.
+    const report = simulateFreePath(
+      { ...DEFAULT_FREE_PATH_PERSONA, stopAtFirstPrestige: false },
+      120,
+    );
+    const target = GOAL_TIERS.flatMap((t) => t.goals).find(
+      (g) => g.id === "t5-lifetime",
+    )!.target;
+    const day = report.perDay.find((d) => d.lifetime >= target)?.day;
+    expect(day).toBeDefined();
+    expect(day).toBeLessThanOrEqual(100);
   });
 });

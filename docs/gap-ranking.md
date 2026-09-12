@@ -48,6 +48,14 @@ repo is not equipped to make.
    the bigint rewrite) — the near-idle persona has never earned
    offline in the benchmark. The F2P guardrail is only as good as the
    benchmark's coverage; both are cheap (a sim fix + a CI assertion).
+   **Resolved** (pass 72): the sim's close window now models the
+   engine's load path (epoch-ms `saveTime`/`now` delta = the persona's
+   22h away time, correctly clamping to the 8h cap); a regression guard
+   asserts `earned.offline > 0`, and the benchmark now also pins
+   **time-to-t5** (the t5-lifetime 1B target crosses between D81 and
+   D82; the CI floor is 100 days on a 120-day run). Canonical
+   post-fix numbers: first prestige ~2.0 days (was ~4.7), near-idle
+   ~3.0, 30-day gross 1,105 💎, D30 256.6 M, D60 663.0 M.
 4. **`analytics:readout-completeness`** (pass 26) — cheapest item in
    the layer: surface the stored record (`cosmeticPurchaseLog` last-N
    rows, per-product IAP counts) in `summarizeAnalytics`; the debug
@@ -2910,8 +2918,16 @@ concretely: fast miner #7 costs ⌈7⁴/8⌉ = 301 gems; the D30 hoard is 229
 → ~1–2 days at the run's drop rate. The measurement itself (the
 harness) is not committed — candidate below.
 
-4. **The benchmark's offline term is structurally zero.** `freePath.ts`
-calls `computeOfflineMinerals(miners, power, fastMiners, /*saveTime*/ 0,
+4. **The benchmark's offline term is structurally zero. FIXED (pass
+72)** — the sim now models the close window as epoch-ms
+`saveTime = day start`, `now = saveTime + away-time × 1000`, so the
+persona's 22 h away window clamps to the 8 h cap exactly like the
+engine's load path; `freePath.test.ts` carries a regression guard
+(`earned.offline > 0`) and the time-to-t5 pin. Findings 1's numbers
+below are pre-fix (they show `offline 0`); the post-fix canonical
+run is recorded in Tier 0 item 3. Original finding, kept for the
+record: `freePath.ts` called
+`computeOfflineMinerals(miners, power, fastMiners, /*saveTime*/ 0,
 /*now*/ offlineSeconds)` and the function's first guard is
 `if (saveTime <= 0 || now <= saveTime) return 0n` — so the persona's
 22 h of "offline" time has **never earned anything** in the benchmark
@@ -2939,7 +2955,8 @@ this pass re-ran (97.2 M) is new — no prior doc quote existed to drift.
 Six candidates, **documented, not planned** (todo rule): `economy:offline-sim-fix`
 — set `saveTime` to the session-end timestamp in the sim so the near-idle
 guard actually measures offline carry (benchmark bug fix, smallest of the
-six); `economy:interval-metric` — commit the pass-8 invariant as a dev-only
+six) — **landed in pass 72, with the `free-path:motherlode-target`
+CI pin**; `economy:interval-metric` — commit the pass-8 invariant as a dev-only
 script (or a `--pacing` flag on the sim) and only surface a
 "next purchase in ~" readout in-app if a D30+ churn theme names pacing
 (guardrail 5: measure first); `economy:miner-trio-roles` — give the three
@@ -3942,7 +3959,12 @@ like, concretely, for the candidate decisions below):
   the F2P-viability guardrail is only as good as the benchmark's
   coverage. Cheap (a benchmark assertion), high-value (it's the
   guardrail itself), no new content. Pairs with F25.2: if the tail is
-  too long, the fix is a pacing knob, not more content.
+  too long, the fix is a pacing knob, not more content. **Landed in
+  pass 72** — the benchmark now pins both the first-prestige deadline
+  and the time-to-t5 (Motherlode) goal, so the free-path benchmark
+  covers the whole curve, opening and tail, and the F2P-viability
+  guardrail is only as good as the benchmark's coverage — now fully
+  covered.
 + `endless-biomes` — give the cave scroll a destination past 850 m
   (F25.2). With the corrected numbers the gap is not 650 m but ~2,000,000
   m (the 1B-lifetime binding target), so "extend the span until it

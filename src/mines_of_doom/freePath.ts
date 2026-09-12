@@ -277,15 +277,23 @@ export function simulateFreePath(
     addGain(getDailyBonus(dailyStreak), "daily");
 
     // Night: the app was closed — offline earnings at the game's cap.
-    // Number(): the simulation runs in number space (it's a reporting
-    // tool, and 30 days of a free persona can't reach bigint territory).
+    // computeOfflineMinerals takes epoch MILLISECONDS (its guard is
+    // saveTime > 0 && now > saveTime, then floor((now-saveTime)/msPerTick)
+    // ticks capped at maxOfflineTicks = 8h). Model the close as the
+    // start of the day + the persona's away time: the day offset keeps
+    // the run deterministic, and only the DELTA matters (so the 22h
+    // away window correctly clamps to the 8h cap, exactly like the
+    // engine's load path). Number(): the simulation runs in number space
+    // (it's a reporting tool, and 30 days of a free persona can't reach
+    // bigint territory).
+    const closeAt = day * 86_400_000;
     const offline = Number(
       computeOfflineMinerals(
         miners,
         minerPower,
         fastMiners,
-        0,
-        persona.offlineSecondsPerDay,
+        closeAt,
+        closeAt + persona.offlineSecondsPerDay * 1000,
         prestige,
         legendaryMiners,
       ),
