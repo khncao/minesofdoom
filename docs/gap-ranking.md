@@ -125,6 +125,20 @@ repo is not equipped to make.
    `--pacing` flag on the sim). The D18→D60 wall is income
    *saturation* (all gem lines capped), not the cost curve — pacing
    complaints can't be triaged without the metric.
+
+   **Resolved (pass 76, 2026-09-25).** `freePath.ts` now instruments the
+   sim: `shop()` records every buy as a `FreePathPurchase` (stable kind
+   vocab, absolute seconds) into the new `FreePathReport.purchases`, and
+   `summarizePacing` (pure, exported) computes the min/median/max gaps. The
+   vehicle is the jest suite (no non-test TS runner in the repo) — `pnpm
+   test freePath` prints the per-day table. The committed invariant
+   reflects the data's true shape: in-window *medians* are dominated by
+   same-second shopping bursts (~1s), so the test asserts on the MAX —
+   which stretches ~80ks (D1-5) → ~177ks (D1-20) → ~513ks (D60) as the
+   cheap lines cap (the pass-8 "median stretches" observation, in its
+   actual form), while the min stays <3600s throughout (cheap lines keep
+   buys frequent). The D18→D60 wall reads as expected: income saturation,
+   not cost.
 10. **Crash-code export / crash ring into local stats** (pass 11) —
     the crash-context trail (12 labels + 24-key snapshot) is the
     game's only per-event trail but is in-memory and dies with the
