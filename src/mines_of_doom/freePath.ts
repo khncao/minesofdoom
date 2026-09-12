@@ -134,6 +134,9 @@ export function simulateFreePath(
   // 2026-07-14 todo: gems must be scarce enough that minting is a
   // deliberate sink, so the simulation buys at the escalating cost too).
   let gemBuys = 0;
+  // Every shopping-policy buy, in order (the pacing metric's raw feed —
+  // see the FreePathPurchase docs for the timestamp convention).
+  const purchases: FreePathPurchase[] = [];
 
   const earned = {
     answers: 0,
@@ -160,12 +163,15 @@ export function simulateFreePath(
    * doesn't, e.g., pour 6M minerals into a click-power level they'll never
    * miss). All cost curves are the engine's own (game.ts).
    */
-  const shop = () => {
+  const shop = (day: number, t: number) => {
+    const buy = (kind: FreePathPurchaseKind) =>
+      purchases.push({ at: (day - 1) * 86_400 + t, day, kind });
     // 1. Get the passive engine running as fast as gems allow: a normal
     //    miner (quartic gem curve — the economy self-throttles, so no cap).
     if (gems >= getMinerUpgradeCost(miners)) {
       gems -= getMinerUpgradeCost(miners);
       miners += 1;
+      buy("miner");
     }
     // 2. Miner power: each level multiplies the WHOLE roster's output;
     //    only worth buying with a crew (>= 2) and only while the payback
@@ -174,6 +180,7 @@ export function simulateFreePath(
     if (miners >= 2 && mpCost <= 500_000 && minerals >= mpCost) {
       minerals -= mpCost;
       minerPower += 1;
+      buy("minerPower");
     }
     // 3. Click power: the early-game mineral sink (quartic); stop once it's
     //    pricier than a chunky mineral haul (cap ~= level 7).
@@ -181,6 +188,7 @@ export function simulateFreePath(
     if (cpCost <= 2_500 && minerals >= cpCost) {
       minerals -= cpCost;
       clickPower += 1;
+      buy("clickPower");
     }
     // 4. Mint a gem (the free player's gem faucet) while the gem hoard is
     //    thin — the gem sinks below are the hoard's purpose. The cost
@@ -191,6 +199,7 @@ export function simulateFreePath(
       gems += 1;
       gemBuys += 1;
       gemGains.mints += 1;
+      buy("gemMint");
     }
     // 5. Gem upgrade lines & second/third miner types, in "when you meet
     //    them" order (fast miners first — cheapest per output, then the
@@ -198,22 +207,27 @@ export function simulateFreePath(
     if (gems >= getFastMinerCost(fastMiners)) {
       gems -= getFastMinerCost(fastMiners);
       fastMiners += 1;
+      buy("fastMiner");
     }
     if (gems >= getGemChanceCost(gemChanceLevels)) {
       gems -= getGemChanceCost(gemChanceLevels);
       gemChanceLevels += 1;
+      buy("gemChance");
     }
     if (gems >= getClickBoostCost(clickBoostLevels)) {
       gems -= getClickBoostCost(clickBoostLevels);
       clickBoostLevels += 1;
+      buy("clickBoost");
     }
     if (gems >= getComboResistCost(comboResistLevels)) {
       gems -= getComboResistCost(comboResistLevels);
       comboResistLevels += 1;
+      buy("comboResist");
     }
     if (gems >= getLegendaryMinerCost(legendaryMiners)) {
       gems -= getLegendaryMinerCost(legendaryMiners);
       legendaryMiners += 1;
+      buy("legendaryMiner");
     }
   };
 
@@ -313,7 +327,7 @@ export function simulateFreePath(
       // stops tapping to answer).
       if (t % persona.secondsPerTap === 0) tap();
       if (t % persona.secondsPerAnswer === 0) answer();
-      shop();
+      shop(day, t);
 
       if (
         (persona.stopAtFirstPrestige ?? true) &&
@@ -328,6 +342,7 @@ export function simulateFreePath(
           gemGains,
           gemPurchases: gemBuys,
           perDay,
+          purchases,
         };
       }
     }
@@ -353,6 +368,7 @@ export function simulateFreePath(
     gemGains,
     gemPurchases: gemBuys,
     perDay,
+    purchases,
   };
 }
 
@@ -362,6 +378,34 @@ export type FreePathDay = {
   /** Passive income at end of day (minerals/sec, pre-prestige). */
   mineralsPerSec: number;
   gems: number;
+};
+
+/**
+ * The persona's shopping-policy lines, in shop() priority order. The ids
+ * are the dev-only pacing metric's vocabulary (economy:interval-metric,
+ * pass 19) — stable strings, not engine internals.
+ */
+export type FreePathPurchaseKind =
+  | "miner"
+  | "minerPower"
+  | "clickPower"
+  | "gemMint"
+  | "fastMiner"
+  | "gemChance"
+  | "clickBoost"
+  | "comboResist"
+  | "legendaryMiner";
+
+/**
+ * One shopping-policy buy, timestamped in absolute simulated seconds
+ * (night offline time included — `(day - 1) * 86_400 + sessionSecond`),
+ * so the interval-to-next-purchase metric can tell "bought the next thing
+ * 30 s later" from "hoarded across the night for the next capped line".
+ */
+export type FreePathPurchase = {
+  at: number;
+  day: number;
+  kind: FreePathPurchaseKind;
 };
 
 export type FreePathReport = {
@@ -395,7 +439,47 @@ export type FreePathReport = {
   };
   /** End-of-day snapshots for balance-tuning diagnostics. */
   perDay: FreePathDay[];
+  /**
+   * Every shopping-policy buy, in order (deterministic per seed) — the
+   * raw feed for the interval-to-next-purchase pacing metric
+   * (`summarizePacing` / the dev readout test in freePath.test.ts).
+   */
+  purchases: FreePathPurchase[];
 };
+
+/**
+ * The pass-8 interval-to-next-purchase invariant, computed: the gaps
+ * between consecutive shopping-policy buys. `count` is the number of
+ * gaps (purchases − 1); min/median/max are in simulated seconds (nights
+ * included — a 5 h gap is the "hoarding for the next capped line" signal,
+ * the pacing-complaint triage number the readout previously lacked).
+ */
+export type PacingSummary = {
+  count: number;
+  minSec: number;
+  medianSec: number;
+  maxSec: number;
+};
+
+export function summarizePacing(purchases: FreePathPurchase[]): PacingSummary {
+  if (purchases.length < 2) return { count: 0, minSec: 0, medianSec: 0, maxSec: 0 };
+  const gaps: number[] = [];
+  for (let i = 1; i < purchases.length; i++) {
+    gaps.push(purchases[i].at - purchases[i - 1].at);
+  }
+  const sorted = [...gaps].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const median =
+    sorted.length % 2 === 1
+      ? sorted[mid]
+      : (sorted[mid - 1] + sorted[mid]) / 2;
+  return {
+    count: gaps.length,
+    minSec: sorted[0],
+    medianSec: median,
+    maxSec: sorted[sorted.length - 1],
+  };
+}
 
 /**
  * Small deterministic PRNG (mulberry32) so the benchmark is reproducible
