@@ -84,6 +84,17 @@ repo is not equipped to make.
    local-day fields for t1–t5 on the existing analytics record, so the
    gate moments (t1 = first purchasable line, t3 = the prestige gate)
    are measured directly instead of via the `firstPrestigeDay` proxy.
+   **Resolved** (pass 74): `recordTierMilestone` stamps
+   `firstTierDay[tierId]` on the first local day each tier t1–t5 is
+   completed (idempotent — a later re-completion never overwrites the
+   first day), carried through `parseAnalytics` (malformed tier ids /
+   day keys dropped, empty map when absent) and surfaced in
+   `summarizeAnalytics` as a bounded `tier first days` block in natural
+   tier order. Firing site: the existing goal-tier celebration effect in
+   `MinesOfDoom.tsx` now calls a ref-forwarded `useAnalytics.onTierMilestone`
+   (declared before the effect, filled after the `useAnalytics()` call,
+   same pattern as `onCosmeticPurchaseRef`) — the "how long does the goal
+   chain take" free-path signal the readout lacked.
 7. **`analytics:first-ad-kind`** (+ first-ad-outcome) (pass 26) — the
    rewarded kind is dropped at the `MinesOfDoom.tsx` hook seam and no
    ad *outcome* (`rewarded` / `closed` / `error`) is recorded; the ad
