@@ -24,6 +24,8 @@ pnpm run ios        # run the iOS app
 | `pnpm run typecheck` | `tsc --noEmit` |
 | `pnpm run lint` | ESLint |
 | `pnpm run deploy` | Static web export → Cloudflare Pages |
+| `node scripts/screenshot.mjs` | Feature screenshots of the web build (needs `dist/` first) → `screenshots/` |
+| `pnpm exec playstoress` | Play Store listing screenshots → `playstore-screenshots/` |
 
 Use **pnpm** (not npm) — see `pnpm-lock.yaml` and `.npmrc`.
 

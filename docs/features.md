@@ -177,9 +177,26 @@ of Pressable so rapid tapping doesn't double-render).
   (`utils/graphics/stylePasses.ts`, `docs/art-styles.md`).
 - **Cosmetic shop** (gem prices; earnable, F2P-viable) — outfits, pickaxes
   (each with a unique swing sound), and **cave themes** (background
-  recolors); the IAP cosmetic pack sells the *same* items
-  (`cosmetics.ts`, `components/PurchaseButtons.tsx`, `components/Miner.tsx`,
+  recolors); the IAP cosmetic pack sells the *same* items. The shop is the
+  🛍️ `IapPanel` (the menu sheet has no shop tab): pickaxe/outfit/theme rows
+  are GRID CARDS with 2–3× previews, plus a "worn by" wearer selector on the
+  Outfits group (see per-crew customization below); the custom-skin line
+  keeps row controls. Gem buy always; the one-time cash pack is gated on
+  the store provider's availability (`cosmetics.ts`, `iaps.ts`,
+  `components/IapPanel.tsx`, `components/Miner.tsx`,
   `components/CaveBackground.tsx`).
+- **The crew column** — hired miners line up DOWN THE MIDDLE of the shaft
+  in one centered vertical column: the player at the front (bottom), the
+  roster receding above them, each row smaller (depth perspective). The
+  pure layout is `rosterDisplay` (`cosmetics.ts`): per-type caps
+  (`ROSTER_MAX_PER_TYPE`, NORMAL = `ROSTER_ASSIGNABLE_SLOTS`) + a shrink
+  factor; `MiningCanvas` renders it far-first.
+- **Per-crew customization** — owned outfits can be assigned to individual
+  hired miners: `SaveData.minerOutfits` (slot index → owned outfit id, v13+
+  of the save), sanitized on every load path; the shop's wearer selector
+  (👤 You + the visible crew slots) drives `assignMinerOutfit` /
+  `clearMinerOutfit` (free, idempotent, survive prestige); the canvas
+  renders each slot's override (owned-filtered).
 - **Collection view** — the menu sheet's read-only compendium (between
   Records and About): every catalog line — pickaxes (sprite thumbs), outfits
   (the shop's fixed-seed previews), cave themes (tint swatches), achievement

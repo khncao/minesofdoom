@@ -26,6 +26,7 @@ All commands run from the repo root, using **pnpm** (no npm — the lockfile is
 | `pnpm run deploy` | Manual deploy: export static web build to `dist/` and deploy to Cloudflare Pages via `wrangler pages deploy` (`predeploy` runs `expo export -p web`). **Changes pushed to `main` automatically trigger continuous deployment to Cloudflare Pages** (the Cloudflare Pages CI on the repo, not this script) — this command is the manual fallback. |
 | `pnpm run play -- <cmd>` | Play Console CLI (`scripts/play/play.mjs`, Play Developer API v3): listings, images, tracks, AAB upload/release, one-time-product CRUD. Needs a service-account key (`./play-service-account.json`, gitignored, or `PLAY_SERVICE_ACCOUNT_JSON`) |
 | `pnpm exec playstoress` | Play Store listing screenshots (`scripts/playstoress.mjs`): serves the web build (exports `dist/` if missing) through the e2e static server, drives headless Chromium at phone (824×1830), 7" tablet (1280×800) and 10" tablet (1920×1200), and captures main/upgrades/menu shots into `playstore-screenshots/` (gitignored). Re-links its own `.bin` shim on every `pnpm install` (postinstall) |
+| `node scripts/screenshot.mjs` | Feature screenshots (`scripts/screenshot.mjs`): serves `dist/` (needs a web build first — run `pnpm run test:e2e:web` or `pnpm exec expo export -p web` once), seeds a RICH save (crew + gems + owned outfits with per-crew assignments) via localStorage, and captures `screenshots/main.png` (the vertical crew column + translucent UI) and `screenshots/shop.png` (the grid shop + wearer selector). Output in `screenshots/` (gitignored). Useful for visually checking visual changes without an emulator. |
 
 **CI is currently disabled** — the workflow lives at `.github/workflows/ci.yml.disabled` (rename to `ci.yml` to re-enable). When enabled it gates on: typecheck, lint, and tests. Until CI runs, run `pnpm run typecheck`, `pnpm run lint`, and `pnpm test` locally before committing changes to code. The e2e workflow is **disabled** (too slow vs. manual testing, 2026-09-04): the definition lives at `.github/workflows/e2e-android.yml.disabled` — rename it back to `e2e-android.yml` to re-enable. It built the debug APK and ran the Maestro flows (`maestro/`) on fresh emulators (phone + 7"/10" tablet); while it's disabled, "the app still boots" is verified manually.
 
@@ -49,7 +50,8 @@ src/                       # All source
     MinesOfDoom.tsx        # Main screen component
     Context.tsx            # Game React context (onTick)
     game.ts                # Core pure game logic / save data model (the "engine")
-    cosmetics.ts           # Pickaxes, outfits, cave themes definitions
+    cosmetics.ts           # Pickaxes, outfits, cave themes + the crew-column layout
+                           # (rosterDisplay) and per-crew outfit overrides
     achievements.ts        # Achievement definitions/logic
     goals.ts               # Goal/quest definitions
     styles.ts              # Style constants
@@ -62,7 +64,11 @@ src/                       # All source
 public/assets/             # Static assets (audio, icons, images) with index.ts barrel
 android/                   # Prebuilt native project (Expo prebuild)
 dist/                      # Web build output (generated, gitignored)
-docs/                      # Planning docs (ux-and-feature-plan.md, todo.md)
+pb_hooks/                  # PocketBase sidecar (backend for cloud save / leaderboard /
+                           # IAP verify-restore; logic.js, app.pb.js, storeVerify.js).
+                           # Has its own tests (pb_hooks/__test__) — incl. the
+                           # MAX_SAVE_VERSION pin against game.ts's saveVersion.
+docs/                      # Planning docs (features.md, gap-ranking.md, todo.md)
 ```
 
 **Key pattern:** game rules, costs, formulas, save data, and progression math live in pure,
@@ -73,6 +79,30 @@ autosave and offline-progress computation on load. When adding gameplay logic, p
 extending the pure modules over embedding logic in components, and add/extend tests in
 `mines_of_doom/__test__/` or alongside `utils/*`. Never add non-route files under
 `src/app/` (see the architecture note above).
+
+### Cosmetics & the crew (mental model)
+
+- **Player look** is a seeded sprite: `playerSeed` + selected outfit/pickaxe →
+  `rollMinerLook` (`cosmetics.ts`). The custom-skin slot (device-local, not in the
+  save) can additionally override the player's body/pickaxe sprites.
+- **The crew column** (`rosterDisplay` in `cosmetics.ts`): a PURE layout — given
+  normal/fast/legendary counts it picks which hires are visible (per-type caps;
+  `ROSTER_ASSIGNABLE_SLOTS` = the normal-crew cap) and each row's depth-
+  perspective scale. `MiningCanvas` stacks the items far-first in ONE centered
+  column above the player. If you change the caps there, the shop's assignable
+  slots follow automatically (the same constant).
+- **Per-crew customization**: `SaveData.minerOutfits` maps a roster slot index
+  (decimal string) → OWNED outfit id, sanitized on every load path
+  (`sanitizeMinerOutfits`). The engine's `assignMinerOutfit`/`clearMinerOutfit`
+  are owned-only and idempotent; MinesOfDoom filters the map to owned ids
+  (`ownedMinerOutfits`) before it reaches the canvas and the shop. The shop's
+  Outfits group has a "worn by" wearer selector (👤 You + hired slots) whose
+  Wear/Revert buttons call those actions. Assignments survive a sunk shaft.
+- **The shop** (`components/IapPanel.tsx`): grid cards for the pickaxe/outfit/
+  cave-theme lines (2–3× previews; gem buy always; the cash pack is gated on
+  the provider), rows for the custom-skin line (uploads/samples). The menu
+  sheet deliberately has NO shop tab — this panel is the single purchase
+  surface.
 
 ## Module Resolution (important — easy to get wrong)
 
@@ -137,6 +167,11 @@ So test/source files import like `import ... from "src/mines_of_doom/game"` or
 
 ## Gotchas
 
+- **Save version discipline:** bumping `saveVersion` in `game.ts` requires a
+  new entry in the `migrations` map AND a bump of `MAX_SAVE_VERSION` in
+  `pb_hooks/logic.js` — `pb_hooks/__test__/logic.test.js` pins the two equal
+  and fails the full suite otherwise (a cloud push with a newer version is
+  REJECTED by the sidecar, by design).
 - **Package manager is pnpm.** `.npmrc` sets `node-linker=hoisted` — Metro and
   the "jest in dependencies" setup below need a flat npm-like `node_modules`;
   don't switch back to pnpm's default isolated layout. `@types/node` is a
