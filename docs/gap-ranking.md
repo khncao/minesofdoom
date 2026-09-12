@@ -99,6 +99,19 @@ repo is not equipped to make.
    rewarded kind is dropped at the `MinesOfDoom.tsx` hook seam and no
    ad *outcome* (`rewarded` / `closed` / `error`) is recorded; the ad
    pipeline's failure modes (no fill, early close) are invisible.
+   **Resolved** (pass 75): `recordAdView` now takes the `AdKind` and
+   stamps `firstAdKind` once (first-tap-wins, like the other first-\*
+   folds), and a new `recordAdOutcome` folds the provider's first
+   `AdResult` — fired from the `useAdRewards` claim pipeline via an
+   optional `onAdOutcome` seam (ref-forwarded at the `MinesOfDoom.tsx`
+   call site, same pattern as `onTierMilestone`). The vocab lives next
+   to the types in `ads.ts` (`AD_KIND_VALUES` / `AD_OUTCOME_VALUES`),
+   `parseAnalytics` drops out-of-vocab stamps to `""`, and
+   `summarizeAnalytics` decorates the existing line in place —
+   `first ad view  <day> (gemRolls, closed)` — so the 18-line readout
+   shape is unchanged and pre-F26.4 records render the bare line exactly
+   as before. The "watched-through vs bailed vs errored on first
+   attempt" split is now measurable from the on-device readout.
 8. **Perf measurement trio** (pass 20) — `perf:android-size` (build
    one release AAB, record download vs installed size; the one
    delivery number that moves conversion, ≈1% install per +6 MB,
