@@ -65,6 +65,13 @@ export type AnalyticsState = {
   /** Total cosmetic purchases (per-purchase log below). */
   cosmeticPurchases: number;
   /**
+   * First-occurrence local day per goal tier id (t1–t5) — the gate
+   * moments measured directly instead of via the `firstPrestigeDay`
+   * proxy (pass 23 `analytics:tier-milestone`). Keyed by tier id so
+   * content-added tiers need no migration; first occurrence wins.
+   */
+  firstTierDay: Record<string, string>;
+  /**
    * Bounded per-purchase log (guardrail-5 granularity, features.md
    * pass-16 `cosmetics:analytics`): which line, which item, which path,
    * and the gem balance at the moment of purchase. Newest last, capped
@@ -142,6 +149,7 @@ export function emptyAnalyticsState(now: number): AnalyticsState {
     firstCosmeticPurchaseDay: "",
     cosmeticPurchases: 0,
     cosmeticPurchaseLog: [],
+    firstTierDay: {},
   };
 }
 
@@ -234,6 +242,32 @@ export function recordCosmeticPurchase(
 }
 
 /**
+ * A goal tier (t1–t5, `goals.ts` GOAL_TIERS) is observed complete (pass 23
+ * `analytics:tier-milestone`): stamps the first-occurrence local day for
+ * that tier id — the gate moments (t1 = first purchasable line, t3 = the
+ * prestige gate) measured directly instead of via the prestige proxy.
+ * First occurrence wins; already-stamped tiers return `state` unchanged
+ * (same reference — the caller skips the persist when nothing moved).
+ * Tier ids are validated by shape (`t<digits>`) rather than catalog
+ * membership, same stance as the cosmetic log's item ids — a downgraded
+ * client keeps a newer client's stamps instead of dropping them.
+ */
+export function recordTierMilestone(
+  state: AnalyticsState | null,
+  tierId: string,
+  now: number,
+): AnalyticsState {
+  const s = state ?? emptyAnalyticsState(now);
+  if (!/^t\d+$/.test(tierId) || s.firstTierDay[tierId] !== undefined) {
+    return s;
+  }
+  return {
+    ...s,
+    firstTierDay: { ...s.firstTierDay, [tierId]: getLocalDayKey(now) },
+  };
+}
+
+/**
  * A prestige was sunk (free-path progress). Stamps the first-prestige day
  * once and counts every subsequent one — "free-path progress" (guardrail
  * 5) is a curve, not just a milestone, and the count is cheap.
@@ -300,7 +334,24 @@ export function parseAnalytics(raw: string | null): AnalyticsState | null {
     // Forward-compat + corruption guard: keep only well-formed entries,
     // newest last, capped (a hand-edited record can't bloat the log).
     cosmeticPurchaseLog: sanitizeCosmeticPurchaseLog(o.cosmeticPurchaseLog),
+    firstTierDay: sanitizeFirstTierDay(o.firstTierDay),
   };
+}
+
+/**
+ * Corruption guard for the tier-milestone stamps: keep only string keys
+ * shaped like a tier id and non-empty string day values (a hand-edited
+ * record must not crash the debug panel).
+ */
+function sanitizeFirstTierDay(raw: unknown): Record<string, string> {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return {};
+  }
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (/^t\d+$/.test(k) && typeof v === "string" && v !== "") out[k] = v;
+  }
+  return out;
 }
 
 /**
@@ -355,9 +406,11 @@ function isIapPurchaseEvent(e: unknown): e is IapPurchaseEvent {
  * long-press-shared off-device) and the format a data-deletion/export
  * request expects. Deliberately plain text: no PII, stable field order,
  * "never" for one-shot fields that haven't fired. After the fixed field
- * block come two variable blocks (only when non-empty): per-product IAP
- * counts and the newest SUMMARY_RECENT_MAX rows of each per-purchase log
- * (F26.3 — the readout reflects the record, not just its counters).
+ * block come variable blocks (only when non-empty): per-product IAP
+ * counts, the newest SUMMARY_RECENT_MAX rows of each per-purchase log
+ * (F26.3 — the readout reflects the record, not just its counters), and
+ * the tier-milestone stamps (pass 23 — the gate moments, data-driven by
+ * whichever tiers have been observed).
  */
 export function summarizeAnalytics(state: AnalyticsState): string {
   const day = (d: string) => (d === "" ? "never" : d);
@@ -413,6 +466,20 @@ export function summarizeAnalytics(state: AnalyticsState): string {
     );
     for (const e of recentIap) {
       lines.push(`  ${e.day}  ${e.product}`);
+    }
+  }
+  // Tier milestones (pass 23): data-driven — one line per stamped tier,
+  // natural order (t1 < t2 < … by numeric suffix), omitted when the
+  // player hasn't hit any gate yet.
+  const tierDays = Object.entries(state.firstTierDay).sort((a, b) => {
+    const na = Number(a[0].slice(1));
+    const nb = Number(b[0].slice(1));
+    return na === nb ? a[0].localeCompare(b[0]) : na - nb;
+  });
+  if (tierDays.length > 0) {
+    lines.push(`tier first days   (${tierDays.length})`);
+    for (const [tierId, d] of tierDays) {
+      lines.push(`  ${tierId}  ${d}`);
     }
   }
   return lines.join("\n");

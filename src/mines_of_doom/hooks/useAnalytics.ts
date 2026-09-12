@@ -9,6 +9,7 @@ import {
   recordCosmeticPurchase,
   recordIapPurchase,
   recordPrestige,
+  recordTierMilestone,
   type CosmeticPurchasePath,
   type CosmeticLine,
 } from "../analytics";
@@ -106,6 +107,19 @@ export function useAnalytics() {
   }, [persist]);
 
   /**
+   * A goal tier completed (pass 23): idempotent per tier (the stamps map
+   * is additive, never re-stamped), data-driven by the tier id — the
+   * gate moment "reached the Motherlode" and friends. Fired by the
+   * goal-completion effect in MinesOfDoom.tsx.
+   */
+  const onTierMilestone = useCallback(
+    (tierId: string) => {
+      persist(recordTierMilestone(stateRef.current, tierId, Date.now()));
+    },
+    [persist],
+  );
+
+  /**
    * A cosmetic was bought (features.md pass-16 `cosmetics:analytics`):
    * the per-purchase line — which line, which item, gems vs pack path,
    * gem balance at the moment. Fired by the engine gem buys ("gems")
@@ -141,6 +155,7 @@ export function useAnalytics() {
     onAdView,
     onIapPurchase,
     onPrestige,
+    onTierMilestone,
     onCosmeticPurchase,
     clear,
   };

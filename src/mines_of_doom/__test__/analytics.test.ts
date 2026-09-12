@@ -11,6 +11,7 @@ import {
   recordCosmeticPurchase,
   recordIapPurchase,
   recordPrestige,
+  recordTierMilestone,
   summarizeAnalytics,
 } from "../analytics";
 import { getLocalDayKey } from "../dailyBonus";
@@ -142,6 +143,32 @@ describe("recordPrestige", () => {
   });
 });
 
+describe("recordTierMilestone", () => {
+  it("stamps a completed tier once and ignores repeats", () => {
+    const s = recordTierMilestone(null, "t1", day(7));
+    expect(s.firstTierDay).toEqual({ t1: getLocalDayKey(day(7)) });
+    // Same tier again (a different day) keeps the first stamp.
+    expect(recordTierMilestone(s, "t1", day(9)).firstTierDay).toEqual({
+      t1: getLocalDayKey(day(7)),
+    });
+  });
+
+  it("stamps tiers independently (t2 doesn't touch t1)", () => {
+    let s = recordTierMilestone(null, "t2", day(3));
+    s = recordTierMilestone(s, "t5", day(11));
+    expect(s.firstTierDay).toEqual({
+      t2: getLocalDayKey(day(3)),
+      t5: getLocalDayKey(day(11)),
+    });
+  });
+
+  it("ignores malformed tier ids (never crashes the record)", () => {
+    const s = recordTierMilestone(null, "notATier", day(7));
+    expect(s.firstTierDay).toEqual({});
+    expect(recordTierMilestone(null, "", day(7)).firstTierDay).toEqual({});
+  });
+});
+
 describe("recordCosmeticPurchase", () => {
   it("stamps the first purchase day once and counts every one", () => {
     let s = recordCosmeticPurchase(
@@ -217,6 +244,26 @@ describe("parseAnalytics", () => {
     expect(parsed!.iapPurchaseLog).toEqual([
       { product: "packGold", day: getLocalDayKey(day(3)) },
     ]);
+  });
+
+  it("drops malformed tier-milestone stamps (a hand-edited record must not crash the panel)", () => {
+    const parsed = parseAnalytics(
+      JSON.stringify({
+        firstOpenMs: day(1),
+        firstTierDay: {
+          t1: getLocalDayKey(day(2)),
+          "bad-key": getLocalDayKey(day(3)),
+          t2: "", // empty day = never stamped, dropped
+          t3: 42, // not a string day
+        },
+      }),
+    );
+    expect(parsed).not.toBeNull();
+    expect(parsed!.firstTierDay).toEqual({ t1: getLocalDayKey(day(2)) });
+    // Missing field migrates to an empty map (pre-pass-74 records).
+    const legacy = { ...emptyAnalyticsState(day(1)) };
+    delete (legacy as Record<string, unknown>).firstTierDay;
+    expect(parseAnalytics(JSON.stringify(legacy))!.firstTierDay).toEqual({});
   });
 
   it("migrates a legacy record: cosmetic + IAP log fields default in", () => {
@@ -389,6 +436,18 @@ describe("summarizeAnalytics", () => {
     // padEnd'd columns — match the value, not the exact spacing.
     expect(text).toMatch(/packGold\s+1\n/);
     expect(text).toMatch(/packSkin\s+2\n/);
+  });
+
+  it("lists tier-milestone stamps in natural tier order when any were hit", () => {
+    let s = emptyAnalyticsState(day(1));
+    s = recordTierMilestone(s, "t2", day(3));
+    s = recordTierMilestone(s, "t1", day(4));
+    const text = summarizeAnalytics(s);
+    const block = summarizeRecentBlock(text, "tier first days");
+    expect(block).toHaveLength(2);
+    // Natural order (t1 before t2) regardless of stamp order.
+    expect(block[0]).toContain(`t1  ${getLocalDayKey(day(4))}`);
+    expect(block[1]).toContain(`t2  ${getLocalDayKey(day(3))}`);
   });
 
   it("caps the recent-row blocks at SUMMARY_RECENT_MAX (newest kept)", () => {

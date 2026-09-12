@@ -198,6 +198,11 @@ export default function MinesOfDoom() {
   const onCosmeticPurchaseRef = useRef<
     ((ev: CosmeticPurchaseEventInput) => void) | null
   >(null);
+  // Forwarder for the goal-tier milestone stamps (pass 23
+  // `analytics:tier-milestone`): the tier-completion effect runs before
+  // the analytics hook below (hook order is fixed), so it stamps through
+  // this ref instead of a direct callback.
+  const onTierMilestoneRef = useRef<((tierId: string) => void) | null>(null);
   const {
     gameState,
     onTick,
@@ -744,6 +749,10 @@ export default function MinesOfDoom() {
     );
     if (newly.length === 0) return;
     completeTiers(newly);
+    // The gate moments, measured at the moment they happen (the readout
+    // is data-driven: whatever tiers exist, stamped by id). Idempotent —
+    // the analytics stamp never re-stamps a tier.
+    for (const id of newly) onTierMilestoneRef.current?.(id);
     for (const tier of GOAL_TIERS.filter((t) => newly.includes(t.id))) {
       const tierText = content("goalTier", tier.id, {
         title: tier.name,
@@ -1201,6 +1210,7 @@ export default function MinesOfDoom() {
     onPrestige,
     onAdView: onFirstAdView,
     onIapPurchase: onFirstIap,
+    onTierMilestone,
     onCosmeticPurchase,
     clear: onClearAnalytics,
   } = useAnalytics();
@@ -1208,6 +1218,7 @@ export default function MinesOfDoom() {
   // body assignment keeps the engine's callback stable and always
   // current — same ref pattern as autosaveSecondsRef above).
   onCosmeticPurchaseRef.current = onCosmeticPurchase;
+  onTierMilestoneRef.current = onTierMilestone;
 
   // Rewarded ads (plan §5.1): the provider is picked in ads.ts behind the
   // documented swap point (selectAdProvider — see its docs): dev builds run
