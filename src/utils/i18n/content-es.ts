@@ -363,6 +363,14 @@ export const contentEs: ContentTable = {
   "bundledSprite:trapper-bearskin-pelt": { title: "Cazador de pieles" },
   "bundledSprite:will-o-wisp-spirit": { title: "Fuego fatuo" },
 
+  // --- Custom-skin sample content (skinSamples.ts) ----------------------
+  "skinSample:pickaxe-gold": { title: "Pico de oro" },
+  "skinSample:pickaxe-frost": { title: "Pico de cristal" },
+  "skinSample:pickaxe-shadow": { title: "Pico de sombra" },
+  "skinSample:sound-bell": { title: "Campanada" },
+  "skinSample:sound-chime": { title: "Carillón de cristal" },
+  "skinSample:sound-thud": { title: "Golpe seco" },
+
   // --- Legal docs (LEGAL_DOCS in legal.ts) -------------------------------
   // Titles, section headings AND bodies are localized here.
   "legalDoc:privacy": { title: "Política de privacidad" },

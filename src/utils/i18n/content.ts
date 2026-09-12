@@ -46,6 +46,8 @@ export type ContentNamespace =
  | "iap"
  /** Bundled sprite-library art name (BUNDLED_SPRITES in bundledSprites.ts). */
  | "bundledSprite"
+ /** Custom-skin sample content (SKIN_SAMPLE_PICKAXES/SOUNDS in skinSamples.ts). */
+ | "skinSample"
  /** Legal document titles (LEGAL_DOCS in legal.ts). */
  | "legalDoc"
  /** Legal section headings + bodies. id = `<docId>:<English heading>`. */

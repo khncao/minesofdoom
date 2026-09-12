@@ -18,6 +18,10 @@ import { ACHIEVEMENTS } from "src/mines_of_doom/achievements";
 import { getRecords } from "src/mines_of_doom/records";
 import { IAP_PRODUCTS } from "src/mines_of_doom/iaps";
 import { BUNDLED_SPRITES } from "src/mines_of_doom/bundledSprites";
+import {
+  SKIN_SAMPLE_PICKAXES,
+  SKIN_SAMPLE_SOUNDS,
+} from "src/mines_of_doom/skinSamples";
 import { LEGAL_DOCS } from "src/mines_of_doom/legal";
 import { OUTFITS, PICKAXES, CAVE_THEMES } from "src/mines_of_doom/cosmetics";
 import { translateContent, contentKey, type ContentStrings } from "./content";
@@ -52,6 +56,12 @@ function expectedItems(): Map<string, ContentStrings> {
   }
   for (const s of BUNDLED_SPRITES) {
     m.set(contentKey("bundledSprite", s.id), { title: s.name });
+  }
+  for (const s of SKIN_SAMPLE_PICKAXES) {
+    m.set(contentKey("skinSample", s.id), { title: s.name });
+  }
+  for (const s of SKIN_SAMPLE_SOUNDS) {
+    m.set(contentKey("skinSample", s.id), { title: s.name });
   }
   for (const o of OUTFITS) {
     m.set(contentKey("outfit", o.id), { title: o.name, detail: o.blurb });

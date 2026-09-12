@@ -96,6 +96,7 @@ import {
   customSkinGridToUri,
 } from "./customSkin";
 import { bundledSpriteById } from "./bundledSprites";
+import { skinSamplePickaxeById, skinSampleSoundById } from "./skinSamples";
 import { gridToPngDataUri, type PixelGrid } from "src/utils/graphics/pixelArt";
 import { pickCustomSkinAudio, pickCustomSkinImage } from "./customSkinPicker";
 import { useHaptics } from "./hooks/useHaptics";
@@ -1618,6 +1619,35 @@ export default function MinesOfDoom() {
       displayMessage(t("toast.skinUnsupported"), 3000);
     }
   }, [displayMessage, t, setCustomSkinAudio]);
+  // Sample content (todo: "add a few sample sprites and sounds to custom
+  // skin iap"): tap-to-equip ready-made pickaxe grids / swing sounds —
+  // the same slots the uploads fill, the same normalized values the
+  // upload funnels store (skinSamples.ts is generated from the in-game
+  // designs), so no files are needed to try the line. The setters stay
+  // the unlock gate (no-op while locked; the shop's skin row is owned
+  // anyway).
+  const handleSkinSamplePickaxe = useCallback(
+    (id: string) => {
+      const sample = skinSamplePickaxeById(id);
+      if (sample == null) {
+        return;
+      }
+      setCustomSkinPickaxeGrid(sample.grid);
+      displayMessage(t("toast.skinSampleEquipped"), 2000);
+    },
+    [displayMessage, t, setCustomSkinPickaxeGrid],
+  );
+  const handleSkinSampleSound = useCallback(
+    (id: string) => {
+      const sample = skinSampleSoundById(id);
+      if (sample == null) {
+        return;
+      }
+      setCustomSkinAudio(sample.uri);
+      displayMessage(t("toast.skinSampleEquipped"), 2000);
+    },
+    [displayMessage, t, setCustomSkinAudio],
+  );
 
   const handleShopBuyGems = useCallback(
     (id: IapProductId) => {
@@ -1707,415 +1737,419 @@ export default function MinesOfDoom() {
           reads this; the provider sanitizes the stored step and is
           OUTSIDE the container View so overlays/tooltips/drawers scale. */}
       <TextScaleProvider scale={textScale}>
-      <View
-        style={[
-          styles.container,
-          // Edge-to-edge insets (see useSafeAreaInsets above): keep the
-          // depth banner out from under the status bar and the footer row
-          // out from under the nav bar. Full-bleed overlays use absolute
-          // inset: 0, which still covers the whole screen (padding box).
-          { paddingTop: insets.top, paddingBottom: insets.bottom },
-        ]}
-      >
-        {/* Full-screen cave background (todo 2026-07-14 #3): parallax
+        <View
+          style={[
+            styles.container,
+            // Edge-to-edge insets (see useSafeAreaInsets above): keep the
+            // depth banner out from under the status bar and the footer row
+            // out from under the nav bar. Full-bleed overlays use absolute
+            // inset: 0, which still covers the whole screen (padding box).
+            { paddingTop: insets.top, paddingBottom: insets.bottom },
+          ]}
+        >
+          {/* Full-screen cave background (todo 2026-07-14 #3): parallax
             rows + jagged foreground walls covering the WHOLE screen,
             not just the mining area. pointerEvents: none inside. */}
-        <CaveBackground
-          depth={depth}
-          tint={caveTint}
-          emojiArt={settingsData.emojiArt}
-        />
-        {/* Tablet/wide fix (todo): the game column is width-capped and
+          <CaveBackground
+            depth={depth}
+            tint={caveTint}
+            emojiArt={settingsData.emojiArt}
+          />
+          {/* Tablet/wide fix (todo): the game column is width-capped and
             centered (styles.contentColumn); the full-bleed overlays
             (toasts, onboarding) deliberately stay OUTSIDE it so their
             absolute inset: 0 backdrops still cover the whole screen. */}
-        <View style={styles.contentColumn}>
-          {/* Top menu row (todo: "move menu buttons to top of screen"): the
+          <View style={styles.contentColumn}>
+            {/* Top menu row (todo: "move menu buttons to top of screen"): the
             old footer moved up so no entry point sits behind the OS
             keyboard. It wraps on narrow screens; the canvas floor below
             it keeps the cave visible even with every button showing. */}
-          <View style={styles.headerRow}>
-            {/* Menu is the first button (todo: "move menu button to top
+            <View style={styles.headerRow}>
+              {/* Menu is the first button (todo: "move menu button to top
               left of main screen") — the entry point to every other
               top-row button's settings and to save/account/goals. */}
-            <MenuPanel
-              settingsData={settingsData}
-              onChangeSettingsData={updateSettingsData}
-              equationSettings={equationSettings}
-              onChangeEquationSettings={updateEquationSettings}
-              showMessage={showMessage}
-              onSave={handleSaveSettings}
-              onReset={handleReset}
-              onEraseAllData={handleEraseAllData}
-              onExportSaveCode={handleExportSaveCode}
-              onImportSaveCode={handleImportSaveCode}
-              onReplayTutorial={handleReplayTutorial}
-              mute={mute}
-              onMuteChange={handleMuteChange}
-              onScreenKeypad={onScreenKeypad}
-              onKeypadChange={handleKeypadSettingChange}
-              textScale={textScale}
-              onTextScaleChange={handleTextScaleChange}
-              hardModeUnlocked={gameState.completedTiers.includes(
-                HARD_MODE_UNLOCK_TIER,
-              )}
-              stats={gameState}
-              session={sessionStats}
-              analytics={analytics}
-              onClearAnalytics={onClearAnalytics}
-              onFirstUse={onFeatureFirstUse}
-              cloudSave={cloudSaveSettings}
-              account={accountSettings}
-            />
-            <SavePill
-              dirty={saveDirty}
-              reduceMotion={reduceMotion}
-              onSave={handleSaveNow}
-            />
-            {/* The upgrades button floats over the cave instead (todo:
+              <MenuPanel
+                settingsData={settingsData}
+                onChangeSettingsData={updateSettingsData}
+                equationSettings={equationSettings}
+                onChangeEquationSettings={updateEquationSettings}
+                showMessage={showMessage}
+                onSave={handleSaveSettings}
+                onReset={handleReset}
+                onEraseAllData={handleEraseAllData}
+                onExportSaveCode={handleExportSaveCode}
+                onImportSaveCode={handleImportSaveCode}
+                onReplayTutorial={handleReplayTutorial}
+                mute={mute}
+                onMuteChange={handleMuteChange}
+                onScreenKeypad={onScreenKeypad}
+                onKeypadChange={handleKeypadSettingChange}
+                textScale={textScale}
+                onTextScaleChange={handleTextScaleChange}
+                hardModeUnlocked={gameState.completedTiers.includes(
+                  HARD_MODE_UNLOCK_TIER,
+                )}
+                stats={gameState}
+                session={sessionStats}
+                analytics={analytics}
+                onClearAnalytics={onClearAnalytics}
+                onFirstUse={onFeatureFirstUse}
+                cloudSave={cloudSaveSettings}
+                account={accountSettings}
+              />
+              <SavePill
+                dirty={saveDirty}
+                reduceMotion={reduceMotion}
+                onSave={handleSaveNow}
+              />
+              {/* The upgrades button floats over the cave instead (todo:
               "move upgrades button floating over the canvas") — see the
               canvasWrap below; the header row keeps every OTHER entry. */}
-            {/* The idle reward's 🎁 icon renders ONLY while the auto-claim
+              {/* The idle reward's 🎁 icon renders ONLY while the auto-claim
               toggle is off (todo: remove the icon, pop it up instead): on
               (default) the effect above claims the bonus itself. */}
-            {!settingsData.autoDailyBonus && (
-              <DailyBonusButton
-                claimable={dailyBonus.claimable}
-                bonus={dailyBonus.bonus}
-                streak={dailyBonus.streak}
-                freezes={dailyBonus.freezes}
-                onClaim={handleDailyClaim}
+              {!settingsData.autoDailyBonus && (
+                <DailyBonusButton
+                  claimable={dailyBonus.claimable}
+                  bonus={dailyBonus.bonus}
+                  streak={dailyBonus.streak}
+                  freezes={dailyBonus.freezes}
+                  onClaim={handleDailyClaim}
+                />
+              )}
+              <WeeklyContractButton
+                claimable={weeklyContract.claimable}
+                claimed={weeklyContract.claimed}
+                bonus={weeklyContract.bonus}
+                done={weeklyContract.doneCount}
+                total={weeklyContract.total}
+                onClaim={handleWeeklyClaim}
               />
-            )}
-            <WeeklyContractButton
-              claimable={weeklyContract.claimable}
-              claimed={weeklyContract.claimed}
-              bonus={weeklyContract.bonus}
-              done={weeklyContract.doneCount}
-              total={weeklyContract.total}
-              onClaim={handleWeeklyClaim}
-            />
-            {/* The daily question's 📅 icon renders ONLY while the auto
+              {/* The daily question's 📅 icon renders ONLY while the auto
               toggle is off (todo: remove the icon, pop it up instead): on
               (default) the effect above starts the equation itself. */}
-            {!settingsData.autoDailyEquation && (
-              <DailyEquationButton
-                solved={dailyEquation.solved}
-                bonus={dailyEquation.bonus}
-                onStart={handleDailyEquationStart}
-              />
-            )}
-            {/* The trophy renders only while the provider is available
+              {!settingsData.autoDailyEquation && (
+                <DailyEquationButton
+                  solved={dailyEquation.solved}
+                  bonus={dailyEquation.bonus}
+                  onStart={handleDailyEquationStart}
+                />
+              )}
+              {/* The trophy renders only while the provider is available
               (plan §Leaderboard "Availability gate"): hidden until the
               Pocketbase URL is configured, same rule as the ad/IAP
               entry points. */}
-            {leaderboard.available && (
-              <LeaderboardPanel
-                handle={leaderboard}
-                isDevSim={leaderboardProvider.id === "dev-sim"}
-                onOpen={handleLeaderboardOpen}
-              />
-            )}
-            {adRewards.available && (
-              <AdRewardsPanel
-                isDevSim={adProvider.id === "dev-sim"}
-                gemRollsLeft={adRewards.gemRollsLeft}
-                comboSave={comboSave?.combo ?? null}
-                comboSaveUntil={comboSave?.until ?? null}
-                dailyCapLeft={adRewards.dailyCapLeft}
-                offlineDouble={offlineDouble}
-                offlineTopUp={offlineTopUp}
-                claiming={adRewards.claiming}
-                onClaim={handleAdClaim}
-                onPrime={adRewards.prime}
-              />
-            )}
-            {/* The unified shop (todo: "move gem shop cosmetics to one
+              {leaderboard.available && (
+                <LeaderboardPanel
+                  handle={leaderboard}
+                  isDevSim={leaderboardProvider.id === "dev-sim"}
+                  onOpen={handleLeaderboardOpen}
+                />
+              )}
+              {adRewards.available && (
+                <AdRewardsPanel
+                  isDevSim={adProvider.id === "dev-sim"}
+                  gemRollsLeft={adRewards.gemRollsLeft}
+                  comboSave={comboSave?.combo ?? null}
+                  comboSaveUntil={comboSave?.until ?? null}
+                  dailyCapLeft={adRewards.dailyCapLeft}
+                  offlineDouble={offlineDouble}
+                  offlineTopUp={offlineTopUp}
+                  claiming={adRewards.claiming}
+                  onClaim={handleAdClaim}
+                  onPrime={adRewards.prime}
+                />
+              )}
+              {/* The unified shop (todo: "move gem shop cosmetics to one
               time purchase shop with gem and cash buy options") renders
               ALWAYS — the gem buy is the universal path (guardrail 1);
               only the cash extras inside it are gated on
               iap.available (the provider's availability). */}
-            <IapPanel
-              isDevSim={iapProvider.id === "dev-sim"}
-              isDevBuild={__DEV__}
-              realStoreIap={realStoreIap}
-              onRealStoreChange={
-                Platform.OS !== "web" ? setRealStoreIap : undefined
+              <IapPanel
+                isDevSim={iapProvider.id === "dev-sim"}
+                isDevBuild={__DEV__}
+                realStoreIap={realStoreIap}
+                onRealStoreChange={
+                  Platform.OS !== "web" ? setRealStoreIap : undefined
+                }
+                cashAvailable={iap.available}
+                gems={gameState.gems}
+                playerSeed={gameState.playerSeed}
+                selectedOutfit={gameState.selectedOutfit}
+                selectedPickaxe={gameState.selectedPickaxe}
+                selectedCaveTheme={gameState.selectedCaveTheme}
+                purchasing={iap.purchasing}
+                entitlements={iap.entitlements}
+                saveOwnedCosmeticIds={saveOwnedCosmeticIds}
+                themesLocked={
+                  !gameState.completedTiers.includes(CAVE_THEME_UNLOCK_TIER)
+                }
+                customSkin={customSkin}
+                onUploadSkinImage={handleSkinImageUpload}
+                onUploadSkinPickaxe={handleSkinPickaxeUpload}
+                onClearSkinPickaxe={() => {
+                  clearCustomSkinPickaxe();
+                  displayMessage(t("toast.skinCleared"), 2000);
+                }}
+                onUploadSkinAudio={handleSkinAudioUpload}
+                onPickBundledSprite={setCustomSkinArt}
+                onPickSkinSamplePickaxe={handleSkinSamplePickaxe}
+                onPickSkinSampleSound={handleSkinSampleSound}
+                onClearSkin={() => {
+                  clearCustomSkin();
+                  displayMessage(t("toast.skinCleared"), 2000);
+                }}
+                onBuyGems={handleShopBuyGems}
+                onPurchase={handleIapPurchase}
+                onSelect={handleShopSelect}
+                onReroll={rerollPlayerSeed}
+              />
+            </View>
+            <DepthBanner
+              depth={depth}
+              mineralsPerSec={mineralsPerSec}
+              tierName={
+                content("depthTier", String(depthTier.id), {
+                  title: depthTier.name,
+                }).title
               }
-              cashAvailable={iap.available}
-              gems={gameState.gems}
-              playerSeed={gameState.playerSeed}
-              selectedOutfit={gameState.selectedOutfit}
-              selectedPickaxe={gameState.selectedPickaxe}
-              selectedCaveTheme={gameState.selectedCaveTheme}
-              purchasing={iap.purchasing}
-              entitlements={iap.entitlements}
-              saveOwnedCosmeticIds={saveOwnedCosmeticIds}
-              themesLocked={
-                !gameState.completedTiers.includes(CAVE_THEME_UNLOCK_TIER)
-              }
-              customSkin={customSkin}
-              onUploadSkinImage={handleSkinImageUpload}
-              onUploadSkinPickaxe={handleSkinPickaxeUpload}
-              onClearSkinPickaxe={() => {
-                clearCustomSkinPickaxe();
-                displayMessage(t("toast.skinCleared"), 2000);
-              }}
-              onUploadSkinAudio={handleSkinAudioUpload}
-              onPickBundledSprite={setCustomSkinArt}
-              onClearSkin={() => {
-                clearCustomSkin();
-                displayMessage(t("toast.skinCleared"), 2000);
-              }}
-              onBuyGems={handleShopBuyGems}
-              onPurchase={handleIapPurchase}
-              onSelect={handleShopSelect}
-              onReroll={rerollPlayerSeed}
+              clickBonus={depthTier.clickBonus}
             />
-          </View>
-          <DepthBanner
-            depth={depth}
-            mineralsPerSec={mineralsPerSec}
-            tierName={
-              content("depthTier", String(depthTier.id), {
-                title: depthTier.name,
-              }).title
-            }
-            clickBonus={depthTier.clickBonus}
-          />
-          <EquationDisplay
-            equation={equation}
-            multiplySymbol={equationSettings.multiplySymbol}
-          />
-          <AnswerInput
-            value={textInput}
-            setTextInput={setTextInput}
-            onSubmit={handleSubmitActivity}
-            shakeAnim={shakeAnim}
-            useKeypad={onScreenKeypad}
-            // While the onboarding overlay is up the input must not raise the
-            // OS keyboard (it would swallow the setup Start button — see the
-            // focusable prop doc in AnswerInput). The value is irrelevant
-            // during the initial load (the game view isn't mounted yet).
-            focusable={onboardingLoading || onboardingDone === true}
-          />
-          <ComboIndicator
-            combo={combo}
-            comboMultiplier={comboMultiplier}
-            flashAnim={flashAnim}
-          />
-          {/* Combo-save pill (todo: "Allow saving combo with rewarded-ad"):
+            <EquationDisplay
+              equation={equation}
+              multiplySymbol={equationSettings.multiplySymbol}
+            />
+            <AnswerInput
+              value={textInput}
+              setTextInput={setTextInput}
+              onSubmit={handleSubmitActivity}
+              shakeAnim={shakeAnim}
+              useKeypad={onScreenKeypad}
+              // While the onboarding overlay is up the input must not raise the
+              // OS keyboard (it would swallow the setup Start button — see the
+              // focusable prop doc in AnswerInput). The value is irrelevant
+              // during the initial load (the game view isn't mounted yet).
+              focusable={onboardingLoading || onboardingDone === true}
+            />
+            <ComboIndicator
+              combo={combo}
+              comboMultiplier={comboMultiplier}
+              flashAnim={flashAnim}
+            />
+            {/* Combo-save pill (todo: "Allow saving combo with rewarded-ad"):
             the in-place "undo" for a combo just lost. It only renders
             while the claim is actually possible (canClaimComboSave covers
             provider availability, the offer window and the daily caps)
             AND the lost combo was worth a multiplier (COMBO_TIER_SIZE —
             the first tier-up; a lost sub-tier combo had no multiplier to
             lose), so small early-game losses don't nag. */}
-          {adRewards.canClaimComboSave &&
-            comboSave != null &&
-            comboSave.combo >= COMBO_TIER_SIZE && (
-              <ComboSaveIndicator
-                combo={comboSave.combo}
-                until={comboSave.until}
-                claiming={comboSaveClaiming}
-                onClaim={() => handleAdClaim("comboSave")}
-                onPrime={() => adRewards.prime("comboSave")}
-              />
-            )}
-          {/* The cave keeps the whole mid-screen: the upgrades drawer
+            {adRewards.canClaimComboSave &&
+              comboSave != null &&
+              comboSave.combo >= COMBO_TIER_SIZE && (
+                <ComboSaveIndicator
+                  combo={comboSave.combo}
+                  until={comboSave.until}
+                  claiming={comboSaveClaiming}
+                  onClaim={() => handleAdClaim("comboSave")}
+                  onPrime={() => adRewards.prime("comboSave")}
+                />
+              )}
+            {/* The cave keeps the whole mid-screen: the upgrades drawer
             overlays it (hidden by default) instead of pushing it around,
             and the keypad strip below renders only while the on-screen
             keypad setting is on. */}
-          <View style={styles.playArea}>
-            {/* The cave play area breaks out of the width-capped column
+            <View style={styles.playArea}>
+              {/* The cave play area breaks out of the width-capped column
               on wide web screens (styles.canvasFullBleed) — full-bleed
               play area, capped content. (The cave itself now lives at
               the screen root, todo 2026-07-14 #3.) */}
-            <View
-              style={[
-                styles.canvasWrap,
-                Platform.OS === "web" && styles.canvasFullBleed,
-              ]}
-            >
-              <MiningCanvas
-                minerals={gameState.minerals}
-                gems={gameState.gems}
-                miners={gameState.miners}
-                fastMiners={gameState.fastMiners}
-                legendaryMiners={gameState.legendaryMiners}
-                onTap={mineTapWithActivity}
-                pocket={gemPocket.pocket}
-                onPocketCollect={gemPocket.collect}
-                playerPickaxeAnimRef={playerPickaxeAnimRef}
-                debrisRef={debrisRef}
-                blockBreakRef={blockBreakRef}
-                floatingTextRef={floatingTextRef}
-                playerSeed={gameState.playerSeed}
-                outfitId={gameState.selectedOutfit}
-                pickaxeId={gameState.selectedPickaxe}
-                playerBodyUri={customSkinBodyUri}
-                playerPickaxeUri={customSkinPickaxeUri}
-                reduceMotion={reduceMotion}
-                emojiArt={settingsData.emojiArt}
-              />
-              {/* The upgrades button (todo: floating over the canvas, out of the
+              <View
+                style={[
+                  styles.canvasWrap,
+                  Platform.OS === "web" && styles.canvasFullBleed,
+                ]}
+              >
+                <MiningCanvas
+                  minerals={gameState.minerals}
+                  gems={gameState.gems}
+                  miners={gameState.miners}
+                  fastMiners={gameState.fastMiners}
+                  legendaryMiners={gameState.legendaryMiners}
+                  onTap={mineTapWithActivity}
+                  pocket={gemPocket.pocket}
+                  onPocketCollect={gemPocket.collect}
+                  playerPickaxeAnimRef={playerPickaxeAnimRef}
+                  debrisRef={debrisRef}
+                  blockBreakRef={blockBreakRef}
+                  floatingTextRef={floatingTextRef}
+                  playerSeed={gameState.playerSeed}
+                  outfitId={gameState.selectedOutfit}
+                  pickaxeId={gameState.selectedPickaxe}
+                  playerBodyUri={customSkinBodyUri}
+                  playerPickaxeUri={customSkinPickaxeUri}
+                  reduceMotion={reduceMotion}
+                  emojiArt={settingsData.emojiArt}
+                />
+                {/* The upgrades button (todo: floating over the canvas, out of the
             way): bottom-right of the cave. zIndex 3 keeps it BELOW the
             drawer backdrop (z 4) — while the drawer is open it's dimmed
             out and the drawer's own ✕/backdrop close it, so the button
             never floats over the purchase rows. */}
-              <Pressable
-                testID="upgrades-toggle"
-                accessibilityRole="button"
-                accessibilityLabel={
-                  upgradesOpen
-                    ? t("main.a11yHideUpgrades")
-                    : t("main.a11yShowUpgrades")
-                }
-                onPress={() => setUpgradesOpen(!upgradesOpen)}
-                accessibilityHint={
-                  anyPurchaseAffordable
-                    ? t("main.a11yAffordablePurchase")
-                    : undefined
-                }
-                style={styles.upgradesToggleFloat}
-              >
-                <Text style={styles.upgradesToggleText}>
-                  ⛏ {t("main.upgrades")}
-                </Text>
-                {/* Affordable-purchase indicator: a small dot in the button's
+                <Pressable
+                  testID="upgrades-toggle"
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    upgradesOpen
+                      ? t("main.a11yHideUpgrades")
+                      : t("main.a11yShowUpgrades")
+                  }
+                  onPress={() => setUpgradesOpen(!upgradesOpen)}
+                  accessibilityHint={
+                    anyPurchaseAffordable
+                      ? t("main.a11yAffordablePurchase")
+                      : undefined
+                  }
+                  style={styles.upgradesToggleFloat}
+                >
+                  <Text style={styles.upgradesToggleText}>
+                    ⛏ {t("main.upgrades")}
+                  </Text>
+                  {/* Affordable-purchase indicator: a small dot in the button's
               top-right corner, mirroring the onboarding-dot palette. */}
-                {anyPurchaseAffordable && (
-                  <View
-                    testID="upgrades-affordable-dot"
-                    accessibilityElementsHidden
-                    style={styles.upgradesAffordableDot}
-                  />
-                )}
-              </Pressable>
-            </View>
-            {/* Keypad strip (todo: keypad in a tab view with upgrades): the
+                  {anyPurchaseAffordable && (
+                    <View
+                      testID="upgrades-affordable-dot"
+                      accessibilityElementsHidden
+                      style={styles.upgradesAffordableDot}
+                    />
+                  )}
+                </Pressable>
+              </View>
+              {/* Keypad strip (todo: keypad in a tab view with upgrades): the
             on-screen numpad lives in its own strip below the canvas —
             the core-loop input, always reachable. Renders only while the
             on-screen keypad setting is on; off, the OS keyboard handles
             answers and the strip doesn't exist at all. The upgrades
             drawer overlays it (todo: upgrades panel on top of keypad). */}
-            {onScreenKeypad && (
-              <NumericKeypad
-                onDigit={handleKeypadDigit}
-                onBackspace={handleKeypadBackspace}
-                onClear={handleKeypadClear}
-                onSubmit={handleSubmitActivity}
-              />
-            )}
-            {/* The upgrades drawer (todo: upgrades menu as a side hidden
+              {onScreenKeypad && (
+                <NumericKeypad
+                  onDigit={handleKeypadDigit}
+                  onBackspace={handleKeypadBackspace}
+                  onClear={handleKeypadClear}
+                  onSubmit={handleSubmitActivity}
+                />
+              )}
+              {/* The upgrades drawer (todo: upgrades menu as a side hidden
             overlay on the canvas; panel shows ON TOP of the keypad):
             hidden by default, anchored to the play area's right edge
             (canvas + keypad strip) so the OS keyboard — which covers the
             bottom strip — can never hide it. A tap on the dimmed backdrop
             closes it. */}
-            {upgradesOpen && (
-              <>
-                <Pressable
-                  testID="upgrades-backdrop"
-                  accessibilityRole="button"
-                  accessibilityLabel={t("main.a11yCloseUpgrades")}
-                  onPress={() => setUpgradesOpen(false)}
-                  style={styles.upgradesBackdrop}
-                />
-                <View testID="upgrades-drawer" style={styles.upgradesDrawer}>
-                  <View style={styles.purchasesHeader}>
-                    <Pressable
-                      testID="upgrades-drawer-close"
-                      accessibilityRole="button"
-                      accessibilityLabel={t("main.a11yCloseUpgrades")}
-                      onPress={() => setUpgradesOpen(false)}
-                      style={styles.upgradesDrawerClose}
-                    >
-                      <Text style={styles.upgradesDrawerCloseText}>✕</Text>
-                    </Pressable>
+              {upgradesOpen && (
+                <>
+                  <Pressable
+                    testID="upgrades-backdrop"
+                    accessibilityRole="button"
+                    accessibilityLabel={t("main.a11yCloseUpgrades")}
+                    onPress={() => setUpgradesOpen(false)}
+                    style={styles.upgradesBackdrop}
+                  />
+                  <View testID="upgrades-drawer" style={styles.upgradesDrawer}>
+                    <View style={styles.purchasesHeader}>
+                      <Pressable
+                        testID="upgrades-drawer-close"
+                        accessibilityRole="button"
+                        accessibilityLabel={t("main.a11yCloseUpgrades")}
+                        onPress={() => setUpgradesOpen(false)}
+                        style={styles.upgradesDrawerClose}
+                      >
+                        <Text style={styles.upgradesDrawerCloseText}>✕</Text>
+                      </Pressable>
+                    </View>
+                    <ScrollView style={styles.purchasesScroll}>
+                      <PurchaseButtons
+                        visible={visiblePurchases}
+                        minerals={gameState.minerals}
+                        gems={gameState.gems}
+                        gemsBoughtWithMinerals={
+                          gameState.gemsBoughtWithMinerals
+                        }
+                        clickPower={gameState.clickPower}
+                        minerPower={gameState.minerPower}
+                        minerPowerUnlocked={gameState.completedTiers.includes(
+                          MINER_POWER_UNLOCK_TIER,
+                        )}
+                        miners={gameState.miners}
+                        fastMiners={gameState.fastMiners}
+                        legendaryMiners={gameState.legendaryMiners}
+                        gemChanceLevels={gameState.gemChanceLevels}
+                        fastMinerUnlocked={gameState.completedTiers.includes(
+                          FAST_MINER_UNLOCK_TIER,
+                        )}
+                        legendaryMinerUnlocked={gameState.completedTiers.includes(
+                          LEGENDARY_MINER_UNLOCK_TIER,
+                        )}
+                        prestigeLevel={gameState.prestigeLevel}
+                        lifetimeMinerals={gameState.lifetimeMinerals}
+                        prestigeUnlocked={gameState.completedTiers.includes(
+                          PRESTIGE_UNLOCK_TIER,
+                        )}
+                        clickBoostLevels={gameState.clickBoostLevels}
+                        comboResistLevels={gameState.comboResistLevels}
+                        onUpgradePower={upgradePower}
+                        onBuyMiner={buyMiner}
+                        onBuyFastMiner={buyFastMiner}
+                        onBuyLegendaryMiner={buyLegendaryMiner}
+                        onBuyGem={buyGem}
+                        onBuyGemChance={buyGemChance}
+                        onBuyClickBoost={buyClickBoost}
+                        onBuyComboResist={buyComboResist}
+                        onUpgradeMinerPower={upgradeMinerPower}
+                        onSinkNewShaft={sinkNewShaft}
+                        onBuyAllMinerals={buyAllMinerals}
+                        onBuyAllGems={buyAllGems}
+                      />
+                    </ScrollView>
                   </View>
-                  <ScrollView style={styles.purchasesScroll}>
-                    <PurchaseButtons
-                      visible={visiblePurchases}
-                      minerals={gameState.minerals}
-                      gems={gameState.gems}
-                      gemsBoughtWithMinerals={gameState.gemsBoughtWithMinerals}
-                      clickPower={gameState.clickPower}
-                      minerPower={gameState.minerPower}
-                      minerPowerUnlocked={gameState.completedTiers.includes(
-                        MINER_POWER_UNLOCK_TIER,
-                      )}
-                      miners={gameState.miners}
-                      fastMiners={gameState.fastMiners}
-                      legendaryMiners={gameState.legendaryMiners}
-                      gemChanceLevels={gameState.gemChanceLevels}
-                      fastMinerUnlocked={gameState.completedTiers.includes(
-                        FAST_MINER_UNLOCK_TIER,
-                      )}
-                      legendaryMinerUnlocked={gameState.completedTiers.includes(
-                        LEGENDARY_MINER_UNLOCK_TIER,
-                      )}
-                      prestigeLevel={gameState.prestigeLevel}
-                      lifetimeMinerals={gameState.lifetimeMinerals}
-                      prestigeUnlocked={gameState.completedTiers.includes(
-                        PRESTIGE_UNLOCK_TIER,
-                      )}
-                      clickBoostLevels={gameState.clickBoostLevels}
-                      comboResistLevels={gameState.comboResistLevels}
-                      onUpgradePower={upgradePower}
-                      onBuyMiner={buyMiner}
-                      onBuyFastMiner={buyFastMiner}
-                      onBuyLegendaryMiner={buyLegendaryMiner}
-                      onBuyGem={buyGem}
-                      onBuyGemChance={buyGemChance}
-                      onBuyClickBoost={buyClickBoost}
-                      onBuyComboResist={buyComboResist}
-                      onUpgradeMinerPower={upgradeMinerPower}
-                      onSinkNewShaft={sinkNewShaft}
-                      onBuyAllMinerals={buyAllMinerals}
-                      onBuyAllGems={buyAllGems}
-                    />
-                  </ScrollView>
-                </View>
-              </>
-            )}
+                </>
+              )}
+            </View>
           </View>
-        </View>
-        {/* The live region stays mounted so screen readers announce each
+          {/* The live region stays mounted so screen readers announce each
             message change (a live region that mounts together with its
             content is not reliably announced). On web, RN maps
             accessibilityLiveRegion to aria-live; natively it drives the
             platform announce. pointerEvents="none" as before — the region
             never intercepts input. */}
-        <View
-          style={styles.messageOverlay}
-          pointerEvents="none"
-          accessibilityLiveRegion="polite"
-        >
-          {showMessage ? (
-            <Text style={styles.messageText}>{showMessage}</Text>
-          ) : null}
+          <View
+            style={styles.messageOverlay}
+            pointerEvents="none"
+            accessibilityLiveRegion="polite"
+          >
+            {showMessage ? (
+              <Text style={styles.messageText}>{showMessage}</Text>
+            ) : null}
+          </View>
+          {!onboardingLoading && onboardingDone !== true && (
+            <OnboardingOverlay
+              onDismiss={(completed) => {
+                // FTUE funnel: first dismissal wins (the overlay's own
+                // final-"Start" vs Skip decision is the completion flag);
+                // the setup step's choices persist themselves on change
+                // (useSettings writes each change to AsyncStorage), so
+                // dismissal only needs to persist the onboarding flag.
+                onOnboardingEnd(completed);
+                setOnboardingDone(true);
+              }}
+              onStep={onOnboardingStep}
+              equationSettings={equationSettings}
+              onEquationSettingsChange={updateEquationSettings}
+              onScreenKeypad={onScreenKeypad}
+              onKeypadChange={handleKeypadSettingChange}
+            />
+          )}
+          <StatusBar style="auto" />
         </View>
-        {!onboardingLoading && onboardingDone !== true && (
-          <OnboardingOverlay
-            onDismiss={(completed) => {
-              // FTUE funnel: first dismissal wins (the overlay's own
-              // final-"Start" vs Skip decision is the completion flag);
-              // the setup step's choices persist themselves on change
-              // (useSettings writes each change to AsyncStorage), so
-              // dismissal only needs to persist the onboarding flag.
-              onOnboardingEnd(completed);
-              setOnboardingDone(true);
-            }}
-            onStep={onOnboardingStep}
-            equationSettings={equationSettings}
-            onEquationSettingsChange={updateEquationSettings}
-            onScreenKeypad={onScreenKeypad}
-            onKeypadChange={handleKeypadSettingChange}
-          />
-        )}
-        <StatusBar style="auto" />
-      </View>
       </TextScaleProvider>
     </Context.Provider>
   );

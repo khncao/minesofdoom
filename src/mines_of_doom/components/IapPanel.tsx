@@ -16,8 +16,9 @@ import {
   isIapProductOwned,
 } from "../iaps";
 import { getPickaxe, rollMinerLook } from "../cosmetics";
-import { CustomSkinSave } from "../customSkin";
+import { CustomSkinSave, customSkinGridKey } from "../customSkin";
 import { BUNDLED_SPRITES } from "../bundledSprites";
+import { SKIN_SAMPLE_PICKAXES, SKIN_SAMPLE_SOUNDS } from "../skinSamples";
 import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/pixelArt";
 import { emojis } from "src/utils/graphics/emojis";
 import { styles } from "../styles";
@@ -113,6 +114,8 @@ function IapPanel({
   onUploadSkinPickaxe,
   onUploadSkinAudio,
   onPickBundledSprite,
+  onPickSkinSamplePickaxe,
+  onPickSkinSampleSound,
   onClearSkin,
   onClearSkinPickaxe,
 }: {
@@ -164,6 +167,18 @@ function IapPanel({
   onUploadSkinPickaxe?: () => void;
   /** Web-only (for now): store an uploaded swing sound. */
   onUploadSkinAudio?: () => void;
+  /**
+   * Tap-to-equip a ready-made sample pickaxe sprite (skinSamples.ts) —
+   * fills the pickaxe slot with the same 16×16 grid shape an upload
+   * decodes to. Offered on any platform (no files needed).
+   */
+  onPickSkinSamplePickaxe?: (id: string) => void;
+  /**
+   * Tap-to-equip a ready-made sample swing sound (skinSamples.ts) —
+   * fills the audio slot with the same WAV data-URI shape an upload
+   * stores. Offered on any platform (no files needed).
+   */
+  onPickSkinSampleSound?: (id: string) => void;
   /**
    * Pick a bundled sprite-library art (bundledSprites.ts) as the body —
    * null reverts to the default generated pixel look. Only offered once
@@ -270,6 +285,58 @@ function IapPanel({
                     {t("iap.skinUploadsUnavailable")}
                   </Text>
                 )}
+                {/* The sample swing sounds (skinSamples.ts — todo: "add a
+                    few sample sprites and sounds to custom skin iap"):
+                    tap-to-equip ready-made clips — the same WAV data-URI
+                    shape an upload stores, no files needed. The active
+                    row highlight mirrors the sprite library below. */}
+                {SKIN_SAMPLE_SOUNDS.length > 0 &&
+                  onPickSkinSampleSound != null && (
+                    <View style={{ gap: 3 }}>
+                      <Text
+                        style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}
+                      >
+                        {t("iap.skinSoundSamples")}
+                      </Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          flexWrap: "wrap",
+                          gap: 4,
+                        }}
+                      >
+                        {SKIN_SAMPLE_SOUNDS.map((s) => {
+                          const active = customSkin.audio === s.uri;
+                          return (
+                            <Pressable
+                              key={s.id}
+                              testID={`skin-sample-sound-${s.id}`}
+                              accessibilityRole="button"
+                              accessibilityLabel={
+                                content("skinSample", s.id, { title: s.name })
+                                  .title
+                              }
+                              onPress={() => onPickSkinSampleSound(s.id)}
+                              style={{
+                                width: 30,
+                                height: 30,
+                                borderRadius: 4,
+                                borderWidth: active ? 2 : 1,
+                                borderColor: active
+                                  ? "#ffd54f"
+                                  : "rgba(255,255,255,0.3)",
+                                backgroundColor: "rgba(0,0,0,0.25)",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <Text style={{ fontSize: 16 }}>{s.glyph}</Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
                 {/* The bundled sprite library (bundledSprites.ts — CC0
                     2D art, see public/assets/sprites/CREDITS.txt): pick
                     a ready-made body, or the default generated look. */}
@@ -340,8 +407,12 @@ function IapPanel({
                 )}
                 {/* The pickaxe slot (todo: "Custom skin generator —
                     pickaxe slot"): a 16×16 upload replaces the player's
-                    pickaxe sprite (full sprite — swing/wind-up rotate the
-                    one image, so it covers every frame). */}
+                    pickaxe sprite — full-sprite override (the
+                    swing/wind-up frames rotate the one image, so it
+                    covers every frame). The sample row below is the
+                    ready-made set (skinSamples.ts — todo: "add a few
+                    sample sprites…"): tap-to-equip grids of the same
+                    16×16 shape an upload decodes to, no files needed. */}
                 {onUploadSkinPickaxe != null && (
                   <View style={{ gap: 3 }}>
                     <Text
@@ -364,34 +435,63 @@ function IapPanel({
                           />
                         )}
                     </View>
-                  </View>
-                )}
-                {/* The pickaxe slot (todo: "Custom skin generator —
-                    pickaxe slot"): a 16×16 upload replaces the player's
-                    pickaxe sprite — full-sprite override (swing/wind-up
-                    rotate the one image, so it covers every frame). */}
-                {onUploadSkinPickaxe != null && (
-                  <View style={{ gap: 3 }}>
-                    <Text
-                      style={{ ...styles.text, fontSize: 11, opacity: 0.7 }}
-                    >
-                      {t("iap.skinPickaxe")}
-                    </Text>
-                    <View style={{ flexDirection: "row", gap: 4 }}>
-                      <Button
-                        tone="gem"
-                        title={t("iap.skinUploadPickaxe")}
-                        onPress={onUploadSkinPickaxe}
-                      />
-                      {customSkin.pickaxeGrid != null &&
-                        onClearSkinPickaxe != null && (
-                          <Button
-                            tone="gem"
-                            title={t("iap.skinClearPickaxe")}
-                            onPress={onClearSkinPickaxe}
-                          />
-                        )}
-                    </View>
+                    {SKIN_SAMPLE_PICKAXES.length > 0 &&
+                      onPickSkinSamplePickaxe != null && (
+                        <View style={{ gap: 3 }}>
+                          <Text
+                            style={{
+                              ...styles.text,
+                              fontSize: 11,
+                              opacity: 0.7,
+                            }}
+                          >
+                            {t("iap.skinPickaxeSamples")}
+                          </Text>
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              flexWrap: "wrap",
+                              gap: 4,
+                            }}
+                          >
+                            {SKIN_SAMPLE_PICKAXES.map((s) => {
+                              const active =
+                                customSkin.pickaxeGrid != null &&
+                                customSkinGridKey(customSkin.pickaxeGrid) ===
+                                  customSkinGridKey(s.grid);
+                              return (
+                                <Pressable
+                                  key={s.id}
+                                  testID={`skin-sample-pickaxe-${s.id}`}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={
+                                    content("skinSample", s.id, {
+                                      title: s.name,
+                                    }).title
+                                  }
+                                  onPress={() => onPickSkinSamplePickaxe(s.id)}
+                                  style={{
+                                    width: 30,
+                                    height: 30,
+                                    borderRadius: 4,
+                                    borderWidth: active ? 2 : 1,
+                                    borderColor: active
+                                      ? "#ffd54f"
+                                      : "rgba(255,255,255,0.3)",
+                                    backgroundColor: "rgba(0,0,0,0.25)",
+                                  }}
+                                >
+                                  <Image
+                                    source={{ uri: s.uri }}
+                                    style={{ width: "100%", height: "100%" }}
+                                    resizeMode="contain"
+                                  />
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      )}
                   </View>
                 )}
                 {(customSkin.grid != null ||

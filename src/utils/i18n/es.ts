@@ -44,6 +44,7 @@ export const es: Record<TranslationKey, string> = {
   "toast.skinAudioSaved": "Sonido de balanceo guardado",
   "toast.skinAudioInvalid":
     "Ese archivo de sonido no se pudo usar: usa un .wav de menos de 3 segundos",
+  "toast.skinSampleEquipped": "Muestra equipada — ¡pruébala con un golpe!",
   "toast.skinUnsupported":
     "Las subidas no están disponibles en esta plataforma",
   "toast.skinCleared": "Subidas de piel personalizada borradas",
@@ -585,6 +586,8 @@ export const es: Record<TranslationKey, string> = {
   "iap.skinClearPickaxe": "Borrar pico",
   "iap.skinSprites": "Arte de sprite",
   "iap.skinSpriteDefault": "Apariencia predeterminada",
+  "iap.skinSoundSamples": "Sonidos de muestra",
+  "iap.skinPickaxeSamples": "Picos de muestra",
   "iap.skinClear": "Borrar subidas",
   "iap.skinUploadsUnavailable":
     "Las subidas no están disponibles en esta plataforma",

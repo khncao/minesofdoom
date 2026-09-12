@@ -58,6 +58,7 @@ export const en = {
   "toast.skinAudioSaved": "Custom swing sound saved",
   "toast.skinAudioInvalid":
     "That sound file couldn't be used — use a plain .wav sound under 3 seconds",
+  "toast.skinSampleEquipped": "Sample equipped — give it a swing!",
   "toast.skinUnsupported": "Uploads are not available on this platform",
   "toast.skinCleared": "Custom skin uploads cleared",
   "toast.comboUp": "Combo x{mult}!",
@@ -574,6 +575,8 @@ export const en = {
   "iap.skinClearPickaxe": "Clear pickaxe",
   "iap.skinSprites": "Sprite art",
   "iap.skinSpriteDefault": "Default look",
+  "iap.skinSoundSamples": "Sample sounds",
+  "iap.skinPickaxeSamples": "Sample pickaxes",
   "iap.skinClear": "Clear uploads",
   "iap.skinUploadsUnavailable": "Uploads are not available on this platform",
 
