@@ -59,6 +59,7 @@ function state(
     fastMinerUnlocked: true,
     legendaryMinerUnlocked: true,
     prestigeUnlocked: true,
+    gemsBoughtWithMinerals: 0,
     ...over,
   };
 }

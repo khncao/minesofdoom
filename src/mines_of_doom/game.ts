@@ -1065,6 +1065,10 @@ export type PurchaseAffordability = {
   fastMinerUnlocked: boolean;
   legendaryMinerUnlocked: boolean;
   prestigeUnlocked: boolean;
+  /** Lifetime mineral→gem purchases — the gem purchase price escalates
+   * (getGemPurchaseCost), so the check must use the player's NEXT price,
+   * not the flat base. */
+  gemsBoughtWithMinerals: number;
 };
 
 /**
@@ -1086,7 +1090,8 @@ export function hasAffordablePurchase(
   ) {
     return true;
   }
-  if (s.minerals >= BigInt(gemMineralCost)) return true;
+  if (s.minerals >= BigInt(getGemPurchaseCost(s.gemsBoughtWithMinerals)))
+    return true;
   if (s.gems >= getMinerUpgradeCost(s.miners)) return true;
   if (
     visible.has("fastMiner") &&

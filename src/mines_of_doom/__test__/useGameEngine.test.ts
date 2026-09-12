@@ -828,6 +828,7 @@ describe("useGameEngine — buy-all", () => {
     fastMinerUnlocked: true,
     legendaryMinerUnlocked: true,
     prestigeUnlocked: true,
+    gemsBoughtWithMinerals: s.gemsBoughtWithMinerals,
     ...o,
   });
 

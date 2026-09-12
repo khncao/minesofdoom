@@ -179,6 +179,7 @@ const PurchaseButtons = memo(function PurchaseButtons({
             fastMinerUnlocked,
             legendaryMinerUnlocked,
             prestigeUnlocked,
+            gemsBoughtWithMinerals,
         }),
         [
             minerals,
@@ -197,6 +198,7 @@ const PurchaseButtons = memo(function PurchaseButtons({
             fastMinerUnlocked,
             legendaryMinerUnlocked,
             prestigeUnlocked,
+            gemsBoughtWithMinerals,
         ],
     );
     const mineralPlan = useMemo(

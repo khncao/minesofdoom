@@ -364,6 +364,7 @@ export default function MinesOfDoom() {
         fastMinerUnlocked,
         legendaryMinerUnlocked,
         prestigeUnlocked,
+        gemsBoughtWithMinerals: gameState.gemsBoughtWithMinerals,
       }),
     [
       visiblePurchases,
@@ -379,6 +380,7 @@ export default function MinesOfDoom() {
       gameState.comboResistLevels,
       gameState.prestigeLevel,
       gameState.lifetimeMinerals,
+      gameState.gemsBoughtWithMinerals,
       minerPowerUnlocked,
       fastMinerUnlocked,
       legendaryMinerUnlocked,

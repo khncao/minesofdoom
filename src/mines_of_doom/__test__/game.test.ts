@@ -1216,6 +1216,7 @@ describe("hasAffordablePurchase", () => {
     minerPowerUnlocked: false,
     fastMinerUnlocked: false,
     legendaryMinerUnlocked: false,
+    gemsBoughtWithMinerals: 0,
     prestigeUnlocked: false,
   });
 
@@ -1237,6 +1238,29 @@ describe("hasAffordablePurchase", () => {
   test("gem purchases count once the balance reaches the cost", () => {
     const s = broke();
     expect(hasAffordablePurchase(coreVisible(), { ...s, gems: 1 })).toBe(true);
+  });
+
+  test("the mineral→gem purchase uses the player's escalated price", () => {
+    // Regression: the dot indicator compared against the flat gemMineralCost
+    // base, lighting up up to 14.9k minerals before the real (escalated) price
+    // once the player had bought gems before.
+    // clickPower 19 → next click upgrade costs 19^4 = 130321, which keeps the
+    // mineral-group rows out of the check so the gem purchase row is what's
+    // being exercised.
+    const s = { ...broke(), clickPower: 19, gemsBoughtWithMinerals: 1 };
+    expect(
+      hasAffordablePurchase(coreVisible(), { ...s, minerals: 105_000n }),
+    ).toBe(false);
+    expect(
+      hasAffordablePurchase(coreVisible(), { ...s, minerals: 115_000n }),
+    ).toBe(true);
+    expect(
+      hasAffordablePurchase(coreVisible(), {
+        ...s,
+        gemsBoughtWithMinerals: 5,
+        minerals: 110_000n, // cost(5) = 161051
+      }),
+    ).toBe(false);
   });
 
   test("a locked purchase is not counted even when the balance covers it", () => {
@@ -1393,6 +1417,7 @@ describe("computeBuyAll (buy-all plans)", () => {
     fastMinerUnlocked: false,
     legendaryMinerUnlocked: false,
     prestigeUnlocked: false,
+    gemsBoughtWithMinerals: 0,
     ...o,
   });
 
