@@ -9,6 +9,9 @@ import {
   recordAdOutcome,
   recordAdView,
   recordAppOpen,
+  recordFirstAnswer,
+  recordOnboardingEnd,
+  recordOnboardingStep,
   recordCosmeticPurchase,
   recordFeatureFirstUse,
   recordIapPurchase,
@@ -445,8 +448,9 @@ describe("summarizeAnalytics", () => {
     );
     const lines = summarizeAnalytics(s).split("\n");
     // 12 fixed fields + iap-by-product (header + 1) + recent cosmetics
-    // (header + 1) + recent iap (header + 1).
-    expect(lines).toHaveLength(18);
+    // (header + 1) + recent iap (header + 1) + the FTUE "app opens" line
+    // (two opens observed in this state).
+    expect(lines).toHaveLength(19);
     expect(lines[0]).toContain(s.firstOpenDay);
     expect(lines[2]).toContain(`active days     ${s.activeDays}`);
     expect(lines[3]).toContain("d1 retention");
@@ -462,7 +466,10 @@ describe("summarizeAnalytics", () => {
     expect(lines[13]).toContain("packGold");
     expect(lines[14]).toBe("recent cosmetics   (last 1 of 1)");
     expect(lines[16]).toBe("recent iap   (last 1 of 1)");
-    expect(lines.at(-1)).toBe(`  ${getLocalDayKey(day(4))}  packGold`);
+    expect(lines[17]).toBe(`  ${getLocalDayKey(day(4))}  packGold`);
+    // The FTUE funnel lines trail the purchase blocks; "app opens" only
+    // appears from 2 (a 1-open session has no 1→2 conversion to show).
+    expect(lines[18]).toContain("app opens      2");
   });
 
   it("decorates the first-ad-view line with the first kind and outcome", () => {
@@ -478,7 +485,8 @@ describe("summarizeAnalytics", () => {
   it("says 'never' for un-fired one-shot fields and omits the variable blocks when empty", () => {
     const fresh = emptyAnalyticsState(day(1));
     const lines = summarizeAnalytics(fresh).split("\n");
-    // A fresh record has no purchase rows, so no variable blocks.
+    // A fresh record has no purchase rows and no FTUE funnel data
+    // (single open, no answer, no tour), so no variable blocks at all.
     expect(lines).toHaveLength(12);
     const text = lines.join("\n");
     expect(text).toContain("first ad view   never");
@@ -615,5 +623,129 @@ describe("recordFeatureFirstUse (F27.4 first-use stamps)", () => {
       expect(summarizeAnalytics(emptyAnalyticsState(t0))).not.toContain(
         "first use",
       );
+    });
+});
+
+describe("FTUE funnel (app opens / time to core / onboarding)", () => {
+  const t0 = day(1);
+  const T = 60_000; // one minute
+
+  it("recordAppOpen folds the open count, and a legacy record migrates to 1",
+    () => {
+      // Fresh record is established at the first open — count 1.
+      const fresh = recordAppOpen(null, t0);
+      expect(fresh.appOpens).toBe(1);
+      // Each later load increments (second load is the ≥2 that makes
+      // session 1→2 conversion visible).
+      expect(recordAppOpen(fresh, t0 + T).appOpens).toBe(2);
+      // A pre-`appOpens` record parses as 1 (its existence IS the first
+      // open) and then folds normally.
+      const legacyState = parseAnalytics(
+        JSON.stringify({
+          firstOpenMs: t0,
+          lastOpenMs: t0,
+          firstOpenDay: getLocalDayKey(t0),
+          lastOpenDay: getLocalDayKey(t0),
+          activeDays: 1,
+        }),
+      );
+      expect(legacyState?.appOpens).toBe(1);
+      expect(recordAppOpen(legacyState, t0 + T)?.appOpens).toBe(2);
+    });
+
+  it("recordFirstAnswer stamps once (time to core)", () => {
+    const a = recordFirstAnswer(null, t0 + T);
+    expect(a.firstAnswerMs).toBe(t0 + T);
+    // Later answers never move the stamp.
+    expect(recordFirstAnswer(a, t0 + 5 * T).firstAnswerMs).toBe(t0 + T);
+  });
+
+  it("recordOnboardingStep stamps first sightings per index, drops bad indices",
+    () => {
+      let s = recordOnboardingStep(null, 0, t0);
+      s = recordOnboardingStep(s, 1, t0 + T);
+      s = recordOnboardingStep(s, 3, t0 + 2 * T);
+      expect(Object.keys(s.onboardingStepMs).sort()).toEqual(["0", "1", "3"]);
+      // First sighting wins (a replayed tour never re-stamps).
+      const replay = recordOnboardingStep(s, 1, t0 + 10 * T);
+      expect(replay.onboardingStepMs[1]).toBe(t0 + T);
+      // Out-of-range / non-integer indices are ignored.
+      expect(recordOnboardingStep(s, -1, t0 + T)).toBe(s);
+      expect(recordOnboardingStep(s, 4, t0 + T)).toBe(s);
+      expect(recordOnboardingStep(s, 1.5, t0 + T)).toBe(s);
+    });
+
+  it("recordOnboardingEnd: the first dismissal wins both fields",
+    () => {
+      const s = recordOnboardingEnd(null, t0 + T, false);
+      expect(s.onboardingEndMs).toBe(t0 + T);
+      expect(s.onboardingCompleted).toBe(false);
+      // A later replayed tour that IS completed can't overwrite the
+      // first-dismissal outcome (first-run truth is what the funnel wants).
+      const later = recordOnboardingEnd(s, t0 + 10 * T, true);
+      expect(later.onboardingEndMs).toBe(t0 + T);
+      expect(later.onboardingCompleted).toBe(false);
+    });
+
+  it("parseAnalytics migrates legacy records and drops junk step stamps",
+    () => {
+      const base = {
+        firstOpenMs: t0,
+        lastOpenMs: t0,
+        firstOpenDay: getLocalDayKey(t0),
+        lastOpenDay: getLocalDayKey(t0),
+        activeDays: 1,
+      };
+      const legacy = parseAnalytics(JSON.stringify(base));
+      expect(legacy?.appOpens).toBe(1);
+      expect(legacy?.firstAnswerMs).toBe(0);
+      expect(legacy?.onboardingStepMs).toEqual({});
+      expect(legacy?.onboardingEndMs).toBe(0);
+      expect(legacy?.onboardingCompleted).toBe(false);
+
+      const junk = parseAnalytics(
+        JSON.stringify({
+          ...base,
+          appOpens: 7,
+          firstAnswerMs: t0 + 3 * T,
+          onboardingStepMs: {
+            0: t0,
+            "2": t0 + T,
+            9: t0 + T, // out of range
+            x: t0 + T, // non-numeric key
+            3: "soon", // non-number value
+          },
+          onboardingEndMs: t0 + 4 * T,
+          onboardingCompleted: true,
+        }),
+      );
+      expect(junk?.appOpens).toBe(7);
+      expect(junk?.firstAnswerMs).toBe(t0 + 3 * T);
+      expect(junk?.onboardingStepMs).toEqual({ 0: t0, 2: t0 + T });
+      expect(junk?.onboardingEndMs).toBe(t0 + 4 * T);
+      expect(junk?.onboardingCompleted).toBe(true);
+    });
+
+  it("the summary renders the funnel blocks, omitted until they have data",
+    () => {
+      // Fresh record: none of the funnel blocks render yet.
+      const fresh = summarizeAnalytics(recordAppOpen(null, t0));
+      expect(fresh).not.toContain("first answer");
+      expect(fresh).not.toContain("onboarding");
+      expect(fresh).not.toContain("app opens");
+
+      let s = recordAppOpen(recordAppOpen(null, t0), t0 + 2 * T);
+      s = recordFirstAnswer(s, t0 + 45 * 1000);
+      s = recordOnboardingStep(s, 0, t0);
+      s = recordOnboardingStep(s, 1, t0 + T);
+      s = recordOnboardingEnd(s, t0 + 3 * T, false);
+      const sum = summarizeAnalytics(s);
+      // Time to core = firstAnswerMs - firstOpenMs, in whole seconds.
+      expect(sum).toContain(`first answer   ${getLocalDayKey(t0 + 45 * 1000)} (+45s)`);
+      // Per-step drop-off: steps 0,1 seen; end stamped as skipped.
+      expect(sum).toContain("onboarding     steps 0,1; end ");
+      expect(sum).toContain("(skipped)");
+      // Two opens → the app-opens line appears.
+      expect(sum).toContain("app opens      2");
     });
 });

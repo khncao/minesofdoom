@@ -101,6 +101,34 @@ export type AnalyticsState = {
    * unknown keys are dropped at parse time (closed vocab).
    */
   firstUse: Record<string, number>;
+  /**
+   * App-open count (FTUE funnel, Tier 0 #2): folded in by recordAppOpen
+   * on every load. "Session 1→2 conversion" is the cohort-side reading of
+   * appOpens ≥ 2; legacy records (field absent) parse as 1 — the first
+   * open that established the record.
+   */
+  appOpens: number;
+  /**
+   * Epoch ms of the FIRST correct equation answer (0 = not yet observed):
+   * "time to core" is `firstAnswerMs - firstOpenMs` — how fast the first
+   * session reached the game's actual core loop (FTUE funnel).
+   */
+  firstAnswerMs: number;
+  /**
+   * Epoch ms of the first time each onboarding step was SEEN (0–3, the
+   * four overlay steps), so per-step drop-off is answerable from the
+   * record: an absent step index was never reached (FTUE funnel). First
+   * sighting wins; replayed tutorials (F52.2) never re-stamp.
+   */
+  onboardingStepMs: Record<number, number>;
+  /** Epoch ms of the FIRST onboarding dismissal (0 = not yet dismissed). */
+  onboardingEndMs: number;
+  /**
+   * Whether the first dismissal completed the tour (final "Start") rather
+   * than bailing via Skip — with onboardingStepMs, the tour-completion
+   * half of the FTUE funnel.
+   */
+  onboardingCompleted: boolean;
 };
 
 /** The three cosmetic lines the catalog is organized by. */
@@ -175,6 +203,11 @@ export function emptyAnalyticsState(now: number): AnalyticsState {
     cosmeticPurchaseLog: [],
     firstTierDay: {},
     firstUse: {},
+    appOpens: 1,
+    firstAnswerMs: 0,
+    onboardingStepMs: {},
+    onboardingEndMs: 0,
+    onboardingCompleted: false,
   };
 }
 
@@ -199,7 +232,66 @@ export function recordAppOpen(
     activeDays: dayKey === s.lastOpenDay ? s.activeDays : s.activeDays + 1,
     d1Retention: s.d1Retention || (returned && elapsed <= D1_RETENTION_MS),
     d7Retention: s.d7Retention || (returned && elapsed <= D7_RETENTION_MS),
+    // Every load is one observed open — except the very first: a fresh
+    // record is established AT that open (emptyAnalyticsState already
+    // counts it as 1), so the second load is the ≥2 that makes session
+    // 1→2 conversion visible. Legacy records parsed as 1 for the same
+    // reason (the record's existence IS the first open).
+    appOpens: state === null ? 1 : s.appOpens + 1,
   };
+}
+
+/**
+ * The first correct equation answer (FTUE funnel "time to core"): the
+ * single onCorrect fold point stamps once; every later answer is a no-op
+ * like the other first-\* markers.
+ */
+export function recordFirstAnswer(
+  state: AnalyticsState | null,
+  now: number,
+): AnalyticsState {
+  const s = state ?? emptyAnalyticsState(now);
+  return s.firstAnswerMs === 0 ? { ...s, firstAnswerMs: now } : s;
+}
+
+/** The onboarding overlay's four steps, in order (see OnboardingOverlay). */
+export const ONBOARDING_STEP_COUNT = 4;
+
+/**
+ * A first-run onboarding step was seen (FTUE funnel per-step drop-off): one
+ * timestamp per step index, first sighting wins — a player who never leaves
+ * step 0 shows no higher indices, and that absence IS the drop-off data.
+ * Out-of-range indices are ignored (a replayed tour or a bad call site can't
+ * corrupt the funnel).
+ */
+export function recordOnboardingStep(
+  state: AnalyticsState | null,
+  step: number,
+  now: number,
+): AnalyticsState {
+  const s = state ?? emptyAnalyticsState(now);
+  if (!Number.isInteger(step) || step < 0 || step >= ONBOARDING_STEP_COUNT) {
+    return s;
+  }
+  if (s.onboardingStepMs[step] !== undefined) return s;
+  return { ...s, onboardingStepMs: { ...s.onboardingStepMs, [step]: now } };
+}
+
+/**
+ * The onboarding overlay was dismissed (FTUE funnel tour completion): the
+ * FIRST dismissal wins both the timestamp and the completed flag — a tour
+ * finished via the final "Start" stays `completed: true` even if a later
+ * replay (F52.2) is Skipped.
+ */
+export function recordOnboardingEnd(
+  state: AnalyticsState | null,
+  now: number,
+  completed: boolean,
+): AnalyticsState {
+  const s = state ?? emptyAnalyticsState(now);
+  return s.onboardingEndMs === 0
+    ? { ...s, onboardingEndMs: now, onboardingCompleted: completed }
+    : s;
 }
 
 /** The moment the player first taps "watch" on a rewarded ad. */
@@ -383,7 +475,40 @@ export function parseAnalytics(raw: string | null): AnalyticsState | null {
     cosmeticPurchaseLog: sanitizeCosmeticPurchaseLog(o.cosmeticPurchaseLog),
     firstTierDay: sanitizeFirstTierDay(o.firstTierDay),
     firstUse: sanitizeFirstUse(o.firstUse),
+    // Legacy records predate the counter; the record's existence IS the
+    // first open, so absent → 1 (mirrors the prestiges/firstPrestigeDay
+    // implication pattern above).
+    appOpens: Math.max(1, Math.floor(num(o.appOpens, 1))),
+    firstAnswerMs: num(o.firstAnswerMs, 0),
+    onboardingStepMs: sanitizeOnboardingStepMs(o.onboardingStepMs),
+    onboardingEndMs: num(o.onboardingEndMs, 0),
+    onboardingCompleted: bool(o.onboardingCompleted),
   };
+}
+
+/**
+ * Corruption guard for the FTUE funnel step stamps: keep only integer step
+ * indices in [0, ONBOARDING_STEP_COUNT) with finite timestamps (a hand-edited
+ * record must not crash the debug panel or feed junk into the funnel).
+ */
+function sanitizeOnboardingStepMs(raw: unknown): Record<number, number> {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return {};
+  }
+  const out: Record<number, number> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const step = Number(k);
+    if (
+      Number.isInteger(step) &&
+      step >= 0 &&
+      step < ONBOARDING_STEP_COUNT &&
+      typeof v === "number" &&
+      Number.isFinite(v)
+    ) {
+      out[step] = v;
+    }
+  }
+  return out;
 }
 
 /**
@@ -635,6 +760,32 @@ export function summarizeAnalytics(state: AnalyticsState): string {
     for (const f of firstUsed) {
       lines.push(`  ${f}  ${getLocalDayKey(state.firstUse[f])}`);
     }
+  }
+  // FTUE funnel (Tier 0 #2): time-to-core and the onboarding tour, all
+  // data-driven — each block is omitted until it has data.
+  if (state.firstAnswerMs > 0) {
+    const toCoreSecs = Math.round(
+      (state.firstAnswerMs - state.firstOpenMs) / 1000,
+    );
+    lines.push(
+      `first answer   ${getLocalDayKey(state.firstAnswerMs)} (+${toCoreSecs}s)`,
+    );
+  }
+  const stepsSeen = Object.keys(state.onboardingStepMs)
+    .map(Number)
+    .sort((a, b) => a - b);
+  if (stepsSeen.length > 0 || state.onboardingEndMs > 0) {
+    let line = `onboarding     steps ${
+      stepsSeen.length > 0 ? stepsSeen.join(",") : "none"
+    }`;
+    if (state.onboardingEndMs > 0) {
+      const outcome = state.onboardingCompleted ? "completed" : "skipped";
+      line += `; end ${getLocalDayKey(state.onboardingEndMs)} (${outcome})`;
+    }
+    lines.push(line);
+  }
+  if (state.appOpens >= 2) {
+    lines.push(`app opens      ${state.appOpens}`);
   }
   return lines.join("\n");
 }

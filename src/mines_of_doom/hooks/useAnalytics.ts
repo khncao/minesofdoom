@@ -7,6 +7,9 @@ import {
   recordAdOutcome,
   recordAdView,
   recordAppOpen,
+  recordFirstAnswer,
+  recordOnboardingEnd,
+  recordOnboardingStep,
   recordCosmeticPurchase,
   recordFeatureFirstUse,
   recordIapPurchase,
@@ -143,6 +146,31 @@ export function useAnalytics() {
   }, [persist]);
 
   /**
+   * The first correct equation answer (FTUE funnel "time to core"): the
+   * fold stamps once; onCorrect fires it unguarded on every answer.
+   */
+  const onFirstAnswer = useCallback(() => {
+    persist(recordFirstAnswer(stateRef.current, Date.now()));
+  }, [persist]);
+
+  /**
+   * A first-run onboarding step was seen (FTUE funnel per-step drop-off):
+   * the overlay fires it on every visible step; first sighting per index
+   * wins, out-of-range indices are dropped by the fold.
+   */
+  const onOnboardingStep = useCallback((step: number) => {
+    persist(recordOnboardingStep(stateRef.current, step, Date.now()));
+  }, [persist]);
+
+  /**
+   * The onboarding overlay was dismissed (FTUE funnel tour completion):
+   * the FIRST dismissal wins both the timestamp and the completed flag.
+   */
+  const onOnboardingEnd = useCallback((completed: boolean) => {
+    persist(recordOnboardingEnd(stateRef.current, Date.now(), completed));
+  }, [persist]);
+
+  /**
    * A cosmetic was bought (features.md pass-16 `cosmetics:analytics`):
    * the per-purchase line — which line, which item, gems vs pack path,
    * gem balance at the moment. Fired by the engine gem buys ("gems")
@@ -182,6 +210,9 @@ export function useAnalytics() {
     onTierMilestone,
     onCosmeticPurchase,
     onFeatureFirstUse,
+    onFirstAnswer,
+    onOnboardingStep,
+    onOnboardingEnd,
     clear,
   };
 }

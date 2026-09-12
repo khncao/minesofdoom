@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { Pressable, Switch, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useT } from "src/hooks/useI18n";
@@ -72,12 +72,18 @@ const OP_NAME_KEYS: Record<OperatorKey, TranslationKey> = {
 
 const OnboardingOverlay = memo(function OnboardingOverlay({
   onDismiss,
+  onStep,
   equationSettings,
   onEquationSettingsChange,
   onScreenKeypad,
   onKeypadChange,
 }: {
-  onDismiss: () => void;
+  /** First-run dismissal. `completed` = the tour ran to the final "Start"
+   * (as opposed to bailing via Skip) — the FTUE funnel's completion flag. */
+  onDismiss: (completed: boolean) => void;
+  /** FTUE funnel: fired whenever the visible step index changes (the
+   * analytics fold stamps first sightings, re-fires are no-ops). */
+  onStep?: (step: number) => void;
   equationSettings: EquationSettings;
   onEquationSettingsChange: (newSettings: EquationSettings) => void;
   onScreenKeypad: boolean;
@@ -85,6 +91,12 @@ const OnboardingOverlay = memo(function OnboardingOverlay({
 }) {
   const t = useT();
   const [step, setStep] = useState(0);
+  // The FTUE funnel seam: every visible step is reported; the parent's
+  // analytics fold keeps the stamps one-shot per index. Step 0 fires on
+  // mount (first-run players only — a replay re-fires harmlessly).
+  useEffect(() => {
+    onStep?.(step);
+  }, [step, onStep]);
   // API 35 enforces edge-to-edge, so the overlay draws under the status bar;
   // keep the Skip button clear of it (it was un-tappable on tall-status-bar
   // devices with the old hardcoded top: 12).
@@ -114,7 +126,8 @@ const OnboardingOverlay = memo(function OnboardingOverlay({
       testID="onboarding-next"
       onPress={() => {
         if (isLast) {
-          onDismiss();
+          // Reaching the final "Start" IS completing the tour.
+          onDismiss(true);
         } else {
           setStep(step + 1);
         }
@@ -133,7 +146,7 @@ const OnboardingOverlay = memo(function OnboardingOverlay({
         accessibilityRole="button"
         accessibilityLabel={t("onboarding.a11ySkip")}
         testID="onboarding-skip"
-        onPress={onDismiss}
+        onPress={() => onDismiss(false)}
         // 44×44 tap target: 16px text + 12px vertical / 14px horizontal pad.
         style={[styles.onboardingSkip, { top: Math.max(12, insets.top + 8) }]}
       >

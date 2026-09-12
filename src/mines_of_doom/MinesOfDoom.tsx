@@ -896,6 +896,9 @@ export default function MinesOfDoom() {
     useEquations({
       equationSettings,
       onCorrect: (value) => {
+        // FTUE funnel: the single fold point for "time to core" — first
+        // correct answer stamps, every later answer is a no-op.
+        onFirstAnswer();
         if (dailyEquationModeRef.current) {
           // The displayed equation IS today's (forced in by the button):
           // the daily bonus stacks on top of the normal answer reward.
@@ -1128,6 +1131,9 @@ export default function MinesOfDoom() {
     onTierMilestone,
     onCosmeticPurchase,
     onFeatureFirstUse,
+    onFirstAnswer,
+    onOnboardingStep,
+    onOnboardingEnd,
     clear: onClearAnalytics,
   } = useAnalytics();
   // Fill the engine's forwarder with the real callback (the render-
@@ -1992,12 +1998,16 @@ export default function MinesOfDoom() {
         </View>
         {!onboardingLoading && onboardingDone !== true && (
           <OnboardingOverlay
-            onDismiss={() => {
-              // The setup step's choices persist themselves on change
+            onDismiss={(completed) => {
+              // FTUE funnel: first dismissal wins (the overlay's own
+              // final-"Start" vs Skip decision is the completion flag);
+              // the setup step's choices persist themselves on change
               // (useSettings writes each change to AsyncStorage), so
               // dismissal only needs to persist the onboarding flag.
+              onOnboardingEnd(completed);
               setOnboardingDone(true);
             }}
+            onStep={onOnboardingStep}
             equationSettings={equationSettings}
             onEquationSettingsChange={updateEquationSettings}
             onScreenKeypad={onScreenKeypad}
