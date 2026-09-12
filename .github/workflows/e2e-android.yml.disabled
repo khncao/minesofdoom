@@ -45,7 +45,8 @@ jobs:
   # Full Maestro suite (all flows, including the 00_screenshots.yaml flow
   # that captures the 4 in-game screenshots) on each of the three required
   # device sizes: phone, 7" tablet, 10" tablet. Per-device artifacts carry
-  # the Maestro reports AND the screenshots (build/maestro).
+  # the Maestro reports only — the screenshots (build/maestro/screenshots)
+  # are deliberately NOT uploaded as artifacts.
   e2e:
     name: E2E — ${{ matrix.label }}
     runs-on: ubuntu-latest
@@ -95,10 +96,12 @@ jobs:
             # device; the rest are the functional flows.
             maestro test maestro/flows
 
-      - name: Upload Maestro reports + screenshots
+      - name: Upload Maestro reports (screenshots excluded)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: maestro-e2e-${{ matrix.label }}
           path: build/maestro
+          exclude: |
+            build/maestro/screenshots/**
           retention-days: 7

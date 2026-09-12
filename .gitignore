@@ -185,3 +185,6 @@ vendor/
 # playwright e2e artifacts (e2e/web)
 test-results/
 playwright-report/
+
+# Play Store listing screenshots (scripts/playstoress.mjs output)
+/playstore-screenshots/

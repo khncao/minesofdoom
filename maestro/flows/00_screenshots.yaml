@@ -8,9 +8,9 @@
 # keeps the flow safe on non-fresh installs (overlay already dismissed →
 # shot 1 is skipped, the other three are still captured).
 #
-# Screenshots land under build/maestro/screenshots/<test-name>/; the
-# e2e-android.yml matrix job uploads build/maestro per device (reports +
-# screenshots together).
+# Screenshots land under build/maestro/screenshots/<test-name>/ on the
+# machine that ran the suite (CI jobs exclude them from the per-device
+# artifacts — reports only; grab store-listing shots from a local run).
 appId: com.minus4kelvin.minesofdoom
 ---
 - launchApp: com.minus4kelvin.minesofdoom

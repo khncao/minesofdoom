@@ -15,7 +15,9 @@
     "test:e2e:web": "expo export -p web && playwright test --config playwright.config.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "play": "node scripts/play/play.mjs"
+    "play": "node scripts/play/play.mjs",
+    "playstoress": "node scripts/playstoress.mjs",
+    "postinstall": "node scripts/link-playstoress-bin.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.15",
