@@ -375,6 +375,7 @@ export const contentEs: ContentTable = {
   // Titles, section headings AND bodies are localized here.
   "legalDoc:privacy": { title: "Política de privacidad" },
   "legalDoc:terms": { title: "Términos de uso y descargo" },
+  "legalDoc:deletion": { title: "Eliminación de la cuenta" },
 
   "legalSection:privacy:Short version": {
     title: "Versión corta",
@@ -406,7 +407,7 @@ export const contentEs: ContentTable = {
   },
   "legalSection:privacy:Deletion": {
     title: "Borrado",
-    body: "Datos de juego locales: Ajustes → Restablecer (los datos del dispositivo y las estadísticas locales/el registro de errores se pueden limpiar individualmente en Ajustes). Datos de la cuenta (cuenta, copia en la nube, entradas en la clasificación): escríbenos a la dirección con la que te registraste y se borrarán, incluida la base de datos y las copias de seguridad. Los datos que Google o Apple guardan en tu nombre se gestionan con sus propios ajustes y políticas.",
+    body: "Datos de juego locales: Guardado → «Borrar todos los datos» (o Guardado → Restablecer solo para el guardado; las estadísticas locales y el registro de errores se pueden limpiar individualmente en Ajustes). Datos de la cuenta (cuenta, copia en la nube, entradas en la clasificación, compras): elimínalos tú mismo con un toque en la app (menú → Cuenta → «Eliminar cuenta») o sigue los pasos de nuestras instrucciones de eliminación de cuenta en https://minesofdoom.minus4kelvin.com/account-deletion.html. También puedes escribirnos desde la dirección con la que te registraste y se eliminará, incluida la base de datos y las copias de seguridad. Los datos que Google o Apple guardan en tu nombre se gestionan con sus propios ajustes y políticas.",
   },
   "legalSection:privacy:Changes to this policy": {
     title: "Cambios de esta política",
@@ -448,5 +449,26 @@ export const contentEs: ContentTable = {
   "legalSection:terms:Contact": {
     title: "Contacto",
     body: `Las preguntas sobre estos términos pueden enviarse a ${LEGAL_CONTACT_EMAIL}.`,
+  },
+
+  "legalSection:deletion:Delete your account from the app (fastest)": {
+    title: "Elimina tu cuenta desde la app (lo más rápido)",
+    body: "La forma más rápida es desde dentro de la app:\n\n1. Abre Mines of Idle Doomath.\n2. Abre el menú y ve a la pestaña Cuenta.\n3. Si no has iniciado sesión, inicia sesión primero (con el correo o el proveedor con el que te registraste).\n4. Pulsa «Eliminar cuenta» y confirma.\n\nTu cuenta se elimina de inmediato, en todos tus dispositivos, y se cierra la sesión en todas partes. No hace falta ningún correo.",
+  },
+  "legalSection:deletion:Delete your account by email (no app needed)": {
+    title: "Elimina tu cuenta por correo (sin app)",
+    body: `Si ya no tienes la app instalada, escribe a ${LEGAL_CONTACT_EMAIL} desde la dirección de correo con la que te registraste, con «Eliminar cuenta» como asunto. Para proteger tus datos, solo actuamos ante una petición que llega desde la dirección registrada. La cuenta se eliminará en un plazo de 30 días desde la petición.`,
+  },
+  "legalSection:deletion:What is deleted": {
+    title: "Qué se elimina",
+    body: "Eliminar tu cuenta borra de forma permanente, desde nuestro servidor: la cuenta y sus credenciales de acceso (correo y contraseña, y cualquier identidad de Google o Apple vinculada); todas las copias de guardado en la nube vinculadas a la cuenta, en todos los dispositivos; tu entrada en la clasificación; y los registros de compra vinculados a la cuenta, para que no puedan restaurarse en una cuenta nueva. Todos los dispositivos iniciados en sesión se cierran.",
+  },
+  "legalSection:deletion:What is kept, and for how long": {
+    title: "Qué se conserva, y durante cuánto tiempo",
+    body: "Los datos que existen solo en tu dispositivo (el guardado local, los ajustes y las estadísticas locales) no se ven afectados por la eliminación de la cuenta — bórralos por separado en la app (Guardado → «Borrar todos los datos»).\n\nLos datos eliminados se retiran de la base de datos en vivo de inmediato. Nuestras únicas otras copias son las copias de seguridad nocturnas de rutina del servidor, que se rotan y se sobrescriben; no conservamos datos eliminados durante más de 30 días ni los usamos jamás para ningún fin después de eliminarlos.\n\nSi iniciaste sesión con Google o Apple, los datos que guardan esas empresas se gestionan con sus propios ajustes y políticas. Si compraste algo a través de Google Play o la App Store, la tienda conserva sus propios registros de transacción por razones legales que no podemos borrar; nosotros solo borramos nuestras copias.",
+  },
+  "legalSection:deletion:Contact": {
+    title: "Contacto",
+    body: `Preguntas, o ayuda con una petición de eliminación: ${LEGAL_CONTACT_EMAIL}.`,
   },
 };

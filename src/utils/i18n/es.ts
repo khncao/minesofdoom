@@ -465,6 +465,11 @@ export const es: Record<TranslationKey, string> = {
     "Este dispositivo está vinculado a tu cuenta — la partida, las " +
     "compras y la clasificación la siguen a un dispositivo nuevo.",
   "settings.accountSignOut": "Cerrar sesión",
+  "settings.accountDelete": "Eliminar cuenta",
+  "settings.accountDeleteYes": "Sí, eliminar mi cuenta",
+  "settings.accountDeleteKeep": "Conservar mi cuenta",
+  "settings.accountDeleteError":
+    "No se pudo eliminar la cuenta — sigue activa. Inténtalo de nuevo.",
   "settings.deleteDataAccountDescription":
     "Elimina tu cuenta y TODOS los datos vinculados en todos los " +
     "dispositivos — partidas, compras y clasificación — del servidor. " +

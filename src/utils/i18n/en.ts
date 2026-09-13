@@ -457,6 +457,11 @@ export const en = {
     "This device is linked to your account — save, purchases and " +
     "leaderboard follow it to a new device.",
   "settings.accountSignOut": "Sign out",
+  "settings.accountDelete": "Delete account",
+  "settings.accountDeleteYes": "Yes, delete my account",
+  "settings.accountDeleteKeep": "Keep my account",
+  "settings.accountDeleteError":
+    "The account could not be deleted — it is still active. Try again.",
   "settings.deleteDataAccountDescription":
     "Removes your account and ALL data linked to it on every device — " +
     "saves, purchases and leaderboard — from the server. You'll be " +

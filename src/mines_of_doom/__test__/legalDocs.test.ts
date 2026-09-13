@@ -5,12 +5,14 @@
  * store reviewer cannot reach.
  *
  * This test is the codegen: it renders src/mines_of_doom/legal.ts into
- * public/privacy-policy.html and public/terms-of-use.html (the static web
- * export serves public/ at the site root, so the published URLs are
- * https://minesofdoom.pages.dev/privacy-policy.html and .../
- * terms-of-use.html). Running `npm test` after editing legal.ts therefore
- * regenerates the published copies — legal.ts stays the single source of
- * truth, and a mismatch can never ship.
+ * public/privacy-policy.html, public/terms-of-use.html, and
+ * public/account-deletion.html (the static web export serves public/ at
+ * the site root, so the published URLs are
+ * https://minesofdoom.minus4kelvin.com/privacy-policy.html, .../terms-of-use
+ * .html, .../account-deletion.html — the last one is what the Play
+ * listing's "account deletion" field links to). Running `npm test` after
+ * editing legal.ts therefore regenerates the published copies — legal.ts
+ * stays the single source of truth, and a mismatch can never ship.
  *
  * The rendered output is deterministic (same input → same bytes), so the
  * committed HTML only changes when the legal text does.
@@ -65,9 +67,17 @@ ${sections}
 
 const PUBLIC_DIR = path.join(__dirname, "..", "..", "..", "public");
 
+// Doc id → published filename (a new LegalDocId must get a filename here
+// or the test below won't compile).
+const FILE_BY_DOC: Record<LegalDoc["id"], string> = {
+  privacy: "privacy-policy.html",
+  terms: "terms-of-use.html",
+  deletion: "account-deletion.html",
+};
+
 describe("legal document publication (codegen for the store listings)", () => {
   it.each(LEGAL_DOCS.map((d) => [d.id, d] as const))("publishes %s as public HTML", (id, doc) => {
-    const file = id === "privacy" ? "privacy-policy.html" : "terms-of-use.html";
+    const file = FILE_BY_DOC[id];
     const html = renderDoc(doc);
     fs.mkdirSync(PUBLIC_DIR, { recursive: true });
     fs.writeFileSync(path.join(PUBLIC_DIR, file), html, "utf8");

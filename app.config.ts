@@ -43,9 +43,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: "Mines of Idle Doomath",
   slug: "minesofdoom",
   scheme: "com.minus4kelvin.minesofdoom",
-  version: "1.0.9",
+  version: "1.0.10",
   android: {
-    versionCode: 9,
+    // AD_ID: required by Google Play for apps using the advertising ID on
+    // Android 13+ (targetSdk 35). Without it the ID is zeroed out.
+    permissions: ["com.google.android.gms.permission.AD_ID"],
+    versionCode: 10,
     adaptiveIcon: {
       foregroundImage: pickaxePng,
       backgroundColor: "#ffffff",

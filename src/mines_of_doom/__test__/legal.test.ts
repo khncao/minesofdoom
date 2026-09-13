@@ -10,8 +10,12 @@ import { storeConfig } from "../storeConfig";
  */
 
 describe("legal documents", () => {
-  it("ships exactly the privacy policy and terms of use", () => {
-    expect(LEGAL_DOCS.map((d) => d.id).sort()).toEqual(["privacy", "terms"]);
+  it("ships exactly the privacy policy, terms, and deletion docs", () => {
+    expect(LEGAL_DOCS.map((d) => d.id).sort()).toEqual([
+      "deletion",
+      "privacy",
+      "terms",
+    ]);
   });
 
   it("has unique ids, and getLegalDoc round-trips", () => {

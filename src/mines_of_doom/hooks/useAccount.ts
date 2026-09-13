@@ -83,6 +83,12 @@ export interface AccountHandle {
   ) => Promise<AuthAccountInfo | null>;
   /** Sign out: kill the server session (best effort) + clear the token. */
   signOut: () => Promise<void>;
+  /** Delete the signed-in account (GDPR "delete my data"): the server
+   *  erases the account, every linked device's cloud save / leaderboard /
+   *  entitlements rows, and all of the account's live sessions. Resolves
+   *  true only when the erasure completed — a false keeps the session
+   *  (the account is still alive) so the UI can show its inline error. */
+  deleteAccount: () => Promise<boolean>;
 }
 
 /** After a successful sign-in: persist the token, then run the claim.
@@ -246,6 +252,21 @@ export function useAccount(opts: AccountOptions): AccountHandle {
     }
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    const current = sessionRef.current;
+    if (current === null) return false;
+    const deleted = await providerRef.current
+      .deleteAccount(current.token)
+      .catch(() => false);
+    if (!deleted) return false;
+    // The server erased the account AND killed every session of it (all
+    // devices), so this device's stored token is dead too: go out.
+    setSession(null);
+    setStatus("out");
+    await tokenStoreRef.current.clearToken().catch(() => true);
+    return true;
+  }, []);
+
   return {
     status,
     session,
@@ -259,5 +280,6 @@ export function useAccount(opts: AccountOptions): AccountHandle {
     setPassword,
     linkProvider,
     signOut,
+    deleteAccount,
   };
 }

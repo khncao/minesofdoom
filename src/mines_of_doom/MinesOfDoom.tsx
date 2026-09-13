@@ -592,6 +592,7 @@ export default function MinesOfDoom() {
       onRegister: account.register,
       onLogin: account.login,
       onSignOut: account.signOut,
+      onDeleteAccount: account.deleteAccount,
       onProviderSignIn: account.providerSignIn,
       // Platform constant ("hidden until ready" — [] on web, ["google"]
       // on android, both on ios); stable, no memo deps needed.
@@ -606,6 +607,7 @@ export default function MinesOfDoom() {
       account.register,
       account.login,
       account.signOut,
+      account.deleteAccount,
       account.providerSignIn,
       account.setPassword,
       account.linkProvider,

@@ -43,6 +43,10 @@ export interface AccountSettingsProps {
   /** Sign out (server session killed best-effort + stored token
    *  cleared). */
   onSignOut: () => Promise<void>;
+  /** Delete the signed-in account (GDPR: the server erases the account
+   *  and everything linked to it, on every device). Resolves true only
+   *  when the erasure completed (the inline error otherwise). */
+  onDeleteAccount: () => Promise<boolean>;
   /** Provider sign-in with a native-SDK idToken (the SDK mints the
    *  token via the OS sheet; the server's sidecar verifies it). */
   onProviderSignIn: (
@@ -108,6 +112,9 @@ function AccountSection({ account }: { account: AccountSettingsProps }) {
   // The signed-in branch: the new password for the "set a password on
   // this account" flow (todo: merge email + oauth2 accounts).
   const [newPassword, setNewPassword] = useState("");
+  // The delete-account confirmation (a deliberate two-step — this is the
+  // one irreversible action in the section, so it asks before it acts).
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   if (!account.available) return null;
 
@@ -183,6 +190,24 @@ function AccountSection({ account }: { account: AccountSettingsProps }) {
       setFormError(t("settings.accountProviderError"));
     } finally {
       setBusy(false);
+    }
+  };
+
+  /** The irreversible one: the server erases the account + every linked
+   *  device's rows and signs the account out everywhere. Success flips
+   *  the status prop to "out" (this view swaps to the signed-out
+   *  branch); a failed erasure keeps the session and shows the single
+   *  inline error. */
+  const deleteTheAccount = async () => {
+    if (busy) return;
+    setBusy(true);
+    setFormError(null);
+    try {
+      const deleted = await account.onDeleteAccount();
+      if (!deleted) setFormError(t("settings.accountDeleteError"));
+    } finally {
+      setBusy(false);
+      setDeleteConfirm(false);
     }
   };
 
@@ -292,6 +317,36 @@ function AccountSection({ account }: { account: AccountSettingsProps }) {
           }}
           testId="account-signout"
         />
+        <View style={{ gap: 4 }} testID="account-delete">
+          <Button
+            title={t("settings.accountDelete")}
+            disabled={busy}
+            onPress={() => setDeleteConfirm(true)}
+            testId="account-delete"
+          />
+          {deleteConfirm && (
+            <View style={{ gap: 4 }} testID="account-delete-confirm">
+              <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
+                {t("settings.deleteDataAccountDescription")}
+              </Text>
+              <View style={{ flexDirection: "row", gap: 6 }}>
+                <Button
+                  title={t("settings.accountDeleteYes")}
+                  disabled={busy}
+                  onPress={() => void deleteTheAccount()}
+                  style={{ flex: 1 }}
+                  testId="account-delete-yes"
+                />
+                <Button
+                  title={t("settings.accountDeleteKeep")}
+                  onPress={() => setDeleteConfirm(false)}
+                  style={{ flex: 1 }}
+                  testId="account-delete-keep"
+                />
+              </View>
+            </View>
+          )}
+        </View>
       </View>
     );
   }

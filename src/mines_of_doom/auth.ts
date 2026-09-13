@@ -31,6 +31,11 @@
  *   POST {base}/api/app/auth/logout    { token } → { ok: true } (idempotent)
  *   POST {base}/api/app/auth/link      { token, deviceId }
  *        → { ok, account }              // claim: attach this device's rows
+ *   POST {base}/api/app/delete         { sessionToken, deviceId }
+ *        → { ok, deletedAccount }       // GDPR: erase the account + linked
+ *                                       // device rows (the in-app "delete
+ *                                       // account" flow; deviceId alone
+ *                                       // erases only the device rows)
  *
  * Account shape in replies (pb_hooks logic.accountShape): `{ email,
  * providers: [{ name, linked }] }` — no hashes, no raw provider ids.
@@ -156,6 +161,14 @@ export interface AuthProvider {
     kind: "google" | "apple",
     idToken: string,
   ): Promise<AuthAccountInfo | null>;
+  /** GDPR "delete my data" for the ACCOUNT the token resolves to: the
+   *  server erases the account, every linked device's cloud save /
+   *  leaderboard / entitlements rows, and all of the account's live
+   *  sessions (every device signs out). Best effort: resolves true only
+   *  on a 2xx — a `false` means "could not complete it" (dead session,
+   *  network) and the caller must KEEP the session: the account is
+   *  still alive on the server. */
+  deleteAccount(token: string): Promise<boolean>;
 }
 
 // -- client-side pre-validation (the server re-checks everything; this
@@ -289,6 +302,7 @@ export const noopAuthProvider: AuthProvider = {
   link: async () => null,
   setPassword: async () => null,
   linkProvider: async () => null,
+  deleteAccount: async () => false,
 };
 
 /**
@@ -383,6 +397,12 @@ export const devSimAuthProvider: AuthProvider = {
     if (!session) return null;
     session.account = withProviderLinked(session.account, kind);
     return session.account;
+  },
+  async deleteAccount(token) {
+    // The dev-sim's whole shape is the in-memory session map, so
+    // erasing the session IS the full GDPR erasure here (`me` then
+    // reports "dead" for the token, like the real server's 401).
+    return devSimSessions.delete(token);
   },
 };
 
@@ -489,6 +509,20 @@ export const storeAuthProvider: AuthProvider = {
     if (res === null) return null;
     if (res.status < 200 || res.status >= 300) return null;
     return parseAccount(res.body?.account);
+  },
+
+  async deleteAccount(token) {
+    if (!isPocketbaseConfigured()) return false;
+    // The server's /api/app/delete takes a sessionToken for the account
+    // target (deviceId alone would only erase THIS device's rows and
+    // leave the account alive — exactly the wrong semantics for
+    // "delete my account").
+    const deviceId = await getIapDeviceId();
+    const res = await postJsonWithStatus(
+      `${storeConfig.pocketbaseUrl}/api/app/delete`,
+      { sessionToken: token, deviceId },
+    );
+    return res !== null && res.status >= 200 && res.status < 300;
   },
 };
 

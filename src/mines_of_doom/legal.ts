@@ -15,7 +15,11 @@
  * Stripe/AdSense, which v1.0 — written before any of that shipped —
  * correctly said did not exist; v2.1, 2026-09-16, fixed the "Children"
  * section to match the S6 decision — teen+ (13+), NOT child-directed,
- * tagForChildDirectedTreatment: false — see legal.test.ts):
+ * tagForChildDirectedTreatment: false — see legal.test.ts; v2.2,
+ * 2026-09-17, added the in-app account-deletion flow (Account tab →
+ * "Delete account", the same GDPR erasure the Save tab's "delete my
+ * data" runs when signed in) and the published account-deletion.html
+ * page that the Play listing's account-deletion field links to):
  *  - The "Children" section's age position must stay in sync with
  *    storeConfig.adMob.tagForChildDirectedTreatment (F45.1 net);
  *  - local data: the AsyncStorage keys in game.ts / useLocalStorage and
@@ -29,14 +33,15 @@
  *  - purchases: iaps.ts + iapProvider*.ts (native: store IAP; web:
  *    Stripe Checkout — card data never reaches this app);
  *  - the published HTML versions (public/privacy-policy.html,
- *    public/terms-of-use.html) are GENERATED from this file by
- *    __test__/legalDocs.test.ts — edit here only, then run the tests.
+ *    public/terms-of-use.html, public/account-deletion.html) are
+ *    GENERATED from this file by __test__/legalDocs.test.ts — edit here
+ *    only, then run the tests.
  *  - contact: the same address as InquiriesButton.
  */
 
 export const LEGAL_CONTACT_EMAIL = "minus4kelvin@gmail.com";
 
-export type LegalDocId = "privacy" | "terms";
+export type LegalDocId = "privacy" | "terms" | "deletion";
 
 export type LegalDoc = {
   id: LegalDocId;
@@ -49,8 +54,8 @@ export type LegalDoc = {
 const PRIVACY_POLICY: LegalDoc = {
   id: "privacy",
   title: "Privacy Policy",
-  version: "2.1",
-  effectiveDate: "2026-09-16",
+  version: "2.2",
+  effectiveDate: "2026-09-17",
   sections: [
     {
       heading: "Short version",
@@ -82,7 +87,7 @@ const PRIVACY_POLICY: LegalDoc = {
     },
     {
       heading: "Deletion",
-      body: "Local game data: Save → “Erase all data” (or Save → Reset for just the game save; the local stats and crash log can also be cleared individually in Settings). Account data (account, cloud save, leaderboard entries): email us with the address you signed up with and it will be deleted, including the database and backups. Data that Google or Apple hold on your behalf is managed by their own settings and policies.",
+      body: "Local game data: Save → “Erase all data” (or Save → Reset for just the game save; the local stats and crash log can also be cleared individually in Settings). Account data (account, cloud save, leaderboard entries, purchases): delete it yourself with one tap in the app (menu → Account → “Delete account”) or follow the steps in our account deletion instructions at https://minesofdoom.minus4kelvin.com/account-deletion.html. You can also email us from the address you signed up with and it will be deleted, including the database and backups. Data that Google or Apple hold on your behalf is managed by their own settings and policies.",
     },
     {
       heading: "Changes to this policy",
@@ -136,7 +141,48 @@ const TERMS_OF_USE: LegalDoc = {
   ],
 };
 
-export const LEGAL_DOCS: LegalDoc[] = [PRIVACY_POLICY, TERMS_OF_USE];
+// Account-deletion instructions — the page the Play listing's
+// "account deletion" field links to (published as
+// public/account-deletion.html by __test__/legalDocs.test.ts). Play
+// requires it to: refer to the app/developer name, feature the steps
+// to request deletion, and say what is deleted vs kept + any retention
+// period. The in-app flow is the prominent path; email is the
+// no-device fallback (the sidecar's /api/app/delete is the single
+// erasure both paths run — see pb_hooks/endpoints.js).
+const ACCOUNT_DELETION: LegalDoc = {
+  id: "deletion",
+  title: "Account Deletion",
+  version: "1.0",
+  effectiveDate: "2026-09-17",
+  sections: [
+    {
+      heading: "Delete your account from the app (fastest)",
+      body: "The fastest way is from inside the app:\n\n1. Open Mines of Idle Doomath.\n2. Open the menu and go to the Account tab.\n3. If you are not signed in, sign in first (email, or the provider you registered with).\n4. Tap “Delete account” and confirm.\n\nYour account is deleted immediately and you are signed out on all of your devices. No email is needed.",
+    },
+    {
+      heading: "Delete your account by email (no app needed)",
+      body: `If you no longer have the app installed, email ${LEGAL_CONTACT_EMAIL} from the email address you signed up with, with “Account deletion” as the subject. To protect your data, we only act on a request that comes from the registered address. The account will be deleted within 30 days of the request.`,
+    },
+    {
+      heading: "What is deleted",
+      body: "Deleting your account permanently erases, from our server: the account and its sign-in credentials (email and password, and any linked Google or Apple identity); every cloud save linked to the account, on every device; your leaderboard entry; and the purchase records linked to the account, so they cannot be restored onto a new account. Every signed-in device is signed out.",
+    },
+    {
+      heading: "What is kept, and for how long",
+      body: "Data that exists only on your device (the local game save, settings, and local stats) is not affected by an account deletion — erase that separately in the app (Save → “Erase all data”).\n\nDeleted data is removed from the live database immediately. Our only other copies are routine nightly server backups, which are rotated and overwritten; we do not retain deleted data beyond 30 days and never use it for any purpose after deletion.\n\nIf you signed in with Google or Apple, the data those companies hold is managed by their own settings and policies. If you bought something through Google Play or the App Store, the store keeps its own transaction records for legal reasons that we cannot delete; we delete only our own copies.",
+    },
+    {
+      heading: "Contact",
+      body: `Questions, or help with a deletion request: ${LEGAL_CONTACT_EMAIL}.`,
+    },
+  ],
+};
+
+export const LEGAL_DOCS: LegalDoc[] = [
+  PRIVACY_POLICY,
+  TERMS_OF_USE,
+  ACCOUNT_DELETION,
+];
 
 export function getLegalDoc(id: LegalDocId): LegalDoc {
   const doc = LEGAL_DOCS.find((d) => d.id === id);
