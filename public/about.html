@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>About — Mines of Idle Doomath</title>
+    <meta
+      name="description"
+      content="About Mines of Idle Doomath: how the idle math-mining game works, its platforms, its ad and purchase model, and how to contact the developer."
+    />
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; background: #161616; color: #eee; }
+      h1 { font-size: 1.6rem; }
+      h2 { font-size: 1.2rem; margin-top: 2rem; }
+      a { color: #7ab8ff; }
+      section { margin-bottom: 1.5rem; }
+      .meta { color: #999; font-size: 0.9rem; }
+      footer { margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid #333; font-size: 0.9rem; color: #999; }
+      .ad { margin: 1.5rem 0; min-height: 90px; }
+    </style>
+    <!-- AdSense loader: same publisher client the game itself uses
+         (src/mines_of_doom/storeConfig.ts). -->
+    <script
+      async
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2101316086878618"
+      crossOrigin="anonymous"
+    ></script>
+  </head>
+  <body>
+    <h1>About Mines of Idle Doomath</h1>
+    <p class="meta">Mines of Idle Doomath · minesofdoom.minus4kelvin.com</p>
+
+    <!-- Ad unit: create a display unit in the AdSense dashboard
+         (AdSense → Ad units → New ad unit), paste its slot id below,
+         and keep the responsive auto-size. Until a real slot exists this
+         block stays empty but the loader above is live on the page. -->
+    <ins
+      class="adsbygoogle ad"
+      style="display: block"
+      data-ad-client="ca-pub-2101316086878618"
+      data-ad-slot="AD_UNIT_SLOT_ID"
+      data-ad-format="auto"
+      data-full-width-responsive="true"
+    ></ins>
+    <script>
+      (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
+
+    <section>
+      <h2>What the game is</h2>
+      <p>
+        Mines of Idle Doomath is a free, single-player idle game about a tiny crew of
+        miners working a very deep shaft. The core action is deliberately simple: you are
+        shown a short math equation, you type the answer, and every correct answer earns
+        minerals. Miss or hesitate and your combo drops, so the tempo is yours to set.
+        Between answering, the game keeps earning on its own, which is what makes it an
+        idle game: you can check in for two minutes or leave it running for an hour and
+        it does something useful either way.
+      </p>
+    </section>
+
+    <section>
+      <h2>How it plays</h2>
+      <p>
+        <strong>Equations and combos.</strong> Each correct answer pays out minerals, and
+        the payout is multiplied by your click power (raised by upgrades) and by your
+        current combo. Streaks build the combo multiplier; the longer you keep going,
+        the more each answer is worth.
+      </p>
+      <p>
+        <strong>Upgrades and miners.</strong> Minerals are spent on upgrades that make
+        each answer worth more, and on miners that work the shaft automatically. Hired
+        miners are shown in the crew column next to the mine; you can dress each one in
+        outfits and pickaxes you have unlocked, so every crew ends up looking different.
+      </p>
+      <p>
+        <strong>Gems.</strong> A second currency, gems, feeds its own upgrade lines, so
+        progression has two parallel tracks: minerals for the main economy, gems for the
+        cosmetic and quality-of-life lines.
+      </p>
+      <p>
+        <strong>Prestige.</strong> When a run gets too big, you can sink a new shaft:
+        this resets the run in exchange for a permanent multiplier that carries over.
+        Prestige is the main long-game loop and is available to every player.
+      </p>
+      <p>
+        <strong>Goals and achievements.</strong> The game tracks goals and achievements
+        through the whole cycle, from the first equation answered to repeated prestiges,
+        so there is always something to tick off without needing to grind for it.
+      </p>
+    </section>
+
+    <section>
+      <h2>Platforms and progress</h2>
+      <p>
+        The game runs in the browser on this site and on Android and iOS. By default
+        your progress lives only on the device you play on. If you create an account,
+        your save is backed up to the developer's server so you can pick it up on
+        another device, and you can optionally post a score to the leaderboard under a
+        display name you choose. Account creation is always optional; the game is fully
+        playable without one.
+      </p>
+    </section>
+
+    <section>
+      <h2>Free to play, what that means here</h2>
+      <p>
+        The game is free and stays free: there is no paywall on any part of the
+        progression, and everything a paying player can get can be earned by playing.
+        Ads are minimal by design and are the only thing that costs you anything —
+        nothing but a few seconds of your time — and they only ever appear when you
+        choose to watch them: full-screen rewarded ads that you start yourself, in
+        exchange for a bonus. There are no banner ads, no forced or interrupting ads,
+        and no dark patterns such as fake offers or countdown timers.
+      </p>
+      <p>
+        There is a small set of optional purchases: cosmetic packs (pickaxes, outfits,
+        cave themes) and a convenience pack. These change how the game looks, not how
+        it plays. On mobile they are processed by the app store; in the browser they go
+        through Stripe. Payment details are handled by the store or Stripe, never by
+        this site.
+      </p>
+    </section>
+
+    <section>
+      <h2>Your data</h2>
+      <p>
+        The short version: your save, your stats and the small local crash log live on
+        your device; an account (if you make one) adds a save snapshot and optional
+        leaderboard entry on the developer's single server; that is the whole picture.
+        The full details, including exactly what is stored where and how to delete it,
+        are in the linked privacy policy, and there is a published
+        <a href="/account-deletion.html">account-deletion page</a> for people who want
+        to know where to send a deletion request.
+      </p>
+    </section>
+
+    <section>
+      <h2>Contact</h2>
+      <p>
+        Questions, feedback, or an account-deletion request:
+        <a href="mailto:minus4kelvin@gmail.com">minus4kelvin@gmail.com</a>. The
+        developer reads it all.
+      </p>
+    </section>
+
+    <footer>
+      <a href="/">Mines of Idle Doomath</a> ·
+      <a href="/privacy-policy.html">Privacy Policy</a> ·
+      <a href="/terms-of-use.html">Terms of Use</a> ·
+      <a href="/account-deletion.html">Account Deletion</a>
+    </footer>
+  </body>
+</html>
