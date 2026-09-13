@@ -150,19 +150,73 @@ export function gemColor(tint: string): string {
   return mixHex(tint, "#ffffff", 0.6);
 }
 
-/** One 24×24 rock tile: 2×2-block shade noise with a slight bottom falloff. */
+// ---------------------------------------------------------------------------
+// Coherent value noise (the rock body). The old per-tile `rng()` shade
+// pick made every 2×2 block an independent die roll — the background read
+// as static. Sampling a smooth value-noise field at global block coords
+// (shared across tiles AND strips via the (tier, strip) seed) makes the
+// rock's light/dark structure continuous across tile boundaries, which is
+// the standard trick for procedural rock/stone textures (value noise →
+// fBm → shade ramp). Deterministic: the hash is pure integer math, so a
+// given (tier, strip) always produces the same rock at any width.
+// ---------------------------------------------------------------------------
+
+/** Integer hash → [0,1). Fast, allocation-free, stable across platforms. */
+function hash2i(x: number, y: number, seed: number): number {
+  let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(seed, 2246822519)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/** Smooth 2D value noise (bilinear + smoothstep), [0,1). Exported for tests. */
+export function valueNoise(x: number, y: number, seed: number): number {
+  const xi = Math.floor(x);
+  const yi = Math.floor(y);
+  const fx = x - xi;
+  const fy = y - yi;
+  const sx = fx * fx * (3 - 2 * fx);
+  const sy = fy * fy * (3 - 2 * fy);
+  const a = hash2i(xi, yi, seed);
+  const b = hash2i(xi + 1, yi, seed);
+  const c = hash2i(xi, yi + 1, seed);
+  const d = hash2i(xi + 1, yi + 1, seed);
+  return (a + (b - a) * sx) * (1 - sy) + (c + (d - c) * sx) * sy;
+}
+
+/**
+ * Two-octave fBm of value noise at 2×2-BLOCK coords (a tile is 12×12
+ * blocks; an octave-1 lattice spans ~3 blocks ≈ 6px). Coherent across
+ * tiles: the same (tier, strip) seed + global block x/y → the same value,
+ * so widening the strip (adaptive width) never reshuffles the rock.
+ * Exported for tests.
+ */
+export function rockField(bx: number, by: number, seed: number): number {
+  return (
+    valueNoise(bx / 3, by / 3, seed) * 0.65 +
+    valueNoise(bx / 1.5, by / 1.5, seed + 101) * 0.35
+  );
+}
+
+/**
+ * One 24×24 rock tile: coherent 2×2-block shade noise (from the shared
+ * strip field, so neighbouring tiles continue the same rock body) with a
+ * slight bottom falloff. `blockX0` is the tile's global block column
+ * (x0 / 2); the shade is `rockField(blockX0 + bx, by, seed)`, so the field
+ * is continuous across tile boundaries.
+ */
 function drawRockTile(
   grid: PixelGrid,
   x0: number,
-  rng: () => number,
+  blockX0: number,
+  seed: number,
   shades: [string, string, string],
 ): void {
   const [light, base, dark] = shades;
   const blocks = CAVE_TILE_PX / 2;
   for (let by = 0; by < blocks; by++) {
     for (let bx = 0; bx < blocks; bx++) {
-      const r = rng();
-      const shade = r < 0.3 ? dark : r < 0.8 ? base : light;
+      const r = rockField(blockX0 + bx, by, seed);
+      const shade = r < 0.32 ? dark : r < 0.78 ? base : light;
       // Slight vertical falloff so strips read as strata, not static.
       const color = mixHex(shade, "#000000", ((by * 2) / CAVE_TILE_PX) * 0.35);
       setPixel(grid, x0 + bx * 2, by * 2, color);
@@ -424,7 +478,11 @@ export function buildCaveRow(
     if (!inPath) {
       const seed = hashSeed(t * 7919 + strip * 104729, 0x5eed + tile * 131);
       if (mulberry32(seed)() < ROCK_CHANCE) {
-        drawRockTile(grid, x0, mulberry32(hashSeed(seed, 1)), shades);
+        // Coherent rock: the shade field is seeded per (tier, strip) and
+        // sampled at GLOBAL block coords, so adjacent tiles (and the
+        // adaptive-width widening) continue the same rock body instead of
+        // each tile being an independent die roll.
+        drawRockTile(grid, x0, x0 / 2, hashSeed(t * 7919 + strip * 104729, 0x5eed), shades);
         // Ore veins ride on rock only — a gap tile never shows floating ore.
         if (mulberry32(hashSeed(seed, 4))() < ORE_CHANCE[t]) {
           const color =
@@ -507,11 +565,13 @@ export function buildCaveWall(
   const rng = mulberry32(
     hashSeed(w * 7919 + (side === "left" ? 31 : 97), 0x5eed),
   );
-  // Base rock: the same 2×2 shade noise + strata falloff as the tile rows.
+  // Base rock: the SAME coherent value-noise field as the tile rows (seeded
+  // per side), so the wall reads as one rock body with the cave behind it.
+  const wallSeed = hashSeed(w * 7919 + (side === "left" ? 31 : 97), 0x5eed + 1);
   for (let by = 0; by < h / 2; by++) {
     for (let bx = 0; bx < w / 2; bx++) {
-      const r = rng();
-      const shade = r < 0.3 ? dark : r < 0.8 ? base : light;
+      const r = rockField(bx, by, wallSeed);
+      const shade = r < 0.32 ? dark : r < 0.78 ? base : light;
       const color = mixHex(shade, "#000000", ((by * 2) / h) * 0.3);
       setPixel(grid, bx * 2, by * 2, color);
       setPixel(grid, bx * 2 + 1, by * 2, color);
@@ -540,9 +600,15 @@ export function buildCaveWall(
   // Jagged inner edge: a bounded random walk per 2px row keeps the cut
   // organic; at least 12px of rock always survives on the outer side.
   const maxCut = w - 12;
-  let cut = Math.max(2, Math.floor(w / 4));
+  const targetCut = Math.max(2, Math.floor(w / 4));
+  let cut = targetCut;
   for (let i = 0; i < h / 2; i++) {
-    cut = Math.max(0, Math.min(maxCut, cut + Math.floor(rng() * 5) - 2));
+    // Mean-reverting random walk: the plain walk above drifted and could sit
+    // pinned at maxCut for long stretches (the edge read as a flat diagonal
+    // cliff). Pulling a fraction of the way back to `targetCut` keeps the
+    // cut wandering around the middle of the column at every width.
+    const pull = (targetCut - cut) / 6;
+    cut = Math.max(0, Math.min(maxCut, Math.round(cut + Math.floor(rng() * 5) - 2 + pull)));
     for (let dy = 0; dy < 2; dy++) {
       const y = i * 2 + dy;
       if (side === "left") {

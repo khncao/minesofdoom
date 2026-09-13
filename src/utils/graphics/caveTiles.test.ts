@@ -23,7 +23,9 @@ import {
   gemColor,
   mixHex,
   pathEdgeColor,
+  rockField,
   rockShades,
+  valueNoise,
 } from "./caveTiles";
 import type { PixelGrid } from "./caveTiles";
 import { STRIP_MAX_BLOCK_PX } from "./pixelArt";
@@ -77,6 +79,73 @@ describe("color helpers", () => {
     const gem = gemColor("#a0856a");
     expect(gem.startsWith("#")).toBe(true);
     expect(gem).not.toBe("#a0856a");
+  });
+});
+
+describe("coherent rock field (value-noise background blocks)", () => {
+  test("valueNoise is deterministic, in [0,1)", () => {
+    for (const [x, y, s] of [
+      [0, 0, 1],
+      [3.7, -2.1, 42],
+      [123.4, 56.8, 7],
+    ] as const) {
+      const a = valueNoise(x, y, s);
+      expect(a).toBe(valueNoise(x, y, s)); // pure
+      expect(a).toBeGreaterThanOrEqual(0);
+      expect(a).toBeLessThan(1);
+    }
+  });
+
+  test("valueNoise is spatially smooth (nearby ≈, far ≠)", () => {
+    // Sample a line; adjacent cells must be close, distant cells decorrelated.
+    let nearDiff = 0;
+    let farDiff = 0;
+    const N = 200;
+    for (let i = 0; i < N; i++) {
+      const x = i * 0.7;
+      nearDiff += Math.abs(valueNoise(x, 4, 9) - valueNoise(x + 0.15, 4, 9));
+      farDiff += Math.abs(valueNoise(x, 4, 9) - valueNoise(x + 9, 4, 9));
+    }
+    expect(nearDiff / N).toBeLessThan(farDiff / N);
+  });
+
+  test("rockField is coherent ACROSS tile boundaries (the fix)", () => {
+    // A tile is CAVE_TILE_PX/2 = 12 blocks wide. The old code reseeded rng
+    // per tile, so the last block of tile N and the first of tile N+1 were
+    // independent die rolls. The new field is sampled at GLOBAL block coords
+    // with one seed, so the seam pair is no coarser than any other adjacent
+    // pair — the rock body continues across the boundary.
+    const seed = 0x5eed;
+    const tiles = 6;
+    let seamDiff = 0; // adjacent pair straddling the tile seam
+    let innerDiff = 0; // adjacent pair well inside a tile (control)
+    let farDiff = 0; // pair 12 blocks apart (one full tile)
+    for (let t = 1; t <= tiles; t++) {
+      const b = t * 12; // block column of the seam after tile t
+      seamDiff += Math.abs(rockField(b - 1, 5, seed) - rockField(b, 5, seed));
+      innerDiff += Math.abs(
+        rockField(b - 6, 5, seed) - rockField(b - 5, 5, seed),
+      );
+      farDiff += Math.abs(rockField(b - 12, 5, seed) - rockField(b, 5, seed));
+    }
+    const s = seamDiff / tiles;
+    const i = innerDiff / tiles;
+    const f = farDiff / tiles;
+    expect(s).toBeGreaterThanOrEqual(0);
+    // The seam behaves like any other adjacent pair (within one step of the
+    // inner control) — no per-tile discontinuity.
+    expect(s).toBeLessThan(i + 0.05);
+    // …and the field does vary over a tile's span (not a constant plane).
+    expect(f).toBeGreaterThan(s);
+  });
+
+  test("rockField varies by (tier, strip) seed but not by tile index", () => {
+    // Same seed, different tile (blockX) → different texture, but a given
+    // (blockX, by, seed) is stable regardless of which tile it is "in".
+    expect(rockField(0, 0, 11)).toBe(rockField(0, 0, 11));
+    expect(rockField(0, 0, 11)).not.toBe(rockField(0, 0, 12));
+    expect(rockField(0, 0, 11)).toBeGreaterThanOrEqual(0);
+    expect(rockField(0, 0, 11)).toBeLessThan(1);
   });
 });
 
