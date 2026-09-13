@@ -347,47 +347,60 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     userSelect: "none",
   },
-  // First-run onboarding (plan §2.1): full-screen dimmed backdrop above
-  // everything (including toasts), centered card, top-right skip button.
-  onboardingBackdrop: {
+  // First-run tutorial (plan §2.1): NON-BLOCKING bottom tooltip. The root is
+  // a transparent full-screen layer (the component sets pointerEvents
+  // "box-none") so taps anywhere outside the card hit the live game; the
+  // card docks to the bottom edge (above the safe area, via an inline
+  // `bottom` on the card) and only the card itself is interactive.
+  onboardingRoot: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 16,
     zIndex: 100,
   },
   onboardingCard: {
-    backgroundColor: "#3a3a3a",
+    position: "absolute",
+    left: 12,
+    right: 12,
+    // bottom: set inline (safe-area inset + 8).
+    backgroundColor: "rgba(42, 42, 42, 0.96)",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#555",
+    alignItems: "stretch",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  onboardingHeader: {
+    flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    width: "100%",
-    maxWidth: 360,
+    gap: 8,
   },
   onboardingIcon: {
-    fontSize: 40,
+    fontSize: 20,
     userSelect: "none",
   },
   onboardingTitle: {
     ...onboardingText,
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: "bold",
+    flex: 1,
   },
   onboardingBody: {
     ...onboardingText,
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: "center",
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "left",
     opacity: 0.9,
+  },
+  onboardingFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
   },
   onboardingDots: {
     flexDirection: "row",
@@ -403,29 +416,26 @@ export const styles = StyleSheet.create({
     backgroundColor: "#ffaa44",
   },
   onboardingSkip: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    // 44×44 tap target: 16px text + 12px vertical / 14px horizontal pad.
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    // 44px-tall target: 13px text + 15px vertical pad.
+    paddingVertical: 15,
+    paddingHorizontal: 10,
     borderRadius: 8,
   },
   onboardingSkipText: {
     ...onboardingText,
-    fontSize: 16,
+    fontSize: 13,
     opacity: 0.7,
   },
   onboardingNext: {
     backgroundColor: "#ffaa44",
     borderRadius: 8,
-    // 44px-tall target: 16px text + 12px vertical padding either side.
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    // 40px-tall target: 14px text + 13px vertical padding either side.
+    paddingVertical: 13,
+    paddingHorizontal: 18,
   },
   onboardingNextText: {
     color: "#1f1f1f",
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "bold",
     userSelect: "none",
   },

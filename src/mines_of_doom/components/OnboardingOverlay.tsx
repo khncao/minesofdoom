@@ -15,23 +15,29 @@ import { type TranslationKey } from "src/utils/i18n/i18n";
 import { styles } from "../styles";
 
 /**
- * First-run onboarding (plan §2.1): a 4-step overlay — the three loop
- * tips (equations, combos, miners) plus a first-time SETUP step (todo:
- * "allow first time setup of operators and other key settings") where the
- * player picks the equation types, the symbol display, and the answer
- * input style BEFORE the first dig. Dismissible at any point via "Skip";
- * dismissal is persisted in AsyncStorage by the parent (`useLocalStorage`),
- * so it never comes back.
+ * First-run tutorial (plan §2.1): a NON-BLOCKING bottom tooltip — a compact
+ * card docked to the bottom edge, no dimmed backdrop, the root is
+ * `pointerEvents="box-none"` so every tap that misses the card lands on the
+ * live game. The player can dig, buy and type answers while the tips are up;
+ * the tooltip just sits there until Next/Skip.
  *
- * Deliberately static (no animations) so it works with reduce-motion and
- * needs no timers; the game behind it simply pauses under the backdrop.
+ * The flow is still 4 steps: the three loop tips (equations, combos, miners)
+ * plus a first-time SETUP step (todo: "allow first time setup of operators and
+ * other key settings") where the player picks the equation types, the symbol
+ * display, and the answer input style. The setup step reuses the settings
+ * panel's i18n keys (settings.opName.* names, the symbol-display label, the
+ * keypad label) and persists each change straight into the live settings
+ * (useSettings writes to AsyncStorage), so a setup choice sticks even if the
+ * player never opens the menu again.
  *
- * The setup step reuses the settings panel's i18n keys (settings.opName.*
- * names, the symbol-display label, the keypad label) so the choices made
- * here are recognizable later in the menu. Changes flow straight into the
- * live settings state AND persist per change (useSettings writes each
- * change to AsyncStorage), so a setup choice sticks even if the player
- * never opens the menu again.
+ * Dismissal (final "Start" or Skip) is persisted by the parent
+ * (`useLocalStorage`), so it never comes back. Deliberately static (no
+ * animations) so it works with reduce-motion and needs no timers.
+ *
+ * The setup step's controls are a plain stack of whole-row Pressables (no
+ * ScrollView): Yoga-sized rows in a content-sized card hit-test reliably on
+ * Android, while an inner ScrollView mis-measured (collapsed) under the
+ * card's height constraints (see the old full-screen card's notes).
  */
 const TIP_KEYS = [
   { icon: "🧮", titleKey: "onboarding.1.title", bodyKey: "onboarding.1.body" },
@@ -98,12 +104,12 @@ const OnboardingOverlay = memo(function OnboardingOverlay({
   useEffect(() => {
     onStep?.(step);
   }, [step, onStep]);
-  // API 35 enforces edge-to-edge, so the overlay draws under the status bar;
-  // keep the Skip button clear of it (it was un-tappable on tall-status-bar
-  // devices with the old hardcoded top: 12).
+  // API 35 enforces edge-to-edge: dock the card above the gesture/nav
+  // area, and keep the whole thing clear of the safe area.
   const insets = useSafeAreaInsets();
   const isLast = step === TOTAL_STEPS - 1;
   const current = TIP_KEYS[step] ?? null;
+  const isSetup = !current;
 
   const dots = (
     <View style={styles.onboardingDots}>
@@ -140,48 +146,59 @@ const OnboardingOverlay = memo(function OnboardingOverlay({
       </Text>
     </Pressable>
   );
+  const skipButton = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t("onboarding.a11ySkip")}
+      testID="onboarding-skip"
+      onPress={() => onDismiss(false)}
+      // 44px-tall tap target: 13px text + 15px vertical pad.
+      style={styles.onboardingSkip}
+      hitSlop={6}
+    >
+      <Text style={styles.onboardingSkipText}>{t("onboarding.skip")}</Text>
+    </Pressable>
+  );
 
   return (
-    <View style={styles.onboardingBackdrop} testID="onboarding-overlay">
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t("onboarding.a11ySkip")}
-        testID="onboarding-skip"
-        onPress={() => onDismiss(false)}
-        // 44×44 tap target: 16px text + 12px vertical / 14px horizontal pad.
-        style={[styles.onboardingSkip, { top: Math.max(12, insets.top + 8) }]}
+    // box-none: the transparent full-screen root never eats a tap — only the
+    // card itself is interactive, the game stays fully playable underneath.
+    <View
+      style={styles.onboardingRoot}
+      pointerEvents="box-none"
+      testID="onboarding-overlay"
+    >
+      <View
+        style={[styles.onboardingCard, { bottom: insets.bottom + 8 }]}
+        testID={isSetup ? "onboarding-setup" : undefined}
       >
-        <Text style={styles.onboardingSkipText}>{t("onboarding.skip")}</Text>
-      </Pressable>
-      {current ? (
-        <View style={styles.onboardingCard}>
-          <Text style={styles.onboardingIcon}>{current.icon}</Text>
-          <Text style={styles.onboardingTitle}>{t(current.titleKey)}</Text>
-          <Text style={styles.onboardingBody}>{t(current.bodyKey)}</Text>
-          {dots}
-          {nextButton}
+        <View style={styles.onboardingHeader}>
+          <Text style={styles.onboardingIcon}>
+            {current ? current.icon : "⚙️"}
+          </Text>
+          <Text style={styles.onboardingTitle}>
+            {current
+              ? t(current.titleKey)
+              : t("onboarding.4.title")}
+          </Text>
+          {skipButton}
         </View>
-      ) : (
-        // SETUP STEP — the controls are tall (8 rows) and sit plain in a
-        // content-sized card (no ScrollView): Yoga-sized rows in a
-        // content-sized card hit-test reliably on Android, while an inner
-        // ScrollView mis-measured (collapsed) under the card's height
-        // constraints and a full-card ScrollView had a dead hit-test zone
-        // across its bottom on Android (the Start tap landed on the
-        // backdrop instead of the button).
-        <View style={styles.onboardingCard} testID="onboarding-setup">
-          <Text style={styles.onboardingTitle}>{t("onboarding.4.title")}</Text>
-          <Text style={styles.onboardingBody}>{t("onboarding.4.body")}</Text>
+        <Text style={styles.onboardingBody}>
+          {current ? t(current.bodyKey) : t("onboarding.4.body")}
+        </Text>
+        {isSetup && (
           <SetupControls
             equationSettings={equationSettings}
             onEquationSettingsChange={onEquationSettingsChange}
             onScreenKeypad={onScreenKeypad}
             onKeypadChange={onKeypadChange}
           />
+        )}
+        <View style={styles.onboardingFooter}>
           {dots}
           {nextButton}
         </View>
-      )}
+      </View>
     </View>
   );
 });

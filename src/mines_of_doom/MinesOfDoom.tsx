@@ -1978,11 +1978,11 @@ export default function MinesOfDoom() {
               onSubmit={handleSubmitActivity}
               shakeAnim={shakeAnim}
               useKeypad={onScreenKeypad}
-              // While the onboarding overlay is up the input must not raise the
-              // OS keyboard (it would swallow the setup Start button — see the
-              // focusable prop doc in AnswerInput). The value is irrelevant
-              // during the initial load (the game view isn't mounted yet).
-              focusable={onboardingLoading || onboardingDone === true}
+              // The tutorial is a non-blocking tooltip, so the input stays
+              // focusable under it (the player can answer while the tips are
+              // up). The value is irrelevant during the initial load (the
+              // game view isn't mounted yet).
+              focusable={!onboardingLoading}
             />
             <ComboIndicator
               combo={combo}
