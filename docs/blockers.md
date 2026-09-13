@@ -4,6 +4,80 @@ Work that cannot proceed in this repo without a decision or an external
 action. The `docs/todo.md` in-repo queue is now empty (2026-09-08), so the
 sections below are standalone — when one unblocks, delete its section.
 
+## Web sign-in 400 `origin_mismatch` + orphaned API base (2026-09-13)
+
+**Symptom:** web Google sign-in fails with `Error 400: origin_mismatch` (GSI,
+`GeneralOAuthFlow`), and — once GSI can mint a token at all — the
+round-trip POST to `/api/app/auth/google` dies on a failed CORS preflight.
+
+**Root cause (verified live 2026-09-13):** `minesofdoom.minus4kelvin.com`
+is now a **Cloudflare Pages custom domain** (DNS → CF anycast, the game
+SPA at `/`) — attached for the Play-listing account-deletion page
+(`public/account-deletion.html`). That **shadows the servarica VPS Caddy
+host that used to front Pocketbase at the same hostname**: `OPTIONS
+/api/app/auth/*` → 405 (SPA fallback, no preflight), `GET` → 200 **HTML**.
+So the game works on both origins
+(`minesofdoom.pages.dev` + `minesofdoom.minus4kelvin.com`) but the
+backend is unreachable from every client that points at
+`storeConfig.pocketbaseUrl` — which is still the old hostname (web **and
+native** cloud login / leaderboard / IAP verify are all dead until this is
+resolved). `pb_hooks` + sidecar are presumed still running on the VPS,
+just no longer addressed by the hostname.
+
+**Two external fixes needed (decision: which hostname does the API get):**
+1. **Google Cloud Console** (fixes the 400, independent of #2):
+   Credentials → the **Web application** client
+   `94426274846-7vsqc2habc84b0upion6clsdnl5cqj1f…` →
+   **Authorized JavaScript origins**: add `https://minesofdoom.pages.dev`,
+   `https://minesofdoom.minus4kelvin.com`, `http://localhost:8081`
+   (no redirect URIs needed — the GSI ID client uses no redirect).
+   Verify with `node scripts/gsiOriginProbe.mjs <origin>` (default:
+   the minus4kelvin.com origin; pre-fix verdict on it: NOT AUTHORIZED,
+   FedCM `NetworkError`, no popup). Note the old probe target was
+   pages.dev-only; the script now takes the origin as argv[1].
+2. **API hostname** (fixes the CORS/preflight death, the deeper break):
+   - Option A (recommended, least churn): give Pocketbase its own
+     hostname — CF DNS `pb.minesofdoom.minus4kelvin.com` → VPS IP (or
+     proxied) + Caddy host on the VPS fronting Pocketbase — then flip
+     `storeConfig.pocketbaseUrl` to it. PB already answers
+     `access-control-allow-origin: *`, so CORS from both game origins is
+     fine as-is. Update `pb_hooks/README.md` deployment notes + the
+     pinned-URL tests when it lands.
+   - Option B: drop the Pages custom domain and have the VPS Caddy serve
+     BOTH the exported `dist/` (static + SPA fallback) and PB at `/api`
+     — single origin again, `storeConfig` unchanged, but the Pages
+     custom-domain setup (the clean account-deletion URL) is lost.
+
+**In-repo state:** `scripts/gsiOriginProbe.mjs` retargeted to the
+production origin (argv-overridable) + the NOT-AUTHORIZED verdict now
+prints the console fix. No client code changes needed for either option —
+the 400 and the preflight are pure origin/config issues.
+
+**Verify when done:** probe exits 0 (popup reaches
+accounts.google.com) on the origin(s) the game runs from, and
+`curl -X OPTIONS <pb>/api/app/auth/me` with `Origin:
+https://minesofdoom.pages.dev` → 2xx + `access-control-allow-*` (and
+`/api/health` returns Pocketbase JSON, not the game HTML). Then a manual
+web sign-in round-trip (or `E2E_LIVE_GSI=1 npx playwright test
+signin`), since the hermetic stub can't see either of these failures.
+
+**RESOLVED (API/origin half) 2026-09-17** — the user removed the Cloudflare
+Pages custom-domain CNAME on `minesofdoom` and added an A record pointing
+at the servarica VPS, restoring the Caddy→Pocketbase front. The whole
+exported web build now ships from Pocketbase's `pb_public/` static dir
+(sibling of `pb_data`, mounted `./pb_public:/pb/pb_public` in the VPS
+compose) — single origin: `/` serves the game SPA, `/api/*` the API,
+`/privacy-policy.html` etc. the legal pages (verified live: SPA 200,
+`/api/health` JSON, `OPTIONS` preflight 204, legal pages 200). In-repo:
+`PROD_WEB_DOMAIN` → `minesofdoom.minus4kelvin.com` (environment.ts),
+`+html.tsx` canonical/OG → the new origin, robots/sitemap retargeted,
+pb_hooks README "Static pages" section documents the deploy. **Deploy
+implication:** `pnpm run deploy` (CF Pages) no longer controls the
+production origin — after `expo export -p web`, push `dist/` into the
+VPS `pb_public/`. **STILL OPEN:** item #1 (Google Cloud Console — add
+the origins to the GSI client's Authorized JavaScript origins; the
+`origin_mismatch` 400 persists until that console change lands).
+
 ## IAP (on-device purchase leg) — `todo.md` "IAP — on-device purchase leg (license tester)"
 
 **Remaining external items:** (1) the iOS `APPLE_*` App Store Connect

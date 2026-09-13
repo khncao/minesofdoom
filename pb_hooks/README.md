@@ -363,3 +363,22 @@ ALSO the `aud` for Apple identity — one value, two verifiers.
 Ops: one volume (`/pb_data`) is the whole state — nightly copy is the
 backup; the dataset is rows-per-device, i.e. tiny. The superuser credentials
 printed on first boot are for the admin UI only; the app never uses them.
+
+## Static pages (`pb_public`)
+
+Pocketbase serves the ops/legal static pages from `pb_public/` — a
+sibling of `pb_data` at the app ROOT (not inside `pb_data`): the VPS
+compose mounts `./pb_public:/pb/pb_public`, and Caddy fronts everything
+else on `minesofdoom.minus4kelvin.com` to Pocketbase, so
+`/privacy-policy.html`, `/terms-of-use.html`, `/account-deletion.html`,
+`robots.txt`, `sitemap.xml`, `ads.txt` and `og-image.png` all resolve
+on the production domain. In fact the WHOLE exported web build lives
+there: after `npx expo export -p web`, push `dist/` into the VPS
+`pb_public/` (Pocketbase reads it per request — no restart, and the
+SPA/API split works because PB routes `/api/*` to the API first and
+serves `index.html` as the fallback for the game at `/`). So the VPS
+`pb_public/` dir is the production web deploy target — `pnpm run deploy`
+(CF Pages) no longer controls the production origin. The repo's
+`public/` dir is the source of truth for the small static files (the
+three legal pages are GENERATED from `src/mines_of_doom/legal.ts` —
+edit there, run the tests to regenerate, re-export, push dist).

@@ -4,8 +4,9 @@
  * sign-in (GSI) fails on the deployed web build").
  *
  * The blocker's open question is whether the Web-application OAuth
- * client's Authorized JavaScript origins include
- * `https://minesofdoom.pages.dev`. GSI's token-client flow
+ * client's Authorized JavaScript origins include the origin the web
+ * build is served from (production:
+ * `https://minesofdoom.minus4kelvin.com`). GSI's token-client flow
  * (`mintGoogleIdTokenWeb`) is origin-gated by Google BEFORE any token
  * is minted: an authorized origin gets a popup to accounts.google.com;
  * an unauthorized one gets an error callback and the app's single
@@ -17,11 +18,13 @@
  * authorization) it is closed and the browser exits. No account
  * credentials are ever entered.
  *
- * Usage:  node scripts/gsiOriginProbe.mjs
+ * Usage:  node scripts/gsiOriginProbe.mjs [origin]
+ *          (origin defaults to the production domain; pass e.g.
+ *           http://localhost:8081 to probe the dev server)
  * Exit 0 = origin authorized, exit 1 = not authorized (inline error,
  * no popup), exit 2 = inconclusive (UI not reached, timeout, ...).
  */
-const WEB_BASE = "https://minesofdoom.pages.dev";
+const WEB_BASE = process.argv[2] ?? "https://minesofdoom.minus4kelvin.com";
 
 let playwright;
 try {
@@ -142,13 +145,13 @@ const v = results[0].verdict;
 console.log("");
 if (v.authorized) {
   console.log(
-    "VERDICT: AUTHORIZED — https://minesofdoom.pages.dev is in the OAuth client's Authorized JavaScript origins.",
+    `VERDICT: AUTHORIZED — ${WEB_BASE} is in the OAuth client's Authorized JavaScript origins.`,
   );
   console.log(`  (popup: ${v.popupUrl})`);
   process.exit(0);
 } else if (v.reason.startsWith("no popup")) {
   console.log(
-    "VERDICT: NOT AUTHORIZED — GSI produced no popup; the origin is still missing from the OAuth client's Authorized JavaScript origins.",
+    `VERDICT: NOT AUTHORIZED — GSI produced no popup; ${WEB_BASE} is still missing from the OAuth client's Authorized JavaScript origins. Add it in Google Cloud Console → APIs & Services → Credentials → the Web application client → Authorized JavaScript origins.`,
   );
   console.log(`  ${v.reason}`);
   if (results[0].consoleErrors.length) {

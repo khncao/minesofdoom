@@ -38,7 +38,7 @@ export default function Html({ children }: { children: React.ReactNode }) {
                     static export root (app-icons/icon.png — kept out of public/ for
                     the build, like the favicon source). Single-route static app, so
                     the head is shared by every exported page. */}
-                <link rel="canonical" href="https://minesofdoom.pages.dev/" />
+                <link rel="canonical" href="https://minesofdoom.minus4kelvin.com/" />
                 <meta property="og:type" content="website" />
                 <meta property="og:site_name" content="Mines of Idle Doomath" />
                 <meta property="og:title" content="Mines of Idle Doomath" />
@@ -48,11 +48,11 @@ export default function Html({ children }: { children: React.ReactNode }) {
                 />
                 <meta
                     property="og:url"
-                    content="https://minesofdoom.pages.dev/"
+                    content="https://minesofdoom.minus4kelvin.com/"
                 />
                 <meta
                     property="og:image"
-                    content="https://minesofdoom.pages.dev/og-image.png"
+                    content="https://minesofdoom.minus4kelvin.com/og-image.png"
                 />
                 <meta name="twitter:card" content="summary" />
                 <meta name="twitter:title" content="Mines of Idle Doomath" />
@@ -62,7 +62,7 @@ export default function Html({ children }: { children: React.ReactNode }) {
                 />
                 <meta
                     name="twitter:image"
-                    content="https://minesofdoom.pages.dev/og-image.png"
+                    content="https://minesofdoom.minus4kelvin.com/og-image.png"
                 />
                 {/* Minimal JSON-LD so search engines know what the site is (free
                     web game) — no og-image dependency, one small block. */}
@@ -72,7 +72,7 @@ export default function Html({ children }: { children: React.ReactNode }) {
                             "@context": "https://schema.org",
                             "@type": "WebApplication",
                             "name": "Mines of Idle Doomath",
-                            "url": "https://minesofdoom.pages.dev/",
+                            "url": "https://minesofdoom.minus4kelvin.com/",
                             "description": "An idle math-mining game. Solve equations, earn minerals, buy miners, sink new shafts.",
                             "applicationCategory": "GameApplication",
                             "operatingSystem": "Web, Android, iOS",

@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://minesofdoom.pages.dev/</loc>
+    <loc>https://minesofdoom.minus4kelvin.com/</loc>
   </url>
   <url>
-    <loc>https://minesofdoom.pages.dev/privacy-policy.html</loc>
+    <loc>https://minesofdoom.minus4kelvin.com/privacy-policy.html</loc>
   </url>
   <url>
-    <loc>https://minesofdoom.pages.dev/terms-of-use.html</loc>
+    <loc>https://minesofdoom.minus4kelvin.com/terms-of-use.html</loc>
+  </url>
+  <url>
+    <loc>https://minesofdoom.minus4kelvin.com/account-deletion.html</loc>
   </url>
 </urlset>
