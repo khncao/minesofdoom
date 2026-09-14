@@ -187,6 +187,32 @@ describe("buildCaveRow", () => {
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 
+  test("rock body is continuous across row strips (no per-row banding)", () => {
+    // The shade field is sampled at GLOBAL pixel y with a per-tier seed,
+    // so the bottom of row r and the top of row r+1 continue the same rock
+    // body. (The old per-row seed + per-row bottom fade reset every 24px
+    // and read as a repeating dark stripe at every row boundary.) For rock
+    // pixels on BOTH sides of the boundary, most must share a shade.
+    for (const tier of [0, 2]) {
+      let both = 0;
+      let same = 0;
+      for (let row = 0; row < 8; row++) {
+        const a = buildCaveRow(tier, row, "#8fa8b8");
+        const b = buildCaveRow(tier, row + 1, "#8fa8b8");
+        for (let x = 0; x < a[0].length; x++) {
+          const pa = a[CAVE_TILE_PX - 1][x];
+          const pb = b[0][x];
+          if (pa != null && pb != null) {
+            both++;
+            if (pa === pb) same++;
+          }
+        }
+      }
+      expect(both).toBeGreaterThan(400);
+      expect(same / both).toBeGreaterThan(0.6);
+    }
+  });
+
   test("gap layout keeps rock density near target (coherent, not a die roll)", () => {
     // A full rock tile is (nearly) all opaque; an empty tile is null except
     // the thin path-edge stripes on the shaft-flanking tiles. A tile with
@@ -557,14 +583,27 @@ describe("caveRowUri", () => {
     expect(caveRowUri({ depth: 12, tint: "#8fa8b8" })).toBe(uri);
   });
 
-  test("varies with depth cycle position and tint, repeats within a tier", () => {
-    const d0 = caveRowUri({ depth: 12, tint: "#8fa8b8" });
-    // 12 and 16 share the strip cycle position (both % 4 === 0).
-    expect(caveRowUri({ depth: 16, tint: "#8fa8b8" })).toBe(d0);
-    // Next cycle position (different strip) differs.
-    expect(caveRowUri({ depth: 13, tint: "#8fa8b8" })).not.toBe(d0);
+  test("rows are absolute — no repeating texture cycle", () => {
+    const d12 = caveRowUri({ depth: 12, tint: "#8fa8b8" });
+    // Depths within the same 4 m row share one (absolute, unique-per-row)
+    // texture — the strip slides within it; the old design's 4-row texture
+    // CYCLE is gone, so rows one apart differ.
+    expect(caveRowUri({ depth: 13, tint: "#8fa8b8" })).toBe(d12);
+    expect(caveRowUri({ depth: 15, tint: "#8fa8b8" })).toBe(d12);
+    expect(caveRowUri({ depth: 16, tint: "#8fa8b8" })).not.toBe(d12);
+    expect(caveRowUri({ depth: 17, tint: "#8fa8b8" })).not.toBe(d12);
+    expect(caveRowUri({ depth: 20, tint: "#8fa8b8" })).not.toBe(d12);
     // A different theme tint bakes different colors in.
-    expect(caveRowUri({ depth: 12, tint: "#c8a8e0" })).not.toBe(d0);
+    expect(caveRowUri({ depth: 12, tint: "#c8a8e0" })).not.toBe(d12);
+  });
+
+  test("rolling cache evicts old rows but re-encodes them identically", () => {
+    const shallow = caveRowUri({ depth: 5, tint: "#8fa8b8" });
+    // Descend far enough that the shallow row is outside the rolling span
+    // (ROW_CACHE_SPAN = 96 rows = 384 m): the insert evicts it…
+    caveRowUri({ depth: 500, tint: "#8fa8b8" });
+    // …and a re-fetch re-encodes the SAME pixels from the same seed.
+    expect(caveRowUri({ depth: 5, tint: "#8fa8b8" })).toBe(shallow);
   });
 
   test("clearCaveTileCache re-encodes from the same source", () => {
