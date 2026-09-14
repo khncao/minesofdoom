@@ -117,6 +117,12 @@ async function stripe(apiKey, method, urlPath, params = {}) {
     method,
     headers: {
       Authorization: "Bearer " + apiKey,
+      // connection: close — drop the keep-alive socket after each call. On
+      // Windows, a live keep-alive socket still in the undici pool at
+      // process.exit() trips a libuv teardown assertion (win/async.c
+      // UV_HANDLE_CLOSING) and the child dies with 0xC0000409 instead of
+      // its real exit code (broke syncStripeVerify.test.ts on node 24).
+      connection: "close",
       ...(method !== "GET"
         ? { "Content-Type": "application/x-www-form-urlencoded" }
         : {}),
