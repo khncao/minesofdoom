@@ -52,8 +52,14 @@ export const CAVE_STRIPS_PER_TIER = 4;
 
 /** Crystal density per tier — deeper bands glitter more. */
 const GEM_CHANCE = [0.05, 0.08, 0.12, 0.1, 0.16];
-/** Share of tiles that are solid rock (the rest are empty gaps). */
-const ROCK_CHANCE = 0.62;
+/**
+ * Share of tiles that are solid rock (the rest are empty gaps). The
+ * layout itself is a coherent value-noise field thresholded at GAP_LEVEL;
+ * ROCK_CHANCE is the target density that GAP_LEVEL is calibrated to.
+ */
+export const ROCK_CHANCE = 0.62;
+/** Calibrated threshold of the gap field that yields ~ROCK_CHANCE rock. */
+export const GAP_LEVEL = 0.45;
 /**
  * Ore fleck density per tier — deeper mines carry more visible veins. The
  * flecks ride on rock only, so a gap tile never shows floating ore.
@@ -184,45 +190,52 @@ export function valueNoise(x: number, y: number, seed: number): number {
 }
 
 /**
- * Two-octave fBm of value noise at 2×2-BLOCK coords (a tile is 12×12
- * blocks; an octave-1 lattice spans ~3 blocks ≈ 6px). Coherent across
- * tiles: the same (tier, strip) seed + global block x/y → the same value,
- * so widening the strip (adaptive width) never reshuffles the rock.
+ * Three-octave fBm of value noise, sampled at PIXEL coords. Coherent
+ * across tiles: the same (tier, strip) seed + global pixel x/y → the same
+ * value, so widening the strip (adaptive width) never reshuffles the rock.
  * Exported for tests.
  */
-export function rockField(bx: number, by: number, seed: number): number {
+export function rockField(px: number, py: number, seed: number): number {
   return (
-    valueNoise(bx / 3, by / 3, seed) * 0.65 +
-    valueNoise(bx / 1.5, by / 1.5, seed + 101) * 0.35
+    valueNoise(px / 7, py / 7, seed) * 0.55 +
+    valueNoise(px / 3.2, py / 3.2, seed + 101) * 0.3 +
+    valueNoise(px / 1.6, py / 1.6, seed + 202) * 0.15
   );
 }
 
 /**
- * One 24×24 rock tile: coherent 2×2-block shade noise (from the shared
+ * Quantized shade index (0 dark, 1 base, 2 light) of the rock field at a
+ * single PIXEL. A per-pixel dither is added before quantization so the
+ * three shade bands' borders wander pixel by pixel instead of marching in
+ * hard lattice-aligned steps (the old per-2×2-block sampling + hard
+ * thresholds read as a visible block pattern even though the field itself
+ * was coherent).
+ */
+export function rockShadeIndex(px: number, py: number, seed: number): number {
+  const dither = (hash2i(px, py, (seed ^ 0x5e57) | 0) - 0.5) * 0.1;
+  const r = rockField(px, py, seed) + dither;
+  return r < 0.34 ? 0 : r < 0.74 ? 1 : 2;
+}
+
+/**
+ * One 24×24 rock tile: per-pixel coherent shade noise (from the shared
  * strip field, so neighbouring tiles continue the same rock body) with a
- * slight bottom falloff. `blockX0` is the tile's global block column
- * (x0 / 2); the shade is `rockField(blockX0 + bx, by, seed)`, so the field
- * is continuous across tile boundaries.
+ * slight bottom falloff. `x0` is the tile's global pixel column; the shade
+ * is `rockShadeIndex(x0 + px, py, seed)`, so the field is continuous across
+ * tile boundaries.
  */
 function drawRockTile(
   grid: PixelGrid,
   x0: number,
-  blockX0: number,
   seed: number,
   shades: [string, string, string],
 ): void {
-  const [light, base, dark] = shades;
-  const blocks = CAVE_TILE_PX / 2;
-  for (let by = 0; by < blocks; by++) {
-    for (let bx = 0; bx < blocks; bx++) {
-      const r = rockField(blockX0 + bx, by, seed);
-      const shade = r < 0.32 ? dark : r < 0.78 ? base : light;
-      // Slight vertical falloff so strips read as strata, not static.
-      const color = mixHex(shade, "#000000", ((by * 2) / CAVE_TILE_PX) * 0.35);
-      setPixel(grid, x0 + bx * 2, by * 2, color);
-      setPixel(grid, x0 + bx * 2 + 1, by * 2, color);
-      setPixel(grid, x0 + bx * 2, by * 2 + 1, color);
-      setPixel(grid, x0 + bx * 2 + 1, by * 2 + 1, color);
+  for (let py = 0; py < CAVE_TILE_PX; py++) {
+    // Slight vertical falloff so strips read as strata, not static.
+    const fade = (py / CAVE_TILE_PX) * 0.35;
+    for (let px = 0; px < CAVE_TILE_PX; px++) {
+      const shade = shades[rockShadeIndex(x0 + px, py, seed)];
+      setPixel(grid, x0 + px, py, mixHex(shade, "#000000", fade));
     }
   }
 }
@@ -477,12 +490,22 @@ export function buildCaveRow(
     const inPath = tile === pa || tile === pb;
     if (!inPath) {
       const seed = hashSeed(t * 7919 + strip * 104729, 0x5eed + tile * 131);
-      if (mulberry32(seed)() < ROCK_CHANCE) {
+      // Rock/gap layout: a coherent low-frequency field, NOT an independent
+      // per-tile die roll — the old roll made the empty 24px tiles scatter
+      // checkerboard-style over the strip. Rows of one strip sit at
+      // adjacent field y's, so the gap clusters stretch but shift row to
+      // row instead of repeating in columns.
+      const gap = valueNoise(
+        tile / 2.5,
+        (t * 40 + strip) / 1.4,
+        hashSeed(t * 7919 + strip * 104729, 0x5eed + 61),
+      );
+      if (gap > GAP_LEVEL) {
         // Coherent rock: the shade field is seeded per (tier, strip) and
-        // sampled at GLOBAL block coords, so adjacent tiles (and the
+        // sampled at GLOBAL pixel coords, so adjacent tiles (and the
         // adaptive-width widening) continue the same rock body instead of
         // each tile being an independent die roll.
-        drawRockTile(grid, x0, x0 / 2, hashSeed(t * 7919 + strip * 104729, 0x5eed), shades);
+        drawRockTile(grid, x0, hashSeed(t * 7919 + strip * 104729, 0x5eed), shades);
         // Ore veins ride on rock only — a gap tile never shows floating ore.
         if (mulberry32(hashSeed(seed, 4))() < ORE_CHANCE[t]) {
           const color =
@@ -559,7 +582,7 @@ export function buildCaveWall(
   const w = Math.max(CAVE_TILE_PX, Math.round(widthPx));
   const h = CAVE_WALL_TILE_H;
   const grid = createGrid(w, h);
-  const [light, base, dark] = rockShades(tint);
+  const shades = rockShades(tint);
   const edge = pathEdgeColor(tint);
   const gem = gemColor(tint);
   const rng = mulberry32(
@@ -568,15 +591,10 @@ export function buildCaveWall(
   // Base rock: the SAME coherent value-noise field as the tile rows (seeded
   // per side), so the wall reads as one rock body with the cave behind it.
   const wallSeed = hashSeed(w * 7919 + (side === "left" ? 31 : 97), 0x5eed + 1);
-  for (let by = 0; by < h / 2; by++) {
-    for (let bx = 0; bx < w / 2; bx++) {
-      const r = rockField(bx, by, wallSeed);
-      const shade = r < 0.32 ? dark : r < 0.78 ? base : light;
-      const color = mixHex(shade, "#000000", ((by * 2) / h) * 0.3);
-      setPixel(grid, bx * 2, by * 2, color);
-      setPixel(grid, bx * 2 + 1, by * 2, color);
-      setPixel(grid, bx * 2, by * 2 + 1, color);
-      setPixel(grid, bx * 2 + 1, by * 2 + 1, color);
+  for (let py = 0; py < h; py++) {
+    for (let px = 0; px < w; px++) {
+      const shade = shades[rockShadeIndex(px, py, wallSeed)];
+      setPixel(grid, px, py, mixHex(shade, "#000000", (py / h) * 0.3));
     }
   }
   // A few ore flecks anywhere (the cut below may clip some — that reads

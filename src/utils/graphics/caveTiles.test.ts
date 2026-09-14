@@ -25,6 +25,7 @@ import {
   pathEdgeColor,
   rockField,
   rockShades,
+  ROCK_CHANCE,
   valueNoise,
 } from "./caveTiles";
 import type { PixelGrid } from "./caveTiles";
@@ -147,6 +148,34 @@ describe("coherent rock field (value-noise background blocks)", () => {
     expect(rockField(0, 0, 11)).toBeGreaterThanOrEqual(0);
     expect(rockField(0, 0, 11)).toBeLessThan(1);
   });
+
+  test("rock shades are not quantized on a 2x2 block lattice (no block pattern)", () => {
+    // Regression: the old drawRockTile sampled the field ONCE per 2×2 pixel
+    // block, so every 2×2 cell was a single color — a visible block grid
+    // (the "patterns in blocks" complaint). Per-pixel sampling + dithering
+    // leaves only a handful of uniform cells per tile by chance.
+    let uniform = 0;
+    let cells = 0;
+    for (let tier = 0; tier < 5; tier++) {
+      const grid = buildCaveRow(tier, tier % 4, "#7a6a8a");
+      for (let y = 0; y + 2 <= grid.length; y += 2) {
+        for (let x = 0; x + 2 <= grid[0].length; x += 2) {
+          const a = grid[y][x];
+          if (a == null) continue;
+          cells++;
+          if (
+            a === grid[y + 1][x] &&
+            a === grid[y][x + 1] &&
+            a === grid[y + 1][x + 1]
+          ) {
+            uniform++;
+          }
+        }
+      }
+    }
+    expect(cells).toBeGreaterThan(1000);
+    expect(uniform / cells).toBeLessThan(0.25);
+  });
 });
 
 describe("buildCaveRow", () => {
@@ -156,6 +185,41 @@ describe("buildCaveRow", () => {
     expect(a.length).toBe(24);
     expect(a[0].length).toBe(14 * 24); // CAVE_TILES_PER_ROW × CAVE_TILE_PX
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
+
+  test("gap layout keeps rock density near target (coherent, not a die roll)", () => {
+    // A full rock tile is (nearly) all opaque; an empty tile is null except
+    // the thin path-edge stripes on the shaft-flanking tiles. A tile with
+    // <50% opaque pixels is therefore a gap tile, and the rock share across
+    // all strips must stay near ROCK_CHANCE (0.62) — pins the GAP_LEVEL
+    // calibration so the cave neither fills in nor dissolves.
+    let rockTiles = 0;
+    let totalTiles = 0;
+    for (let tier = 0; tier < 5; tier++) {
+      for (let strip = 0; strip < 4; strip++) {
+        const grid = buildCaveRow(tier, strip, "#7a6a8a");
+        const count = grid[0].length / CAVE_TILE_PX;
+        const [pa, pb] = cavePathTiles(count);
+        for (let tile = 0; tile < count; tile++) {
+          if (tile === pa || tile === pb) continue;
+          totalTiles++;
+          let opaque = 0;
+          for (let y = 0; y < CAVE_TILE_PX; y++) {
+            for (
+              let x = tile * CAVE_TILE_PX;
+              x < (tile + 1) * CAVE_TILE_PX;
+              x++
+            ) {
+              if (grid[y][x] != null) opaque++;
+            }
+          }
+          if (opaque > 0.5 * CAVE_TILE_PX * CAVE_TILE_PX) rockTiles++;
+        }
+      }
+    }
+    expect(totalTiles).toBeGreaterThan(200);
+    expect(rockTiles / totalTiles).toBeGreaterThan(ROCK_CHANCE - 0.2);
+    expect(rockTiles / totalTiles).toBeLessThan(ROCK_CHANCE + 0.2);
   });
 
   test("tint and strip change the texture", () => {
