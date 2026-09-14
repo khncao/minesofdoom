@@ -64,6 +64,7 @@ function makeProvider(overrides: Partial<AuthProvider> = {}): AuthProvider {
     link: jest.fn(async () => ACCOUNT),
     setPassword: jest.fn(async () => ACCOUNT),
     linkProvider: jest.fn(async () => ACCOUNT),
+    deleteAccount: jest.fn(async () => true),
     ...overrides,
   };
 }
