@@ -311,6 +311,22 @@ of Pressable so rapid tapping doesn't double-render).
   mock-ad mode for live-domain validation). The
   AdMob SDK itself never enters the web bundle (`adProvider.web.ts` is
   the no-op swap).
+- **Web site content (AdSense approval)** — the game is a single
+  client-rendered route, so the exported HTML used to carry no readable
+  text at all, which is the AdSense "insufficient content" rejection. The
+  export now server-renders a real landing page below the game canvas:
+  intro, how-to-play, economy, prestige, free-to-play and platform
+  sections, an FAQ and a footer nav to every published page, all in the
+  HTML source (`src/mines_of_doom/siteContent.ts` → `app/+html.tsx`,
+  styled so the game keeps exactly one viewport and the copy is a normal
+  scrolling document). The published pages under `public/`
+  (about / how-to-play / faq + the generated legal pages) carry the same
+  site nav and cross-links, `public/sitemap.xml` lists every one of them,
+  and `__test__/siteContent.test.ts` pins the copy, the link targets and
+  the sitemap so a rename or a dead link fails the suite. The
+  content-page banner `<ins>` placeholder that had shipped in
+  `about.html` was removed — rewarded-only (guardrail 2) applies to the
+  whole site, and the Ad Placement API needs no slot.
 - **Guardrails enforced by design** — rewarded-only on both platforms,
   no interstitials/banners, cosmetics earnable, free-path CI floor
   (AGENTS.md; `freePath.ts`, `docs/security-audit.md`).

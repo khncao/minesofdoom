@@ -99,9 +99,12 @@ exists so nothing half-wired ships.
 ## Web — AdSense (todo: "Add adsense for web ads")
 
 External prerequisite: an approved AdSense account for the
-`minesofdoom.minus4kelvin.com` domain + the ad client id. Web-only
-surface (the native rewarded-only rule is untouched — display ads on
-the static web export, e.g. a single banner slot in the settings/menu
-sheet, never over the canvas). Implementation is a small `+html.tsx`
-snippet + one React component gated on the client id being set;
-blocked on the approved account.
+`minesofdoom.minus4kelvin.com` domain + the ad client id, approved for
+H5 Games Ads / the Ad Placement API (see docs/store-integration.md
+§1.1). The repo side is DONE: the loader tag + rewarded placements live
+in `app/+html.tsx` / `adSenseProvider.web.ts`, `public/ads.txt` names the
+publisher, and the site now ships real content for the approval review —
+the landing copy below the game (`src/mines_of_doom/siteContent.ts`),
+how-to-play / faq / about pages and full site navigation, all pinned by
+`__test__/siteContent.test.ts`. What remains is Google-side (account and
+site approval); until then the rewarded placements push but never fill.

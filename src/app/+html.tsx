@@ -4,6 +4,14 @@ import {
     storeConfig,
     isAdSenseConfigured,
 } from "src/mines_of_doom/storeConfig";
+import {
+    SITE_CONTACT_EMAIL,
+    SITE_NAV_LINKS,
+    WEB_CONTENT_SECTIONS,
+    WEB_FAQ,
+    WEB_LANDING_HEADING,
+    WEB_LANDING_INTRO,
+} from "src/mines_of_doom/siteContent";
 
 /**
  * Custom document template for the web export.
@@ -109,8 +117,140 @@ export default function Html({ children }: { children: React.ReactNode }) {
                     />
                 )}
                 <ScrollViewStyleReset />
+                {/* Landing/content layer (see src/mines_of_doom/siteContent.ts).
+                    The game is client-rendered, so the exported HTML used to
+                    contain no readable text — which is exactly the AdSense
+                    "insufficient content" rejection. The rules below let the
+                    document scroll to the server-rendered copy that
+                    <SiteInfo/> appends after the game: #root keeps owning
+                    exactly one viewport (100dvh) so play is unchanged, and the
+                    page below it is ordinary scrollable content. */}
+                <style>{`
+                    html { height: auto; }
+                    body {
+                        height: auto;
+                        min-height: 100vh;
+                        min-height: 100dvh;
+                        overflow-x: hidden;
+                        overflow-y: auto;
+                    }
+                    #root {
+                        height: 100vh;
+                        height: 100dvh;
+                        flex: none;
+                        /* The game is a fixed screen: clip it to its one
+                           viewport exactly as the old body{overflow:hidden}
+                           reset did, so it can never bleed into the copy. */
+                        overflow: hidden;
+                    }
+                    #site-info {
+                        background: #1c1c1c;
+                        color: #e8e8e8;
+                        padding: 2.5rem 1.25rem 3rem;
+                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                        font-size: 16px;
+                        line-height: 1.6;
+                        border-top: 1px solid #444;
+                    }
+                    #site-info main,
+                    #site-info footer { max-width: 760px; margin: 0 auto; }
+                    #site-info h1 { font-size: 1.7rem; line-height: 1.25; margin: 0 0 1rem; }
+                    #site-info h2 { font-size: 1.25rem; margin: 2rem 0 0.5rem; }
+                    #site-info h3 { font-size: 1.05rem; margin: 1.35rem 0 0.25rem; }
+                    #site-info p { margin: 0.55rem 0; }
+                    #site-info ul,
+                    #site-info ol { margin: 0.55rem 0; padding-left: 1.4rem; }
+                    #site-info li { margin: 0.3rem 0; }
+                    #site-info a { color: #8fc7ff; }
+                    #site-info footer {
+                        margin-top: 2.5rem;
+                        padding-top: 1.25rem;
+                        border-top: 1px solid #3a3a3a;
+                        font-size: 0.95rem;
+                        color: #b5b5b5;
+                    }
+                    #site-info nav {
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 0.5rem 1.1rem;
+                        margin-bottom: 0.6rem;
+                    }
+                `}</style>
             </head>
-            <body>{children}</body>
+            <body>
+                {children}
+                <SiteInfo />
+            </body>
         </html>
+    );
+}
+
+/**
+ * Server-rendered site content: the game page's readable copy and the site
+ * navigation, in the HTML source (not painted by JS), so crawlers and
+ * reviewers see a real page. Content lives in
+ * `src/mines_of_doom/siteContent.ts`; the nav links are pinned to the files
+ * that ship in `public/` by `__test__/siteContent.test.ts`.
+ *
+ * Plain DOM elements on purpose (this file is the document template, not a
+ * React Native screen), and local per-section keys are fine because nothing
+ * here re-renders.
+ */
+function SiteInfo() {
+    return (
+        <div id="site-info">
+            <main>
+                <h1>{WEB_LANDING_HEADING}</h1>
+                {WEB_LANDING_INTRO.map((paragraph) => (
+                    <p key={paragraph}>{paragraph}</p>
+                ))}
+                {WEB_CONTENT_SECTIONS.map((section) => (
+                    <section key={section.heading}>
+                        <h2>{section.heading}</h2>
+                        {section.paragraphs?.map((paragraph) => (
+                            <p key={paragraph}>{paragraph}</p>
+                        ))}
+                        {section.numbered && (
+                            <ol>
+                                {section.numbered.map((item) => (
+                                    <li key={item}>{item}</li>
+                                ))}
+                            </ol>
+                        )}
+                        {section.bullets && (
+                            <ul>
+                                {section.bullets.map((item) => (
+                                    <li key={item}>{item}</li>
+                                ))}
+                            </ul>
+                        )}
+                    </section>
+                ))}
+                <section>
+                    <h2>Frequently asked questions</h2>
+                    {WEB_FAQ.map((entry) => (
+                        <div key={entry.question}>
+                            <h3>{entry.question}</h3>
+                            <p>{entry.answer}</p>
+                        </div>
+                    ))}
+                </section>
+            </main>
+            <footer>
+                <nav aria-label="Site">
+                    {SITE_NAV_LINKS.map((link) => (
+                        <a key={link.href} href={link.href}>
+                            {link.label}
+                        </a>
+                    ))}
+                </nav>
+                <p>
+                    Mines of Idle Doomath ·{" "}
+                    <a href={`mailto:${SITE_CONTACT_EMAIL}`}>
+                        {SITE_CONTACT_EMAIL}
+                    </a>
+                </p>
+            </footer>
+        </div>
     );
 }

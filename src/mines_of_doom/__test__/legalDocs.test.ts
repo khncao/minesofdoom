@@ -47,12 +47,15 @@ function renderDoc(doc: LegalDoc): string {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeHtml(doc.title)} — Mines of Idle Doomath</title>
+    <link rel="canonical" href="https://minesofdoom.minus4kelvin.com/${FILE_BY_DOC[doc.id]}" />
     <style>
       body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
       h1 { font-size: 1.6rem; }
       .meta { color: #666; font-size: 0.9rem; }
       section { margin-bottom: 1.5rem; }
       a { color: #06c; }
+      footer { margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid #ddd; font-size: 0.9rem; color: #666; }
+      footer a { margin-right: 0.35rem; }
     </style>
   </head>
   <body>
@@ -60,6 +63,15 @@ function renderDoc(doc: LegalDoc): string {
     <p class="meta">Mines of Idle Doomath · Version ${escapeHtml(doc.version)} · Effective ${escapeHtml(doc.effectiveDate)}</p>
 ${sections}
     <p class="meta">Questions: <a href="mailto:${escapeHtml(LEGAL_CONTACT_EMAIL)}">${escapeHtml(LEGAL_CONTACT_EMAIL)}</a></p>
+    <footer>
+      <a href="/">Play the game</a> ·
+      <a href="/how-to-play.html">How to play</a> ·
+      <a href="/faq.html">FAQ</a> ·
+      <a href="/about.html">About</a> ·
+      <a href="/privacy-policy.html">Privacy Policy</a> ·
+      <a href="/terms-of-use.html">Terms of Use</a> ·
+      <a href="/account-deletion.html">Account Deletion</a>
+    </footer>
   </body>
 </html>
 `;
