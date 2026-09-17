@@ -84,6 +84,44 @@ test.describe("web build — boot & free path", () => {
       .toBeGreaterThanOrEqual(afterMine);
   });
 
+  test("serves real page content below the game (the AdSense content fix)", async ({
+    page,
+  }) => {
+    await bootApp(page);
+
+    // The landing copy is server-rendered into the exported HTML (not painted
+    // by JS), so it exists before hydration and carries real sentences.
+    const info = page.locator("#site-info");
+    await expect(info).toBeAttached();
+    await expect(info.getByRole("heading", { level: 1 })).toContainText(
+      "Mines of Idle Doomath",
+    );
+    expect(await info.locator("h2").count()).toBeGreaterThan(5);
+    expect(await info.locator("h3").count()).toBeGreaterThan(5);
+
+    // Every published content page is linked from the game page (visible
+    // site navigation, not a dead-end canvas).
+    for (const href of [
+      "/how-to-play.html",
+      "/faq.html",
+      "/about.html",
+      "/privacy-policy.html",
+      "/terms-of-use.html",
+      "/account-deletion.html",
+    ]) {
+      await expect(info.locator(`a[href="${href}"]`)).toHaveCount(1);
+    }
+
+    // The game owns exactly one viewport and the copy below it is reachable:
+    // the document scrolls (the reviewer's "sufficient content" bar).
+    const scrollable = await page.evaluate(
+      () =>
+        document.body.scrollHeight > window.innerHeight &&
+        getComputedStyle(document.body).overflowY !== "hidden",
+    );
+    expect(scrollable).toBe(true);
+  });
+
   test("boots with the sidecar and ad network unreachable (offline resilience)", async ({
     page,
   }) => {
