@@ -382,3 +382,22 @@ serves `index.html` as the fallback for the game at `/`). So the VPS
 `public/` dir is the source of truth for the small static files (the
 three legal pages are GENERATED from `src/mines_of_doom/legal.ts` —
 edit there, run the tests to regenerate, re-export, push dist).
+
+**Deploying (the VPS has no rsync binary, and a directory swap breaks the
+mount):** copy the build INTO the existing directory; never `mv`/replace
+`pb_public` yourself. The compose bind-mount resolves the host directory
+at container start, so replacing the directory leaves the container
+serving an orphaned (empty) inode until a `docker compose restart
+pocketbase` — and deleting the old dir after the swap destroys the live
+copy. The safe, restart-free procedure:
+
+```sh
+npx expo export -p web
+tar czf - -C dist . | ssh <vps> 'tar xzf - -C ~/docker/pocketbase/pb_public'
+# optional: drop stale hashed bundles from an older export
+ssh <vps> 'find ~/docker/pocketbase/pb_public/_expo -type f -mtime +30 -delete'
+```
+
+(Overwrites in place: `index.html` + `_expo/**` are replaced, `public/`
+files are refreshed. Verify live: `/` contains `id="site-info"`,
+`/how-to-play.html` and `/api/health` both 200.)
