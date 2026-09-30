@@ -140,20 +140,21 @@ the real question was always the audience classification, not the SDK.)
    - **Data safety (Android)**: no third-party ad SDK, no
      advertising-id use (AdMob no longer present in the build); keep
      the existing account/cloud/purchase disclosures.
-5. **Release** — DONE in the working tree (2026-09-30): `expo prebuild
-   --clean --platform android` was run; the manifest diff was exactly
-   the removed `com.google.android.gms.ads.APPLICATION_ID` meta-data
-   line (the two GMA `OPTIMIZE_AD_LOADING`/`OPTIMIZE_INITIALIZATION`
-   flags and the `AD_ID` permission remain — the RN-GMA plugin injects
-   those unconditionally; they're inert because the empty config keeps
-   the SDK from ever initializing). `build.gradle` is now 11/1.0.11
-   with its line endings normalized CRLF→LF (one-off; the
-   `withDebugSigning` patch blocks came back intact). Commit it with
-   the rest of the changeset. THEN `cd android && ./gradlew
-   bundleRelease` (release key from the root `keystore.properties`;
-   the AAB must be vc 11 / 1.0.11). Upload + submit for review with
-   what's-new "No ads in this version. Same game: solve equations,
-   dig deeper, build your crew."
+5. **Release** — code + `android/` regen committed (bcb2a1b,
+   2026-09-30). The AAB build: `cd android && ./gradlew
+   bundleRelease` — note the machine's system JDK 21 is headless
+   (no `javac`), which fails `compileReleaseJavaWithJavac` with
+   "Toolchain installation … does not provide the required
+   capabilities: [JAVA_COMPILER]"; a full Temurin 21 was installed
+   to `~/.jdks/` and pinned in `~/.gradle/gradle.properties`
+   (`org.gradle.java.installations.paths`) so plain `./gradlew`
+   works. Release the AAB (must be vc 11 / 1.0.11) via the untracked
+   `.play-submit-v1.0.11.mjs` one-shot (one atomic edit: en-US
+   listing bullet "No ads, no pop-ups — nothing to watch or skip" +
+   bundle upload + production/internal tracks, release notes "No ads
+   in this version. Same game: solve equations, dig deeper, build
+   your crew."). Submit only AFTER the owner's step-4 console
+   answers (the submission snapshots them).
 
 **Alternative considered and rejected — making the rewarded ad
 acceptable (deep-dive, 2026-09-30).** The Families ad-format rule bans
