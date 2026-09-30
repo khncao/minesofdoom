@@ -60,11 +60,186 @@ gem-earnable in-game (guardrail 1).
 
 ---
 
+## 0. The Play Families rejection & the ad-free resubmission (2026-09-30)
+
+**What happened.** Google Play **rejected the v1.0.10 update**
+(2026-09-30) with a *Families Ad Format Requirements* notice, citing
+**version code 9** — i.e. 1.0.9, the live build that ships the AdMob
+rewarded ads (v1.0.10 itself is account-deletion only, so the violation
+is attributed to the build it updates):
+
+> 1. Your update includes the following:
+>    - Monetization or advertising that interferes with normal use of
+>      the app or gameplay, **including rewarded or opt-in ads that
+>      cannot be closed after 5 seconds** ("Unclosable ads: Ads
+>      interfere with app use and can't be closed after 5 seconds").
+>    - Play Console answers that do not accurately reflect the app and
+>      its ads.
+> 2. Fix: Remove any violating ad content and ensure your app
+>    utilizes a version of the Families Self-Certified Ads SDKs listed
+>    in the program. Update your app's Play Console answers to
+>    accurately reflect your app and its ads.
+
+**Why it was rejected (policy basis).** The reviewer treated the app as
+Families-scoped — targeting children — regardless of our declared
+teen+ stance (security-audit.md S6, 2026-09-08): the Families Ads &
+Monetization policy (play.google.com/about/monetization-ads/
+families-ads-program) names "rewarded or opt-in ads that cannot be
+closed after 5 seconds" as interfering with app use, and a full-screen
+AdMob rewarded video holds the app until the creative's close button
+appears. The policy's closing clause — "Google reserves the right to
+review your app and make its own determination" — means the
+classification does not depend on our console answers. **The SDK
+version was NOT the problem**: the shipped GMA SDK is
+`com.google.android.gms:play-services-ads` 25.0.0 (via
+react-native-google-mobile-ads 16.0.1), far above the 19.0.0 floor for
+Google AdMob on the [Families Self-Certified Ads SDK list](https://support.google.com/googleplay/android-developer/answer/9283445).
+(That list also carries the relevant exemption: apps that are **not
+for children** — e.g. "T"/"MA" rated — or that do not serve ads to
+children are **not required** to use a self-certified SDK at all. So
+the real question was always the audience classification, not the SDK.)
+
+**The fix — v1.0.11 ships without native ads, with accurate answers.**
+
+1. **Code (done, 2026-09-30)** — the `storeConfig.adMob` block is
+   emptied (App ID + all four unit IDs, both platforms) and its mirror
+   in `app.config.ts` is emptied too. The repo's own "empty = hidden"
+   rule does the rest: `isAdMobIdsConfigured()` is false → the no-op
+   provider → every "watch" entry point (daily-bonus double, offline
+   double/top-up, gem rolls, combo-save pill, rewarded panel) stays
+   hidden; with no App ID in the merged manifest the GMA SDK never
+   initializes — **no ad requests, no advertising-id use**, so the
+   build has no Families-violation surface. The GMA SDK stays in the
+   bundle (a self-certified version — harmless, and it keeps
+   re-enabling a data paste). Web AdSense (`storeConfig.adsense`)
+   is a separate provider and is untouched — the web app is not part
+   of the Play review.
+2. **Listing en-US** — the "Rewarded ads only: you tap watch, never
+   pop-ups" bullet becomes "No ads, no pop-ups — nothing to watch or
+   skip". Commit it **atomically with the v1.0.11 submission** — NOT
+   before: 1.0.9 (the version still serving) genuinely has ads, so
+   editing the live listing first would temporarily make it false.
+   (The listing edit is doable via `pnpm run play` — see §"Play
+   Console CLI" above — or the console UI; the IARC/data-safety steps
+   below are UI-only.)
+3. **Privacy policy** — legal.ts v2.3 (2026-09-30): the mobile app
+   "contains no ads at all" (web AdSense line unchanged); the in-app
+   docs and the published `public/privacy-policy.html` (regenerated
+   by `__test__/legalDocs.test.ts` when the tests run) now match the
+   shipped build — this is exactly the "Play Console answers that do
+   not accurately reflect the app and its ads" bullet, fixed at the
+   document level.
+4. **Play Console — manual, UI-only (the API cannot set these):**
+   - **Target audience and content**: select **"13 and up" only** —
+     no children age groups, and do **not** opt in to "Designed for
+     Families" / Teacher Approved.
+   - **Content rating (IARC questionnaire)**: answer honestly
+     (cartoon/fantasy violence, in-app purchases; no chat, no
+     external links, no UGC). Let the rating fall out of the
+     descriptors.
+   - **Data safety (Android)**: no third-party ad SDK, no
+     advertising-id use (AdMob no longer present in the build); keep
+     the existing account/cloud/purchase disclosures.
+5. **Release** — DONE in the working tree (2026-09-30): `expo prebuild
+   --clean --platform android` was run; the manifest diff was exactly
+   the removed `com.google.android.gms.ads.APPLICATION_ID` meta-data
+   line (the two GMA `OPTIMIZE_AD_LOADING`/`OPTIMIZE_INITIALIZATION`
+   flags and the `AD_ID` permission remain — the RN-GMA plugin injects
+   those unconditionally; they're inert because the empty config keeps
+   the SDK from ever initializing). `build.gradle` is now 11/1.0.11
+   with its line endings normalized CRLF→LF (one-off; the
+   `withDebugSigning` patch blocks came back intact). Commit it with
+   the rest of the changeset. THEN `cd android && ./gradlew
+   bundleRelease` (release key from the root `keystore.properties`;
+   the AAB must be vc 11 / 1.0.11). Upload + submit for review with
+   what's-new "No ads in this version. Same game: solve equations,
+   dig deeper, build your crew."
+
+**Alternative considered and rejected — making the rewarded ad
+acceptable (deep-dive, 2026-09-30).** The Families ad-format rule bans
+"rewarded or opt-in ads that are not closeable after 5 seconds" (a
+*closeable* rewarded ad is nominally allowed for children). Investigated
+against the current AdMob docs and the 2022–2024 report history;
+conclusion: **not possible from our side.**
+
+- **The reward half is already ours.** `adProvider.ts` grants the
+  reward only on the SDK's `EARNED_REWARD` event — an early close
+  already resolves "closed" with no grant. Zero code needed.
+- **The closable half is not ours.** Official docs
+  (support.google.com/admob/answer/7372450) describe the close button
+  as shipping *with a 5–30 s countdown that runs until the user
+  receives the reward* — per-creative, so a 30 s creative holds the
+  user 25 s past the policy limit. The button is part of Google's
+  creative UI with **no close/dismiss API** on `RewardedAd` (SO
+  64883822). react-native-google-mobile-ads #502 (2023, the library we
+  use) was closed **not_planned** in 2024 — the ecosystem treats
+  "watch to the end" as rewarded's by-design behavior. Google did fix
+  it once — GMA team, AdMob community thread p16MnuW3TJk, 2022-10-10:
+  "all rewarded ads should be closable after 5 seconds" — but it was a
+  **creative-template** change, not tied to any SDK release, and it is
+  not held today (the official countdown description above, the 2023+
+  reports, and this very rejection all post-date it). Neither the
+  legacy GMA SDK we ship (25.0.0 via RN-GMA 16.0.1) nor the GMA
+  Next-Gen SDK (open beta, release notes 2024-03 → 2026-08) documents a
+  reliable ≤5 s early close — the newest note is a fix for a pod
+  *freeze* that blocked closing, not an early-close guarantee. AdMob's
+  own rewarded policy (answer/7313578: rewarded "must be skippable or
+  dismissible") is unmeetable by the format as served.
+- **Console levers we control (risk-reducers, not a guarantee):** on
+  the rewarded unit, **turn Ad pods off** (default ON — "2 back-to-back
+  videos during a single impression", up to ~60 s) and **exclude
+  interactive ads** (playables/surveys, default ON); keep the request
+  config `tagForChildDirectedTreatment` / TFAT + `MAX_AD_CONTENT_RATING
+  = G` (already in `adProvider.ts`); under a children-only console
+  audience AdMob automatically serves the Families-compliant pool
+  (answer/6223431). None of these caps the per-creative countdown at 5
+  s — one long creative is one rejection, and certifying "closeable
+  after 5 seconds" in the Play Console would be false (the rejection's
+  second bullet, re-created).
+- **The format matrix (what this means for the stance).** For a child
+  audience the only Families-compliant formats are banners (single,
+  clearly-distinguished, non-personalized slot, not on app startup) and
+  non-launch interstitials with the 5 s X — both **permanently excluded
+  by our guardrail 2** (rewarded-only). So under any stance that
+  includes children, no ad format is both policy-compliant and
+  guardrail-allowed, so the CHILDREN branch stays ad-free — which the
+  policy endorses ("any ads not suitable for children are only shown
+  to older audiences"). Stance-by-stance: **A (Teen+)** is the
+  simplest way for rewarded to come back — the Families policy doesn't
+  bind a teen-only audience, and the self-certified SDK floor is
+  already met (no age gate needed). **B (Mixed)** is the only way for
+  rewarded to return while still serving an under-18 audience — via
+  Play's neutral age screen (free-entry birth date) gating the ad
+  surface to **18+** (13-17 count as children in some locales, so a
+  13+ floor is not safe); see `docs/blockers.md`. **C (Children
+  only)** stays ad-free permanently. Revisit rewarded for a children-
+  branch only when (a) GMA ships a guaranteed ≤5 s early close (watch
+  the GMA release notes / thread p16MnuW3TJk) and (b) the stance
+  decision in `docs/blockers.md` is made.
+
+**What this does NOT decide.** Whether the app is "for children" is a
+product/legal call. The reviewer's classification may persist even
+with zero ads (art style, name) — if so, the app simply stays ad-free
+on native indefinitely (the web is outside Play's scope). The three
+stances and their consequences live in `docs/blockers.md`
+(2026-09-30). Whatever the decision, ads only come BACK after (a) the
+stance is chosen, (b) the listing + privacy-policy claims are fixed
+for it, and (c) — if the stance is children/mixed — the Families ad
+rules (self-certified SDK ✓, no AAID from children, child-directed
+tag where required) are met for the affected branch.
+
+---
+
 ## 1. AdMob setup
 
-The AdMob app ids and rewarded unit ids are configured (2026-07) — see
-the committed `storeConfig.ts` / `app.config.ts`. The steps below are
-the runbook that created them (and the recipe for any new unit).
+The AdMob app ids and rewarded unit ids were configured (2026-07); as
+of 2026-09-30 they are **deliberately empty again** (the Play Families
+rejection — see §0), so this section is the **re-enable runbook**: the
+ids exist in the AdMob console and in `__test__/storeConfig.test.ts`
+(the recorded unit constants), and re-enabling is a data paste into
+`storeConfig.ts` + `app.config.ts` per §0 step 1, only after the
+age-stance decision (blockers.md). The steps below are the runbook
+that created them (and the recipe for any new unit).
 
 1. **Create the AdMob app** (AdMob console → Apps) for each platform
    and note the **App ID** (`ca-app-pub-...`):

@@ -39,29 +39,37 @@ export type AdMobIds = {
 
 export const storeConfig = {
  adMob: {
-  // AdMob console → Apps → Android / iOS → App ID. Baked into the native
-  // manifests by the config plugin in app.config.ts at prebuild.
-  androidAppId: "ca-app-pub-2101316086878618~4973124022",
+  // DELIBERATELY EMPTY (2026-09-30) — Google Play REJECTED the v1.0.10
+  // update under the Families policies: "monetization or advertising
+  // that interferes with normal use of the app or gameplay, including
+  // rewarded or opt-in ads that cannot be closed after 5 seconds", plus
+  // "Play Console answers that do not accurately reflect the app and
+  // its ads". The v1.0.11 resubmission ships WITHOUT native ads: empty
+  // values → isAdMobIdsConfigured() false → the no-op provider → every
+  // "watch" entry point hidden, and the empty App ID stays out of the
+  // native manifests (app.config.ts), so the GMA SDK never initializes —
+  // no ad requests, no advertising-id use, no Families-violation surface
+  // in the build. The SDK itself stays in the bundle and is the
+  // self-certified GMA 25.0.0 (≥ 19.0.0, on the Families list). The
+  // production values live in __test__/storeConfig.test.ts (GEM_ROLLS_
+  // UNIT …) and the AdMob console — to re-enable, paste them back here
+  // AND in app.config.ts AFTER choosing an age stance (docs/blockers.md
+  // 2026-09-30) and fixing the listing + privacy-policy ad claims
+  // (docs/store-integration.md §0). Web AdSense is a separate block
+  // (adsense below) and is untouched by this.
+  androidAppId: "",
   iosAppId: "",
-  // AdMob console → Ad units → Rewarded → unit id, one per placement
-  // (AdKind) per platform. All four placements are production (one set
-  // serves both platforms — ad units aren't platform-scoped; the App ID
-  // is). AdMob's public test unit ids must never appear here —
-  // storeConfig.test.ts fails on them (docs/store-integration.md §1).
   rewardedUnitAndroid: {
-   gemRolls: "ca-app-pub-2101316086878618/8308813932",
-   offlineDouble: "ca-app-pub-2101316086878618/9024953635",
-   offlineTopUp: "ca-app-pub-2101316086878618/1898589303",
-   comboSave: "ca-app-pub-2101316086878618/9285949727",
+   gemRolls: "",
+   offlineDouble: "",
+   offlineTopUp: "",
+   comboSave: "",
   },
   rewardedUnitIos: {
-   gemRolls: "ca-app-pub-2101316086878618/8308813932",
-   offlineDouble: "ca-app-pub-2101316086878618/9024953635",
-   offlineTopUp: "ca-app-pub-2101316086878618/1898589303",
-   // AdMob ad units aren't platform-scoped (the App ID is), so the same
-   // production unit serves iOS — moot until iosAppId lands (the pair
-   // stays hidden with an empty App ID).
-   comboSave: "ca-app-pub-2101316086878618/9285949727",
+   gemRolls: "",
+   offlineDouble: "",
+   offlineTopUp: "",
+   comboSave: "",
   },
   // Guardrail 6 (kid safety): TAG_FOR_CHILD_DIRECTED_TREATMENT.
   // DECIDED 2026-09-08 (docs/security-audit.md S6): the app is positioned

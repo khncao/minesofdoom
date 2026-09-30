@@ -13,12 +13,15 @@ const pickaxePng = "./app-icons/logo.jpg";
 // Expo config loader can't import TS modules (plain node require). A test
 // in src/mines_of_doom/__test__/storeConfig.test.ts pins the two together
 // so they can't drift. Fill storeConfig.ts AND this block, then prebuild.
-// Empty = omitted from the native manifests — the plugin then only sets
-// the lazy-init manifest flags and logs a "no appId" warning at prebuild,
-// which is expected and harmless for a platform whose id hasn't landed yet
-// (the iOS App ID is still empty).
+// DELIBERATELY EMPTY (2026-09-30, mirrors storeConfig.ts): native ads
+// are disabled for the v1.0.11 Play Families resubmission — no App ID in
+// the manifests, so the GMA SDK never initializes (no ad requests, no
+// advertising-id use). See storeConfig.ts for the full why and the
+// re-enable runbook (docs/store-integration.md §0). With no App IDs the
+// plugin only sets the lazy-init manifest flags and logs a "no appId"
+// warning at prebuild — expected and harmless.
 const adMobAppIds = {
-  androidAppId: "ca-app-pub-2101316086878618~4973124022",
+  androidAppId: "",
   iosAppId: "",
 };
 
@@ -43,12 +46,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: "Mines of Idle Doomath",
   slug: "minesofdoom",
   scheme: "com.minus4kelvin.minesofdoom",
-  version: "1.0.10",
+  version: "1.0.11",
   android: {
     // AD_ID: required by Google Play for apps using the advertising ID on
     // Android 13+ (targetSdk 35). Without it the ID is zeroed out.
     permissions: ["com.google.android.gms.permission.AD_ID"],
-    versionCode: 10,
+    versionCode: 11,
     adaptiveIcon: {
       foregroundImage: pickaxePng,
       backgroundColor: "#ffffff",

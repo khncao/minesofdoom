@@ -28,7 +28,7 @@ S6 kid-safety) items.
 | S3 | Low | Email/password hashed with single-iteration SHA-256 (no KDF) | **Fixed** (this iteration) |
 | S4 | Compliance | No discoverable privacy policy (GDPR / store listing) | **Fixed** (this iteration — listing links are the external step) |
 | S5 | Info | Device-scope GDPR delete intentionally keeps entitlements | Accepted trade-off |
-| S6 | Compliance | Kid-safety / age-rating check for the rewarded-ads model | **DECIDED 2026-09-08: teen+ (13+) positioning, not child-directed** — `tagForChildDirectedTreatment` stays `false` (consistent, storeConfig.test.ts pins it). Remaining: the manual Play/App Store questionnaire steps at pre-production (listing minimum-age 13+, no "designed for families" opt-in, marketing kept off under-13s) |
+| S6 | Compliance | Kid-safety / age-rating check for the rewarded-ads model | **REOPENED 2026-09-30** — the 2026-09-08 teen+ (13+) stance was rejected in practice: Play's Families rejection of the v1.0.10 update cited the v1.0.9 rewarded ads, and the audience classification is Google's to make (policy's "own determination" clause) regardless of our console answers. v1.0.11 resubmits ad-free with corrected answers (store-integration.md §0, docs/blockers.md); the target-audience stance decision (teen+ / mixed / children) is open in docs/blockers.md — that decision closes this item |
 
 ---
 
@@ -201,10 +201,12 @@ This is a reasonable and documented choice (a "delete my data" from an
 unsigned-in device should not destroy a real purchase). No action needed; noted
 for the record so it isn't later "fixed" into deleting purchases.
 
-### S6 — Kid-safety / age rating for the rewarded-ads model  ·  Verify before ship
+### S6 — Kid-safety / age rating for the rewarded-ads model  ·  **REOPENED 2026-09-30** (the 13+ stance was rejected in practice — see OUTCOME below)
 
-Ads are **rewarded-only** (guardrail 2) — no banners or interstitials — and the
-Android AdMob App ID is set while the iOS one is still empty. The web AdSense
+Ads are **rewarded-only** (guardrail 2) — no banners or interstitials — and
+the AdMob ids were configured for Android only (iOS left empty); as of
+2026-09-30 both are empty again (Families rejection — see the OUTCOME
+note below). The web AdSense
 banner is shop-sheet-only, labeled, and gated behind explicit config. Because a
 math idle game skews young, confirm for the chosen age rating:
 
@@ -277,6 +279,45 @@ remove these steps):**
    schedule become required — the "Kids mode / parent screen" item in
    `docs/gap-ranking.md` (the gap layers) is where that work would land.
 
+**OUTCOME (2026-09-30, iteration 10): the 13+ stance was NOT accepted on
+this pass.** After the 1.0.9 production release (AdMob rewarded ads
+live) and the v1.0.10 update, Google Play REJECTED on 2026-09-30 under
+the Families policies: "monetization or advertising that interferes
+with normal use of the app or gameplay, including rewarded or opt-in
+ads that cannot be closed after 5 seconds", plus "Play Console answers
+that do not accurately reflect the app and its ads" — citing **version
+code 9** (the live build with the ads). Notes for the record: the
+reviewer's Families classification (targeting children) was made
+independently of our console answers (the policy's "Google reserves the
+right to review your app and make its own determination" clause), and
+the shipped SDK was already self-certified (GMA `play-services-ads`
+25.0.0 ≥ 19.0.0 on the Families list) — the violation was the ad
+format's interference, not the SDK. Consequence: the v1.0.11
+resubmission ships with native ads REMOVED end-to-end (storeConfig.adMob
+emptied → no-op provider → no App ID in the manifest → GMA SDK never
+initializes; listing + privacy-policy claims corrected to match —
+legal.ts v2.3) and the console answers corrected (13+ target audience,
+no DfF; data safety: no ads) — see `docs/store-integration.md` §0. The
+stance question — teen+ vs children vs mixed — is now an OPEN decision
+in `docs/blockers.md` (2026-09-30); native ads stay removed until it is
+answered.
+
+**Follow-up investigation (2026-09-30) — can the rewarded ad be made
+"acceptable"?** No, not from our side: the close button is part of
+Google's creative UI with a per-creative 5–30 s countdown until the
+reward is granted (official AdMob docs, answer/7372450), no SDK release
+(legacy 25.0.0 or the open-beta Next-Gen) documents a reliable ≤5 s
+early close, and Google's one creative-side fix (2022, thread
+p16MnuW3TJk) is not held. The only other Families-compliant formats
+(banners, non-launch interstitials) are permanently excluded by
+guardrail 2 — so a children-only app stays ad-free, and in a mixed
+app only the **18+ branch** can serve rewarded (via Play's neutral age
+screen; 13-17 count as children in some locales, so a 13+ floor is not
+safe — see `docs/blockers.md`). **Teen+ remains the simplest stance
+where rewarded can return** (no gate needed).
+Full breakdown: store-integration.md §0 "Alternative considered and
+rejected".
+
 ---
 
 ## Follow-up checklist
@@ -285,5 +326,5 @@ remove these steps):**
 - [x] S4 — Privacy policy v2.0 + terms v2.0 in-app (legal.ts, ES i18n synced) + generated published HTML. **Remaining: link the two URLs from the Play/App Store listings (external).**
 - [x] S2 — Stripe delivery moves to the sidecar's `/stripe/webhook` (Stripe-Signature over the raw body) + the Pocketbase route is gated on the shared key.
 - [x] S3 — Password hashing upgraded to a 100k-round iterated-SHA-256 KDF (transparent on-login upgrade of legacy rows). Done + tested.
-- [x] S6 — **Decided 2026-09-08 (iteration 9): teen+ (13+) positioning, not child-directed**; `TAG_FOR_CHILD_DIRECTED_TREATMENT` = `false` (shipped value, test-pinned, decision recorded in `storeConfig.ts`). **Remaining (manual, pre-production):** the Play Console content-rating questionnaire + listing minimum-age 13+ + no families opt-in, the App Store equivalent, and the AdMob console "Not child-directed" toggle — steps 1–3 in the S6 section above, plus the post-launch revisit trigger (step 4).
+- [ ] S6 — **Reopened 2026-09-30:** the 13+ stance was rejected in practice (Play Families rejection of the v1.0.10 update, ads cited in version code 9). v1.0.11 resubmits ad-free with corrected console answers (store-integration.md §0); the target-audience stance decision (teen+ / mixed / children) is open in `docs/blockers.md` — that decision closes this item.
 - [ ] S5 — None (accepted).

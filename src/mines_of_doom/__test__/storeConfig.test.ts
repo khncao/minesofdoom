@@ -37,15 +37,28 @@ const iosUnits = androidUnits;
 
 describe("storeConfig (runbook §1 — the single SDK config point)", () => {
   it("pins the storeConfig values (empty = unconfigured)", () => {
-    // The Android AdMob App ID and the production rewarded units for all
-    // four placements have landed (docs/store-integration.md §1); the iOS
-    // App ID is still unset, so iOS runs the no-op provider until it lands.
-    expect(storeConfig.adMob.androidAppId).toBe(
-      "ca-app-pub-2101316086878618~4973124022",
-    );
+    // 2026-09-30: ALL AdMob values are deliberately empty — Google Play
+    // rejected the v1.0.10 update under the Families policies (unclosable
+    // rewarded ads + inaccurate console answers); v1.0.11 resubmits with
+    // no native ads (docs/store-integration.md §0). The production ids the
+    // constants above record are the RESTORE values — paste them back into
+    // storeConfig.ts AND app.config.ts only after an age-stance decision
+    // (docs/blockers.md) and the listing / privacy-policy ad claims are
+    // fixed.
+    expect(storeConfig.adMob.androidAppId).toBe("");
     expect(storeConfig.adMob.iosAppId).toBe("");
-    expect(storeConfig.adMob.rewardedUnitAndroid).toEqual(androidUnits);
-    expect(storeConfig.adMob.rewardedUnitIos).toEqual(iosUnits);
+    expect(storeConfig.adMob.rewardedUnitAndroid).toEqual({
+      gemRolls: "",
+      offlineDouble: "",
+      offlineTopUp: "",
+      comboSave: "",
+    });
+    expect(storeConfig.adMob.rewardedUnitIos).toEqual({
+      gemRolls: "",
+      offlineDouble: "",
+      offlineTopUp: "",
+      comboSave: "",
+    });
     // Guardrail 7 default OFF until the final age rating is known.
     expect(storeConfig.adMob.tagForChildDirectedTreatment).toBe(false);
     // The Pocketbase deployment is live (docs/pocketbase-plan.md) — pin the
@@ -58,9 +71,13 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
   it("never ships an AdMob public test unit id", () => {
     // Test ids fill instantly on any device, so a leaked test id would
     // silently replace a production unit (docs/store-integration.md §1).
+    // The live config is empty (the Families resubmission, §0), so also
+    // check the recorded production values the restore will paste back.
     const all = [
       ...Object.values(storeConfig.adMob.rewardedUnitAndroid),
       ...Object.values(storeConfig.adMob.rewardedUnitIos),
+      ...Object.values(androidUnits),
+      ...Object.values(iosUnits),
     ];
     for (const unit of all) {
       expect(unit).not.toBe(ANDROID_TEST_UNIT);
