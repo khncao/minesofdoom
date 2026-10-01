@@ -135,7 +135,7 @@ export const en = {
     "BUY A FAST MINER (-{cost} 💎) ({count}, {output}/s each{next})",
   "purchase.buyFastMinerLocked": "🔒 BUY FAST MINER (Deep Shaft)",
   "purchase.buyLegendaryMiner":
-    "BUY A LEGENDARY MINER (-{cost} 💎) ({count}, {output}/s each{next})",
+    "HIRE {char}, THE {aura} CREW (-{cost} 💎) ({count}, {output}/s each{next})",
   "purchase.buyLegendaryMinerLocked": "🔒 BUY LEGENDARY MINER (Motherlode)",
   "purchase.gemChanceLocked": "🔒 GEM CHANCE +1% (Deep Shaft)",
   "purchase.gemChanceMaxed": "GEM CHANCE {pct}% (MAX)",

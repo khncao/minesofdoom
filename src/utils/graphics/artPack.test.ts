@@ -203,6 +203,30 @@ describe("the papercut pack", () => {
     expect(shape.hair).toBeUndefined();
   });
 
+  it("renders a premium-crew character by id, and caches it separately", () => {
+    setActiveArtPack("papercut");
+    const plain = minerSpriteUri(LOOK);
+    const ember = minerSpriteUri(LOOK, { premiumId: "ember" });
+    expect(ember).not.toBe(plain);
+    // Same id → same string (one shared image per character in the crew).
+    expect(minerSpriteUri(LOOK, { premiumId: "ember" })).toBe(ember);
+    // A different character is a different sprite even from the same look.
+    expect(minerSpriteUri(LOOK, { premiumId: "vesper" })).not.toBe(ember);
+    // …and a different look does not leak into the premium sprite.
+    expect(minerSpriteUri({ ...LOOK, shirt: "#e8443a" }, {
+      premiumId: "ember",
+    })).toBe(ember);
+    // An unknown id falls back to the plain miner (never a blank sprite).
+    expect(minerSpriteUri(LOOK, { premiumId: "nope" })).toBe(plain);
+  });
+
+  it("the classic pack has no premium line and ignores the id", () => {
+    setActiveArtPack("pixel");
+    expect(minerSpriteUri(LOOK, { premiumId: "ember" })).toBe(
+      pixelMinerSpriteUri(LOOK),
+    );
+  });
+
   it("leaves the tool out of the body (Miner draws the swinging pickaxe)", () => {
     expect(shapeForLook(LOOK).tool).toBe(false);
     // The grid really is tool-less: dropping the tool removes the blade,

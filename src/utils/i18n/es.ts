@@ -128,7 +128,7 @@ export const es: Record<TranslationKey, string> = {
     "COMPRAR UN MINERO RÁPIDO (-{cost} 💎) ({count}, {output}/s cada uno{next})",
   "purchase.buyFastMinerLocked": "🔒 COMPRAR MINERO RÁPIDO (Deep Shaft)",
   "purchase.buyLegendaryMiner":
-    "COMPRAR UN MINERO LEGENDARIO (-{cost} 💎) ({count}, {output}/s cada uno{next})",
+    "CONTRATAR A {char}, LA CREW {aura} (-{cost} 💎) ({count}, {output}/s cada uno{next})",
   "purchase.buyLegendaryMinerLocked":
     "🔒 COMPRAR MINERO LEGENDARIO (Motherlode)",
   "purchase.gemChanceLocked": "🔒 SUERTE DE GEMAS +1% (Deep Shaft)",

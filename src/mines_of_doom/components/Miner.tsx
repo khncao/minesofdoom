@@ -22,6 +22,12 @@ export interface MinerProps {
   seed: number;
   outfitId: string;
   pickaxeId: string;
+  /**
+   * Premium-crew character id (the legendary miners) — renders that
+   * character instead of the player's look (premiumChars.ts). Roster rows
+   * only; the player never wears one.
+   */
+  premiumId?: string;
   /** OS reduce-motion preference: suppresses the idle bob. */
   reduceMotion?: boolean;
   /**
@@ -187,9 +193,17 @@ function Miner({ scale = 1, ...props }: MinerProps) {
       props.emojiArt || props.bodyOverrideUri == null
         ? props.emojiArt
           ? ""
-          : minerSpriteUri(rollMinerLook(props.seed, props.outfitId))
+          : minerSpriteUri(rollMinerLook(props.seed, props.outfitId), {
+              premiumId: props.premiumId,
+            })
         : props.bodyOverrideUri,
-    [props.seed, props.outfitId, props.emojiArt, props.bodyOverrideUri],
+    [
+      props.seed,
+      props.outfitId,
+      props.emojiArt,
+      props.bodyOverrideUri,
+      props.premiumId,
+    ],
   );
   const pickaxeUri = useMemo(
     () =>

@@ -83,7 +83,8 @@ export type MaterialId =
  | "rock"
  | "rockLight"
  | "rockShade"
- | "ore";
+ | "ore"
+ | "aura";
 
 /** grid[y][x] — a material id, or null for "no paint here". */
 export type LabelGrid = (MaterialId | null)[][];
@@ -278,7 +279,41 @@ export interface SkinShape {
   * rotating sprite — a baked-in pickaxe would double up under the swing.
   */
  tool?: boolean;
+ /** Headwear mark worn OVER the hat — the premium characters' signature. */
+ crown?: CrownStyle;
+ /** Aura motes floating in the empty space around the body. */
+ motes?: MoteStyle;
 }
+
+/**
+ * The mark worn over the headwear. Each premium character gets a different
+ * one, so their silhouette reads at a glance even in a 24px crew row — a
+ * shared body in a different palette is not a different character.
+ */
+export type CrownStyle =
+  | "none"
+  | "crown"
+  | "halo"
+  | "hood"
+  | "antlers"
+  | "crystal"
+  | "plume";
+
+/**
+ * Aura mote patterns. The positions are FIXED offsets in the empty space
+ * around the body (never over it — a mote on the character is just a
+ * misplaced pixel), and each pattern has its own shape language (rising
+ * sparks, drifting flakes, hard glints) so the aura matches the name instead
+ * of being one dot pattern in six colors.
+ */
+export type MoteStyle =
+  | "none"
+  | "embers"
+  | "frost"
+  | "void"
+  | "gold"
+  | "bone"
+  | "crystal";
 
 /** Re-exported so a skin line never has to import two modules. */
 export type HairStyle = MinerHair;
@@ -291,6 +326,8 @@ const DEFAULT_SHAPE: Required<SkinShape> = {
  outfit: "trousers",
  cute: false,
  tool: true,
+ crown: "none",
+ motes: "none",
 };
 
 /**
@@ -320,10 +357,11 @@ export function minerLabels(shape: SkinShape = {}): LabelGrid {
   critterFace(g, s.cute);
   critterBody(g);
  } else {
-  // --- head, headgear, face ---------------------------------------------
+  // --- head, headgear, crown, face ---------------------------------------
   fillEllipse(g, 13.5, 10.5, 7.5, 7.5, "skin");
   headgear(g, s.hatStyle);
   if (s.hatStyle === "longhair") hairMass(g, s.hair);
+  drawCrown(g, s.crown);
   // The beard goes on BEFORE the face, so the eyes and mouth stay readable
   // on top of it.
   if (s.beard) fillEllipse(g, 13.5, 16.6, 4.4, 2.2, "hat");
@@ -336,6 +374,9 @@ export function minerLabels(shape: SkinShape = {}): LabelGrid {
  if (s.form === "human" && s.hatStyle === "longhair") {
   hairFall(g, s.hair);
  }
+ // Aura motes sit in the empty space AROUND the body, so they go last and
+ // can never be overpainted.
+ drawMotes(g, s.motes);
  return g;
 }
 
@@ -365,6 +406,173 @@ function headgear(g: LabelGrid, style: HatStyle): void {
   case "longhair": // bare head — `hairMass` draws the hair instead
    break;
  }
+}
+
+/**
+ * The mark over the headwear, in the `aura` accent (the palette maps it to
+ * the character's own aura color). Drawn after the headgear — a hood covers
+ * a hat, a circlet sits on a helmet — but before the face, so the eyes and
+ * mouth always read.
+ */
+function drawCrown(g: LabelGrid, style: CrownStyle): void {
+ switch (style) {
+  case "crown":
+   // A circlet across the forehead with three points rising off it.
+   fillRect(g, 8, 8, 19, 9, "aura");
+   fillRect(g, 9, 6, 10, 7, "aura");
+   fillRect(g, 13, 5, 14, 7, "aura");
+   fillRect(g, 17, 6, 18, 7, "aura");
+   break;
+  case "halo":
+   // A ring floating over the head: an ellipse outline, upper half only.
+   for (let y = 0; y < 7; y++) {
+    const rx = 9 - Math.round(y * 0.6);
+    if (rx < 2) break;
+    // Rounded: a fractional index would set a "4.5" PROPERTY on the row
+    // instead of a pixel, and the halo would be invisible.
+    put(g, Math.round(13.5 - rx), y + 1, "aura");
+    put(g, Math.round(13.5 + rx), y + 1, "aura");
+   }
+   break;
+  case "hood":
+   // A pointed hood that swallows the headgear, face left clear. Drawn in
+   // the DARKER `brim` tone on purpose: in the `hat` tone it covered the
+   // headwear with the same color and the hood vanished (the render was
+   // within 10 pixels of no hood at all).
+   fillEllipse(g, 13.5, 8.6, 9.6, 7.9, "brim");
+   fillPolygon(
+    g,
+    [
+     [9, 6],
+     [13.5, 1.4],
+     [18, 6],
+    ],
+    "brim",
+   );
+   break;
+  case "antlers":
+   // Two thin branching horns, mirrored about x=13.5. Drawn as 1px
+   // branches on purpose: the earlier 2px columns read as EARS on a round
+   // head, which is exactly the wrong silhouette.
+   for (const [x, y] of [
+    [10, 7],
+    [9, 6],
+    [8, 5],
+    [7, 4],
+    [6, 3],
+    [5, 2],
+    [8, 3],
+    [7, 2],
+   ] as const) {
+    put(g, x, y, "aura");
+    put(g, 27 - x, y, "aura");
+   }
+   break;
+  case "plume":
+   // A tall feather plume off the headgear, curling at the top.
+   fillRect(g, 13, 1, 14, 8, "aura");
+   fillRect(g, 12, 3, 12, 5, "aura");
+   fillRect(g, 15, 1, 16, 2, "aura");
+   break;
+  case "crystal":
+   // Angular crystal spikes, the tallest at the center.
+   fillPolygon(
+    g,
+    [
+     [8, 6],
+     [10, 1],
+     [12, 6],
+    ],
+    "aura",
+   );
+   fillPolygon(
+    g,
+    [
+     [13, 6],
+     [14.5, 0.6],
+     [16, 6],
+    ],
+    "aura",
+   );
+   fillPolygon(
+    g,
+    [
+     [17, 6],
+     [19, 1.5],
+     [21, 6],
+    ],
+    "aura",
+   );
+   break;
+  case "none":
+   break;
+ }
+}
+
+/**
+ * Fixed aura-mote positions per style. All sit in the empty space AROUND the
+ * body; the pattern is part of the character's identity, so it is data.
+ */
+const MOTES: Record<
+ Exclude<MoteStyle, "none">,
+ readonly (readonly [number, number])[]
+> = {
+ // Rising sparks down both flanks, denser low (heat coming off the rock).
+ embers: [
+  [3, 24],
+  [2, 19],
+  [4, 14],
+  [28, 22],
+  [30, 16],
+  [27, 27],
+ ],
+ // Drifting flakes: a loose diamond around the head.
+ frost: [
+  [2, 6],
+  [27, 4],
+  [4, 27],
+  [29, 28],
+  [1, 16],
+  [31, 11],
+ ],
+ // Void: a few hard glints well clear of the body, so they read as a cold
+ // absence rather than as sparkles.
+ void: [
+  [2, 3],
+  [30, 2],
+  [1, 28],
+  [30, 29],
+ ],
+ // Gold: hard sparkle glints, top-down.
+ gold: [
+  [3, 5],
+  [8, 1],
+  [21, 1],
+  [28, 6],
+  [1, 12],
+  [31, 24],
+  [6, 29],
+ ],
+ // Bone: pale chips, mostly low.
+ bone: [
+  [2, 20],
+  [3, 29],
+  [29, 18],
+  [30, 27],
+  [1, 9],
+ ],
+ // Crystal: faceted points paired across the body.
+ crystal: [
+  [2, 8],
+  [30, 9],
+  [3, 25],
+  [29, 25],
+ ],
+};
+
+function drawMotes(g: LabelGrid, style: MoteStyle): void {
+ if (style === "none") return;
+ for (const [x, y] of MOTES[style]) put(g, x, y, "aura");
 }
 
 /**
@@ -737,6 +945,7 @@ const SUBJECT_MATERIALS: Record<SubjectId, readonly MaterialId[]> = {
   "handle",
   "blade",
   "bladeShine",
+  "aura",
  ],
  pickaxe: ["handle", "blade", "bladeShine", "eyeShine"],
  gem: ["gem", "gemLight", "gemDark", "eyeShine"],
@@ -755,6 +964,7 @@ const ACCENTS: readonly MaterialId[] = [
  "lamp",
  "bladeShine",
  "ore",
+ "aura",
 ];
 
 /** Neutral defaults, so a palette is always complete even for a bare subject. */
@@ -780,6 +990,7 @@ const BASE_COLORS: Record<MaterialId, string> = {
  rockLight: "#9a9aa4",
  rockShade: "#56565e",
  ore: "#e8c33d",
+ aura: "#ffffff",
 };
 
 function gradeCartoon(hex: string): string {

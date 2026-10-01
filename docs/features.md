@@ -183,6 +183,13 @@ of Pressable so rapid tapping doesn't double-render).
   in one line. Earlier drafts (four `PixelGrid -> PixelGrid` style passes,
   a detail bevel, a high-res anime character) remain as the comparison set
   in `docs/art-styles.md` / `docs/art-detail.md` / `docs/art-anime.md`.
+- **Premium crew (legendary miners)** — the third miner type is a *cast*, not
+  a recolor: six named characters (Ember, Rime, Vesper, Gilded, Marrow, Quartz)
+  in hire order, each with a mark over the headwear (crown / halo / hood /
+  plume / antlers / crystal), an aura colour and a mote pattern, plus a rim
+  light and ground glow (`utils/graphics/premiumChars.ts`,
+  `docs/premium-characters.md`). The crew column renders them; the classic
+  pixel pack falls back to the plain miner.
 - **Cave background** — one pixel-domain procedural cave (`caveTiles.ts`):
   the rock/gap silhouette and the rock body are both sampled at global
   pixels through domain-warped value noise, so masses cross tile and row

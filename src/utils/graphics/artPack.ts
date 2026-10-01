@@ -38,11 +38,18 @@ import {
   minerLabels,
   renderDirection,
 } from "./characterArt";
+import { buildPremiumCharGrid, premiumCharById } from "./premiumChars";
 import type { SkinShape } from "./characterArt";
 import type { MinerLook, PickaxeThemeDef, PixelGrid } from "./pixelArt";
 
 export const ART_PACK_IDS = ["pixel", "papercut"] as const;
 export type ArtPackId = (typeof ART_PACK_IDS)[number];
+
+/** Per-sprite request options a caller can pass down to the pack. */
+export interface SpriteOpts {
+  /** Render this premium-crew character instead of the look (see premiumChars). */
+  premiumId?: string;
+}
 
 /** What a pack has to supply. Same names as this module's entry points. */
 export interface ArtPack {
@@ -51,7 +58,13 @@ export interface ArtPack {
   label: string;
   /** Grid size the pack builds its sprites at (16 classic / 32 papercut). */
   gridSize: number;
-  minerSprite(look: MinerLook): string;
+  /**
+   * `opts.premiumId` asks for a PREMIUM CREW character (the legendary
+   * miners) by id — see premiumChars.ts. A pack that has no premium line
+   * ignores the id and draws the plain miner, which is exactly what the
+   * classic pixel pack does.
+   */
+  minerSprite(look: MinerLook, opts?: SpriteOpts): string;
   pickaxeSprite(theme: PickaxeThemeDef): string;
   debrisSprite(variant: number): string;
   mineralChunkSprite(): string;
@@ -103,8 +116,15 @@ const papercutPack: ArtPack = {
  id: "papercut",
  label: "Paper cut",
  gridSize: 32,
- minerSprite: (look) =>
-  gridToPngDataUri(buildPapercutMinerGrid(look)),
+ minerSprite: (look, opts) => {
+  const char =
+   opts?.premiumId == null ? undefined : premiumCharById(opts.premiumId);
+  return gridToPngDataUri(
+   char == null
+    ? buildPapercutMinerGrid(look)
+    : buildPremiumCharGrid(char),
+  );
+ },
  pickaxeSprite: (theme) =>
   gridToPngDataUri(buildDirectionGrid("papercut", "pickaxe", { pickaxe: theme })),
  debrisSprite: (variant) => pixelDebrisSpriteUri(variant),
@@ -121,7 +141,8 @@ const pixelPack: ArtPack = {
  id: "pixel",
  label: "Classic pixels",
  gridSize: 16,
- minerSprite: pixelMinerSpriteUri,
+ // No premium line: a legendary row falls back to the classic miner.
+ minerSprite: (look) => pixelMinerSpriteUri(look),
  pickaxeSprite: pixelPickaxeSpriteUri,
  debrisSprite: pixelDebrisSpriteUri,
  mineralChunkSprite: pixelMineralChunkSpriteUri,
@@ -182,8 +203,16 @@ function cached(subject: string, key: string, build: () => string): string {
   return uri;
 }
 
-/** Miner body for a look, as a PNG data URI. */
-export function minerSpriteUri(look: MinerLook): string {
+/**
+ * Miner body for a look, as a PNG data URI. `opts.premiumId` renders a
+ * premium-crew character instead of the look (legendary miners); it is part
+ * of the cache key, so one player's crew can hold several of them and each
+ * stays a single shared image.
+ */
+export function minerSpriteUri(
+ look: MinerLook,
+ opts?: SpriteOpts,
+): string {
  const key = JSON.stringify([
   look.skin,
   look.shirt,
@@ -196,8 +225,11 @@ export function minerSpriteUri(look: MinerLook): string {
   look.outfit ?? "",
   look.beard === true ? 1 : 0,
   look.cute === true ? 1 : 0,
+  opts?.premiumId ?? "",
  ]);
- return cached("miner", key, () => activeArtPack().minerSprite(look));
+ return cached("miner", key, () =>
+  activeArtPack().minerSprite(look, opts),
+ );
 }
 
 /** Pickaxe for a theme, as a PNG data URI. */

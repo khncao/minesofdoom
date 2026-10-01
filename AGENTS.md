@@ -109,6 +109,12 @@ and the old art is still there. Under the seam:
   walls are addressed by absolute band like the rows. Both are load-bearing for
   "no visible patterns": don't reintroduce a per-tile or per-row decision, and
   don't give the wall a single repeating strip.
+- `premiumChars.ts` — the premium/legendary crew as a named cast (six
+  characters, each with a `crown` mark over the headwear + an `aura` accent
+  and `motes` pattern). `MiningCanvas` hands every legendary row a
+  `premiumId`; the papercut pack renders it and the pixel pack ignores it.
+  Roster rows are the only consumers — a character is a hire, not a
+  collectible, and the hire ORDER is the cast order.
 - `shapeForLook(look)` is the game↔art mapping: `MinerLook`'s optional shape hints
   (`hair`/`outfit`/`beard`/`cute`, appended by `rollMinerLook` AFTER the color picks
   so existing saves' colors never move) drive the papercut silhouette, and it passes

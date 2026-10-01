@@ -284,6 +284,7 @@ describe("buildPalette", () => {
      "rockLight",
      "rockShade",
      "ore",
+     "aura",
     ];
     for (const m of materials) expect(palette[m]).toBeDefined();
     expect(Object.keys(palette).sort()).toEqual([...materials].sort());

@@ -31,6 +31,7 @@ import {
     getPrestigeLevel,
     getPrestigeMultiplier,
 } from "../game";
+import { premiumCharForIndex } from "src/utils/graphics/premiumChars";
 
 const PurchaseButtons = memo(function PurchaseButtons({
     minerals,
@@ -111,6 +112,10 @@ const PurchaseButtons = memo(function PurchaseButtons({
     const t = useT();
     const fastCost = getFastMinerCost(fastMiners);
     const legendaryCost = getLegendaryMinerCost(legendaryMiners);
+    // The premium crew is a named cast in hire order: the button says who
+    // walks in next (name + aura), so a legendary hire is a CHARACTER, not
+    // an anonymous +2× miner.
+    const nextChar = premiumCharForIndex(legendaryMiners);
     // Cost-curve context (plan §2.1): once a type is owned, show the NEXT
     // cost too, so the quartic ramp is visible before it surprises the
     // player. Hidden at count 0 (next would just repeat the current cost).
@@ -380,6 +385,8 @@ const PurchaseButtons = memo(function PurchaseButtons({
                                   count: legendaryMiners,
                                   output: getLegendaryMinerOutput(minerPower),
                                   next: legendaryNext,
+                                  char: nextChar.name,
+                                  aura: nextChar.aura,
                               })
                             : t("purchase.buyLegendaryMinerLocked")
                     }
