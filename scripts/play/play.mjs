@@ -593,8 +593,13 @@ async function cmdDeleteProduct(pub) {
   out(data);
 }
 
-/** Derive the expected store ids the same way iaps.ts does:
- *  remove_ads + pack_<cosmeticId> for every PACK_SPECS row. */
+/**
+ * Derive the expected store ids the same way iaps.ts does: remove_ads plus
+ * `packStoreId(cosmeticId)` for every PACK_SPECS row — which folds anything
+ * outside Play Billing's [a-z0-9_] alphabet to "_", so a hyphenated skin id
+ * ("lantern-crew") is the SKU `pack_lantern_crew`. Keep this fold in step
+ * with iaps.ts or products-check reports phantom missing SKUs.
+ */
 async function expectedStoreIds() {
   const src = await readFile(
     path.join(ROOT, "src/mines_of_doom/iaps.ts"),
@@ -603,7 +608,7 @@ async function expectedStoreIds() {
   const block = src.slice(src.indexOf("PACK_SPECS"));
   const ids = new Set(["remove_ads"]);
   for (const m of block.matchAll(/cosmeticId:\s*"([\w-]+)"/g))
-    ids.add("pack_" + m[1]);
+    ids.add(("pack_" + m[1]).replace(/[^a-z0-9_]/g, "_"));
   return [...ids].sort();
 }
 

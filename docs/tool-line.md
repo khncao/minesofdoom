@@ -29,11 +29,12 @@ rather than a palette: the **silhouette** (`characterArt.TOOLS` →
 `scripts/generate-pickaxe-sounds.mjs` — the Prism Cutter's long glassy ring
 against the Sledge's near-silent thud is the clearest example).
 
-The four added with the axis (Emberbrand, Sledge, Lantern Hook, Prism Cutter)
-are **gem-only for now**: they have no store SKU, so the catalog carries the
-`pendingStoreSku` flag and the shop shows the gem button only. The runbook for
-adding their SKUs is `docs/store-integration.md` §2.1b — the game code paths
-already handle them.
+All eight are sold like every other line: **gems in game, real money in the
+stores** (guardrail 1). The cash price is the tool's **depth tier**
+(`cosmetics.CASH_PRICE_USD`; the ladder is in
+`docs/store-integration.md` §2.1c) — Gold's plain adze is $0.99, the three
+tools that brought a new shape *and* a new sound are $2.99, and the Prism
+Cutter — the most faceted thing in the line — is $3.99.
 
 ## How a tool is drawn
 

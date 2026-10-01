@@ -116,9 +116,9 @@ in rough priority order:
 - [x] **skin line as shop content.** SHIPPED 2026-09-14: the 12 named
       paper-cut skins are the `SKINS` catalog in `cosmetics.ts` — a real
       cosmetic line with gem prices, shop cards, a compendium group and
-      `selectedSkin` (saveVersion 14). See `docs/skin-line.md`. Still gem-only:
-      the cash packs need real Stripe/Play/App Store SKUs (the note in
-      `iaps.ts` PACK_SPECS is the runbook), and per-crew skin assignment was
+      `selectedSkin` (saveVersion 14). See `docs/skin-line.md`. All twelve
+      are sold in the stores too (prices synced 2026-09-14: 42/42 in both
+      Stripe accounts, 43/43 Play products). Per-crew skin assignment was
       deliberately NOT done — a skin is the player's own slot.
 - [ ] **art-style setting (optional).** The seam already supports it
       (`setActiveArtPack` + a `defaultArtPackId` in the save); only a

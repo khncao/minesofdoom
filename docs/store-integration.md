@@ -622,6 +622,23 @@ the console follows the code, not the other way around.
 | `pack_ashen` | Ashen Depths Theme | $3.99 | `ashen` theme (130 💎) |
 | `pack_gothic` | Mist & Lantern Theme | $3.99 | `gothic` theme (150 💎) |
 | `pack_cherry` | Cherry & Indigo Theme | $3.99 | `cherry` theme (170 💎) |
+| `pack_emberbrand` | Emberbrand Pickaxe | $2.99 | `emberbrand` pickaxe |
+| `pack_sledge` | Cinder Sledge Pickaxe | $2.99 | `sledge` pickaxe |
+| `pack_lanternhook` | Lantern Hook Pickaxe | $2.99 | `lanternhook` pickaxe |
+| `pack_prism` | Prism Cutter Pickaxe | $3.99 | `prism` pickaxe |
+| `pack_lantern_crew` | Lantern Crew Skin | $0.99 | `lantern-crew` skin |
+| `pack_frost_bit` | Frost Bit Skin | $0.99 | `frost-bit` skin |
+| `pack_deep_survey` | Deep Survey Skin | $1.99 | `deep-survey` skin |
+| `pack_shift_foreman` | Shift Foreman Skin | $1.99 | `shift-foreman` skin |
+| `pack_fox_crew` | Fox Crew Skin | $2.99 | `fox-crew` skin |
+| `pack_marmot_crew` | Marmot Crew Skin | $2.99 | `marmot-crew` skin |
+| `pack_rose_lantern` | Rose Lantern Skin | $2.99 | `rose-lantern` skin |
+| `pack_mint_comet` | Mint Comet Skin | $2.99 | `mint-comet` skin |
+| `pack_sky_bob` | Sky Bob Skin | $2.99 | `sky-bob` skin |
+| `pack_twin_bells` | Twin Bells Skin | $3.99 | `twin-bells` skin |
+| `pack_blossom_bun` | Blossom Bun Skin | $3.99 | `blossom-bun` skin |
+| `pack_ember_sunrise` | Ember Sunrise Skin | $3.99 | `ember-sunrise` skin |
+| `pack_skin` | Custom Skin | $3.99 | `skin` skin |
 | `pack_skin` | Custom Skin | $3.99 | custom-skin upload slot (250 💎) |
 
 Every row's blurb in the purchase panel says plainly what it does and
@@ -629,40 +646,35 @@ that the game stays fully free without it (guardrail 4), and shows the
 gem price of the granted cosmetic ("also earnable in-game for N 💎" —
 guardrail 1).
 
-### 2.1b Items with no store SKU yet (gem-only)
+### 2.1c Prices follow DEPTH, not gem cost
 
-Two catalog items groups are marked `pendingStoreSku` in `cosmetics.ts` and
-have **no row above and no product in the consoles**:
+A pack's price is the cosmetic's **cash tier** (`cosmetics.CASH_PRICE_USD`),
+which says how much new art the item carries:
 
-| items | ids | gem price |
+| tier | price | what lands in it |
 | --- | --- | --- |
-| the whole skin line | the 12 `SKINS` | 25–100 💎 each |
-| four tools added with the pickaxe shape axis | `emberbrand`, `sledge`, `lanternhook`, `prism` | 60–100 💎 each |
+| 1 | $0.99 | a recolour of something the player already owns — a palette swap, a tint ramp, a shape the line already had |
+| 2 | $1.99 | a new character or look the line didn't have: new headwear / hair / dress silhouette, a new tool shape, a new theme palette |
+| 3 | $2.99 | a new shape AND something that plays: a critter form, a new swing feel, its own strike sound, a faceted treatment |
+| 4 | $3.99 | the line's hero items — the most hand-drawn art in the catalog |
 
-They are gem-purchasable in-game today and the game is fully playable
-without them. The reason is mechanical, not editorial: a cash button needs
-a live Stripe price plus the Play/App Store product, and inventing a price
-id would only produce a checkout that errors.
+Gem prices are the other axis (what the item is worth in the economy) and were
+tuned by the F2P balance test; the two ladders deliberately disagree — the
+Prism Cutter is the top cash tier on a 100-gem item, and the 35-gem Verdant
+Hollow theme is $1.99 because that is the price it launched at.
 
-To add them later (the catalog change is mechanical, the code paths already
-handle them):
+**Already-sold items keep their launch price.** A Stripe price object is
+immutable, so re-tiering a live product would leave the shop showing one amount
+and the checkout charging another — the misleading-price case guardrail 4 rules
+out. Re-pricing an existing item is therefore a deliberate operation: create a
+new price (archive the old), change the Play price, then move the tier and
+re-paste the sync snippet. `node scripts/stripe/syncStripe.mjs verify` (both
+modes) is the drift check that proves display == charge.
 
-1. `node scripts/stripe/syncStripe.mjs products` after adding the rows to
-   `scripts/stripe/catalog.json` — it creates the prices and prints the
-   `storeConfig.ts` snippet to paste.
-2. Create the Play SKUs (`pack_<id>`) and the App Store products
-   (`{bundleId}.pack_<id>`) per §2.2–2.3.
-3. Add one `PACK_SPECS` entry per item in `cosmetics.ts` catalog order, the
-   price ids in `storeConfig.ts`, and the mirrored entry in
-   `pb_hooks/logic.js` `PRODUCTS` (a test pins that against the app's
-   `IAP_STORE_IDS`).
-4. Drop the `pendingStoreSku` flag — `iaps.test.ts`'s "exactly one pack per
-   PAID cosmetic" and "every gem-only item…" tests then cover them like any
-   other line.
-
-Note the hyphen→underscore fold: the skin ids are hyphenated
-(`lantern-crew`), and Play Billing SKUs accept `[a-z0-9_]` only, so the
-store id is `pack_lantern_crew`.
+State as of 2026-09-14: **42/42 products match in both accounts** (test and
+live, `syncStripe.mjs verify`), and `node scripts/play/play.mjs
+products-check` reports 43/43 live Android products with none left DRAFT —
+including `pack_skin`, which had been sitting un-activated.
 
 ### 2.2 Create the products
 

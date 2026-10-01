@@ -14,11 +14,39 @@
     "amountUsd": 199
   },
   {
+    "id": "packEmberbrand",
+    "storeId": "pack_emberbrand",
+    "name": "Mines of Doom: Emberbrand Pickaxe",
+    "blurb": "One-time purchase. Unlocks the Emberbrand pickaxe — its own swing sound and swing feel. Purely cosmetic.",
+    "amountUsd": 299
+  },
+  {
+    "id": "packSledge",
+    "storeId": "pack_sledge",
+    "name": "Mines of Doom: Cinder Sledge Pickaxe",
+    "blurb": "One-time purchase. Unlocks the Cinder Sledge pickaxe — its own swing sound and swing feel. Purely cosmetic.",
+    "amountUsd": 299
+  },
+  {
+    "id": "packLanternhook",
+    "storeId": "pack_lanternhook",
+    "name": "Mines of Doom: Lantern Hook Pickaxe",
+    "blurb": "One-time purchase. Unlocks the Lantern Hook pickaxe — its own swing sound and swing feel. Purely cosmetic.",
+    "amountUsd": 299
+  },
+  {
     "id": "packShadow",
     "storeId": "pack_shadow",
     "name": "Mines of Doom: Shadow Pickaxe",
     "blurb": "One-time purchase. Unlocks the Shadow pickaxe — its own swing sound and swing feel. Purely cosmetic.",
     "amountUsd": 299
+  },
+  {
+    "id": "packPrism",
+    "storeId": "pack_prism",
+    "name": "Mines of Doom: Prism Cutter Pickaxe",
+    "blurb": "One-time purchase. Unlocks the Prism Cutter pickaxe — its own swing sound and swing feel. Purely cosmetic.",
+    "amountUsd": 399
   },
   {
     "id": "packNight",
@@ -172,6 +200,90 @@
     "storeId": "pack_cherry",
     "name": "Mines of Doom: Cherry & Indigo Theme",
     "blurb": "One-time purchase. Unlocks the Cherry & Indigo cave theme — blossom over indigo night, gold at the bottom — a samurai-era tribute. Purely cosmetic.",
+    "amountUsd": 399
+  },
+  {
+    "id": "packLanternCrew",
+    "storeId": "pack_lantern_crew",
+    "name": "Mines of Doom: Lantern Crew Skin",
+    "blurb": "One-time purchase. Unlocks the Lantern Crew skin — the shift's hard-hat standard, lamp on the brim. Purely cosmetic.",
+    "amountUsd": 99
+  },
+  {
+    "id": "packFrostBit",
+    "storeId": "pack_frost_bit",
+    "name": "Mines of Doom: Frost Bit Skin",
+    "blurb": "One-time purchase. Unlocks the Frost Bit skin — red beanie, green wool, still swinging the pick. Purely cosmetic.",
+    "amountUsd": 99
+  },
+  {
+    "id": "packDeepSurvey",
+    "storeId": "pack_deep_survey",
+    "name": "Mines of Doom: Deep Survey Skin",
+    "blurb": "One-time purchase. Unlocks the Deep Survey skin — visor cap and a beard; has mapped every gallery twice. Purely cosmetic.",
+    "amountUsd": 199
+  },
+  {
+    "id": "packShiftForeman",
+    "storeId": "pack_shift_foreman",
+    "name": "Mines of Doom: Shift Foreman Skin",
+    "blurb": "One-time purchase. Unlocks the Shift Foreman skin — white hard hat, red shirt, runs the whole seam. Purely cosmetic.",
+    "amountUsd": 199
+  },
+  {
+    "id": "packFoxCrew",
+    "storeId": "pack_fox_crew",
+    "name": "Mines of Doom: Fox Crew Skin",
+    "blurb": "One-time purchase. Unlocks the Fox Crew skin — red bandana, and always the first down the ladder. Purely cosmetic.",
+    "amountUsd": 299
+  },
+  {
+    "id": "packMarmotCrew",
+    "storeId": "pack_marmot_crew",
+    "name": "Mines of Doom: Marmot Crew Skin",
+    "blurb": "One-time purchase. Unlocks the Marmot Crew skin — green beanie, permanently unbothered. Purely cosmetic.",
+    "amountUsd": 299
+  },
+  {
+    "id": "packRoseLantern",
+    "storeId": "pack_rose_lantern",
+    "name": "Mines of Doom: Rose Lantern Skin",
+    "blurb": "One-time purchase. Unlocks the Rose Lantern skin — long pink hair, lilac dress — carries the lamp basket. Purely cosmetic.",
+    "amountUsd": 299
+  },
+  {
+    "id": "packMintComet",
+    "storeId": "pack_mint_comet",
+    "name": "Mines of Doom: Mint Comet Skin",
+    "blurb": "One-time purchase. Unlocks the Mint Comet skin — mint ponytail; names every equation before it lands. Purely cosmetic.",
+    "amountUsd": 299
+  },
+  {
+    "id": "packSkyBob",
+    "storeId": "pack_sky_bob",
+    "name": "Mines of Doom: Sky Bob Skin",
+    "blurb": "One-time purchase. Unlocks the Sky Bob skin — sky-blue bob under a little orange beanie. Purely cosmetic.",
+    "amountUsd": 299
+  },
+  {
+    "id": "packTwinBells",
+    "storeId": "pack_twin_bells",
+    "name": "Mines of Doom: Twin Bells Skin",
+    "blurb": "One-time purchase. Unlocks the Twin Bells skin — twin tails, yellow dress, loudest lamp on the crew. Purely cosmetic.",
+    "amountUsd": 399
+  },
+  {
+    "id": "packBlossomBun",
+    "storeId": "pack_blossom_bun",
+    "name": "Mines of Doom: Blossom Bun Skin",
+    "blurb": "One-time purchase. Unlocks the Blossom Bun skin — top knot, rose dress; runs the gem counters. Purely cosmetic.",
+    "amountUsd": 399
+  },
+  {
+    "id": "packEmberSunrise",
+    "storeId": "pack_ember_sunrise",
+    "name": "Mines of Doom: Ember Sunrise Skin",
+    "blurb": "One-time purchase. Unlocks the Ember Sunrise skin — ginger hair to the waist, amber dress, first up the ladder. Purely cosmetic.",
     "amountUsd": 399
   },
   {

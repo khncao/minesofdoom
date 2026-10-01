@@ -15,7 +15,10 @@ import { DEFAULT_FREE_PATH_PERSONA, simulateFreePath } from "../freePath";
  *
  * EVERY line counts, which is the whole point: a line left out of this sum
  * is money the guardrail silently stops watching (the skin line shipped
- * gem-only and the sum below had to grow by 770 before the horizon moved).
+ * after this sum was written, and adding it here is what moved the horizon
+ * below). Cash store prices are NOT part of this test — they follow the
+ * depth tiers in cosmetics.CASH_PRICE_USD and are checked by the iaps
+ * tests.
  */
 function fullCollectionCost(): number {
   return (

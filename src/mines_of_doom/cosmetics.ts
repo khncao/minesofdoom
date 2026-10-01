@@ -23,6 +23,8 @@ export type OutfitCosmetic = {
   name: string;
   /** 0 = owned from the start, otherwise the gem price. */
   costGems: number;
+  /** Cash price tier (see CASH_PRICE_USD). */
+  cashTier: CashTier;
   /** Optional one-line flavor/shown in the picker (e.g. homage credit). */
   blurb?: string;
   /**
@@ -59,6 +61,8 @@ export type PickaxeCosmetic = {
   id: string;
   name: string;
   costGems: number;
+  /** Cash price tier (see CASH_PRICE_USD). */
+  cashTier: CashTier;
   /**
    * The tool this pickaxe IS — the line's silhouette axis. Eight distinct
    * objects, not eight colors of one crescent: the shape, the swing feel and
@@ -68,8 +72,6 @@ export type PickaxeCosmetic = {
   tool: ToolId;
   /** What the tool is called on its own ("Mattock", "Prism Cutter"). */
   toolName: string;
-  /** See `SkinCosmetic.pendingStoreSku` — the same gem-only exception. */
-  pendingStoreSku?: true;
   /** One-line flavor, shown on the card. */
   blurb: string;
   theme: PickaxeThemeDef;
@@ -80,6 +82,48 @@ export type PickaxeCosmetic = {
   feel: PickaxeFeel;
 };
 
+/**
+ * CASH PRICE TIERS — how much NEW art an item carries, not what it costs in
+ * gems.
+ *
+ * The cash price of a pack is chosen by what the player actually gets:
+ *
+ *   1  a recolor of something the player already owns — a palette swap, a
+ *      tint ramp, or a shape the line already had
+ *   2  a new character or look the line didn't have: a new headwear/hair/
+ *      dress silhouette, a new tool shape, a new theme palette
+ *   3  a new shape AND something that plays: a critter form, an animated
+ *      swing feel, its own strike sound, a faceted/refracting treatment
+ *   4  the line's hero items — the most hand-drawn art in the catalog
+ *
+ * Gem prices are the OTHER axis (how much the item is worth in the
+ * economy); they were tuned by the F2P balance test and don't move with
+ * this table. Every cosmetic carries its tier explicitly, so a price can't
+ * drift when a gem price is rebalanced.
+ *
+ * ALREADY-SOLD ITEMS KEEP THE PRICE THEY LAUNCHED AT. A Stripe price is
+ * immutable, so re-tiering a product on sale would leave the shop showing
+ * one amount and the checkout charging another — the exact "misleading
+ * price" guardrail 4 rules out. Re-tiering an existing product therefore
+ * needs a new Stripe price object (archive the old one) plus a Play price
+ * change, in that order, and only then does the tier move. The depth tiers
+ * govern new items and any deliberate re-price.
+ */
+export type CashTier = 1 | 2 | 3 | 4;
+
+export const CASH_PRICE_USD: Record<CashTier, number> = {
+ 1: 0.99,
+ 2: 1.99,
+ 3: 2.99,
+ 4: 3.99,
+};
+
+/** Display label for a tier (what the shop button and the Stripe catalog
+ *  use; the cent amount comes from CASH_PRICE_USD). */
+export function cashPriceLabel(tier: CashTier): string {
+ return `$${CASH_PRICE_USD[tier].toFixed(2)}`;
+}
+
 /** Shared skin-tone pool (all outfits). */
 const SKIN_TONES = ["#ffdbb4", "#f2c9a0", "#e0ac69", "#c68642", "#8d5524"];
 
@@ -87,6 +131,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "classic",
     name: "Classic Crew",
+    cashTier: 1,
     costGems: 0,
     shirts: ["#e8a33d", "#4a90d9", "#d9534f", "#5cb85c", "#8e6fc0"],
     pants: ["#3b4a6b", "#555b66", "#4a3b2a"],
@@ -97,6 +142,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "night",
     name: "Night Shift",
+    cashTier: 1,
     costGems: 15,
     shirts: ["#3a4a7a", "#4a3a7a", "#2b3a5c", "#5a4a8a"],
     pants: ["#22283a", "#2a2f45"],
@@ -107,6 +153,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "goldrush",
     name: "Gold Rush",
+    cashTier: 1,
     costGems: 25,
     shirts: ["#e8c33d", "#d4a017", "#f0d060", "#c89010"],
     pants: ["#5a4a20", "#6b5a30"],
@@ -117,6 +164,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "crystal",
     name: "Crystal Miner",
+    cashTier: 2,
     costGems: 40,
     shirts: ["#3ac0c0", "#2a90d9", "#7fe0d0", "#40b0e0"],
     pants: ["#2a4a5a", "#1f3a4a"],
@@ -127,6 +175,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "magma",
     name: "Lava Worker",
+    cashTier: 2,
     costGems: 50,
     shirts: ["#d94f30", "#e07020", "#b03020", "#f09030"],
     pants: ["#4a2a1a", "#3a2015"],
@@ -140,6 +189,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "blocky",
     name: "Blocky Adventurer",
+    cashTier: 1,
     costGems: 30,
     blurb: "a voxel-sandbox tribute",
     shirts: ["#2f88c4", "#35a0cc", "#2a6a98"],
@@ -151,6 +201,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "surface",
     name: "Frontier Explorer",
+    cashTier: 2,
     costGems: 40,
     blurb: "a surface-to-underground sandbox tribute",
     shirts: ["#4a8a3a", "#6aa84a", "#3a7030"],
@@ -162,6 +213,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "knight",
     name: "Ashen Knight",
+    cashTier: 2,
     costGems: 50,
     blurb: "a dark-fantasy soulslike tribute",
     shirts: ["#8a9099", "#6a707a", "#5a606a"],
@@ -173,6 +225,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "hunter",
     name: "Wandering Hunter",
+    cashTier: 2,
     costGems: 60,
     blurb: "a gothic hunt tribute",
     shirts: ["#4a5a3a", "#3a4a2a", "#5a4a3a"],
@@ -184,6 +237,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "oni",
     name: "Crimson Oni",
+    cashTier: 3,
     costGems: 75,
     blurb: "a samurai-era vengeance tribute",
     shirts: ["#b03030", "#8a2020", "#c04040"],
@@ -198,6 +252,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "marmot",
     name: "Burrow Marmot",
+    cashTier: 2,
     costGems: 60,
     blurb: "a pocket-sized rodent with a pickaxe bigger than it",
     species: "animal",
@@ -211,6 +266,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "fox",
     name: "Fox of the Vein",
+    cashTier: 3,
     costGems: 70,
     blurb: "all fire, no smoke — the crew's resident gambler",
     species: "animal",
@@ -224,6 +280,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "otter",
     name: "Otter of the River",
+    cashTier: 3,
     costGems: 85,
     blurb: "rivers' finest — hoards shiny things in a nest of pebbles",
     species: "animal",
@@ -239,6 +296,7 @@ export const OUTFITS: OutfitCosmetic[] = [
   {
     id: "damsel",
     name: "Damsel of the Deep",
+    cashTier: 3,
     costGems: 75,
     blurb: "long hair, softer clothes, the same unshakeable nerve",
     shirts: ["#e070a0", "#d9534f", "#8e6fc0", "#e8a33d"],
@@ -253,6 +311,7 @@ export const PICKAXES: PickaxeCosmetic[] = [
   {
     id: "steel",
     name: "Steel",
+    cashTier: 1,
     costGems: 0,
     tool: "pickaxe",
     toolName: "Pickaxe",
@@ -264,6 +323,7 @@ export const PICKAXES: PickaxeCosmetic[] = [
   {
     id: "gold",
     name: "Gold",
+    cashTier: 1,
     costGems: 25,
     tool: "mattock",
     toolName: "Mattock",
@@ -277,6 +337,7 @@ export const PICKAXES: PickaxeCosmetic[] = [
     // id "frost" (not "crystal") to avoid colliding with the outfit id.
     id: "frost",
     name: "Crystal",
+    cashTier: 2,
     costGems: 45,
     tool: "lance",
     toolName: "Lance",
@@ -289,8 +350,8 @@ export const PICKAXES: PickaxeCosmetic[] = [
   {
     id: "emberbrand",
     name: "Emberbrand",
+    cashTier: 3,
     costGems: 60,
-    pendingStoreSku: true,
     tool: "emberbrand",
     toolName: "Emberbrand",
     blurb: "a burning brand — the rock smokes where it lands",
@@ -301,8 +362,8 @@ export const PICKAXES: PickaxeCosmetic[] = [
   {
     id: "sledge",
     name: "Cinder Sledge",
+    cashTier: 3,
     costGems: 75,
-    pendingStoreSku: true,
     tool: "sledge",
     toolName: "Sledge",
     blurb: "the biggest head in the crate; it does not need finesse",
@@ -314,8 +375,8 @@ export const PICKAXES: PickaxeCosmetic[] = [
   {
     id: "lanternhook",
     name: "Lantern Hook",
+    cashTier: 3,
     costGems: 85,
-    pendingStoreSku: true,
     tool: "lanternhook",
     toolName: "Lantern Hook",
     blurb: "hangs its own light on the gallery wall and hooks the rock",
@@ -326,6 +387,7 @@ export const PICKAXES: PickaxeCosmetic[] = [
   {
     id: "shadow",
     name: "Shadow",
+    cashTier: 3,
     costGems: 90,
     tool: "auger",
     toolName: "Auger",
@@ -338,8 +400,8 @@ export const PICKAXES: PickaxeCosmetic[] = [
   {
     id: "prism",
     name: "Prism Cutter",
+    cashTier: 4,
     costGems: 100,
-    pendingStoreSku: true,
     tool: "prism",
     toolName: "Prism Cutter",
     blurb: "cuts the seam at an angle the light likes",
@@ -552,6 +614,8 @@ export type CaveTheme = {
   name: string;
   /** 0 = owned from the start, otherwise the gem price. */
   costGems: number;
+  /** Cash price tier (see CASH_PRICE_USD). */
+  cashTier: CashTier;
   /** Optional one-line flavor/shown in the picker (e.g. homage credit). */
   blurb?: string;
   /** One tint per depth tier (index-aligned with DEPTH_TIERS). */
@@ -589,15 +653,8 @@ export type SkinCosmetic = {
   /** Gem price. Unlike the other lines there is no free default: "no
    *  skin" is the player's own rolled look (selectedSkin ""), not an item. */
   costGems: number;
-  /**
-   * This item is GEM-ONLY for now: it has no store pack because creating
-   * one needs a real Stripe price plus Play/App Store SKU in those
-   * accounts (`scripts/stripe/syncStripe.mjs products`, the runbook in
-   * docs/store-integration.md §2). The store catalog skips flagged items
-   * (see iaps.ts) rather than pointing a cash button at a price id that
-   * doesn't exist — which would just error at checkout.
-   */
-  pendingStoreSku?: true;
+  /** Cash price tier (see CASH_PRICE_USD). */
+  cashTier: CashTier;
   /** One-line flavor, shown on the card. */
   blurb: string;
   /** The character's colors (the same `MinerLook` the live line takes). */
@@ -614,8 +671,8 @@ export const SKINS: readonly SkinCosmetic[] = [
   {
     id: "lantern-crew",
     name: "Lantern Crew",
+    cashTier: 1,
     costGems: 25,
-    pendingStoreSku: true,
     blurb: "the shift's hard-hat standard, lamp on the brim",
     look: {
       skin: "#ffdbb4",
@@ -630,8 +687,8 @@ export const SKINS: readonly SkinCosmetic[] = [
   {
     id: "frost-bit",
     name: "Frost Bit",
+    cashTier: 1,
     costGems: 25,
-    pendingStoreSku: true,
     blurb: "red beanie, green wool, still swinging the pick",
     look: {
       skin: "#f2c9a0",
@@ -646,8 +703,8 @@ export const SKINS: readonly SkinCosmetic[] = [
   {
     id: "deep-survey",
     name: "Deep Survey",
+    cashTier: 2,
     costGems: 40,
-    pendingStoreSku: true,
     blurb: "visor cap and a beard; has mapped every gallery twice",
     look: {
       skin: "#8d5524",
@@ -662,8 +719,8 @@ export const SKINS: readonly SkinCosmetic[] = [
   {
     id: "shift-foreman",
     name: "Shift Foreman",
+    cashTier: 2,
     costGems: 40,
-    pendingStoreSku: true,
     blurb: "white hard hat, red shirt, runs the whole seam",
     look: {
       skin: "#e07020",
@@ -678,8 +735,8 @@ export const SKINS: readonly SkinCosmetic[] = [
   {
     id: "fox-crew",
     name: "Fox Crew",
+    cashTier: 3,
     costGems: 60,
-    pendingStoreSku: true,
     blurb: "red bandana, and always the first down the ladder",
     look: {
       skin: "#e07020",
@@ -694,8 +751,8 @@ export const SKINS: readonly SkinCosmetic[] = [
   {
     id: "marmot-crew",
     name: "Marmot Crew",
+    cashTier: 3,
     costGems: 60,
-    pendingStoreSku: true,
     blurb: "green beanie, permanently unbothered",
     look: {
       skin: "#a08058",
@@ -711,8 +768,8 @@ export const SKINS: readonly SkinCosmetic[] = [
   {
     id: "rose-lantern",
     name: "Rose Lantern",
+    cashTier: 3,
     costGems: 75,
-    pendingStoreSku: true,
     blurb: "long pink hair, lilac dress — carries the lamp basket",
     look: {
       skin: "#ffe3c8",
@@ -733,8 +790,8 @@ export const SKINS: readonly SkinCosmetic[] = [
   {
     id: "mint-comet",
     name: "Mint Comet",
+    cashTier: 3,
     costGems: 75,
-    pendingStoreSku: true,
     blurb: "mint ponytail; names every equation before it lands",
     look: {
       skin: "#f2c9a0",
@@ -755,8 +812,8 @@ export const SKINS: readonly SkinCosmetic[] = [
   {
     id: "sky-bob",
     name: "Sky Bob",
+    cashTier: 3,
     costGems: 85,
-    pendingStoreSku: true,
     blurb: "sky-blue bob under a little orange beanie",
     look: {
       skin: "#ffe3c8",
@@ -777,8 +834,8 @@ export const SKINS: readonly SkinCosmetic[] = [
   {
     id: "twin-bells",
     name: "Twin Bells",
+    cashTier: 4,
     costGems: 85,
-    pendingStoreSku: true,
     blurb: "twin tails, yellow dress, loudest lamp on the crew",
     look: {
       skin: "#f2c9a0",
@@ -799,8 +856,8 @@ export const SKINS: readonly SkinCosmetic[] = [
   {
     id: "blossom-bun",
     name: "Blossom Bun",
+    cashTier: 4,
     costGems: 100,
-    pendingStoreSku: true,
     blurb: "top knot, rose dress; runs the gem counters",
     look: {
       skin: "#ffe3c8",
@@ -821,8 +878,8 @@ export const SKINS: readonly SkinCosmetic[] = [
   {
     id: "ember-sunrise",
     name: "Ember Sunrise",
+    cashTier: 4,
     costGems: 100,
-    pendingStoreSku: true,
     blurb: "ginger hair to the waist, amber dress, first up the ladder",
     look: {
       skin: "#f7d9c0",
@@ -849,30 +906,35 @@ export const CAVE_THEMES: CaveTheme[] = [
   {
     id: "natural",
     name: "Natural",
+    cashTier: 1,
     costGems: 0,
     tints: DEFAULT_CAVE_TINTS,
   },
   {
     id: "amethyst",
     name: "Amethyst Cavern",
+    cashTier: 1,
     costGems: 25,
     tints: ["#c8a8e0", "#b090d8", "#9a7fc8", "#b88fe0", "#d8c0f0"],
   },
   {
     id: "verdant",
     name: "Verdant Hollow",
+    cashTier: 2,
     costGems: 35,
     tints: ["#a8c890", "#90b878", "#78a860", "#8fc85a", "#a8e878"],
   },
   {
     id: "solar",
     name: "Solar Vein",
+    cashTier: 2,
     costGems: 55,
     tints: ["#e8d8a8", "#e8c878", "#e8b050", "#e89838", "#f0d060"],
   },
   {
     id: "void",
     name: "Void Depths",
+    cashTier: 3,
     costGems: 75,
     tints: ["#6a7a9a", "#5a6a8a", "#4a5a7a", "#5a4a7a", "#7a6aaa"],
   },
@@ -882,6 +944,7 @@ export const CAVE_THEMES: CaveTheme[] = [
   {
     id: "voxel",
     name: "Blockfall Mines",
+    cashTier: 3,
     costGems: 90,
     blurb: "dirt, grass & glowing ore — a voxel tribute",
     tints: ["#8a6b45", "#5f7a3e", "#6e7686", "#3e7a8a", "#2a4a5a"],
@@ -889,6 +952,7 @@ export const CAVE_THEMES: CaveTheme[] = [
   {
     id: "wilds",
     name: "Wilds Below",
+    cashTier: 4,
     costGems: 110,
     blurb: "from the grassy surface to hellstone — a sandbox tribute",
     tints: ["#5f8a3e", "#8a6b45", "#5a6478", "#7a4a5e", "#33262e"],
@@ -896,6 +960,7 @@ export const CAVE_THEMES: CaveTheme[] = [
   {
     id: "ashen",
     name: "Ashen Depths",
+    cashTier: 4,
     costGems: 130,
     blurb: "fog, grey stone & a single ember — a dark-fantasy tribute",
     tints: ["#8a8f9a", "#6a7080", "#525868", "#6a4434", "#23262e"],
@@ -903,6 +968,7 @@ export const CAVE_THEMES: CaveTheme[] = [
   {
     id: "gothic",
     name: "Fog & Lantern",
+    cashTier: 4,
     costGems: 150,
     blurb:
       "moonlit fog, lantern glow, one drop of blood — a gothic hunt tribute",
@@ -911,6 +977,7 @@ export const CAVE_THEMES: CaveTheme[] = [
   {
     id: "cherry",
     name: "Cherry & Indigo",
+    cashTier: 4,
     costGems: 170,
     blurb:
       "blossom over indigo night, gold at the bottom — a samurai-era tribute",

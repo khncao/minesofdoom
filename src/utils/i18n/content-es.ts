@@ -207,6 +207,74 @@ export const contentEs: ContentTable = {
       "con su propio sonido de balanceo y el golpeo más pesado y " +
       "deliberado. Puramente cosmético.",
   },
+  // --- Packs: the four tools added with the shape axis -----------------------
+  "iap:packEmberbrand": {
+    title: "Mines of Doom: Pico de Marca de Brasa",
+    detail: "Compra única. Desbloquea el Pico de Marca de Brasa (una marca ardiente — la roca humea donde golpea) — con su propio sonido de balanceo y su propio golpeo. Puramente cosmético.",
+  },
+  "iap:packSledge": {
+    title: "Mines of Doom: Pico Martillo de Ceniza",
+    detail: "Compra única. Desbloquea el Pico Martillo de Ceniza (el escudo más grande del cajón; no necesita finesse) — con el balanceo más lento y el rebote más profundo de la línea. Puramente cosmético.",
+  },
+  "iap:packLanternhook": {
+    title: "Mines of Doom: Pico Gancho de Farol",
+    detail: "Compra única. Desbloquea el Pico Gancho de Farol (cuelga su propia luz en la galería y engancha la roca) — con un repique de cadena y un golpe seco. Puramente cosmético.",
+  },
+  "iap:packPrism": {
+    title: "Mines of Doom: Pico de Corte de Prisma",
+    detail: "Compra única. Desbloquea el Pico de Corte de Prisma (corta la veta en un ángulo que le gusta a la luz) — con un timbre cristalino largo. Puramente cosmético.",
+  },
+
+  // --- Packs: the skin line ---------------------------------------------
+  "iap:packLanternCrew": {
+    title: "Mines of Doom: Piel Cuadrilla del Farol",
+    detail: "Compra única. Desbloquea la piel Cuadrilla del Farol — el estándar del turno: casco con lámpara en la visera. Puramente cosmético.",
+  },
+  "iap:packFrostBit": {
+    title: "Mines of Doom: Piel Escarcha",
+    detail: "Compra única. Desbloquea la piel Escarcha — gorro rojo, lana verde, y sigue golpeando. Puramente cosmético.",
+  },
+  "iap:packDeepSurvey": {
+    title: "Mines of Doom: Piel Plano Profundo",
+    detail: "Compra única. Desbloquea la piel Plano Profundo — gorro con visera y barba; ya mapeó cada galería dos veces. Puramente cosmético.",
+  },
+  "iap:packShiftForeman": {
+    title: "Mines of Doom: Piel Capataz del Turno",
+    detail: "Compra única. Desbloquea la piel Capataz del Turno — casco blanco, camisa roja, dueño de toda la veta. Puramente cosmético.",
+  },
+  "iap:packFoxCrew": {
+    title: "Mines of Doom: Piel Cuadrilla Zorro",
+    detail: "Compra única. Desbloquea la piel Cuadrilla Zorro — pañuelo rojo, y siempre el primero en bajar. Puramente cosmético.",
+  },
+  "iap:packMarmotCrew": {
+    title: "Mines of Doom: Piel Cuadrilla Marmota",
+    detail: "Compra única. Desbloquea la piel Cuadrilla Marmota — gorro verde, imperturbable para siempre. Puramente cosmético.",
+  },
+  "iap:packRoseLantern": {
+    title: "Mines of Doom: Piel Farol Rosa",
+    detail: "Compra única. Desbloquea la piel Farol Rosa — pelo rosa largo, vestido lila — lleva la cesta de lámparas. Puramente cosmético.",
+  },
+  "iap:packMintComet": {
+    title: "Mines of Doom: Piel Cometa Menta",
+    detail: "Compra única. Desbloquea la piel Cometa Menta — coleta menta; nombra cada cuenta antes de que caiga. Puramente cosmético.",
+  },
+  "iap:packSkyBob": {
+    title: "Mines of Doom: Piel Bob Celeste",
+    detail: "Compra única. Desbloquea la piel Bob Celeste — bob celeste debajo de un pequeño gorro naranja. Puramente cosmético.",
+  },
+  "iap:packTwinBells": {
+    title: "Mines of Doom: Piel Campanillas",
+    detail: "Compra única. Desbloquea la piel Campanillas — coletas gemelas, vestido amarillo, la lámpara más ruidosa. Puramente cosmético.",
+  },
+  "iap:packBlossomBun": {
+    title: "Mines of Doom: Piel Moño Florido",
+    detail: "Compra única. Desbloquea la piel Moño Florido — moño alto, vestido rosa; lleva la cuenta de las gemas. Puramente cosmético.",
+  },
+  "iap:packEmberSunrise": {
+    title: "Mines of Doom: Piel Amanecer de Brasa",
+    detail: "Compra única. Desbloquea la piel Amanecer de Brasa — pelo pelirrojo hasta la cintura, vestido ámbar, primera en bajar. Puramente cosmético.",
+  },
+
   "iap:packNight": {
     title: "Traje de turno nocturno",
     detail:

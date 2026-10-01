@@ -73,30 +73,25 @@ so neither feature can break the other.
 
 Regenerate with `node scripts/generate-skin-line-samples.mjs`.
 
-## Cash packs: gem-only for now
+## Buying a skin
 
-Skins are bought with **gems** today. They are ordinary paid cosmetics, so
-the store catalog's rule is one cash pack per paid cosmetic — but a pack
-needs a real Stripe price plus Play Billing SKU and App Store product id
-created in those accounts (`node scripts/stripe/syncStripe.mjs products`, the
-runbook in `docs/store-integration.md` §2), and none exist for these twelve.
-A cash button pointing at a made-up price id would simply error at checkout,
-so the line ships gem-only and the catalog says so in `iaps.ts`:
+Every skin is a normal paid cosmetic: **gems in game, real money in the
+stores**, like every other line (guardrail 1 — buying is convenience, never
+access). The cash price is the character's **depth tier**
+(`cosmetics.CASH_PRICE_USD`, the ladder in
+`docs/store-integration.md` §2.1c), which tracks how much hand-drawn art the
+character is rather than what it costs in gems:
 
-```
-// The skin line (cosmetics.SKINS) is GEM-ONLY for now. A cash pack needs a
-// real Stripe price plus Play/App Store SKU … When the SKUs land, add one
-// pack per paid skin here (in SKINS order) + the Stripe price ids in
-// storeConfig.ts + the mirrored entry in pb_hooks/logic.js PRODUCTS, and
-// drop the "skin" exception from `exactly one pack per PAID cosmetic` in
-// iaps.test.ts.
-```
+| tier | price | skins |
+| --- | --- | --- |
+| 1 | $0.99 | Lantern Crew, Frost Bit |
+| 2 | $1.99 | Deep Survey, Shift Foreman |
+| 3 | $2.99 | Fox Crew, Marmot Crew (critter forms), Rose Lantern, Mint Comet, Sky Bob |
+| 4 | $3.99 | Twin Bells, Blossom Bun, Ember Sunrise |
 
-Nothing about the game code needs to change when they do: `buyCosmetic` /
-`selectCosmetic` already treat a skin like any other owned cosmetic, the
-panel already renders a card per skin-line product, and
-`getIapProductPreview` already resolves a skin grant to the character as
-authored.
+The two critter skins sit at tier 3 because a round animal body is a new
+shape, not a palette; the top three are the most hand-drawn characters in
+the line (twin tails, top knot, waist-length hair).
 
 ## Notes
 

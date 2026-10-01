@@ -26,6 +26,7 @@ import { Platform } from "react-native";
 import {
  COSMETIC_PREVIEW_SEED,
  DEFAULT_OUTFIT,
+ cashPriceLabel,
  getCaveTheme,
  getOutfit,
  getPickaxe,
@@ -71,7 +72,12 @@ export type IapPackLine = "pickaxe" | "outfit" | "caveTheme" | "skin";
 const PACK_SPECS = [
  { id: "packGold", line: "pickaxe", cosmeticId: "gold" },
  { id: "packFrost", line: "pickaxe", cosmeticId: "frost" },
+ // The four tools added with the pickaxe shape axis, in catalog order.
+ { id: "packEmberbrand", line: "pickaxe", cosmeticId: "emberbrand" },
+ { id: "packSledge", line: "pickaxe", cosmeticId: "sledge" },
+ { id: "packLanternhook", line: "pickaxe", cosmeticId: "lanternhook" },
  { id: "packShadow", line: "pickaxe", cosmeticId: "shadow" },
+ { id: "packPrism", line: "pickaxe", cosmeticId: "prism" },
  { id: "packNight", line: "outfit", cosmeticId: "night" },
  { id: "packGoldrush", line: "outfit", cosmeticId: "goldrush" },
  { id: "packCrystal", line: "outfit", cosmeticId: "crystal" },
@@ -94,23 +100,45 @@ const PACK_SPECS = [
  { id: "packAshen", line: "caveTheme", cosmeticId: "ashen" },
  { id: "packGothic", line: "caveTheme", cosmeticId: "gothic" },
  { id: "packCherry", line: "caveTheme", cosmeticId: "cherry" },
- // Items marked `pendingStoreSku` in cosmetics.ts (the whole skin line, plus
- // the four tools added with the shape axis) have NO pack here on purpose:
- // a cash pack needs a real Stripe price plus Play/App Store SKU created in
- // the accounts (`node scripts/stripe/syncStripe.mjs products`, the runbook
- // in docs/store-integration.md §2), and none exist for them yet — a cash
- // button pointing at a made-up price id would just error at checkout. When
- // the SKUs land: add one pack per item here (in catalog order), the Stripe
- // price ids in storeConfig.ts, the mirrored entry in pb_hooks/logic.js
- // PRODUCTS, drop the `pendingStoreSku` flag, and the "one pack per paid
- // cosmetic" test in iaps.test.ts goes back to holding for every line.
+ // The skin line: one pack per character, in cosmetics.ts order. Store ids
+ // fold the hyphenated cosmetic ids to "_" (Play Billing's alphabet is
+ // [a-z0-9_]), so "lantern-crew" is sold as `pack_lantern_crew`.
+ { id: "packLanternCrew", line: "skin", cosmeticId: "lantern-crew" },
+ { id: "packFrostBit", line: "skin", cosmeticId: "frost-bit" },
+ { id: "packDeepSurvey", line: "skin", cosmeticId: "deep-survey" },
+ { id: "packShiftForeman", line: "skin", cosmeticId: "shift-foreman" },
+ { id: "packFoxCrew", line: "skin", cosmeticId: "fox-crew" },
+ { id: "packMarmotCrew", line: "skin", cosmeticId: "marmot-crew" },
+ { id: "packRoseLantern", line: "skin", cosmeticId: "rose-lantern" },
+ { id: "packMintComet", line: "skin", cosmeticId: "mint-comet" },
+ { id: "packSkyBob", line: "skin", cosmeticId: "sky-bob" },
+ { id: "packTwinBells", line: "skin", cosmeticId: "twin-bells" },
+ { id: "packBlossomBun", line: "skin", cosmeticId: "blossom-bun" },
+ { id: "packEmberSunrise", line: "skin", cosmeticId: "ember-sunrise" },
  // The custom-skin feature pack (feature tier — the priciest line,
- // price derived from the gem price via packPriceLabel). `cosmeticId`
+ // price is the top cash tier). `cosmeticId`
  // doubles as the store-slug stem (pack_skin — the store id is a
  // Play Billing SKU, not the internal key); the GRANT id is
  // "customSkin" (the skin save slot), resolved in IAP_PACK_GRANTS.
  { id: "packSkin", line: "skin", cosmeticId: "skin" },
 ] as const;
+
+/**
+ * The store-side slug: `pack_` + the cosmetic id with anything outside Play
+ * Billing's `[a-z0-9_]` alphabet folded to `_` (the skin ids are
+ * hyphenated: "lantern-crew" → "pack_lantern_crew"). One id serves both
+ * stores, and the SKU table in docs/store-integration.md §2 mirrors it.
+ */
+function packStoreId(cosmeticId: string): string {
+  return ("pack_" + cosmeticId).replace(/[^a-z0-9_]/g, "_");
+}
+
+/**
+ * The custom-skin FEATURE pack's cash tier: the priciest one, because it is
+ * the priciest thing in the game (a 250-gem unlock of the whole upload
+ * slot). It grants no catalog item, so it has no `cashTier` of its own.
+ */
+const CUSTOM_SKIN_CASH_TIER = 4;
 
 export type IapPackId = (typeof PACK_SPECS)[number]["id"];
 
@@ -150,20 +178,6 @@ export interface IapProduct {
  readonly blurb: string;
 }
 
-/**
- * Display price tier by gem price, keeping every pack inside the $0.99–
- * $3.99 band (plan §5.2): the pricier a cosmetic is in gems, the pricier
- * its pack, so a purchase and saving gems stay roughly comparable.
- * Adjust the tiers here — the console table in
- * docs/store-integration.md §2 must follow.
- */
-function packPriceLabel(costGems: number): string {
- if (costGems <= 30) return "$0.99";
- if (costGems <= 60) return "$1.99";
- if (costGems <= 100) return "$2.99";
- return "$3.99";
-}
-
 /** One catalog row per spec, resolving the cosmetic name/price/blurb from
  *  cosmetics.ts so the pack copy can never drift from the gem shop. */
 /**
@@ -175,7 +189,7 @@ function packPriceLabel(costGems: number): string {
 export const APP_NAME = "Mines of Doom";
 
 function packProduct(spec: (typeof PACK_SPECS)[number]): IapProduct {
- const storeId = "pack_" + spec.cosmeticId;
+ const storeId = packStoreId(spec.cosmeticId);
  if (spec.line === "pickaxe") {
   const c = getPickaxe(spec.cosmeticId);
   return {
@@ -183,7 +197,7 @@ function packProduct(spec: (typeof PACK_SPECS)[number]): IapProduct {
    line: "pickaxe",
    storeId,
    label: `${APP_NAME}: ${c.name} Pickaxe`,
-   priceLabel: packPriceLabel(c.costGems),
+   priceLabel: cashPriceLabel(c.cashTier),
    blurb:
     `One-time purchase. Unlocks the ${c.name} pickaxe — its own swing ` +
     "sound and swing feel. Purely cosmetic.",
@@ -196,9 +210,25 @@ function packProduct(spec: (typeof PACK_SPECS)[number]): IapProduct {
    line: "outfit",
    storeId,
    label: `${APP_NAME}: ${c.name} Outfit`,
-   priceLabel: packPriceLabel(c.costGems),
+   priceLabel: cashPriceLabel(c.cashTier),
    blurb:
     `One-time purchase. Unlocks the ${c.name} outfit` +
+    (c.blurb ? ` — ${c.blurb}.` : ".") +
+    " Purely cosmetic.",
+  };
+ }
+ if (spec.line === "skin" && spec.cosmeticId !== "skin") {
+  // A skin CHARACTER (not the feature pack below): it grants the catalog
+  // item like every other line.
+  const c = getSkin(spec.cosmeticId)!;
+  return {
+   id: spec.id,
+   line: "skin",
+   storeId,
+   label: `${APP_NAME}: ${c.name} Skin`,
+   priceLabel: cashPriceLabel(c.cashTier),
+   blurb:
+    `One-time purchase. Unlocks the ${c.name} skin` +
     (c.blurb ? ` — ${c.blurb}.` : ".") +
     " Purely cosmetic.",
   };
@@ -209,7 +239,9 @@ function packProduct(spec: (typeof PACK_SPECS)[number]): IapProduct {
    line: "skin",
    storeId,
    label: `${APP_NAME}: Custom Skin`,
-   priceLabel: packPriceLabel(CUSTOM_SKIN_UNLOCK_COST_GEMS),
+   // The feature pack grants no catalog item, so it has no cashTier — it
+   // keeps the gem-price band (the priciest tier, by design).
+   priceLabel: cashPriceLabel(CUSTOM_SKIN_CASH_TIER),
    blurb:
     "One-time purchase. Unlocks Custom Skin — upload your own 16×16 " +
     "miner sprite and swing sound. Purely cosmetic.",
@@ -221,7 +253,7 @@ function packProduct(spec: (typeof PACK_SPECS)[number]): IapProduct {
   line: "caveTheme",
   storeId,
   label: `${APP_NAME}: ${c.name} Theme`,
-  priceLabel: packPriceLabel(c.costGems),
+  priceLabel: cashPriceLabel(c.cashTier),
   blurb:
    `One-time purchase. Unlocks the ${c.name} cave theme` +
    (c.blurb ? ` — ${c.blurb}.` : ".") +
@@ -301,7 +333,9 @@ export const IAP_PACK_GRANTS: Record<IapProductId, IapPackGrant> =
  Object.fromEntries(
   PACK_SPECS.map((spec) => [
    spec.id,
-   spec.line === "skin"
+   // The one "skin"-line entry that is NOT a catalog item: the custom-skin
+   // FEATURE pack. Every other skin-line pack grants its character.
+   spec.line === "skin" && spec.cosmeticId === "skin"
     ? { kind: "customSkin" as const, id: "customSkin" }
     : {
        kind:

@@ -25,18 +25,26 @@ import { storeIapProvider } from "../iapProvider";
 import { isPocketbaseConfigured } from "../storeConfig";
 import {
   CAVE_THEMES,
+  CASH_PRICE_USD,
   COSMETIC_PREVIEW_SEED,
   DEFAULT_OUTFIT,
   OUTFITS,
   PICKAXES,
   SKINS,
+  cashPriceLabel,
   getCaveTheme,
-  getCostGems,
+  getOutfit,
+  getPickaxe,
+  getSkin,
   rollMinerLook,
 } from "../cosmetics";
 // The art-pack seam, not pixelArt directly: the previews must match the
 // sprites the game actually draws, whichever pack is active.
-import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/artPack";
+import {
+  minerSpriteUri,
+  pickaxeSpriteUri,
+  skinSpriteUri,
+} from "src/utils/graphics/artPack";
 
 const ALL_PRODUCT_IDS = Object.keys(IAP_PRODUCTS) as IapProductId[];
 
@@ -115,7 +123,8 @@ describe("cosmetic packs (plan §5.2)", () => {
       } else {
         expect(
           OUTFITS.some((o) => o.id === grant.id) ||
-            PICKAXES.some((p) => p.id === grant.id),
+            PICKAXES.some((p) => p.id === grant.id) ||
+            SKINS.some((k) => k.id === grant.id),
         ).toBe(true);
       }
     }
@@ -135,59 +144,68 @@ describe("cosmetic packs (plan §5.2)", () => {
   });
 
   it("exactly one pack per PAID cosmetic, in cosmetics.ts order per line", () => {
-    // `pendingStoreSku` items are the documented exception: they have no
-    // store SKU yet, so they are gem-only and get no pack (iaps.ts PACK_SPECS
-    // carries the runbook). Everything else is 1:1.
-    const packable = <T extends { costGems: number; pendingStoreSku?: true }>(
-      list: readonly T[],
-    ): T[] => list.filter((c) => c.costGems > 0 && c.pendingStoreSku !== true);
-    const paidPickaxes = packable(PICKAXES);
-    const paidOutfits = packable(OUTFITS);
-    const paidThemes = packable(CAVE_THEMES);
+    const paidPickaxes = PICKAXES.filter((p) => p.costGems > 0);
+    const paidOutfits = OUTFITS.filter((o) => o.costGems > 0);
+    const paidThemes = CAVE_THEMES.filter((t) => t.costGems > 0);
+    const paidSkins = SKINS; // every skin is paid ("no skin" is the look)
     const packs = IAP_PRODUCT_LIST; // the catalog is packs only
-    // Free defaults (steel / classic / natural) and pendingStoreSku items
-    // stay out of the catalog. The +1 is the custom-skin FEATURE pack (todo:
-    // "Custom skinning") — the catalog's one non-cosmetic line, which rides
-    // the same "skin" line as the skin characters but grants no catalog
-    // item.
+    // Free defaults (steel / classic / natural) stay out of the catalog.
+    // The +1 is the custom-skin FEATURE pack (todo: "Custom skinning") —
+    // the catalog's one non-cosmetic line, which rides the same "skin" line
+    // as the skin characters but grants no catalog item.
     expect(packs).toHaveLength(
-      paidPickaxes.length + paidOutfits.length + paidThemes.length + 1,
+      paidPickaxes.length +
+        paidOutfits.length +
+        paidThemes.length +
+        paidSkins.length +
+        1,
     );
     const byLine = (line: string) =>
       packs.filter((p) => p.line === line).map((p) => p.storeId);
     expect(byLine("pickaxe")).toEqual(paidPickaxes.map((p) => "pack_" + p.id));
     expect(byLine("outfit")).toEqual(paidOutfits.map((o) => "pack_" + o.id));
     expect(byLine("caveTheme")).toEqual(paidThemes.map((t) => "pack_" + t.id));
-    // The skin line's ONLY product is the custom-skin FEATURE pack: the
-    // characters are all `pendingStoreSku`, so they are gem-only for now.
-    expect(byLine("skin")).toEqual(["pack_skin"]);
+    // The skin line sells every character plus the one FEATURE pack, and the
+    // store ids fold the hyphenated cosmetic ids to "_" (Play Billing's
+    // alphabet is [a-z0-9_]).
+    expect(byLine("skin")).toEqual([
+      ...paidSkins.map((k) => "pack_" + k.id.replace(/-/g, "_")),
+      "pack_skin",
+    ]);
   });
 
-  it("every gem-only item is real, priced, and absent from the catalog", () => {
-    // The `pendingStoreSku` exception is easy to leave behind: a flagged
-    // item that gets a pack (or loses its flag) must show up here.
-    const allCosmetics: { id: string; costGems: number; pendingStoreSku?: true }[] =
-      [...PICKAXES, ...OUTFITS, ...CAVE_THEMES, ...SKINS];
-    const flagged = allCosmetics.filter((c) => c.pendingStoreSku === true);
-    expect(flagged.length).toBeGreaterThan(0);
-    for (const item of flagged) {
-      // It is a real, gem-priced catalog item (a flag on nothing is a bug).
-      expect(item.costGems).toBeGreaterThan(0);
-      expect(getCostGems(item.id)).toBe(item.costGems);
-      // …and no pack sells it yet.
-      const grantIds = Object.values(IAP_PACK_GRANTS).map((g) => g.id);
-      expect(grantIds).not.toContain(item.id);
+  it("every pack price comes from the item's DEPTH tier, not its gem price", () => {
+    // The cash price is chosen by how much new art an item carries
+    // (cosmetics.CASH_PRICE_USD), so it must NOT track the gem price: a
+    // rebalance of gem costs can never move a store price, and the two
+    // ladders can disagree. Pinned by finding items whose gem price band and
+    // cash tier disagree in both directions.
+    // The ladder itself: four tiers, ascending, inside the $0.99–$3.99 band.
+    expect(CASH_PRICE_USD).toEqual({ 1: 0.99, 2: 1.99, 3: 2.99, 4: 3.99 });
+    for (const tier of [1, 2, 3, 4] as const) {
+      expect(cashPriceLabel(tier)).toBe(`$${CASH_PRICE_USD[tier].toFixed(2)}`);
     }
-    // Nothing else may carry the flag: a store SKU exists for everything
-    // without one, so the flag is only for genuinely pending items.
-    expect(flagged.map((c) => c.id).sort()).toEqual(
-      [
-        ...PICKAXES.filter((p) => p.pendingStoreSku === true),
-        ...SKINS.filter((k) => k.pendingStoreSku === true),
-      ]
-        .map((c) => c.id)
-        .sort(),
+    // Every catalog item carries a tier, and it is one of the four.
+    const allCosmetics = [...PICKAXES, ...OUTFITS, ...CAVE_THEMES, ...SKINS];
+    for (const item of allCosmetics) {
+      if (item.costGems === 0) continue; // the free default has no pack
+      expect([1, 2, 3, 4]).toContain(item.cashTier);
+    }
+    // Disagreement in both directions (so this cannot pass by accident):
+    // Prism Cutter is the top cash tier on a 100-gem item; a Crystal Miner
+    // outfit (40 💎) sits a tier below it.
+    expect(getPickaxe("prism")!.cashTier).toBe(4);
+    expect(getPickaxe("sledge")!.cashTier).toBe(3);
+    expect(getOutfit("crystal").cashTier).toBe(2);
+    expect(getSkin("ember-sunrise")!.cashTier).toBe(4);
+    expect(getSkin("lantern-crew")!.cashTier).toBe(1);
+    // …and the gem/cash bands really can differ: a 25-gem item is the top
+    // tier and a 100-gem item is the bottom one somewhere in the catalog.
+    const band = (g: number) => (g <= 30 ? 1 : g <= 60 ? 2 : g <= 100 ? 3 : 4);
+    const disagreements = allCosmetics.filter(
+      (c) => c.costGems > 0 && band(c.costGems) !== c.cashTier,
     );
+    expect(disagreements.length).toBeGreaterThan(0);
   });
 
   it("pack blurbs and prices resolve from the gem shop (no drift)", () => {
@@ -200,11 +218,18 @@ describe("cosmetic packs (plan §5.2)", () => {
       expect(p.blurb).toContain("One-time purchase");
       expect(p.blurb).toContain("Purely cosmetic.");
       expect(p.blurb).toContain(pack!.name);
-      // The display price tracks the gem-price tier (packPriceLabel).
-      const g = pack!.costGems;
-      const tier = g <= 30 ? 0.99 : g <= 60 ? 1.99 : g <= 100 ? 2.99 : 3.99;
-      expect(Number.parseFloat(p.priceLabel.replace("$", ""))).toBeCloseTo(
-        tier,
+      // The display price IS the item's depth tier (nothing else): resolve
+      // the granted cosmetic and read its own cashTier back.
+      const grantId = IAP_PACK_GRANTS[p.id].id;
+      const item =
+        PICKAXES.find((c) => c.id === grantId) ??
+        OUTFITS.find((c) => c.id === grantId) ??
+        CAVE_THEMES.find((c) => c.id === grantId) ??
+        SKINS.find((c) => c.id === grantId);
+      // …except the custom-skin FEATURE pack, which grants no catalog item
+      // and keeps the top tier (its own constant).
+      expect(p.priceLabel).toBe(
+        item == null ? "$3.99" : cashPriceLabel(item.cashTier),
       );
     }
   });
@@ -247,21 +272,18 @@ describe("cosmetic packs (plan §5.2)", () => {
     // Each pickaxe previews as its own themed sprite; each outfit as its
     // own (preview-seed) look — in catalog order, which is cosmetics.ts
     // order minus the free defaults (the packs sell only paid items).
-    // Packed pickaxes only — a gem-only tool has no product row yet, but the
-    // preview branch is the same one, so the packed set is what is pinned.
     expect(spriteUris.pickaxe).toEqual(
-      PICKAXES.filter(
-        (p) => p.costGems > 0 && p.pendingStoreSku !== true,
-      ).map((p) => pickaxeSpriteUri(p.theme, p.tool)),
+      PICKAXES.filter((p) => p.costGems > 0).map((p) =>
+        pickaxeSpriteUri(p.theme, p.tool),
+      ),
     );
+    // …and the skin line previews each character AS AUTHORED.
+    expect(spriteUris.skin).toEqual(SKINS.map((k) => skinSpriteUri(k)));
     expect(spriteUris.outfit).toEqual(
       OUTFITS.filter((o) => o.costGems > 0).map((o) =>
         minerSpriteUri(rollMinerLook(COSMETIC_PREVIEW_SEED, o.id)),
       ),
     );
-    // No skin packs yet (gem-only line), so the sprite bucket is empty —
-    // pinned so adding a pack without a preview shows up here.
-    expect(spriteUris.skin).toEqual([]);
     // Duplicates would mean two rows showing the same image.
     for (const uris of Object.values(spriteUris)) {
       expect(new Set(uris).size).toBe(uris.length);

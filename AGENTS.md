@@ -224,7 +224,15 @@ moduleNameMapper, and Metro resolves it through `app.config.ts`'s
 
 ## Gotchas
 
-- **Save version discipline:** bumping `saveVersion` in `game.ts` requires a
+- **Cash prices follow DEPTH, not gem cost.** Every cosmetic carries a
+  `cashTier` (1–4 → `CASH_PRICE_USD`, $0.99–$3.99) meaning how much new art
+  the item is; the store price is that tier, NOT the gem price. Already-sold
+  items keep their launch price (a Stripe price object is immutable, so a
+  re-tier would make the shop display one amount and charge another).
+  Re-pricing a live item = new Stripe price + Play price change + tier move +
+  re-paste of the `syncStripe.mjs` snippet; `syncStripe.mjs verify` (both
+  modes) is the drift check. There is no gem-only line: every paid cosmetic
+  has a pack.- **Save version discipline:** bumping `saveVersion` in `game.ts` requires a
   new entry in the `migrations` map AND a bump of `MAX_SAVE_VERSION` in
   `pb_hooks/logic.js` — `pb_hooks/__test__/logic.test.js` pins the two equal
   and fails the full suite otherwise (a cloud push with a newer version is
