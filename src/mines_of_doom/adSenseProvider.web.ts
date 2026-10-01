@@ -4,10 +4,10 @@
  * path for rewarded ads (docs/store-integration.md §1.1). Metro resolves
  * this file (`.web` extension) for the web target; the native bundle
  * resolves `./adSenseProvider` instead (a no-op — native rewarded ads run
- * on the AdMob SDK, see adProvider.ts), so this file and its DOM access
+ * on the Unity Ads SDK, see unityAdProvider.ts), so this file and its DOM access
  * never enter a native bundle.
  *
- * The API is TWO-PHASE, unlike AdMob:
+ * The API is TWO-PHASE, unlike Unity Ads:
  *  1. A probe — `primeReward(kind)` pushes a `type: "reward"` placement
  *     onto the `window.adsbygoogle` queue (the loader script is emitted by
  *     +html.tsx from the same storeConfig values). If a suitable ad is
@@ -37,7 +37,7 @@ import { isAdSenseConfigured } from "./storeConfig";
 
 /** How long a tapped ad may take to OPEN before we give up ("error").
  *  Cleared by `beforeAd` — once the video is on screen it may run as
- *  long as it needs (same shape as the AdMob provider's load timeout). */
+ *  long as it needs (same shape as the Unity Ads provider's load timeout). */
 const OPEN_WATCHDOG_MS = 60_000;
 
 /** All four placements, primed together when the ad panel opens. */
@@ -171,7 +171,7 @@ export const adSenseAdProvider: AdProvider = {
   id: "adsense",
   // Config-gated like every other provider (the loader script is emitted
   // by +html.tsx under the same condition). Network state is checked at
-  // tap time, not here — mirrors the AdMob provider, whose isAvailable
+  // tap time, not here — mirrors the Unity Ads provider, whose isAvailable
   // is likewise just the config gate.
   isAvailable: () => isAdSenseConfigured(),
   primeReward,

@@ -14,7 +14,7 @@ import {
   selectAdProvider,
 } from "../ads";
 import { getLocalDayKey } from "../dailyBonus";
-import { adMobAdProvider, hasAdMobConfig } from "../adProvider";
+import { unityAdProvider, hasUnityAdsConfig } from "../unityAdProvider";
 import { adSenseAdProvider } from "../adSenseProvider";
 
 /** Local noon on a calendar day — same convention as the daily-bonus
@@ -201,7 +201,7 @@ describe("provider selection (the swap point)", () => {
       pickAdProvider({
         dev: true,
         web: false,
-        adMobConfigured: false,
+        unityConfigured: false,
         adSenseConfigured: false,
       }),
     ).toBe(devSimAdProvider);
@@ -209,7 +209,7 @@ describe("provider selection (the swap point)", () => {
       pickAdProvider({
         dev: true,
         web: true,
-        adMobConfigured: true,
+        unityConfigured: true,
         adSenseConfigured: true,
       }),
     ).toBe(devSimAdProvider);
@@ -220,18 +220,18 @@ describe("provider selection (the swap point)", () => {
       pickAdProvider({
         dev: false,
         web: true,
-        adMobConfigured: true,
+        unityConfigured: true,
         adSenseConfigured: false,
       }),
     ).toBe(noopAdProvider);
   });
 
-  it("configured web production selects the AdSense provider (the web branch never reads the AdMob flag)", () => {
+  it("configured web production selects the AdSense provider (the web branch never reads the Unity flag)", () => {
     expect(
       pickAdProvider({
         dev: false,
         web: true,
-        adMobConfigured: false,
+        unityConfigured: false,
         adSenseConfigured: true,
       }),
     ).toBe(adSenseAdProvider);
@@ -239,7 +239,7 @@ describe("provider selection (the swap point)", () => {
       pickAdProvider({
         dev: false,
         web: true,
-        adMobConfigured: true,
+        unityConfigured: true,
         adSenseConfigured: true,
       }),
     ).toBe(adSenseAdProvider);
@@ -250,28 +250,28 @@ describe("provider selection (the swap point)", () => {
       pickAdProvider({
         dev: false,
         web: false,
-        adMobConfigured: false,
+        unityConfigured: false,
         adSenseConfigured: true,
       }),
     ).toBe(noopAdProvider);
   });
 
-  it("configured native production selects the AdMob provider", () => {
+  it("configured native production selects the Unity Ads provider", () => {
     expect(
       pickAdProvider({
         dev: false,
         web: false,
-        adMobConfigured: true,
+        unityConfigured: true,
         adSenseConfigured: false,
       }),
-    ).toBe(adMobAdProvider);
+    ).toBe(unityAdProvider);
   });
 
-  // The live selector — pins the shipped state of storeConfig: the ids
-  // are not filled in yet (docs/store-integration.md §1), so a production
-  // build must still hide the entry points.
+  // The live selector — pins the shipped state of storeConfig: the Unity
+  // Game ID / placement ids are not filled in yet (docs/store-integration.md
+  // §1), so a production build must still hide the entry points.
   it("live selector: production with the current (empty) config selects the no-op", () => {
-    expect(hasAdMobConfig()).toBe(false);
+    expect(hasUnityAdsConfig()).toBe(false);
     expect(selectAdProvider(false)).toBe(noopAdProvider);
   });
 

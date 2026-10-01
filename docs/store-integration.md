@@ -1,14 +1,16 @@
 # Store integration — IAP, ads, and the Pocketbase cloud backend
 
-The single runbook for everything store-side: AdMob setup, the IAP
-catalog and the exact store products to create, the Pocketbase cloud
-backend (IAP verification + cloud saves + leaderboard), the on-device
-verification checklist, and the iOS/TestFlight half.
+The single runbook for everything store-side: ad-network setup (Unity Ads
+native + AdSense web), the IAP catalog and the exact store products to
+create, the Pocketbase cloud backend (IAP verification + cloud saves +
+leaderboard), the on-device verification checklist, and the iOS/TestFlight
+half.
 
 **Status (2026-07):**
 
 - ✅ **IAP + ads integration is complete on the code side** —
-  AdMob provider (real `expo-admob` native + web no-op), IAP provider
+  rewarded provider (Unity Ads on native via `modules/unity-ads`, AdSense
+  Ad Placement API on web), IAP provider
   (expo-iap → Pocketbase verify → entitlement), provider selection,
   panel wiring. The IAP purchase UI is **hidden in production** until
   the Pocketbase verify backend is configured (it is — live, see §2.3);
@@ -34,10 +36,11 @@ verification checklist, and the iOS/TestFlight half.
 - ✅ **Android IAP and Google sign-in work on device** — both verified
   on `mines-play-35` against a build **signed with the Play upload
   (release) key**; a debug-signed build is *not* a valid test route
-  (IAP then needs the §2.4 license-key setup). AdMob test ads also load
-  on `mines-play-35`: the emulator is **registered as a test device in
-  the AdMob console**, so rewarded test ads serve there without
-  billing (see §1 / §4).
+  (IAP then needs the §2.4 license-key setup). Ad testing no longer
+  needs a console-registered test device (the AdMob requirement): the
+  provider passes `testMode = !isProdEnvNow()`, so a release build
+  served from a non-prod origin talks to Unity's test inventory (§1.1
+  step 5).
 - ✅ **Web is built on the code side (2026-09)** — Stripe Checkout web
   IAP (`iapProvider.web.ts` + the sidecar's Stripe-API confirm + the
   `/api/app/stripe/webhook` backup-mint route) and AdSense REWARDED
@@ -45,7 +48,7 @@ verification checklist, and the iOS/TestFlight half.
   Ads two-phase flow; the earlier banner path was removed). Both follow
   the repo's empty-config = hidden rule: nothing renders or charges
   until `storeConfig.stripe` / `storeConfig.adsense` are filled
-  (§2.6 / §1.1). The web build is the static export the player actually
+  (§2.6 / §1.6). The web build is the static export the player actually
   visits, so this is the only monetization path that ever runs in a
   browser.
 - ⬜ **Apple store side remains** (backlog) — the App Store Connect
@@ -91,8 +94,11 @@ appears. The policy's closing clause — "Google reserves the right to
 review your app and make its own determination" — means the
 classification does not depend on our console answers. **The SDK
 version was NOT the problem**: the shipped GMA SDK is
-`com.google.android.gms:play-services-ads` 25.0.0 (via
-react-native-google-mobile-ads 16.0.1), far above the 19.0.0 floor for
+`com.google.android.gms:play-services-ads` **24.6.0** (the version
+`react-native-google-mobile-ads` 16.0.1 pins in its
+`sdkVersions.android.googleMobileAds`; verified in the gradle cache,
+which has only ever resolved 24.6.0 — the "25.0.0" figure that earlier
+revisions of this section carried was wrong), far above the 19.0.0 floor for
 Google AdMob on the [Families Self-Certified Ads SDK list](https://support.google.com/googleplay/android-developer/answer/9283445).
 (That list also carries the relevant exemption: apps that are **not
 for children** — e.g. "T"/"MA" rated — or that do not serve ads to
@@ -180,12 +186,16 @@ conclusion: **not possible from our side.**
   **creative-template** change, not tied to any SDK release, and it is
   not held today (the official countdown description above, the 2023+
   reports, and this very rejection all post-date it). Neither the
-  legacy GMA SDK we ship (25.0.0 via RN-GMA 16.0.1) nor the GMA
+  legacy GMA SDK we ship (24.6.0 via RN-GMA 16.0.1) nor the GMA
   Next-Gen SDK (open beta, release notes 2024-03 → 2026-08) documents a
   reliable ≤5 s early close — the newest note is a fix for a pod
   *freeze* that blocked closing, not an early-close guarantee. AdMob's
   own rewarded policy (answer/7313578: rewarded "must be skippable or
-  dismissible") is unmeetable by the format as served.
+  dismissible") is unmeetable by the format as served. **This whole
+  conclusion is scoped to the standard *Rewarded* ad-unit format in
+  AdMob/GMA** — see "Re-opened" below for the two formats that DO
+  satisfy the rule (AdMob *rewarded interstitial* units, and other
+  self-certified networks with a documented ≤5 s close).
 - **Console levers we control (risk-reducers, not a guarantee):** on
   the rewarded unit, **turn Ad pods off** (default ON — "2 back-to-back
   videos during a single impression", up to ~60 s) and **exclude
@@ -213,10 +223,93 @@ conclusion: **not possible from our side.**
   Play's neutral age screen (free-entry birth date) gating the ad
   surface to **18+** (13-17 count as children in some locales, so a
   13+ floor is not safe); see `docs/blockers.md`. **C (Children
-  only)** stays ad-free permanently. Revisit rewarded for a children-
-  branch only when (a) GMA ships a guaranteed ≤5 s early close (watch
-  the GMA release notes / thread p16MnuW3TJk) and (b) the stance
+  only)** stays ad-free *on the standard Rewarded unit*. Revisit
+  rewarded for a children branch when (a) the ad unit is switched to a
+  format that is closeable within 5 s (next section) and (b) the stance
   decision in `docs/blockers.md` is made.
+
+**Re-opened (2026-10-01): rewarded ads CAN come back for ALL ages — the
+5-second rule is about the *format*, and two compliant formats exist.**
+The deep-dive above is right that the standard AdMob **Rewarded** unit
+cannot be made closeable in 5 s from our side. It was over-generalized
+into "under any stance that includes children, ads stay off": Play bans
+"rewarded or opt-in ads that are **not closeable after 5 seconds**"
+(answer/9893335), so a rewarded format that *is* closeable is admissible
+for children — no age screen needed, because a neutral age screen only
+exists to keep ads *not suitable for children* away from children
+(answer/9867159). The candidates, both verified 2026-10-01:
+
+1. **AdMob "rewarded interstitial" ad units (recommended — no provider
+   switch, smallest diff).** AdMob's own docs: *"Only skippable ads will
+   be served in rewarded interstitial ad units. Currently, this includes
+   demand from AdMob, Liftoff Monetize, and Meta Audience Network"* —
+   i.e. this rewarded format is *built* from skippable creatives, which
+   is exactly the close-in-5-seconds affordance Families allows, and a
+   Google support rep pointed developers at it as the Families-compliant
+   rewarded path (AdMob SDK group thread `nshbDHew5fg`). Needs GMA
+   19.2.0+ (we ship 24.6.0) and `react-native-google-mobile-ads` 16.x
+   already exports `RewardedInterstitialAd`. AdMob policy 7313578 adds
+   one UI requirement: the format must be preceded by an intro screen
+   with a clear, unobstructed "no / don't accept" option — our existing
+   "watch" tap is the opt-*in*, so this adds an opt-*out* step (also
+   good for guardrail 3). Trade-offs: it is a **Beta** format, demand is
+   limited to those three networks, eCPM/fill will differ from a
+   standard rewarded unit, and it is interstitial-shaped creative under
+   the hood — so it needs an **explicit guardrail-2 amendment** (owner
+   call: the guardrail's intent is "no surprise/nag ad formats", which
+   an opt-in rewarded unit satisfies, but its letter says "interstitials
+   … off the table permanently"). Unit ids: 4 new units in the AdMob
+   console; code: a `RewardedInterstitialAd` branch in `adProvider.ts`
+   behind the same "empty = hidden" gate, mapping
+   `OnUserEarnedReward` → `"rewarded"` and a close → `"closed"`.
+2. **Unity Ads, rewarded placement with "Allow skip after 5 seconds".**
+   Unity Ads **is on the Families Self-Certified Ads SDK list**
+   (`com.unity3d.ads:unity-ads` 4.0.1+; current 4.20.1) and its docs
+   describe precisely our requirement: *"Compliance with kid-friendly
+   programs requires that all monetized (rewarded) ads can be dismissed
+   after 5 seconds. Note that Rewarded Ad Units are not skippable by
+   default"* (docs.unity.com → Project Settings → "Skipping rewarded
+   ads"; the ad-unit wiki adds *"select Allow skip after ___ … Five
+   seconds is the minimum value for app store compliance"* and the
+   project-level **App store compliance → Google Designed for Families**
+   flag, which also forces contextual-only demand). Integration is the
+   catch: no maintained React Native Unity Ads SDK (`react-native-unity-ads`
+   last published 2022), so it means AdMob mediation (add
+   `com.google.ads.mediation:unity` + `com.unity3d.ads:unity-ads` via
+   `expo-build-properties`; pick an adapter built for GMA 24.x — the
+   4.20.1.0 adapter is built/tested against GMA 25.5.0) or a small
+   hand-written Kotlin module. **Do not use an AdMob mediation group
+   with AdMob's own inventory left in the waterfall** — the group would
+   still be able to fill with a standard, non-skippable AdMob rewarded
+   creative, which is the exact rejection. Unity Ads' child-directed
+   settings do support AdMob as a mediation partner for age designation.
+3. **InMobi** (self-certified `inmobi-ads` 10.5.5+) documents that *"All
+   our Rewarded Video placements are closable after 5 secs for
+   child-directed apps"*. Same mediation caveats as (2), plus a larger
+   data-collection surface than we want (docs/security-audit.md).
+4. **AppLovin / MAX is NOT an option** — Google lists: *"AppLovin has
+   left the Families Self-Certified Ads SDK Program … Families app
+   developers will need to transition … by May 31, 2023."* Switching to
+   MAX would be a compliance regression, not a fix (it is also the
+   obvious wrong answer to "which provider do we switch to").
+
+**The all-ages recipe (any of the formats above).** Declare the target
+audience including children (13+ *and* under-13), keep ONE rewarded
+surface, and make every request child-treated: `tagForChildDirectedTreatment:
+true` + `maxAdContentRating: "G"` app-wide (today's
+`storeConfig.adMob.tagForChildDirectedTreatment: false` flips to true;
+with GMA ≥ 20.6.0 a child-tagged request does not transmit the AAID),
+a self-certified SDK only, contextual (non-personalized) demand only,
+no new SDK surface that is not self-certified, and console answers that
+match the build (IARC advertising = **Yes** this time; data safety
+declares the ad SDK and "no advertising ID for child-treated requests").
+No neutral age screen is needed *because* no ad is unsuitable for
+children — which also removes the 18+-floor problem blockers.md flags
+for stance B. Residual risk: one mis-configured creative (a Unity
+placement with skip left at "off", or an AdMob creative served into a
+standard rewarded unit) is one rejection, so verify on a real build with
+test mode before resubmitting, and keep the "empty = hidden" flag so
+ads can be switched off between submissions.
 
 **What this does NOT decide.** Whether the app is "for children" is a
 product/legal call. The reviewer's classification may persist even
@@ -229,54 +322,141 @@ for it, and (c) — if the stance is children/mixed — the Families ad
 rules (self-certified SDK ✓, no AAID from children, child-directed
 tag where required) are met for the affected branch.
 
+**Where this landed (2026-10-01).** Option 2 of "Re-opened" above was
+taken: **Unity Ads** replaces AdMob everywhere in the app
+(`modules/unity-ads` native module + `unityAdProvider.ts`;
+`react-native-google-mobile-ads` removed, its manifest plugin and App
+IDs deleted, AD_ID stripped by `plugins/withUnityAds.js`), with
+`childDirectedTreatment: true` so every request is contextual. The
+Game ID / placement ids are **still empty**, so the build is still
+ad-free — the remaining work is the owner's Unity dashboard setup plus
+the id paste (§1.1–§1.3), then a resubmission with console answers
+that say "ads: yes" (this time true).
+
 ---
 
-## 1. AdMob setup
+## 1. Unity Ads setup (the re-enable runbook)
 
-The AdMob app ids and rewarded unit ids were configured (2026-07); as
-of 2026-09-30 they are **deliberately empty again** (the Play Families
-rejection — see §0), so this section is the **re-enable runbook**: the
-ids exist in the AdMob console and in `__test__/storeConfig.test.ts`
-(the recorded unit constants), and re-enabling is a data paste into
-`storeConfig.ts` + `app.config.ts` per §0 step 1, only after the
-age-stance decision (blockers.md). The steps below are the runbook
-that created them (and the recipe for any new unit).
+**Status (2026-10-01):** native rewarded ads run on **Unity Ads**
+(`com.unity3d.ads:unity-ads` 4.20.1, wired by the local Expo module in
+`modules/unity-ads` + `src/mines_of_doom/unityAdProvider.ts`). AdMob is
+gone from the app entirely (`react-native-google-mobile-ads` removed,
+its manifest plugin and its App IDs deleted, the AD_ID permission
+stripped by `plugins/withUnityAds.js`) because its rewarded unit cannot
+be closed within the 5 seconds Play's Families rules require — §0.
 
-1. **Create the AdMob app** (AdMob console → Apps) for each platform
-   and note the **App ID** (`ca-app-pub-...`):
-   - Android: `com.minus4kelvin.minesofdoom`
-   - iOS: `com.minus4kelvin.minesofdoom` (after prebuild; see §5)
-   - Web: the web app id (ad networks treat the web app separately)
-2. **Create rewarded ad units** (one per placement — AdMob units are
-   not platform-scoped, so one set serves both platforms):
-   - `ads.reward` — the general "watch for a reward" button
-   - `ads.daily` — the daily bonus
-   - (planned, in `docs/todo.md`: gem rolls, offline double, offline
-     top-up — one unit per placement)
-3. **Put the ids where the code reads them:**
-   - App ids: `storeConfig.ts` (`adMobAppIds`, web/android/ios) **and**
-     the `adMob` block in `app.config.ts` (the native SDK reads the app
-     id from the native config, the JS config covers web/dev).
-   - Unit ids: `storeConfig.ts` (`adMob.rewardedUnitAndroid` /
-     `rewardedUnitIos`).
-   - A test pins that every non-empty slot is a valid
-     `ca-app-pub-3012345678901234/1234567890`-shaped id, and that a
-     configured app id is mirrored in `app.config.ts` (web-only ids are
-     exempt — they never reach the native SDK).
-4. **Verify on device** (§4): the button shows the "Watch" flow, a
-   completed rewarded video fires `onRewarded` exactly once, and the
-   panel hides itself while the app is backgrounded / the ad isn't
-   filled (the fill check is the guardrail-4 honesty requirement —
-   the UI must not show a "Watch" button that can't play).
+The Game ID and placement ids are **empty** in `storeConfig.unityAds`
+until an owner Unity project exists, and empty still means OFF end to
+end (no-op provider, every "watch" entry point hidden). Re-enabling is a
+data paste into `storeConfig.ts` — **plus the dashboard steps below,
+which the app cannot enforce**.
 
-**Testing without a real account:** `expo-admob` ships test
-application ids for exactly this; the `storeConfig.ts` header documents
-the official test ids to paste in for a dev build. **Never ship a test
-id in a production config** — the config test fails on a known test id
-in a non-dev export... (it doesn't have to; the human gate is: release
-config is reviewed).
+### 1.1 Owner steps in the Unity dashboard (do these FIRST)
 
-### 1.1 Web rewarded (AdSense Ad Placement API)
+1. **Create a Unity project** for Android (Unity dashboard → Monetization
+   → create project, platform Android, package
+   `com.minesofdoom.minesofdoom`... see `android.package` in
+   `app.config.ts` for the exact id) and note the **Game ID** (7 digits).
+   A second project for iOS later (`docs/backlog.md`).
+2. **Create the four rewarded placements** (Monetization → Ad units →
+   Add ad unit → Rewarded), one per `AdKind`, and note each placement
+   id: `gemRolls`, `offlineDouble`, `offlineTopUp`, `comboSave`.
+3. **THE COMPLIANCE STEP — on every rewarded placement: “Allow skip
+   after” = 5 seconds.** This is what makes the format satisfy Play's
+   Families ad-format rule ("rewarded or opt-in ads … must be closeable
+   after 5 seconds"); rewarded units are **not skippable by default**
+   (docs.unity.com → Project Settings → “Skipping rewarded ads”: *"all
+   monetized (rewarded) ads can be dismissed after 5 seconds"*, and the
+   ad-unit help: *"select Allow skip after ___ … Five seconds is the
+   minimum value for app store compliance"*). A skipped ad resolves
+   "closed" — no reward, nothing taken away.
+4. **Enable App store compliance → Google Designed for Families**
+   (Monetization → Overview → Settings → App Store Compliance). Unity
+   docs: selecting it *"automatically configures the age designation
+   setting to ‘This app is directed to children under the age of 13’, and
+   set[s] the age limits filter to ‘Do not show ads rated 13+ or
+   stricter’"* — i.e. contextual-only demand for every user, which is
+   exactly the all-ages posture (no personalized demand exists to
+   screen out, so **no neutral age screen is needed**).
+   Cross-check under **Monetization → Apps → <app> → Child-directed ad
+   network settings**: game-level designation “primarily targeting
+   children”, age filter “Do not show ads rated 13+ or stricter”.
+5. **Leave test mode OFF for the production placements.** Test
+   placements fill instantly on any device, so a stray test placement in
+   the config is worse than useless. How the two build types behave:
+   a `__DEV__` build runs the **labeled dev-sim** provider, not this
+   module (`pickAdProvider` gives dev builds first refusal), and the
+   provider passes `testMode = !isProdEnvNow()` — so a release build on
+   the production domain talks to production demand, and a release build
+   served from any other origin stays on Unity's test inventory as a
+   safety net. Verification therefore happens on a release build
+   (§1.3).
+
+### 1.2 Paste the ids into the code
+
+```ts
+// src/mines_of_doom/storeConfig.ts
+unityAds: {
+  androidGameId: "1234567",
+  rewardedPlacementAndroid: { gemRolls: "…", offlineDouble: "…", offlineTopUp: "…", comboSave: "…" },
+  // ios* stay empty until the iOS module exists (docs/backlog.md)
+}
+```
+
+That is the whole wiring: Unity takes the Game ID as a function
+argument (nothing is baked into a manifest), so there is no second place
+to edit and no `expo prebuild` needed after the paste. Any empty field
+keeps the whole surface hidden (`isUnityAdsConfigured`).
+
+### 1.3 Verify before submitting (this is the step that prevents a rejection)
+
+Both checks need a **release** build on a device/emulator — a
+`__DEV__` build runs the labeled dev-sim, so it never touches this
+module (`pnpm exec expo run:android --variant release`, or install the
+release APK; §2.5 covers the release build and its signing).
+
+- First on a **test-mode** release build (host the build somewhere other
+  than `PROD_WEB_DOMAIN` so `isProdEnvNow()` is false → `testMode: true`):
+  the "watch" entry points appear, an ad loads, a **skip within 5
+  seconds grants nothing**, and a completed ad grants the reward exactly
+  once. Nothing is billed and no live demand is touched.
+- Then on the **production** release build (test mode off, real demand):
+  time the first 5 seconds of a rewarded ad and confirm the close/skip
+  control is visible and functional. If Unity's skip setting is off for
+  any placement, the creative holds the player for the full length and
+  Play rejects the update for the same reason as v1.0.10.
+- Console answers must then match the build: target audience may include
+  children; **IARC “Advertising” = Yes**; Data safety declares the ad SDK
+  and states that no advertising ID is collected (the permission is not
+  even merged in the APK); the listing bullet and privacy policy v2.4
+  already describe rewarded ads that are closeable in 5 seconds.
+
+### 1.4 What the app does about kid-safety (guardrail 6)
+
+- `childDirectedTreatment: true` → `UnityAds.setNonBehavioral(true)`
+  before initialize → contextual, non-personalized demand for every
+  user, no remarketing.
+- `stripAdvertisingId: true` → `plugins/withUnityAds.js` removes
+  `AD_ID` + the three `ACCESS_ADSERVICES_*` permissions from the merged
+  manifest, so no ad code can read an advertising identifier at all.
+- Both are ONE decision with the target-audience stance
+  (`docs/blockers.md`): flipping either means flipping
+  `app.config.ts`'s `removeAdvertisingId` too (pinned by
+  `storeConfig.test.ts`).
+
+### 1.5 Retired: the AdMob runbook (2026-07 → 2026-10-01)
+
+AdMob ids and rewarded unit ids existed (recorded as the
+`GEM_ROLLS_UNIT`… constants in `__test__/storeConfig.test.ts` until
+this switch). They are **not** reusable: even with a self-certified GMA
+version, the standard AdMob rewarded unit's close button appears on a
+per-creative 5–30 s countdown with no app-side control (§0), which is
+exactly what Play rejected. Two AdMob-side levers are still worth
+knowing about if anyone revisits it: turn **ad pods off** and **exclude
+interactive ads** on the rewarded unit, and keep
+`tagForChildDirectedTreatment` + `MAX_AD_CONTENT_RATING = G`.
+
+### 1.6 Web rewarded (AdSense Ad Placement API)
 
 The web app's ad parity path for the native rewarded placements, via
 the AdSense "Ad Placement API" (H5 Games Ads) — rewarded full-screen
@@ -1133,9 +1313,9 @@ and the
 ## 6. Guardrail reminders (AGENTS.md — non-negotiable)
 
 - **Rewarded ads only**, always behind an explicit "Watch" tap.
-  Interstitials / banners: off the table. (The `adMob` provider is
+  Interstitials / banners: off the table. (The `unityAdProvider` is
   literally only `showRewarded` — there is no API surface for the
-  others.)
+  others, and the native module exposes nothing else.)
 - **No dark patterns**: the purchase panel shows plain prices, plain
   blurbs, and the "also earnable in-game for N 💎" line on every pack;
   no fake scarcity, no default-checked anything.
@@ -1144,6 +1324,9 @@ and the
 - **Measure before scaling** (guardrail 5): the §3.4 Phase 7 event
   logging lands **before** any UA spend.
 - **Compliance**: the game is a math idle game (young-skewing);
-  confirm the ad SDK's kid-safety flag
-  (`TAG_FOR_CHILD_DIRECTED_TREATMENT`) matches the chosen age rating
-  before the ad units go live beyond test.
+  the shipped ad posture is child-directed / non-personalized
+  (`storeConfig.unityAds.childDirectedTreatment: true` →
+  `UnityAds.setNonBehavioral(true)`) with the advertising-id permissions
+  removed from the APK (`stripAdvertisingId`), and every placement is
+  required to be skippable after 5 seconds (Unity dashboard, §1.1).
+  Confirm all three before the ids go live beyond test.

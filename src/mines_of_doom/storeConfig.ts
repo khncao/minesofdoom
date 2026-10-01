@@ -7,10 +7,11 @@
  *    back to the no-ops (entry points hidden) while their block is empty, so
  *    the repo stays buildable and shippable in every environment until the
  *    store ids exist.
- *  - **Native app ids flow through `app.config.ts`** (the
- *    `react-native-google-mobile-ads` config plugin reads `storeConfig.adMob`
- *    and bakes the app ids into the native manifests at `expo prebuild`
- *    time — never edit android/ or ios/ by hand).
+ *  - **Native ad config lives here and nothing else** (the Unity Ads SDK is
+ *    initialized from JS, so unlike AdMob there is NO app id to bake into a
+ *    native manifest — the Game ID and placement ids travel as function
+ *    arguments to modules/unity-ads). The one build-time mirror is the
+ *    `stripAdvertisingId` flag read by plugins/withUnityAds.js.
  *  - **Server-side-only secrets live nowhere in this file** (the Play
  *    service-account JSON and Apple shared secret belong on the Pocketbase
  *    server — docs/pocketbase-plan.md).
@@ -27,57 +28,73 @@ export type StorePlatform = "android" | "ios";
 import type { AdKind } from "./ads";
 import { isProdEnvNow } from "./environment";
 
-export type AdMobIds = {
- /** The AdMob App ID for this platform (AdMob console → Apps). */
- appId: string;
- /** The rewarded ad unit id per placement (AdMob console → Ad units →
-  *  Rewarded). Only rewarded placements exist in this app (guardrail 2);
-  *  each `AdKind` (ads.ts) is its own placement so AdMob can report them
-  *  separately. */
- rewardedUnitIds: Record<AdKind, string>;
+export type UnityAdsIds = {
+ /** The Unity Ads Game ID for this platform (Unity dashboard → the project's
+  *  Game ID — a per-platform project, so android and ios differ). */
+ gameId: string;
+ /** The rewarded placement id per AdKind (Unity dashboard → Monetization →
+  *  Ad units → Rewarded). Only rewarded placements exist in this app
+  *  (guardrail 2); each `AdKind` (ads.ts) is its own placement so Unity can
+  *  report them separately. */
+ rewardedPlacementIds: Record<AdKind, string>;
 };
 
 export const storeConfig = {
- adMob: {
-  // DELIBERATELY EMPTY (2026-09-30) — Google Play REJECTED the v1.0.10
-  // update under the Families policies: "monetization or advertising
-  // that interferes with normal use of the app or gameplay, including
-  // rewarded or opt-in ads that cannot be closed after 5 seconds", plus
-  // "Play Console answers that do not accurately reflect the app and
-  // its ads". The v1.0.11 resubmission ships WITHOUT native ads: empty
-  // values → isAdMobIdsConfigured() false → the no-op provider → every
-  // "watch" entry point hidden, and the empty App ID stays out of the
-  // native manifests (app.config.ts), so the GMA SDK never initializes —
-  // no ad requests, no advertising-id use, no Families-violation surface
-  // in the build. The SDK itself stays in the bundle and is the
-  // self-certified GMA 25.0.0 (≥ 19.0.0, on the Families list). The
-  // production values live in __test__/storeConfig.test.ts (GEM_ROLLS_
-  // UNIT …) and the AdMob console — to re-enable, paste them back here
-  // AND in app.config.ts AFTER choosing an age stance (docs/blockers.md
-  // 2026-09-30) and fixing the listing + privacy-policy ad claims
-  // (docs/store-integration.md §0). Web AdSense is a separate block
-  // (adsense below) and is untouched by this.
-  androidAppId: "",
-  iosAppId: "",
-  rewardedUnitAndroid: {
+ unityAds: {
+  // Unity Ads (2026-10-01, replacing AdMob). WHY: Google Play rejected the
+  // v1.0.10 update under the Families policies — "rewarded or opt-in ads
+  // that are not closeable after 5 seconds" — and the AdMob rewarded unit
+  // cannot be made closeable in 5 s from the app side (docs/store-integration
+  // .md §0). Unity Ads IS a Families Self-Certified Ads SDK (unity-ads 4.0.1+)
+  // and its rewarded placements carry a documented "Allow skip after 5
+  // seconds" setting + a "Google Designed for Families" app-store-compliance
+  // flag, so the SAME player-tapped rewarded flow is compliant for every
+  // age — no neutral age screen needed, no per-age branches.
+  //
+  // DASHBOARD SIDE (owner, docs/store-integration.md §1 — the app cannot
+  // enforce these): every placement below must have "Allow skip after 5
+  // seconds" AND the project must have App store compliance → Google Designed
+  // for Families enabled (which also forces contextual-only demand). A single
+  // creative that ignores the skip setting is one rejection, so verify on a
+  // real build before submitting.
+  //
+  // EMPTY = OFF (unchanged rule): with any of these empty,
+  // isUnityAdsConfigured() is false → the no-op provider → every "watch"
+  // entry point stays hidden. There is no recorded production set yet —
+  // the Unity project does not exist — so the first paste is recorded
+  // nowhere else; __test__/storeConfig.test.ts pins the SHAPE (and keeps
+  // the no-test-id net honest) and fails loudly if the flags drift.
+  androidGameId: "",
+  iosGameId: "",
+  rewardedPlacementAndroid: {
    gemRolls: "",
    offlineDouble: "",
    offlineTopUp: "",
    comboSave: "",
   },
-  rewardedUnitIos: {
+  rewardedPlacementIos: {
    gemRolls: "",
    offlineDouble: "",
    offlineTopUp: "",
    comboSave: "",
   },
-  // Guardrail 6 (kid safety): TAG_FOR_CHILD_DIRECTED_TREATMENT.
-  // DECIDED 2026-09-08 (docs/security-audit.md S6): the app is positioned
-  // teen+ (13+), NOT child-directed, so the flag stays false — applied
-  // via MobileAds().setRequestConfiguration in adProvider.ts. Only flip to
-  // true if the stance ever becomes kid-directed (that also makes the
-  // COPPA-2025 parental-consent gate a launch requirement, see S6).
-  tagForChildDirectedTreatment: false,
+  // Guardrail 6 (kid safety) + the Play Families rule that ads shown to
+  // children (or users of unknown age) must be non-personalized: contextual
+  // demand only, no remarketing. Applied natively as
+  // UnityAds.setNonBehavioral(true) BEFORE initialize (unityAdProvider.ts →
+  // modules/unity-ads), so the very first request is already child-treated.
+  // Every user is treated as a child on purpose — that is what makes ONE ad
+  // surface valid for all ages (docs/store-integration.md §0 "Re-opened").
+  // Flip to false ONLY together with a non-children target audience, a
+  // personalization-capable stance (docs/blockers.md) and
+  // `stripAdvertisingId` below — they are one decision, not three.
+  childDirectedTreatment: true,
+  // Mirrored into plugins/withUnityAds.js: remove the ad-id permissions the
+  // Unity AAR merges in, so no ad code can read the advertising ID at all
+  // (Play: children must not be sent the AAID). Keep true unless the stance
+  // flips to a personalized teen+/adult posture; app.config.ts holds the
+  // mirror and storeConfig.test.ts pins the two together.
+  stripAdvertisingId: true,
  },
  // Self-hosted Pocketbase base URL — ONE deployment serves receipt
  // validation + entitlements (docs/pocketbase-plan.md) AND the store
@@ -97,7 +114,7 @@ export const storeConfig = {
   * VPS sidecar env) and `prices` maps every catalog product id to its
   * Stripe Price id (price_…, Stripe dashboard → Products). The web IAP
   * provider is available only when isStripeConfigured() passes
-  * (all-or-nothing, like AdMob) — a half-filled price map keeps the whole
+  * (all-or-nothing, like Unity Ads) — a half-filled price map keeps the whole
   * shop hidden on web so no button can lead to a purchase that cannot
   * complete. Keyed by the catalog's internal product ids ("packGold",
   * "pickaxeGoldPack", … — iaps.ts IAP_PRODUCT_LIST).
@@ -187,7 +204,7 @@ export const storeConfig = {
  },
  /**
   * AdSense (web rewarded ads, docs/todo.md #2) — the web parity path for
-  * the AdMob rewarded placements, via the AdSense "Ad Placement API"
+  * the Unity Ads rewarded placements, via the AdSense "Ad Placement API"
   * (H5 Games Ads): `client` is the publisher id (ca-pub-…) from the
   * AdSense dashboard. The Ad Placement API needs no per-unit slot id —
   * each rewarded placement (one per AdKind, see adSenseProvider.web.ts)
@@ -202,27 +219,26 @@ export const storeConfig = {
  },
 };
 
-/** The AdMob ids for one platform, straight out of the config. */
-export function getAdMobIds(platform: StorePlatform): AdMobIds {
+/** The Unity Ads ids for one platform, straight out of the config. */
+export function getUnityAdsIds(platform: StorePlatform): UnityAdsIds {
  if (platform === "ios") {
   return {
-   appId: storeConfig.adMob.iosAppId,
-   rewardedUnitIds: storeConfig.adMob.rewardedUnitIos,
+   gameId: storeConfig.unityAds.iosGameId,
+   rewardedPlacementIds: storeConfig.unityAds.rewardedPlacementIos,
   };
  }
  return {
-  appId: storeConfig.adMob.androidAppId,
-  rewardedUnitIds: storeConfig.adMob.rewardedUnitAndroid,
+  gameId: storeConfig.unityAds.androidGameId,
+  rewardedPlacementIds: storeConfig.unityAds.rewardedPlacementAndroid,
  };
 }
 
-/** Pure: an ad pair is usable only when the app id is set AND every
- *  placement has a unit id (a test id counts) — any entry point that could
- *  not fill must stay hidden. */
-export function isAdMobIdsConfigured(ids: AdMobIds): boolean {
+/** Pure: ads are usable only when the Game ID is set AND every placement has
+ *  an id — any entry point that could not fill must stay hidden. */
+export function isUnityAdsConfigured(ids: UnityAdsIds): boolean {
  return (
-  ids.appId.length > 0 &&
-  Object.values(ids.rewardedUnitIds).every((unitId) => unitId.length > 0)
+  ids.gameId.length > 0 &&
+  Object.values(ids.rewardedPlacementIds).every((id) => id.length > 0)
  );
 }
 

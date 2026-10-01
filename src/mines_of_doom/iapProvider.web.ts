@@ -35,7 +35,7 @@
  * Entry-point gating: `isAvailable()` requires the Pocketbase URL AND a
  * fully configured Stripe block (publishable key + every catalog price);
  * anything less keeps the shop hidden on web (same all-or-nothing rule as
- * AdMob, same hidden-no-op pattern as the ads providers).
+ * Unity Ads, same hidden-no-op pattern as the ads providers).
  */
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";

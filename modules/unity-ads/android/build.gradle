@@ -1,0 +1,34 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'expo.modules.unityads'
+version = '0.1.0'
+
+android {
+  namespace "expo.modules.unityads"
+
+  defaultConfig {
+    versionCode 1
+    versionName "0.1.0"
+  }
+
+  compileOptions {
+    targetCompatibility JavaVersion.VERSION_1_8
+  }
+}
+
+repositories {
+  mavenCentral()
+  google()
+}
+
+dependencies {
+  // Unity Ads Android SDK (Families Self-Certified Ads SDKs list: 4.0.1+).
+  // 4.20.1 is current; `docs/store-integration.md` §1 owns the runbook.
+  // The AAR merges `<uses-permission com.google.android.gms.permission.AD_ID>`
+  // and its own activity/provider; plugins/withUnityAds.js strips the AD_ID
+  // permission again for the child-directed posture (guardrail 6).
+  implementation 'com.unity3d.ads:unity-ads:4.20.1'
+}

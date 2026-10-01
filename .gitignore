@@ -191,3 +191,10 @@ playwright-report/
 /playstore-screenshots/
 # Feature screenshots (scripts/screenshot.mjs output)
 /screenshots/
+
+# Local Expo native modules (modules/*) are source, but their Gradle build
+# output is not — a 180-file build/ tree (2.6 MB of jars/intermediates) would
+# otherwise land in the repo.
+/modules/**/android/build/
+/modules/**/android/.gradle/
+/modules/**/android/.kotlin/

@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The Unity Ads SDK's own manifest (permissions, FullScreenWebViewDisplay
+         activity, AdsSdkInitializer provider) merges in from the AAR — this
+         module adds nothing of its own. AD_ID is removed by
+         plugins/withUnityAds.js. -->
+</manifest>

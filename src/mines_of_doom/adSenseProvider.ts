@@ -4,7 +4,7 @@
  * The AdSense "Ad Placement API" is a WEB-only API (the web build resolves
  * `./adSenseProvider.web` via Metro's `.web` swap, where the real
  * two-phase rewarded implementation lives). Native rewarded ads run on the
- * AdMob SDK (adProvider.ts), so this file only exists so `ads.ts` can
+ * Unity Ads SDK (unityAdProvider.ts), so this file only exists so `ads.ts` can
  * import ONE name on every platform and `pickAdProvider` can stay
  * platform-agnostic: on native the web branch is never selected
  * (`sel.web` is false), and even if it were, this no-op reports
@@ -20,7 +20,7 @@ export const AD_SENSE_KINDS: readonly AdKind[] = [
 ];
 
 export function primeReward(): void {
-  // No-op on native — AdMob loads per-tap, there is nothing to prime.
+  // No-op on native — Unity Ads loads per-tap, there is nothing to prime.
   // (Zero-arg: the kind is irrelevant here and callers on native never
   // pass it — this is not the interface shape, just a native stand-in.)
 }

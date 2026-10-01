@@ -101,7 +101,7 @@ exists so nothing half-wired ships.
 External prerequisite: an approved AdSense account for the
 `minesofdoom.minus4kelvin.com` domain + the ad client id, approved for
 H5 Games Ads / the Ad Placement API (see docs/store-integration.md
-§1.1). The repo side is DONE: the loader tag + rewarded placements live
+§1.6). The repo side is DONE: the loader tag + rewarded placements live
 in `app/+html.tsx` / `adSenseProvider.web.ts`, `public/ads.txt` names the
 publisher, and the site now ships real content for the approval review —
 the landing copy below the game (`src/mines_of_doom/siteContent.ts`),

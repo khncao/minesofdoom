@@ -1366,8 +1366,8 @@ export default function MinesOfDoom() {
 
   // Rewarded ads (plan §5.1): the provider is picked in ads.ts behind the
   // documented swap point (selectAdProvider — see its docs): dev builds run
-  // a clearly labeled simulation; production runs the real AdMob provider
-  // once storeConfig.adMob is filled in (docs/store-integration.md §1) and
+  // a clearly labeled simulation; production runs the real Unity Ads provider
+  // once storeConfig.unityAds is filled in (docs/store-integration.md §1) and
   // the no-op (entry points hidden) until then; web is always the no-op
   // (no web ad integration yet — adProvider.web.ts).
   const adProvider = selectAdProvider(__DEV__);

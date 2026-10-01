@@ -20,21 +20,28 @@
  * Play Families rejection of v1.0.10 (docs/store-integration.md §0):
  * "Short version", "What we store on your device" and "Advertising" now
  * say the mobile app carries no ads at all (the web AdSense line is
- * unchanged); v2.2,
+ * unchanged); v2.4,
+ * 2026-10-01, native rewarded ads are BACK — moved from AdMob to Unity Ads
+ * so the rewarded ad is closeable within 5 seconds, which is what Google
+ * Play's Families rules require (docs/store-integration.md §0/§1). Every
+ * ad request is now tagged child-directed/non-personalized and the Android
+ * advertising-id permissions are removed from the app entirely, so the
+ * "Children" section and the advertising-id sentences changed with it
+ * (v2.2,
  * 2026-09-17, added the in-app account-deletion flow (Account tab →
  * "Delete account", the same GDPR erasure the Save tab's "delete my
  * data" runs when signed in) and the published account-deletion.html
  * page that the Play listing's account-deletion field links to):
  *  - The "Children" section's age position must stay in sync with
- *    storeConfig.adMob.tagForChildDirectedTreatment (F45.1 net);
+ *    storeConfig.unityAds.childDirectedTreatment (F45.1 net);
  *  - local data: the AsyncStorage keys in game.ts / useLocalStorage and
  *    crashLog.ts (Settings → "Local stats (debug)" and "Recent errors
  *    (debug)" show + clear them);
  *  - accounts + cloud: auth.ts, cloudSave.ts, leaderboard.ts (single
  *    developer server, Pocketbase — see pb_hooks/README.md);
- *  - ads: ads.ts, adProvider*.ts + adSenseProvider*.ts (native: AdMob
- *    rewarded only; web: AdSense Ad Placement API rewarded ads — update
- *    the ad paragraph if that changes);
+ *  - ads: ads.ts, unityAdProvider*.ts + adSenseProvider*.ts (native: Unity
+ *    Ads rewarded only, child-directed/non-personalized; web: AdSense Ad
+ *    Placement API rewarded ads — update the ad paragraph if that changes);
  *  - purchases: iaps.ts + iapProvider*.ts (native: store IAP; web:
  *    Stripe Checkout — card data never reaches this app);
  *  - the published HTML versions (public/privacy-policy.html,
@@ -59,16 +66,16 @@ export type LegalDoc = {
 const PRIVACY_POLICY: LegalDoc = {
   id: "privacy",
   title: "Privacy Policy",
-  version: "2.3",
-  effectiveDate: "2026-09-30",
+  version: "2.4",
+  effectiveDate: "2026-10-01",
   sections: [
     {
       heading: "Short version",
-      body: "Mines of Idle Doomath is a free idle game. By default, your progress lives only on your device — no account is required. If you choose to create an account, your progress is backed up to the developer's server so you can restore it on another device, and you can (optionally, under a display name you choose) post scores to the leaderboard. Advertising is minimal by design: the mobile app currently contains no ads at all, and the web version shows only full-screen ads that you start yourself (rewarded) — you tap “watch”, you finish the ad, you get the in-game reward. We do not build advertising profiles from your game data, we do not share your data with anyone, and we do not sell it.",
+      body: "Mines of Idle Doomath is a free idle game. By default, your progress lives only on your device — no account is required. If you choose to create an account, your progress is backed up to the developer's server so you can restore it on another device, and you can (optionally, under a display name you choose) post scores to the leaderboard. Advertising is minimal by design: the mobile app shows only full-screen ads that you start yourself (rewarded) — you tap “watch”, you finish the ad, you get the in-game reward — and the web version works the same way. We do not build advertising profiles from your game data, we do not share your data with anyone, and we do not sell it. Mobile ads are shown without personalisation and without any device advertising identifier.",
     },
     {
       heading: "What we store on your device",
-      body: "Everything the game keeps locally lives in private storage on your device (Android/iOS: the app's private storage via AsyncStorage; web: your browser's local storage for this site). It includes:\n\n• Your save data (minerals, upgrades, cosmetics, goals, achievements, settings).\n• A small local stats record (when you first opened the app, active days, first ad view, purchase count, prestige count). It is used only for our own development decisions, is readable on-device in Settings → “Local stats (debug)”, and can be deleted there at any time.\n• A short crash log (recent error messages only, never your save data or anything personal), shown and clearable in Settings → “Recent errors (debug)”.\n• If you have an account: a local session token for that account (your password itself is never stored on the device).\n• If you use the web version: the ad network (Google AdSense) may use your browser's standard ad identifiers (cookies) for its own purposes described in its policy — and only when you tap “watch” on a rewarded ad. The mobile app's current build contains no ads and uses no advertising identifier.\n\nYou can delete any of it individually (the debug sections above, or Save → Reset for the game save), or delete ALL of it at once with Save → “Erase all data” — that erases everything the app stores on the device (save, settings, stats, error log, account session) and cannot be undone; your cloud save, if you have one, is kept and can still be restored.",
+      body: "Everything the game keeps locally lives in private storage on your device (Android/iOS: the app's private storage via AsyncStorage; web: your browser's local storage for this site). It includes:\n\n• Your save data (minerals, upgrades, cosmetics, goals, achievements, settings).\n• A small local stats record (when you first opened the app, active days, first ad view, purchase count, prestige count). It is used only for our own development decisions, is readable on-device in Settings → “Local stats (debug)”, and can be deleted there at any time.\n• A short crash log (recent error messages only, never your save data or anything personal), shown and clearable in Settings → “Recent errors (debug)”.\n• If you have an account: a local session token for that account (your password itself is never stored on the device).\n• If you use the web version: the ad network (Google AdSense) may use your browser's standard ad identifiers (cookies) for its own purposes described in its policy — and only when you tap “watch” on a rewarded ad. The mobile app requests ads without personalisation and without a device advertising identifier: the Android advertising-id permission is not present in the app at all, so no ad code can read one.\n\nYou can delete any of it individually (the debug sections above, or Save → Reset for the game save), or delete ALL of it at once with Save → “Erase all data” — that erases everything the app stores on the device (save, settings, stats, error log, account session) and cannot be undone; your cloud save, if you have one, is kept and can still be restored.",
     },
     {
       heading: "Accounts and cloud sync (optional)",
@@ -84,11 +91,11 @@ const PRIVACY_POLICY: LegalDoc = {
     },
     {
       heading: "Advertising",
-      body: "Mobile: the current build contains no ads at all. (An earlier store build offered strictly optional, player-initiated rewarded video ads from Google AdMob: you tap “watch” yourself, and you only receive the in-game reward if you finish the video — there were no interstitials and no banners. They were removed from the store release in September 2026 during a store-compliance review, and if they return they will be in that same opt-in form.)\n\nWeb: strictly optional, player-initiated rewarded ads (Google AdSense) — you tap “watch” yourself, and you only receive the in-game reward if you finish the ad. There are no interstitials and no banners anywhere. A rewarded ad rewards an in-game item (minerals, an offline haul), never a real-world product.\n\nWhere an ad network is active, it may process the data its own privacy policy describes in order to serve those ads; we do not pass it any personal information about you, and no ad ever affects gameplay outside the reward you explicitly asked for. Ad settings and opt-out are handled through the browser/platform ad controls, and simply not tapping “watch” disables the web ads entirely. We are an independent developer and are not affiliated with Google, Apple, or any ad network.",
+      body: "Mobile: strictly optional, player-initiated rewarded video ads from Unity Ads — you tap “watch” yourself, and you only receive the in-game reward if you finish the video. You can always close a mobile ad within the first 5 seconds (closing early simply means no reward, and nothing is taken away). There are no interstitials and no banners, and no ad ever appears unless you asked for it. Mobile ads are requested in a child-directed, non-personalized mode: no ad built around you or your browsing, and no advertising identifier is available to the ad SDK at all.\n\nWeb: strictly optional, player-initiated rewarded ads (Google AdSense) — you tap “watch” yourself, and you only receive the in-game reward if you finish the ad. There are no interstitials and no banners anywhere. A rewarded ad rewards an in-game item (minerals, an offline haul), never a real-world product.\n\nWhere an ad network is active, it may process the data its own privacy policy describes in order to serve those ads; we do not pass it any personal information about you, and no ad ever affects gameplay outside the reward you explicitly asked for. Ad settings and opt-out are handled through the browser/platform ad controls, and simply not tapping “watch” disables the ads entirely. We are an independent developer and are not affiliated with Google, Apple, Unity, or any ad network.",
     },
     {
       heading: "Children",
-      body: "The game is intended for a teen audience (13 and up) and is not directed at children. It contains no chat, no external links, and no user-generated content. Consistent with that, the game — including its advertising, where present — is not treated as a child-directed service, and the optional, player-initiated rewarded ads reward only in-game items — never real-world goods. We do not knowingly collect personal information from anyone under 13. If you believe a child under 13 has created an account, email us at the address below and we will delete it.",
+      body: "The game is intended for a broad audience, including teens and adults. It contains no chat, no external links, and no user-generated content. Because anyone can play it, its ads are treated as child-directed: mobile ads are requested in a non-personalized (contextual) mode suitable for children, the app does not use an advertising identifier, and the optional, player-initiated rewarded ads reward only in-game items — never real-world goods. We do not knowingly collect personal information from anyone under 13. If you believe a child under 13 has created an account, email us at the address below and we will delete it.",
     },
     {
       heading: "Deletion",

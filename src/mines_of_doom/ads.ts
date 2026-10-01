@@ -6,8 +6,8 @@
  *  - Rewarded ads only, strictly opt-in: a reward is granted ONLY after the
  *    provider reports a completed ad ("rewarded"). No interstitials, no
  *    banners, nothing in the equation flow.
- *  - Providers plug in behind one interface: native runs the AdMob SDK
- *    (adProvider.ts), web runs the AdSense Ad Placement API
+ *  - Providers plug in behind one interface: native runs the Unity Ads SDK
+ *    (unityAdProvider.ts), web runs the AdSense Ad Placement API
  *    (adSenseProvider.web.ts). Unconfigured builds get `noopAdProvider`,
  *    whose entry points are hidden end to end.
  *  - Fraud caps (plan §5.1 "track impressions/rewards in-app to detect
@@ -18,7 +18,7 @@
 
 import { Platform } from "react-native";
 import { getLocalDayKey } from "./dailyBonus";
-import { adMobAdProvider, hasAdMobConfig } from "./adProvider";
+import { unityAdProvider, hasUnityAdsConfig } from "./unityAdProvider";
 import { adSenseAdProvider } from "./adSenseProvider";
 import { isAdSenseConfigured } from "./storeConfig";
 
@@ -53,7 +53,7 @@ export const AD_OUTCOME_VALUES: readonly AdResult[] = [
  * interface; the reward rules in this file stay untouched by that swap.
  */
 export interface AdProvider {
-  /** Stable id for logs/toasts ("noop", "dev-sim", "admob", ...). */
+  /** Stable id for logs/toasts ("noop", "dev-sim", "unity", ...). */
   readonly id: string;
   /** Whether a rewarded ad can be shown on this platform right now. */
   isAvailable(): boolean;
@@ -62,7 +62,7 @@ export interface AdProvider {
    * show function only exists after a placement has been probed, and it
    * may only be invoked from the user's tap itself — so the UI calls this
    * whenever a "watch" entry point becomes visible, then taps through
-   * `showRewarded`. AdMob (and the no-ops) ignore it.
+   * `showRewarded`. The native providers (and the no-ops) ignore it.
    */
   primeReward?(kind: AdKind): void;
   /**
@@ -113,9 +113,9 @@ export type AdProviderSelection = {
    *  ads run on the AdSense Ad Placement API instead (that branch of the
    *  rule below). */
   web: boolean;
-  /** Whether this platform's storeConfig.adMob pair is set (runbook §1).
+  /** Whether this platform's storeConfig.unityAds pair is set (runbook §1).
    *  Only read on the non-web branch. */
-  adMobConfigured: boolean;
+  unityConfigured: boolean;
   /** Whether storeConfig.adsense is set (only read on the web branch). */
   adSenseConfigured: boolean;
 };
@@ -125,15 +125,15 @@ export type AdProviderSelection = {
  * `selectIapProvider` in iaps.ts). dev always wins (labeled simulation);
  * unconfigured builds stay on the no-op so entry points never appear where
  * no ad can be shown; a configured production build gets the real provider
- * for its platform (AdMob on native, the AdSense Ad Placement API on web).
- * Every reward rule in this file is untouched by that swap.
+ * for its platform (Unity Ads on native, the AdSense Ad Placement API on
+ * web). Every reward rule in this file is untouched by that swap.
  */
 export function pickAdProvider(sel: AdProviderSelection): AdProvider {
   if (sel.dev) return devSimAdProvider;
   if (sel.web) {
     return sel.adSenseConfigured ? adSenseAdProvider : noopAdProvider;
   }
-  return sel.adMobConfigured ? adMobAdProvider : noopAdProvider;
+  return sel.unityConfigured ? unityAdProvider : noopAdProvider;
 }
 
 /** The one call site-facing selector (MinesOfDoom.tsx): reads the live
@@ -142,7 +142,7 @@ export function selectAdProvider(dev: boolean): AdProvider {
   return pickAdProvider({
     dev,
     web: Platform.OS === "web",
-    adMobConfigured: hasAdMobConfig(),
+    unityConfigured: hasUnityAdsConfig(),
     adSenseConfigured: isAdSenseConfigured(),
   });
 }

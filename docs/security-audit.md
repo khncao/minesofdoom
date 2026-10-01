@@ -203,17 +203,31 @@ for the record so it isn't later "fixed" into deleting purchases.
 
 ### S6 — Kid-safety / age rating for the rewarded-ads model  ·  **REOPENED 2026-09-30** (the 13+ stance was rejected in practice — see OUTCOME below)
 
-Ads are **rewarded-only** (guardrail 2) — no banners or interstitials — and
-the AdMob ids were configured for Android only (iOS left empty); as of
-2026-09-30 both are empty again (Families rejection — see the OUTCOME
-note below). The web AdSense
-banner is shop-sheet-only, labeled, and gated behind explicit config. Because a
-math idle game skews young, confirm for the chosen age rating:
+Ads are **rewarded-only** (guardrail 2) — no banners or interstitials. The
+network moved from AdMob to **Unity Ads** on 2026-10-01 (Play's Families
+rules require a rewarded ad to be closeable within 5 seconds, which the
+AdMob rewarded unit cannot do — see the OUTCOME note below); the Game ID /
+placement ids are still empty, so the shipped build is ad-free. The web
+AdSense banner is shop-sheet-only, labeled, and gated behind explicit
+config. Because a math idle game skews young, confirm for the chosen age
+rating:
 
 - The Play App Content rating and App Store age rating.
-- Whether the AdMob SDK's `TAG_FOR_CHILD_DIRECTED_TREATMENT` flag should be set
-  for that rating (guarded by the platform's policy on child-directed ads).
-- That no ads request IDFA/ads-id in a way that conflicts with the rating.
+- Whether the ad SDK's child-directed flag should be set for that rating.
+  SHIPPED POSTURE (2026-10-01): `storeConfig.unityAds.childDirectedTreatment
+  = true` → `UnityAds.setNonBehavioral(true)` before init (contextual,
+  non-personalized demand for every user), plus
+  `stripAdvertisingId = true` → `plugins/withUnityAds.js` removes
+  `AD_ID` + the three `ACCESS_ADSERVICES_*` permissions from the merged
+  manifest, so no ad code can read an advertising identifier at all. That
+  is the conservative direction: it is compliant whichever way Play
+  classifies the app. Flipping to personalized demand later requires
+  flipping both flags together with the target-audience stance
+  (blockers.md) — one decision, three places
+  (`storeConfig.ts`, `app.config.ts`'s `removeAdvertisingId`, the console
+  answers).
+- That no ads request IDFA/ads-id in a way that conflicts with the rating
+  (the ad-id permission is not in the APK at all in the shipped posture).
 This is a configuration/verification step against the live store setup, not a
 code change.
 
@@ -291,7 +305,7 @@ reviewer's Families classification (targeting children) was made
 independently of our console answers (the policy's "Google reserves the
 right to review your app and make its own determination" clause), and
 the shipped SDK was already self-certified (GMA `play-services-ads`
-25.0.0 ≥ 19.0.0 on the Families list) — the violation was the ad
+24.6.0 ≥ 19.0.0 on the Families list) — the violation was the ad
 format's interference, not the SDK. Consequence: the v1.0.11
 resubmission ships with native ads REMOVED end-to-end (storeConfig.adMob
 emptied → no-op provider → no App ID in the manifest → GMA SDK never
@@ -306,9 +320,14 @@ answered.
 "acceptable"?** No, not from our side: the close button is part of
 Google's creative UI with a per-creative 5–30 s countdown until the
 reward is granted (official AdMob docs, answer/7372450), no SDK release
-(legacy 25.0.0 or the open-beta Next-Gen) documents a reliable ≤5 s
+(legacy 24.6.0 or the open-beta Next-Gen) documents a reliable ≤5 s
 early close, and Google's one creative-side fix (2022, thread
-p16MnuW3TJk) is not held. The only other Families-compliant formats
+p16MnuW3TJk) is not held. (Both statements are scoped to the standard
+Rewarded *ad-unit* format; store-integration.md §0 "Re-opened
+(2026-10-01)" records the two 5-s-closeable rewarded formats —
+AdMob rewarded interstitial units and Unity Ads skip-5s placements —
+that make rewarded viable for a child-inclusive audience.) The only
+other Families-compliant formats
 (banners, non-launch interstitials) are permanently excluded by
 guardrail 2 — so a children-only app stays ad-free, and in a mixed
 app only the **18+ branch** can serve rewarded (via Play's neutral age

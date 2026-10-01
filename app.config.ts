@@ -5,34 +5,20 @@ import { ExpoConfig, ConfigContext } from "expo/config";
 // only the icon/splash prebuild plugin + web favicon generation read it).
 const pickaxePng = "./app-icons/logo.jpg";
 
-// AdMob App ids for the react-native-google-mobile-ads config plugin, which
-// bakes them into the native manifests at `expo prebuild` (the v16 SDK reads
-// them from the manifest — MobileAds().initialize() takes no arguments).
-// The runtime's single source of truth is
-// src/mines_of_doom/storeConfig.ts; they are repeated here ONLY because the
-// Expo config loader can't import TS modules (plain node require). A test
-// in src/mines_of_doom/__test__/storeConfig.test.ts pins the two together
-// so they can't drift. Fill storeConfig.ts AND this block, then prebuild.
-// DELIBERATELY EMPTY (2026-09-30, mirrors storeConfig.ts): native ads
-// are disabled for the v1.0.11 Play Families resubmission — no App ID in
-// the manifests, so the GMA SDK never initializes (no ad requests, no
-// advertising-id use). See storeConfig.ts for the full why and the
-// re-enable runbook (docs/store-integration.md §0). With no App IDs the
-// plugin only sets the lazy-init manifest flags and logs a "no appId"
-// warning at prebuild — expected and harmless.
-const adMobAppIds = {
-  androidAppId: "",
-  iosAppId: "",
-};
-
-const googleMobileAdsPluginOptions = {
-  ...(adMobAppIds.androidAppId
-    ? { androidAppId: adMobAppIds.androidAppId }
-    : {}),
-  ...(adMobAppIds.iosAppId ? { iosAppId: adMobAppIds.iosAppId } : {}),
-  // Delay SDK init until the first ad load (recommended; this app only
-  // shows ads on explicit "watch" taps — guardrail 2).
-  optimizeInitialization: true,
+// Unity Ads has nothing to bake into the native manifests (the Game ID and
+// placement ids are passed to the SDK from JS — modules/unity-ads), but the
+// AD_ID posture does need a build-time mirror: the Unity AAR declares the ad
+// id permissions and the kid-safe posture (storeConfig.unityAds
+// .stripAdvertisingId) removes them again at prebuild. The runtime's single
+// source of truth is src/mines_of_doom/storeConfig.ts; it is repeated here
+// ONLY because the Expo config loader can't import TS modules (plain node
+// require). A test in src/mines_of_doom/__test__/storeConfig.test.ts pins
+// the two together so they can't drift.
+const unityAdsManifestOptions = {
+  // true (ship posture, 2026-10-01): no advertising ID, at all. Flip to false
+  // ONLY together with storeConfig.unityAds.childDirectedTreatment and the
+  // target-audience stance — they are one decision (docs/blockers.md).
+  removeAdvertisingId: true,
 };
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
@@ -48,9 +34,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   scheme: "com.minus4kelvin.minesofdoom",
   version: "1.0.11",
   android: {
-    // AD_ID: required by Google Play for apps using the advertising ID on
-    // Android 13+ (targetSdk 35). Without it the ID is zeroed out.
-    permissions: ["com.google.android.gms.permission.AD_ID"],
+    // NO ad-id permissions: the Unity Ads AAR declares
+    // com.google.android.gms.permission.AD_ID (+ ACCESS_ADSERVICES_*), and
+    // ./plugins/withUnityAds below strips them from the merged manifest
+    // (kid-safe posture — children must not be sent the advertising ID).
     versionCode: 11,
     adaptiveIcon: {
       foregroundImage: pickaxePng,
@@ -84,7 +71,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // Re-applies the local android/app/build.gradle patches (debuggableVariants = []
     // + Play upload-key signing) that `expo prebuild` wipes. See the plugin's header.
     "./plugins/withDebugSigning",
-    ["react-native-google-mobile-ads", googleMobileAdsPluginOptions],
+    // Rewarded ads run on Unity Ads (modules/unity-ads): nothing to inject
+    // into the manifest except the ad-id removal above.
+    ["./plugins/withUnityAds", unityAdsManifestOptions],
     // SDK 57 dropped the top-level `splash` key from the config schema; the
     // splash screen is now configured through the expo-splash-screen plugin.
     [

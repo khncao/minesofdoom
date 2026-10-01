@@ -13,8 +13,8 @@ console answers), citing version code 9 — the LIVE build with the AdMob
 rewarded ads — despite (a) the S6 decision (security-audit.md,
 2026-09-08: teen+/13+, NOT child-directed, tagForChildDirected-
 Treatment false) and (b) a self-certified ad SDK (GMA
-`play-services-ads` 25.0.0 ≥ 19.0.0, on the Families self-certified
-list). The reviewer independently classified the app as targeting
+`play-services-ads` 24.6.0 — the version RN-GMA 16.0.1 pins — ≥ 19.0.0,
+on the Families self-certified list). The reviewer independently classified the app as targeting
 children ("Google reserves the right to review your app and make its
 own determination"). The v1.0.11 resubmission therefore removes native
 ads ENTIRELY (storeConfig.adMob emptied → no-op provider → no App ID
@@ -22,72 +22,89 @@ in the manifest → GMA SDK never initializes; store-integration.md §0)
 and corrects the console answers (13+ target audience; data safety:
 no ads). **That unblocks publication under any of the three stances
 below — it is the interim position, not the decision.** (The fourth apparent option — keeping rewarded ads but making them
-closeable after 5 seconds — is NOT available: the 2026-09-30 deep-dive
-in store-integration.md §0 shows the close button is Google's creative
-UI with a per-creative 5–30 s countdown until the reward is granted, no
-dismiss API, and no GMA release that documents a reliable ≤5 s early
-close; the other Families-compliant formats (banners, non-launch
-interstitials) are permanently excluded by guardrail 2. **Consequence:
-under any stance that includes children, ads stay off; only stance A
-(Teen+) can bring them back.**)
+closeable after 5 seconds — was ruled out on 2026-09-30 and that ruling
+was **too broad**: the 2026-09-30 deep-dive in store-integration.md §0
+shows the standard AdMob *Rewarded* unit's close button is Google's
+creative UI with a per-creative 5–30 s countdown until the reward is
+granted, no dismiss API, and no GMA release that documents a reliable
+≤5 s early close. But the rule is about the FORMAT, and two compliant
+ones exist: AdMob **rewarded interstitial** ad units (only skippable
+ads are served in them — Google's own recommendation for this exact
+rejection) and **Unity Ads** rewarded placements configured with
+"Allow skip after 5 seconds" + the Google Designed for Families flag
+(Unity Ads is a Families self-certified SDK). See "Re-opened
+(2026-10-01)" in store-integration.md §0. **Consequence: the stance
+decision no longer decides whether ads can exist — it only decides who
+sees them and whether the listing must be de-juvenilized; all three
+stances can have rewarded ads once the unit format is swapped.**
+
+**DECIDED for the format, 2026-10-01: option 2 above — Unity Ads.**
+AdMob is removed from the app (package, config plugin, App IDs, AD_ID
+permission) and replaced by the local Expo module `modules/unity-ads`
+with each placement set to "Allow skip after 5 seconds" + the project's
+Google Designed for Families flag. Every request is child-treated
+(`childDirectedTreatment: true` → `UnityAds.setNonBehavioral(true)`) and
+the advertising-id permissions are stripped from the APK, so ONE
+rewarded surface is valid for all ages with no neutral age screen. The
+owner still owes the dashboard steps + the id paste
+(store-integration.md §1.1/§1.2) — until then the config is empty and
+the app ships ad-free, which is still the correct interim state.)
 
 **The decision (owner: Kelvin):** where does this app land?
 
-- **A. Teen+ (13+)** — the S6 position. If Play accepts it, ads can
-  return later in the same opt-in form (self-certified GMA ✓; the tag
-  stays false) and web AdSense stays as-is. Risk: the reviewer may
-  keep classifying the app as Families (cartoon pixel art, the "Doom"
-  name) — if so, the native app stays ad-free indefinitely.
-- **B. Mixed audience (children AND adults)** — the only stance where
-  rewarded can coexist with an under-18 audience, using Play's own
-  mechanism: the [neutral age
-  screen](https://support.google.com/googleplay/android-developer/answer/9285070#neutral-agescreen)
-  — a first-launch, free-entry month/day/year birth-date question in
-  neutral wording (a preset value or "required age" language is an
-  explicit mis-configuration per Play; a non-answer defaults to child
-  treatment — no ads). The age splits the AD SURFACE only: users under
-  the floor never see a "watch" entry point and never trigger an ad
-  request (the whole surface is already availability-gated, so the
-  gate is a small addition; the children branch is ad-free by
-  construction — exactly what the policy's neutral-age-screen clause
-  requires: "any ads not suitable for children are only shown to
-  older audiences"). The floor must be **18+**: Play's age-group docs
-  say 13-15 and 16-17 "may be considered to include children in some
-  locales" ("if your app targets any users who are under the age of
-  21, you must consider if they would be considered children under
-  their local laws"), so a 13+ gate would still serve the non-5-s-
-closable rewarded to children in some locales — same rejection,
-  narrower. SDK note: the GMA version we ship (25.0.0 via RN-GMA
-  16.0.1) takes age treatment only in the app-wide
-  `RequestConfiguration` (the newer per-request
-  `setAgeRestrictedTreatment` is not exposed by RN-GMA 16.0.1), which
-  stays adult-treated — fine, because the child branch makes no
-  requests at all. Work list: the age-screen UI; a save field
-  (saveVersion bump + migration + MAX_SAVE_VERSION pin); privacy-
-policy + data-safety disclosure of the age question; console answers
-  (target age groups include under-13; the "Ads" question: self-
-certified GMA SDK + neutral age screen); and a de-juvenilized listing
-  — the same doc warns that a non-child app whose graphic assets show
-  "youthful animation or young characters" MAY be rejected, with only
-  two exits (remove the child-appealing elements, or declare children-
-only = stance C). So B is a compound bet: mixed classification
-  accepted AND the 18+ gate held as the audience split. Most work of
-  the three, but the only path to "wider audience AND ads."
+- **A. Teen+ (13+)** — the 2026-09-08 S6 position, still valid for
+  the LISTING, but no longer the only stance that can have ads (Unity
+  Ads is Families self-certified, so the ad format works under any of
+  them). Under A the app may keep serving contextual-only demand as
+  shipped, or — with a deliberate stance change — flip
+  `childDirectedTreatment`/`stripAdvertisingId` to personalized demand.
+  Risk that survives the provider switch: the reviewer may still
+  classify the app as child-directed (cartoon pixel art, the "Doom"
+  name), which is now harmless for the ad format but still shapes the
+  DFF obligations (contextual demand ✓ already).
+- **B. Mixed audience (children AND adults)** — worth reconsidering
+  now that the ad FORMAT is compliant, because the age screen is only
+  needed to shield ads that are unsuitable for children, and the shipped
+  Unity demand is contextual/child-safe for everyone: under B the app
+  can either (a) keep one all-ages surface exactly as built (simplest —
+  no age question, no save migration, no gate code), or (b) add Play's
+  [neutral age
+  screen](https://support.google.com/googleplay/android-developer/answer/9285070#neutralagescreen)
+  (a first-launch, free-entry month/day/year birth-date question in
+  neutral wording; a preset value or "required age" language is an
+  explicit mis-configuration per Play) purely so an older cohort could
+  later see personalized demand. **Recommendation: (a)** — the upside of
+  B is only the option value on personalized demand, and the cost is a
+  new first-launch screen, a save field (saveVersion bump + migration +
+  MAX_SAVE_VERSION pin), privacy-policy/data-safety disclosure of the
+  age question, and console answers covering the age screen. If the
+  stance ever does need the gate, the floor must be **18+** (Play's
+  age-group docs say 13-15 and 16-17 "may be considered to include
+  children in some locales"). Note the listing question under B that
+  still stands: a non-child app whose assets show "youthful animation or
+  young characters" MAY be rejected, with two exits (remove the
+  child-appealing elements, or declare children = stance C).
 - **C. Children only** — full Designed-for-Families compliance:
   self-certified SDK versions only (already met), no AAID, kid-safe
   ad settings / TAG on. The most restrictive, but the widest audience
-  (and apparently the one the reviewer has already assumed). Under the
-  current guardrails the app stays **ad-free permanently** in this
-  stance: rewarded fails the 5-s-close rule and no other format is
-  allowed (store-integration.md §0).
+  (and apparently the one the reviewer has already assumed). The 2026-09-30
+  note that this stance means "ad-free permanently" held only for the
+  standard AdMob Rewarded unit: with a 5-s-closeable format (AdMob
+  rewarded interstitial / Unity Ads skip-5s) rewarded can run here too,
+  child-treated, no age screen (store-integration.md §0 "Re-opened
+  2026-10-01").
 
 **What is blocked:** only the stance decision itself — the ad-free
-resubmission (todo.md "Play Families rejection") is NOT blocked on it,
-and is the correct move under any option. When the decision lands:
-re-enable (or keep empty) `storeConfig.adMob` + the app.config.ts
-mirror, fix the listing + privacy-policy ad claims for the stance, set
-`tagForChildDirectedTreatment` accordingly, update security-audit.md
-S6 (the stance decision closes it), and delete this section.
+v1.0.11 resubmission (todo.md "Play Families rejection") is NOT blocked
+on it, and is the correct move under any option (it is also the state
+the repo is in right now: the Unity Ads switch is implemented but the
+Game ID / placement ids are still empty, so nothing shows). When the
+decision lands: set the console target audience, decide whether the
+listing needs de-juvenilizing, keep or flip `childDirectedTreatment` +
+`stripAdvertisingId` **together with** `app.config.ts`'s
+`removeAdvertisingId`, fix the listing + privacy-policy ad claims for
+the stance, update security-audit.md S6 (the stance decision closes
+it), and delete this section.
 
 ## Web sign-in 400 `origin_mismatch` + orphaned API base (2026-09-13)
 

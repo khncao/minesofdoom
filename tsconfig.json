@@ -14,6 +14,12 @@
       ],
       "assets/*": [
         "./public/assets/*"
+      ],
+      // Local Expo native modules (modules/unity-ads — the Unity Ads
+      // bridge). Metro resolves this through app.config.ts's
+      // `experiments.tsconfigPaths`; jest maps it in jest.config.js.
+      "modules/*": [
+        "./modules/*"
       ]
     },
     "types": [

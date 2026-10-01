@@ -6,5 +6,8 @@ module.exports = {
   // specifiers; map the same here so test files can import the same way.
   moduleNameMapper: {
     "^src/(.*)$": "<rootDir>/src/$1",
+    // Local Expo native modules (modules/unity-ads) — same alias as
+    // tsconfig.json paths / Metro's tsconfigPaths support.
+    "^modules/(.*)$": "<rootDir>/modules/$1",
   },
 };

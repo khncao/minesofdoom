@@ -1,10 +1,10 @@
 import fs from "fs";
 import path from "path";
 import {
-  getAdMobIds,
   getActiveStripe,
   getStripePrice,
-  isAdMobIdsConfigured,
+  getUnityAdsIds,
+  isUnityAdsConfigured,
   isAdSenseConfigured,
   isStripeConfigured,
   isStripeProdConfigured,
@@ -12,55 +12,50 @@ import {
 } from "../storeConfig";
 import { IAP_PRODUCT_IDS, IAP_PRODUCTS } from "../iaps";
 
-// Production rewarded unit ids (AdMob console → Ad units → Rewarded).
-// All four placements are production, and one set serves both platforms
-// (ad units aren't platform-scoped — the App ID is).
-const GEM_ROLLS_UNIT = "ca-app-pub-2101316086878618/8308813932";
-const OFFLINE_DOUBLE_UNIT = "ca-app-pub-2101316086878618/9024953635";
-const OFFLINE_TOPUP_UNIT = "ca-app-pub-2101316086878618/1898589303";
-const COMBO_SAVE_UNIT = "ca-app-pub-2101316086878618/9285949727";
-
-// AdMob's PUBLIC TEST rewarded unit ids (the same constants the
-// react-native-google-mobile-ads package exports as TestIds — hardcoded
-// here because storeConfig can't import the SDK module). These must
-// never appear in the config (the "no test ids" test below enforces it).
-const ANDROID_TEST_UNIT = "ca-app-pub-3940256099942544/5224354917";
-const IOS_TEST_UNIT = "ca-app-pub-3145189286508883/1712485313";
-
-const androidUnits = {
-  gemRolls: GEM_ROLLS_UNIT,
-  offlineDouble: OFFLINE_DOUBLE_UNIT,
-  offlineTopUp: OFFLINE_TOPUP_UNIT,
-  comboSave: COMBO_SAVE_UNIT,
+// Unity Ads placement ids (Unity dashboard → Monetization → Ad units →
+// Rewarded; docs/store-integration.md §1). PLACEHOLDERS until the owner's
+// Unity project exists: they are NOT wired into storeConfig, they only
+// document the shape the paste must have and keep the "no test/demo ids"
+// net honest. Real ids are numeric strings, one per placement.
+const ANDROID_UNITS = {
+  gemRolls: "0000001",
+  offlineDouble: "0000002",
+  offlineTopUp: "0000003",
+  comboSave: "0000004",
 };
-const iosUnits = androidUnits;
+const IOS_UNITS = { ...ANDROID_UNITS };
+
+// Unity's PUBLIC TEST placement ids (Unity dashboard test mode) must never
+// appear in a shipped config — they fill instantly on any device.
+const UNITY_TEST_PLACEMENTS = ["1234567", "1234568"];
 
 describe("storeConfig (runbook §1 — the single SDK config point)", () => {
   it("pins the storeConfig values (empty = unconfigured)", () => {
-    // 2026-09-30: ALL AdMob values are deliberately empty — Google Play
-    // rejected the v1.0.10 update under the Families policies (unclosable
-    // rewarded ads + inaccurate console answers); v1.0.11 resubmits with
-    // no native ads (docs/store-integration.md §0). The production ids the
-    // constants above record are the RESTORE values — paste them back into
-    // storeConfig.ts AND app.config.ts only after an age-stance decision
-    // (docs/blockers.md) and the listing / privacy-policy ad claims are
-    // fixed.
-    expect(storeConfig.adMob.androidAppId).toBe("");
-    expect(storeConfig.adMob.iosAppId).toBe("");
-    expect(storeConfig.adMob.rewardedUnitAndroid).toEqual({
+    // Native ads moved to Unity Ads (2026-10-01) because Play's Families
+    // rules require a rewarded ad to be closeable within 5 seconds and the
+    // AdMob rewarded unit cannot be. Values stay EMPTY until the owner's
+    // Unity project exists (docs/store-integration.md §1) — empty = hidden
+    // entry points, so the game is still shippable without them.
+    expect(storeConfig.unityAds.androidGameId).toBe("");
+    expect(storeConfig.unityAds.iosGameId).toBe("");
+    expect(storeConfig.unityAds.rewardedPlacementAndroid).toEqual({
       gemRolls: "",
       offlineDouble: "",
       offlineTopUp: "",
       comboSave: "",
     });
-    expect(storeConfig.adMob.rewardedUnitIos).toEqual({
+    expect(storeConfig.unityAds.rewardedPlacementIos).toEqual({
       gemRolls: "",
       offlineDouble: "",
       offlineTopUp: "",
       comboSave: "",
     });
-    // Guardrail 7 default OFF until the final age rating is known.
-    expect(storeConfig.adMob.tagForChildDirectedTreatment).toBe(false);
+    // Guardrail 6 (kid safety): ads are served child-directed /
+    // non-personalized for EVERY user, which is what makes one ad surface
+    // valid for all ages (docs/store-integration.md §0 "Re-opened"), and it
+    // is why the ad-id permissions are stripped at prebuild.
+    expect(storeConfig.unityAds.childDirectedTreatment).toBe(true);
+    expect(storeConfig.unityAds.stripAdvertisingId).toBe(true);
     // The Pocketbase deployment is live (docs/pocketbase-plan.md) — pin the
     // URL so a stray edit can't point the client at the wrong backend.
     expect(storeConfig.pocketbaseUrl).toBe(
@@ -68,43 +63,41 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
     );
   });
 
-  it("never ships an AdMob public test unit id", () => {
-    // Test ids fill instantly on any device, so a leaked test id would
-    // silently replace a production unit (docs/store-integration.md §1).
-    // The live config is empty (the Families resubmission, §0), so also
-    // check the recorded production values the restore will paste back.
+  it("never ships a Unity test-mode placement id", () => {
+    // Unity test placements fill instantly on any device, so a leaked one
+    // would silently replace a production placement
+    // (docs/store-integration.md §1).
     const all = [
-      ...Object.values(storeConfig.adMob.rewardedUnitAndroid),
-      ...Object.values(storeConfig.adMob.rewardedUnitIos),
-      ...Object.values(androidUnits),
-      ...Object.values(iosUnits),
+      ...Object.values(storeConfig.unityAds.rewardedPlacementAndroid),
+      ...Object.values(storeConfig.unityAds.rewardedPlacementIos),
+      ...Object.values(ANDROID_UNITS),
+      ...Object.values(IOS_UNITS),
     ];
-    for (const unit of all) {
-      expect(unit).not.toBe(ANDROID_TEST_UNIT);
-      expect(unit).not.toBe(IOS_TEST_UNIT);
+    for (const placement of all) {
+      expect(UNITY_TEST_PLACEMENTS).not.toContain(placement);
     }
   });
 
-  it("isAdMobIdsConfigured requires the app id AND every placement unit", () => {
+  it("isUnityAdsConfigured requires the Game ID AND every placement id", () => {
     const filled = {
       gemRolls: "u",
       offlineDouble: "u",
       offlineTopUp: "u",
       comboSave: "u",
     };
-    expect(isAdMobIdsConfigured({ appId: "", rewardedUnitIds: filled })).toBe(
+    expect(isUnityAdsConfigured({ gameId: "", rewardedPlacementIds: filled })).toBe(
       false,
     );
     expect(
-      isAdMobIdsConfigured({
-        appId: "app",
-        rewardedUnitIds: { ...filled, gemRolls: "" },
+      isUnityAdsConfigured({
+        gameId: "game",
+        rewardedPlacementIds: { ...filled, gemRolls: "" },
       }),
     ).toBe(false);
     expect(
-      isAdMobIdsConfigured({
-        appId: "app",
-        rewardedUnitIds: {
+      isUnityAdsConfigured({
+        gameId: "game",
+        rewardedPlacementIds: {
           gemRolls: "",
           offlineDouble: "",
           offlineTopUp: "",
@@ -113,34 +106,38 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
       }),
     ).toBe(false);
     expect(
-      isAdMobIdsConfigured({ appId: "app", rewardedUnitIds: filled }),
+      isUnityAdsConfigured({ gameId: "game", rewardedPlacementIds: filled }),
     ).toBe(true);
   });
 
-  it("the app.config.ts plugin ids never drift from storeConfig", () => {
+  it("the app.config.ts manifest flags never drift from storeConfig", () => {
     // app.config.ts can't import this module (the Expo config loader uses a
-    // plain node require), so the AdMob App ids are duplicated in the
-    // `adMobAppIds` block there for the prebuild plugin. Pin them together.
+    // plain node require), so the ad-id posture is duplicated in the
+    // `unityAdsManifestOptions` block there for plugins/withUnityAds. Pin
+    // them together: flipping one and not the other would ship an app whose
+    // ad code can read the advertising ID while the policy says it cannot.
     const cfg =
       fs
         .readFileSync(path.join(__dirname, "../../../app.config.ts"), "utf8")
-        .match(/^const adMobAppIds = \{[^}]*\};/m)?.[0] ?? "";
+        .match(/^const unityAdsManifestOptions = \{[^}]*\};/m)?.[0] ?? "";
+    expect(cfg).not.toBe("");
     const valueOf = (name: string) =>
-      cfg.match(new RegExp(`${name}: "([^"]*)"`))?.[1] ?? "";
-    expect(valueOf("androidAppId")).toBe(storeConfig.adMob.androidAppId);
-    expect(valueOf("iosAppId")).toBe(storeConfig.adMob.iosAppId);
+      cfg.match(new RegExp(`${name}: (true|false)`))?.[1] ?? "";
+    expect(valueOf("removeAdvertisingId")).toBe(
+      String(storeConfig.unityAds.stripAdvertisingId),
+    );
   });
 
-  it("getAdMobIds picks the matching pair per platform", () => {
+  it("getUnityAdsIds picks the matching pair per platform", () => {
     // Pinned against the config fields themselves (not hardcoded strings)
     // so a filled-in id can only ever reach the provider through here.
-    expect(getAdMobIds("android")).toEqual({
-      appId: storeConfig.adMob.androidAppId,
-      rewardedUnitIds: storeConfig.adMob.rewardedUnitAndroid,
+    expect(getUnityAdsIds("android")).toEqual({
+      gameId: storeConfig.unityAds.androidGameId,
+      rewardedPlacementIds: storeConfig.unityAds.rewardedPlacementAndroid,
     });
-    expect(getAdMobIds("ios")).toEqual({
-      appId: storeConfig.adMob.iosAppId,
-      rewardedUnitIds: storeConfig.adMob.rewardedUnitIos,
+    expect(getUnityAdsIds("ios")).toEqual({
+      gameId: storeConfig.unityAds.iosGameId,
+      rewardedPlacementIds: storeConfig.unityAds.rewardedPlacementIos,
     });
   });
 

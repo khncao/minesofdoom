@@ -39,26 +39,31 @@ describe("legal documents", () => {
     }
   });
 
-  it("the policy's child-directed claim matches the shipped AdMob flag (F45.1)", () => {
-    // The S6 decision (security-audit.md, 2026-09-08): teen+ (13+), NOT
-    // child-directed. The published policy must not assert an ad
-    // configuration the shipped code does not have — this is the sibling
-    // net that keeps the prose and storeConfig.adMob.tagForChildDirected-
-    // Treatment in sync, so a future flag flip can't silently falsify
-    // the policy again.
+  it("the policy's child-directed claim matches the shipped Unity flag (F45.1)", () => {
+    // The policy must not assert an ad configuration the shipped code does
+    // not have — this is the sibling net that keeps the prose and
+    // storeConfig.unityAds.childDirectedTreatment in sync, so a future flag
+    // flip can't silently falsify the policy again. (That is exactly what
+    // the 2026-09-30 Play rejection was: stale "ads" answers.)
     const children = getLegalDoc("privacy").sections.find(
       (s) => s.heading === "Children",
     );
     expect(children).toBeDefined();
     const body = (children as { body: string }).body;
-    if (storeConfig.adMob.tagForChildDirectedTreatment) {
-      expect(body).toMatch(/child-directed treatment/i);
+    if (storeConfig.unityAds.childDirectedTreatment) {
+      // Ads ARE treated as child-directed: say so, and say the reward is
+      // in-game only (Families forbids real-world rewards).
+      expect(body).toMatch(/treated as child-directed/i);
+      expect(body).toMatch(/non-personalized|contextual/i);
+      expect(body).toMatch(/never real-world goods/i);
+      // And the child-directed posture is only honest if the advertising
+      // id really is unavailable.
+      if (storeConfig.unityAds.stripAdvertisingId) {
+        expect(body).toMatch(/does not use an advertising identifier/i);
+      }
     } else {
-      expect(body).not.toMatch(/configured for child-directed treatment/i);
+      expect(body).not.toMatch(/treated as child-directed/i);
       expect(body).toMatch(/not directed at children/i);
-      // The recorded position is a concrete 13+, not a vague
-      // "platform minimum age" claim.
-      expect(body).toMatch(/13/);
     }
   });
 
