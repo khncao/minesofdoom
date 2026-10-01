@@ -32,7 +32,9 @@ import {
   getCaveTheme,
   rollMinerLook,
 } from "../cosmetics";
-import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/pixelArt";
+// The art-pack seam, not pixelArt directly: the previews must match the
+// sprites the game actually draws, whichever pack is active.
+import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/artPack";
 
 const ALL_PRODUCT_IDS = Object.keys(IAP_PRODUCTS) as IapProductId[];
 

@@ -61,6 +61,12 @@ src/                       # All source
                            # useSounds, useMineTaps, useShakeInput, ...
     __test__/              # Unit tests for the pure logic modules
   __test__/                # Cross-cutting test suites (e.g. nativeStackWiring)
+modules/unity-ads/         # Local Expo native module: the Unity Ads rewarded
+                           # bridge (Kotlin, expo-modules-core). Android only;
+                           # JS face is requireOptionalNativeModule, provider in
+                           # src/mines_of_doom/unityAdProvider.ts. Rewarded ads
+                           # run here after the 2026-10-01 AdMob→Unity switch
+                           # (Play Families 5-second-close rule).
 public/assets/             # Static assets (audio, icons, images) with index.ts barrel
 android/                   # Prebuilt native project (Expo prebuild)
 dist/                      # Web build output (generated, gitignored)
@@ -79,6 +85,34 @@ autosave and offline-progress computation on load. When adding gameplay logic, p
 extending the pure modules over embedding logic in components, and add/extend tests in
 `mines_of_doom/__test__/` or alongside `utils/*`. Never add non-route files under
 `src/app/` (see the architecture note above).
+
+### Art (the art-pack seam)
+
+All in-game sprites are generated — there are no character image files. Everything
+that draws one (miner body, pickaxe, gem, ore chunk, debris shard) imports
+`minerSpriteUri` / `pickaxeSpriteUri` / `debrisSpriteUri` / `gemSpriteUri` /
+`mineralChunkSpriteUri` from **`src/utils/graphics/artPack.ts`**, never from
+`pixelArt.ts` or `characterArt.ts` directly. An **art pack** supplies those five
+builders; `ART_PACKS` registers the classic 16×16 `pixel` pack and the shipped 32×32
+`papercut` pack (docs/art-directions.md), and `DEFAULT_ART_PACK_ID` /
+`setActiveArtPack()` are the whole swap mechanism — one line changes the game's art,
+and the old art is still there. Under the seam:
+
+- `pixelArt.ts` — classic 16×16 grids (`buildMinerGrid` …) + the PNG encoder. The
+  `pixel` pack is these builders unchanged; it also stays the debris shards.
+- `characterArt.ts` — 32×32 label-map geometry (`minerLabels(shape)`) + the five
+  art-direction renderers; `papercutSkins.ts` is the named skin line.
+- `caveTiles.ts` — the cave background, deliberately OUTSIDE the pack seam (it is
+  its own strip pipeline, and a paper-cut cave is still an open todo item). Its
+  rock/gap silhouette and rock body are sampled at GLOBAL pixels through
+  domain-warped value noise — per pixel, not per 24px tile — and the foreground
+  walls are addressed by absolute band like the rows. Both are load-bearing for
+  "no visible patterns": don't reintroduce a per-tile or per-row decision, and
+  don't give the wall a single repeating strip.
+- `shapeForLook(look)` is the game↔art mapping: `MinerLook`'s optional shape hints
+  (`hair`/`outfit`/`beard`/`cute`, appended by `rollMinerLook` AFTER the color picks
+  so existing saves' colors never move) drive the papercut silhouette, and it passes
+  `tool: false` because `Miner` draws the swinging pickaxe as its own sprite.
 
 ### Cosmetics & the crew (mental model)
 
@@ -117,7 +151,10 @@ configurations. If you add new import aliases, you must keep all three in sync:
 - `jest.config.js` `moduleNameMapper`: `^src/(.*)$` → `<rootDir>/src/$1`
 
 So test/source files import like `import ... from "src/mines_of_doom/game"` or
-`from "assets/index"`. Metro also blocks `android/.gradle`, `android/build`, and
+`from "assets/index"`. `modules/*` (the local Expo native modules, e.g.
+`modules/unity-ads`) is a third alias: `tsconfig.json` paths + `jest.config.js`
+moduleNameMapper, and Metro resolves it through `app.config.ts`'s
+`experiments.tsconfigPaths` (no metro.config.js entry needed). Metro also blocks `android/.gradle`, `android/build`, and
 `android/app/build` from watching (Windows file-watcher limit).
 
 ## Conventions
@@ -163,7 +200,10 @@ So test/source files import like `import ... from "src/mines_of_doom/game"` or
 - **Platform:** Web uses static export
   (`output: "static"` in `app.config.ts`), so routing/navigation must stay
   static-export-safe.
-- **Android:** prefer mines-play-35 avd emulator as it has play store and is an admobs registered test device
+- **Android:** prefer mines-play-35 avd emulator (it has the Play Store).
+  Ad testing needs no console-registered test device: the provider passes
+  `testMode = !isProdEnvNow()`, and a `__DEV__` build runs the labeled
+  dev-sim rather than the real SDK, so real ad checks are a release build
 
 ## Gotchas
 

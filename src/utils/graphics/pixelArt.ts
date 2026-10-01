@@ -312,6 +312,23 @@ function pngBytesFromRaw(
 export type HatStyle = "helmet" | "beanie" | "cap" | "bandana" | "longhair";
 
 /**
+ * Hair shapes the papercut art pack can draw on a bare head. Part of the
+ * look (not of `HatStyle`) because the classic 16×16 grid has no hair other
+ * than the `longhair` hat — the pixel art pack ignores it entirely.
+ */
+export type MinerHair = "bob" | "long" | "ponytail" | "twin" | "bun";
+
+/** Silhouette switches the papercut art pack reads off a look. */
+export interface MinerShape {
+  /** Only meaningful with `hatStyle: "longhair"` (a bare head). */
+  hair?: MinerHair;
+  outfit?: "trousers" | "dress";
+  beard?: boolean;
+  /** Cute face: bigger eyes with lash ticks, plus blush. */
+  cute?: boolean;
+}
+
+/**
  * Body type of a miner (cosmetic line): "human" is the classic silhouette;
  * "animal" is a round little critter (the look's fields map as
  * skin=fur, shirt=vest, pants=lower fur, boots=feet).
@@ -327,7 +344,7 @@ export type MinerLook = {
   hatStyle: HatStyle;
   /** Defaults to "human" (absent on looks rolled before the critter line). */
   species?: MinerSpecies;
-};
+} & MinerShape;
 
 const EYES = "#1a1a1a";
 const BELT = "#2b2b2b";
@@ -827,8 +844,25 @@ let mineralChunkUri: string | null = null;
 let gemUri: string | null = null;
 const debrisCache = new Map<number, string>();
 
+/**
+ * The sprite cache key. Only the fields that reach a grid matter, so a look
+ * carrying papercut shape hints (hair/outfit/beard/cute) still keys to the
+ * same 16×16 sprite under the pixel pack — one key for every pack.
+ */
+function lookCacheKey(look: MinerLook): string {
+  return JSON.stringify([
+    look.skin,
+    look.shirt,
+    look.pants,
+    look.boots,
+    look.hat,
+    look.hatStyle,
+    look.species ?? "human",
+  ]);
+}
+
 export function minerSpriteUri(look: MinerLook): string {
-  const key = JSON.stringify(look);
+  const key = lookCacheKey(look);
   let uri = minerCache.get(key);
   if (uri == null) {
     uri = gridToPngDataUri(buildMinerGrid(look));

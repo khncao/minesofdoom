@@ -1,9 +1,7 @@
 import React, { forwardRef, memo, useImperativeHandle, useRef, useState } from "react";
 import { Animated, StyleSheet } from "react-native";
-import {
-  DEBRIS_VARIANTS,
-  debrisSpriteUri,
-} from "src/utils/graphics/pixelArt";
+import { DEBRIS_VARIANTS } from "src/utils/graphics/pixelArt";
+import { debrisSpriteUri } from "src/utils/graphics/artPack";
 
 export interface DebrisParticlesRef {
   trigger: () => void;

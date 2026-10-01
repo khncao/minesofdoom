@@ -33,7 +33,7 @@ import {
  rollMinerLook,
 } from "./cosmetics";
 import { CUSTOM_SKIN_UNLOCK_COST_GEMS } from "./customSkin";
-import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/pixelArt";
+import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/artPack";
 // The real provider (native; a no-op on web via the .web swap). Imported
 // here (not the reverse) so the selection rules stay in one pure module;
 // the import is only read at call time inside selectIapProvider, which

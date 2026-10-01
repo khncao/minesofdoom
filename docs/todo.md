@@ -44,12 +44,17 @@ Only work on continuous tasks after other tasks are completed
         rating fall out of the descriptors. 3) Data safety (Android):
         no third-party ad SDK, no advertising-id use; keep the
         account/cloud/purchase disclosures.
-      - **Agent (ready when owner says go):** the release AAB builds
-        with `cd android && JAVA_HOME=~/.jdks/jdk-21* ./gradlew
-        bundleRelease` (the machine's system JDK is headless — a
-        full Temurin 21 was installed to `~/.jdks` and pinned via
-        `~/.gradle/gradle.properties`, so any gradle invocation is
-        fine). Then the atomic submission via the untracked
+      - **Agent (ready when owner says go):** the release AAB is
+        BUILT and verified (2026-09-30, `app-release.aab` in
+        `android/app/build/outputs/bundle/release/`, 77MB, vc 11,
+        signed with the Play upload key): no real AdMob App ID
+        anywhere in the bundle — the merged manifest's
+        APPLICATION_ID is the GMA SDK's zero placeholder and the
+        only other `ca-app-pub` strings are the SDK's test-id
+        constant + validation regex. Build note: the machine's
+        system JDK is headless — a full Temurin 21 was installed to
+        `~/.jdks` and pinned in `~/.gradle/gradle.properties` (any
+        gradle invocation works now). Submission is the untracked
         `.play-submit-v1.0.11.mjs` in the repo root (ONE Play edit:
         en-US listing bullet → "No ads, no pop-ups — nothing to
         watch or skip" + AAB upload + production and internal
@@ -59,3 +64,60 @@ Only work on continuous tasks after other tasks are completed
       - **After submit:** watch the review; if it is classified
         Families again, the app stays ad-free on native (see
         blockers.md).
+- [o] re-enable native rewarded ads on **Unity Ads** (code DONE 2026-10-01;
+      blocked on owner input — the Unity project + ids)
+      Code: AdMob is GONE (`react-native-google-mobile-ads` removed, its
+      config plugin + App IDs deleted, AD_ID stripped by
+      `plugins/withUnityAds.js`) and replaced by the local Expo module
+      `modules/unity-ads` (`unity-ads` 4.20.1, Families self-certified)
+      + `src/mines_of_doom/unityAdProvider.ts`. Why: Play's Families rule
+      bans rewarded ads that aren't closeable in 5 seconds, and the AdMob
+      rewarded unit can't be — Unity placements have a documented
+      "Allow skip after 5 seconds" setting, so ONE player-tapped
+      rewarded surface is compliant for all ages (a skip resolves
+      "closed": no reward). Every request is child-treated
+      (`childDirectedTreatment: true` → `setNonBehavioral(true)`, i.e.
+      contextual-only demand) and the ad-id permissions are removed from
+      the APK, so **no neutral age screen is needed**. Tests/lint/
+      typecheck green; a release AAB with the module compiles.
+      **Owner (see store-integration.md §1):** 1) create the Unity
+      Android project (Game ID) + four rewarded placements, 2) set
+      "Allow skip after 5 seconds" on EVERY placement, 3) enable App
+      store compliance → Google Designed for Families, 4) paste the ids
+      into `storeConfig.unityAds`, 5) verify on a release build that a
+      5-second skip really is available, 6) then set the console
+      answers to match the build (target audience may include children,
+      IARC advertising = **Yes**, data safety: ad SDK declared + no
+      advertising id) and re-submit. Until step 4 the config is empty
+      and the app is still ad-free (correct interim state).
+      Versioning: keep 1.0.11/vc 11 for the ad-free build (it is already
+      built and signed); **bump to 1.0.12 / vc 12 when the Unity ids
+      land**, since the ad-bearing APK is a different bundle.
+- [ ] pick the Play target-audience stance (owner decision, see
+      blockers.md 2026-09-30)
+
+## Art follow-ups (papercut shipped 2026-10-02)
+
+Direction decided + shipped behind the art-pack seam
+(`src/utils/graphics/artPack.ts`; see docs/art-directions.md). Left open,
+in rough priority order:
+
+- [ ] **cave art in the new style.** `caveTiles.ts` is a separate 336×24
+      strip pipeline and still uses the classic rock art. A paper-cut cave
+      (flat layered rock planes per tier, the same value-plane treatment as
+      the characters) is its own draft, not a renderer change.
+- [ ] **paper-cut debris shard.** The papercut pack delegates the 12px
+      debris particles to the classic shards (a 32px rock crushed into 12px
+      is mush). A small paper-cut shard subject would close the pack.
+- [ ] **custom-skin samples in the new style.** The custom-skin slot and
+      its baked 16×16 sample sprites (`skinSamples.ts`) are still classic
+      art next to paper-cut bodies; the upload path itself is untouched
+      player data, so only the SAMPLES need regenerating.
+- [ ] **skin line as shop content.** The 12 named paper-cut skins
+      (`papercutSkins.ts`) are a draft line, not purchasable cosmetics;
+      wiring them means an outfit-like line + prices + per-crew assignment.
+- [ ] **art-style setting (optional).** The seam already supports it
+      (`setActiveArtPack` + a `defaultArtPackId` in the save); only a
+      settings row + i18n is missing. Not promised — papercut is the
+      default globally.
+

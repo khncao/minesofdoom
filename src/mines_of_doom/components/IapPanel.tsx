@@ -24,7 +24,7 @@ import {
 import { CustomSkinSave, customSkinGridKey } from "../customSkin";
 import { BUNDLED_SPRITES } from "../bundledSprites";
 import { SKIN_SAMPLE_PICKAXES, SKIN_SAMPLE_SOUNDS } from "../skinSamples";
-import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/pixelArt";
+import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/artPack";
 import { emojis } from "src/utils/graphics/emojis";
 import { styles } from "../styles";
 

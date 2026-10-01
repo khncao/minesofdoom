@@ -63,7 +63,9 @@ the edge eats one pixel of the 16×16 margin on tight sprites.
   (`minerSpriteUri` / `pickaxeSpriteUri` / `debrisSpriteUri`) and the
   `caveTiles.ts` row cache (`caveRowUri`). The grid builders, cosmetics
   data, and the app all stay untouched — a style is a one-line composition
-  change, not a re-asset.
+  change, not a re-asset. (The app now reaches those through the art-pack
+  seam in `artPack.ts`, where this pack is the `pixel` entry — see
+  [art-directions.md](art-directions.md) for the shipped direction.)
 - **Cost.** Every pass is O(pixels) over ≤ 288×24 grids, runs once per cache
   key, and is already deterministic (see the tests) — no runtime cost
   difference vs. the baseline.

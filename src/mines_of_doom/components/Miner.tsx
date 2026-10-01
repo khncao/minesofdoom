@@ -9,7 +9,7 @@ import { Animated, Easing, Image } from "react-native";
 import { T as Text } from "../textScale";
 import { Context } from "../Context";
 import { getPickaxe, getPickaxeFeel, rollMinerLook } from "../cosmetics";
-import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/pixelArt";
+import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/artPack";
 import { clockPhase, getSharedClock } from "src/utils/graphics/animationClock";
 
 export interface MinerProps {

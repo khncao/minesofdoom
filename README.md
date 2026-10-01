@@ -38,6 +38,7 @@ Use **pnpm** (not npm) — see `pnpm-lock.yaml` and `.npmrc`.
 - [docs/blockers.md](docs/blockers.md) — items needing a decision
 - [docs/gap-ranking.md](docs/gap-ranking.md) — gap analysis / prioritization
 - [docs/art-styles.md](docs/art-styles.md) — generated art style drafts (contact sheets)
+- [docs/art-directions.md](docs/art-directions.md) — five art directions (papercut picked) + the papercut skin line (contact sheets)
 - [docs/art-detail.md](docs/art-detail.md) — detail pass drafts (more detailed generated pixel art)
 - [docs/art-anime.md](docs/art-anime.md) — high-resolution anime chibi character drafts (contact sheet)
 - [docs/store-integration.md](docs/store-integration.md) — Play Store, ads, and IAP setup

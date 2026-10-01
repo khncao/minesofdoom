@@ -3,7 +3,7 @@ import { Image, View } from "react-native";
 import { T as Text } from "../textScale";
 import { useContent, useT } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
-import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/pixelArt";
+import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/artPack";
 import { emojis } from "src/utils/graphics/emojis";
 import { SaveData } from "../game";
 import { getAchievement } from "../achievements";

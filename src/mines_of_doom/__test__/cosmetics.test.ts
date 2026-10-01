@@ -246,6 +246,61 @@ describe("rollMinerLook", () => {
     expect(rollMinerLook(7, "classic")).toEqual(rollMinerLook(7, "classic"));
   });
 
+  test("carries papercut shape hints (hair on a bare head only)", () => {
+    const HAIRS = ["bob", "long", "ponytail", "twin", "bun"];
+    let dresses = 0;
+    let beards = 0;
+    let cuties = 0;
+    for (const o of OUTFITS) {
+      for (let seed = 0; seed < 12; seed++) {
+        const look = rollMinerLook(seed, o.id);
+        expect(["trousers", "dress"]).toContain(look.outfit);
+        expect(typeof look.beard).toBe("boolean");
+        expect(typeof look.cute).toBe("boolean");
+        if (look.hatStyle === "longhair") {
+          expect(HAIRS).toContain(look.hair);
+        } else {
+          // Hair only draws on a bare head, so it is rolled only there.
+          expect(look.hair).toBeUndefined();
+        }
+        if (look.outfit === "dress") dresses++;
+        if (look.beard) beards++;
+        if (look.cute) cuties++;
+      }
+    }
+    // The crew must actually see a mix of silhouettes, not one body.
+    expect(dresses).toBeGreaterThan(0);
+    expect(beards).toBeGreaterThan(0);
+    expect(cuties).toBeGreaterThan(0);
+  });
+
+  test("shape hints do not disturb the colors an existing save sees", () => {
+    // The hints are appended AFTER the color picks on purpose. Roll the same
+    // (seed, outfit) and compare only the pre-existing fields: every color
+    // must match, or every player's miner would have changed the day the
+    // papercut art shipped.
+    const COLOR_SLOTS = [
+      "skin",
+      "shirt",
+      "pants",
+      "boots",
+      "hat",
+      "hatStyle",
+      "species",
+    ] as const;
+    for (const o of OUTFITS) {
+      for (let seed = 0; seed < 8; seed++) {
+        const look = rollMinerLook(seed, o.id);
+        const again = rollMinerLook(seed, o.id);
+        for (const slot of COLOR_SLOTS) {
+          expect(again[slot]).toBe(look[slot]);
+        }
+        // And the roll itself is still a pure function of (seed, outfit).
+        expect(again).toEqual(look);
+      }
+    }
+  });
+
   test("stays within the outfit's palette", () => {
     const outfit = getOutfit("crystal");
     for (let seed = 0; seed < 20; seed++) {

@@ -1,11 +1,14 @@
-import {
+// Types come in through `import type` so this module can also be loaded by
+// the Node art-preview scripts, which strip types rather than compile them
+// (a value import of a type-only export is a runtime error there).
+import type {
+  HatStyle,
+  MinerHair,
   MinerLook,
   MinerSpecies,
   PickaxeThemeDef,
-  HatStyle,
-  mulberry32,
-  hashSeed,
 } from "src/utils/graphics/pixelArt";
+import { hashSeed, mulberry32 } from "src/utils/graphics/pixelArt";
 
 /**
  * Cosmetic content (plan §5.2 / §4.3 cosmetic line, programmatic variant).
@@ -271,6 +274,19 @@ export const PICKAXES: PickaxeCosmetic[] = [
   },
 ];
 
+/**
+ * Hair styles a bare head can wear in the papercut direction (see
+ * `MINER_HAIR_STYLES` usage in rollMinerLook). The classic pixel art has no
+ * hair of its own, so the pool lives here with the rest of the look data.
+ */
+const MINER_HAIR_STYLES: readonly MinerHair[] = [
+  "bob",
+  "long",
+  "ponytail",
+  "twin",
+  "bun",
+];
+
 export const DEFAULT_OUTFIT = "classic";
 export const DEFAULT_PICKAXE = "steel";
 
@@ -316,14 +332,19 @@ export const COSMETIC_PREVIEW_SEED = 42;
  * Deterministic player look: f(seed, outfit). Rerolling the seed reshuffles
  * the look; switching the outfit reshuffles it again (different palette).
  * Animal outfits draw their fur from `fur` instead of SKIN_TONES.
+ *
+ * The shape hints appended at the end (hair / outfit / beard / cute) are read
+ * only by the papercut art pack (docs/art-directions.md); the classic pixel
+ * pack ignores them. They come AFTER the color picks on purpose — an extra
+ * `pick` earlier in the stream would reshuffle every existing save's miner.
  */
 export function rollMinerLook(seed: number, outfitId: string): MinerLook {
   const outfit = getOutfit(outfitId);
   const rng = mulberry32(seed);
-  const pick = <T>(arr: T[]): T =>
+  const pick = <T>(arr: readonly T[]): T =>
     arr[Math.floor(rng() * arr.length) % arr.length];
   const species: MinerSpecies = outfit.species ?? "human";
-  return {
+  const look: MinerLook = {
     skin: pick(species === "animal" ? (outfit.fur ?? SKIN_TONES) : SKIN_TONES),
     shirt: pick(outfit.shirts),
     pants: pick(outfit.pants),
@@ -332,6 +353,14 @@ export function rollMinerLook(seed: number, outfitId: string): MinerLook {
     hatStyle: pick(outfit.hatStyles),
     species,
   };
+  // --- papercut silhouette personality (see artPack.shapeForLook) ----------
+  // Hair only shows on a bare head; the rest give the crew some variety, so a
+  // column of miners doesn't read as one body in different colors.
+  look.hair = look.hatStyle === "longhair" ? pick(MINER_HAIR_STYLES) : undefined;
+  look.beard = rng() < 0.3;
+  look.outfit = rng() < 0.3 ? "dress" : "trousers";
+  look.cute = rng() < 0.35;
+  return look;
 }
 
 /** Derive a roster miner's variant seed from the player seed + slot index. */

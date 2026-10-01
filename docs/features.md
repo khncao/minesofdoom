@@ -169,15 +169,26 @@ of Pressable so rapid tapping doesn't double-render).
 
 ## 3. Cosmetics & presentation
 
-- **Programmatic pixel art** — player, roster miners, currency icons,
-  debris, cave strips are generated sprites (seeded per player); **emoji
-  fallback** setting for low-end devices (`utils/graphics/*`,
-  `game.ts: SettingsData.emojiArt`). Art-style DRAFT pending a decision:
-  four pure `PixelGrid -> PixelGrid` passes (flat baseline / mono 1-bit
-  woodcut / retro16 console palette / outline cartoon cel) over the same
-  base grids, tested, sample sheets in `docs/art-styles/` — NOT wired in;
-  adopting one is a single hook point before `gridToPngDataUri`
-  (`utils/graphics/stylePasses.ts`, `docs/art-styles.md`).
+- **Programmatic art** — player, roster miners, currency icons, debris,
+  cave strips are generated sprites (seeded per player); **emoji fallback**
+  setting for low-end devices (`utils/graphics/*`,
+  `game.ts: SettingsData.emojiArt`). Characters and cosmetics ship in the
+  **paper-cut** direction (32×32 label-map geometry + a value-plane
+  renderer), chosen from five drafted art directions
+  (`utils/graphics/characterArt.ts`, `papercutSkins.ts`,
+  `docs/art-directions.md`); the cave and the debris shards stay classic.
+  All sprite drawing goes through the **art-pack seam**
+  (`utils/graphics/artPack.ts`), which keeps the classic 16×16 art
+  registered as the `pixel` pack — `setActiveArtPack("pixel")` restores it
+  in one line. Earlier drafts (four `PixelGrid -> PixelGrid` style passes,
+  a detail bevel, a high-res anime character) remain as the comparison set
+  in `docs/art-styles.md` / `docs/art-detail.md` / `docs/art-anime.md`.
+- **Cave background** — one pixel-domain procedural cave (`caveTiles.ts`):
+  the rock/gap silhouette and the rock body are both sampled at global
+  pixels through domain-warped value noise, so masses cross tile and row
+  boundaries instead of stepping along them, and the foreground walls scroll
+  as unique bands rather than one strip repeating every 144px. No texture
+  cycle anywhere (rows are addressed by absolute depth; the wall by band).
 - **Cosmetic shop** (gem prices; earnable, F2P-viable) — outfits, pickaxes
   (each with a unique swing sound), and **cave themes** (background
   recolors); the IAP cosmetic pack sells the *same* items. The shop is the
@@ -298,7 +309,10 @@ of Pressable so rapid tapping doesn't double-render).
   offline double, offline top-up, combo save; hard per-day reward caps
   enforced in pure code as the fraud cap (`ads.ts`,
   `hooks/useAdRewards.ts`, `components/AdRewardsPanel.tsx`). Native runs
-  the AdMob SDK (`adProvider.ts`); web runs the AdSense "Ad Placement
+  the Unity Ads SDK via the local Expo module `modules/unity-ads`
+  (`unityAdProvider.ts` — swapped from AdMob on 2026-10-01 because Play's
+  Families rules require a rewarded ad closeable within 5 seconds); web
+  runs the AdSense "Ad Placement
   API" (H5 Games Ads) as parity (2026-09-07, replacing the removed
   shop-sheet banner) — a two-phase flow where `primeReward` pushes a
   `type: "reward"` placement onto `window.adsbygoogle` (panel open /
@@ -309,8 +323,8 @@ of Pressable so rapid tapping doesn't double-render).
   `app/+html.tsx`, gated on the `storeConfig.adsense` client;
   `EXPO_PUBLIC_ADSENSE_TEST=1` at export adds Google's `data-adbreak-test`
   mock-ad mode for live-domain validation). The
-  AdMob SDK itself never enters the web bundle (`adProvider.web.ts` is
-  the no-op swap).
+  Unity Ads module never enters the web bundle (`unityAdProvider.web.ts`
+  is the no-op swap).
 - **Web site content (AdSense approval)** — the game is a single
   client-rendered route, so the exported HTML used to carry no readable
   text at all, which is the AdSense "insufficient content" rejection. The

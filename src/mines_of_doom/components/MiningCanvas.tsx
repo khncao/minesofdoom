@@ -19,7 +19,7 @@ import { formatNumber } from "src/utils/format";
 import {
     gemSpriteUri,
     mineralChunkSpriteUri,
-} from "src/utils/graphics/pixelArt";
+} from "src/utils/graphics/artPack";
 import { emojis } from "src/utils/graphics/emojis";
 import { rosterDisplay, rosterSeed } from "../cosmetics";
 import { styles } from "../styles";
