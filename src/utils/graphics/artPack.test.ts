@@ -203,28 +203,59 @@ describe("the papercut pack", () => {
     expect(shape.hair).toBeUndefined();
   });
 
-  it("renders a premium-crew character by id, and caches it separately", () => {
+  it("renders a crew character by id, and caches it separately", () => {
     setActiveArtPack("papercut");
     const plain = minerSpriteUri(LOOK);
-    const ember = minerSpriteUri(LOOK, { premiumId: "ember" });
+    const ember = minerSpriteUri(LOOK, { crewId: "ember" });
     expect(ember).not.toBe(plain);
     // Same id → same string (one shared image per character in the crew).
-    expect(minerSpriteUri(LOOK, { premiumId: "ember" })).toBe(ember);
+    expect(minerSpriteUri(LOOK, { crewId: "ember" })).toBe(ember);
     // A different character is a different sprite even from the same look.
-    expect(minerSpriteUri(LOOK, { premiumId: "vesper" })).not.toBe(ember);
-    // …and a different look does not leak into the premium sprite.
+    expect(minerSpriteUri(LOOK, { crewId: "vesper" })).not.toBe(ember);
+    // Every line has one, and all three differ from the plain miner.
+    for (const id of ["cog", "flint", "ember"]) {
+      expect(minerSpriteUri(LOOK, { crewId: id })).not.toBe(plain);
+    }
+    // …and a different look does not leak into a character sprite.
     expect(minerSpriteUri({ ...LOOK, shirt: "#e8443a" }, {
-      premiumId: "ember",
+      crewId: "ember",
     })).toBe(ember);
     // An unknown id falls back to the plain miner (never a blank sprite).
-    expect(minerSpriteUri(LOOK, { premiumId: "nope" })).toBe(plain);
+    expect(minerSpriteUri(LOOK, { crewId: "nope" })).toBe(plain);
   });
 
-  it("the classic pack has no premium line and ignores the id", () => {
-    setActiveArtPack("pixel");
-    expect(minerSpriteUri(LOOK, { premiumId: "ember" })).toBe(
-      pixelMinerSpriteUri(LOOK),
+  it("the wardrobe flag is part of the sprite identity", () => {
+    // An undressed crew slot wears the character's own palette; dressing it
+    // swaps in the outfit's colours, so the two must never share a cache
+    // entry (this is the ordinary crew's own sprite).
+    setActiveArtPack("papercut");
+    const bare = minerSpriteUri(LOOK, { crewId: "cog" });
+    const dressed = minerSpriteUri(LOOK, {
+      crewId: "cog",
+      crewWearsOutfit: true,
+    });
+    expect(dressed).not.toBe(bare);
+    expect(bare).toBe(minerSpriteUri(LOOK, { crewId: "cog" }));
+    expect(dressed).toBe(
+      minerSpriteUri(LOOK, { crewId: "cog", crewWearsOutfit: true }),
     );
+    // false and absent are the same thing (nobody assigns outfits to the
+    // gem tiers, so their rows never set it).
+    expect(minerSpriteUri(LOOK, { crewId: "cog", crewWearsOutfit: false })).toBe(
+      bare,
+    );
+  });
+
+  it("the classic pack has no cast and ignores the id", () => {
+    setActiveArtPack("pixel");
+    for (const id of ["cog", "flint", "ember"]) {
+      expect(minerSpriteUri(LOOK, { crewId: id })).toBe(
+        pixelMinerSpriteUri(LOOK),
+      );
+      expect(
+        minerSpriteUri(LOOK, { crewId: id, crewWearsOutfit: true }),
+      ).toBe(pixelMinerSpriteUri(LOOK));
+    }
   });
 
   it("leaves the tool out of the body (Miner draws the swinging pickaxe)", () => {

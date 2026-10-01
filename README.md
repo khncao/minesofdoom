@@ -41,7 +41,7 @@ Use **pnpm** (not npm) — see `pnpm-lock.yaml` and `.npmrc`.
 - [docs/art-directions.md](docs/art-directions.md) — five art directions (papercut picked) + the papercut skin line (contact sheets)
 - [docs/art-detail.md](docs/art-detail.md) — detail pass drafts (more detailed generated pixel art)
 - [docs/art-anime.md](docs/art-anime.md) — high-resolution anime chibi character drafts (contact sheet)
-- [docs/premium-characters.md](docs/premium-characters.md) — the premium (legendary) crew: six named characters, each with its own mark and aura (contact sheets)
+- [docs/crew-characters.md](docs/crew-characters.md) — every purchasable miner is a named character: the ordinary hires, the fast crew and the legendary line, each dressed to its tier (contact sheets)
 - [docs/store-integration.md](docs/store-integration.md) — Play Store, ads, and IAP setup
 - [docs/pocketbase-plan.md](docs/pocketbase-plan.md) — PocketBase backend plan
 - [docs/security-audit.md](docs/security-audit.md) — security notes

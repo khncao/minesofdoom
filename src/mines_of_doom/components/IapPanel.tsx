@@ -25,6 +25,7 @@ import { CustomSkinSave, customSkinGridKey } from "../customSkin";
 import { BUNDLED_SPRITES } from "../bundledSprites";
 import { SKIN_SAMPLE_PICKAXES, SKIN_SAMPLE_SOUNDS } from "../skinSamples";
 import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/artPack";
+import { crewCharForIndex } from "src/utils/graphics/crewChars";
 import { emojis } from "src/utils/graphics/emojis";
 import { styles } from "../styles";
 
@@ -824,7 +825,10 @@ function IapPanel({
                     {Array.from({ length: hiredSlots }, (_, k) => (
                       <WearerChip
                         key={k}
-                        label={t("iap.wearerMiner", { n: k + 1 })}
+                        // The ordinary crew are a named cast (crewChars), so
+                        // the chips name the hire the outfit lands on. Names
+                        // are proper nouns, so they are not translated.
+                        label={crewCharForIndex("normal", k).name}
                         active={wearer === k}
                         onPress={() => setWearer(k)}
                       />

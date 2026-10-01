@@ -286,9 +286,12 @@ export interface SkinShape {
 }
 
 /**
- * The mark worn over the headwear. Each premium character gets a different
- * one, so their silhouette reads at a glance even in a 24px crew row — a
- * shared body in a different palette is not a different character.
+ * The mark worn over the headwear. Each crew character gets a different one,
+ * so their silhouette reads at a glance even in a 24px crew row — a shared
+ * body in a different palette is not a different character. The first block
+ * is the legendary line's (grand marks: a circlet, a halo, a hood…), the
+ * second the fast line's (working marks: goggles, a tied kerchief, a crest,
+ * a pair of wings), so the two gem tiers never share a silhouette.
  */
 export type CrownStyle =
   | "none"
@@ -297,7 +300,11 @@ export type CrownStyle =
   | "hood"
   | "antlers"
   | "crystal"
-  | "plume";
+  | "plume"
+  | "goggles"
+  | "kerchief"
+  | "crest"
+  | "wings";
 
 /**
  * Aura mote patterns. The positions are FIXED offsets in the empty space
@@ -308,12 +315,19 @@ export type CrownStyle =
  */
 export type MoteStyle =
   | "none"
+  // legendary line — static, precious mark-making
   | "embers"
   | "frost"
   | "void"
   | "gold"
   | "bone"
-  | "crystal";
+  | "crystal"
+  // fast line — motion mark-making: kicked dust, trailing streaks, sparks
+  // off the boots, a swirl around the shaft
+  | "dust"
+  | "streaks"
+  | "sparks"
+  | "swirl";
 
 /** Re-exported so a skin line never has to import two modules. */
 export type HairStyle = MinerHair;
@@ -340,6 +354,30 @@ const DEFAULT_SHAPE: Required<SkinShape> = {
  * left (center x 13.5) so the pickaxe on the right has room for a crescent
  * that clears the helmet instead of hiding behind it.
  */
+/**
+ * Map an in-game `MinerLook` onto the papercut shape axes — the one place
+ * the game's look data becomes drawing instructions.
+ *
+ * The look already carries `hatStyle` and `species` (both map 1:1), plus the
+ * shape hints `rollMinerLook` appends (hair / outfit / beard / cute). A look
+ * built by hand — a test, a preview — simply gets the defaults, so nothing
+ * above the art layer has to know the papercut axes exist.
+ *
+ * `tool: false` is deliberate: in-game the pickaxe is its own rotating sprite
+ * (the swing animation), so the body must not carry one.
+ */
+export function shapeForLook(look: MinerLook): SkinShape {
+ return {
+  form: look.species === "animal" ? "critter" : "human",
+  hatStyle: look.hatStyle,
+  hair: look.hair,
+  beard: look.beard ?? false,
+  outfit: look.outfit ?? "trousers",
+  cute: look.cute ?? false,
+  tool: false,
+ };
+}
+
 export function minerLabels(shape: SkinShape = {}): LabelGrid {
  const g = newLabels();
  const s: Required<SkinShape> = { ...DEFAULT_SHAPE, ...shape };
@@ -504,6 +542,98 @@ function drawCrown(g: LabelGrid, style: CrownStyle): void {
     "aura",
    );
    break;
+  // --- fast line: working marks (gems buy speed; the mark is field gear) --
+  case "goggles":
+   // Round goggles pushed up onto the brow, so the eyes stay readable (the
+   // face is drawn after the crown). The strap and bridge are in the DARKER
+   // `brim` tone on purpose: in the aura tone the strap and the two lenses
+   // merged into one bright bar and the goggles read as a headband.
+   fillRect(g, 7, 8, 20, 9, "brim");
+   fillEllipse(g, 10.5, 9.5, 2.6, 2.1, "aura");
+   fillEllipse(g, 16.5, 9.5, 2.6, 2.1, "aura");
+   put(g, 13, 9, "brim");
+   put(g, 14, 9, "brim");
+   break;
+  case "kerchief":
+   // A tied kerchief: band across the forehead, knot at the right, two
+   // tails trailing down past the jaw.
+   fillRect(g, 7, 8, 20, 9, "aura");
+   fillRect(g, 20, 9, 22, 10, "aura");
+   put(g, 23, 11, "aura");
+   put(g, 24, 12, "aura");
+   put(g, 22, 11, "aura");
+   put(g, 23, 13, "aura");
+   break;
+  case "crest":
+   // A three-toothed comb off the headgear, tallest tooth in the middle.
+   fillRect(g, 10, 7, 17, 8, "aura");
+   fillPolygon(
+    g,
+    [
+     [9, 8],
+     [11, 2],
+     [13, 8],
+    ],
+    "aura",
+   );
+   fillPolygon(
+    g,
+    [
+     [12, 8],
+     [14, 0.8],
+     [16, 8],
+    ],
+    "aura",
+   );
+   fillPolygon(
+    g,
+    [
+     [15, 8],
+     [16.5, 3],
+     [18, 8],
+    ],
+    "aura",
+   );
+   break;
+  case "wings":
+   // A pair of wings off the temples — three long swept feathers a side,
+   // mirrored about x=13.5 (27 - x). Drawn long on purpose: a short feather
+   // pair merged into the headwear at 24px and read as ears.
+   for (const feather of [
+    [
+     [8, 11],
+     [1, 2],
+     [5, 4],
+    ],
+    [
+     [8, 11],
+     [0, 6],
+     [4, 7],
+    ],
+    [
+     [8, 11],
+     [1, 10],
+     [4, 10],
+    ],
+    [
+     [19, 11],
+     [26, 2],
+     [22, 4],
+    ],
+    [
+     [19, 11],
+     [27, 6],
+     [23, 7],
+    ],
+    [
+     [19, 11],
+     [26, 10],
+     [23, 10],
+    ],
+   ] as const) {
+    fillPolygon(g, feather, "aura");
+   }
+   break;
   case "none":
    break;
  }
@@ -567,6 +697,46 @@ const MOTES: Record<
   [30, 9],
   [3, 25],
   [29, 25],
+ ],
+ // Dust: kicked up off the boots, clustered low on both flanks.
+ dust: [
+  [2, 26],
+  [4, 23],
+  [3, 29],
+  [29, 27],
+  [27, 24],
+  [30, 22],
+ ],
+ // Streaks: horizontal runs trailing the body, three of them.
+ streaks: [
+  [1, 16],
+  [3, 16],
+  [5, 16],
+  [26, 15],
+  [28, 15],
+  [30, 15],
+  [2, 22],
+  [4, 22],
+  [28, 21],
+  [30, 21],
+ ],
+ // Sparks: hard single pixels, low and close (a sprinter's static).
+ sparks: [
+  [4, 29],
+  [28, 29],
+  [2, 24],
+  [30, 25],
+  [1, 18],
+  [31, 17],
+ ],
+ // Swirl: one loose S-curve around the shaft, offset side to side.
+ swirl: [
+  [1, 13],
+  [3, 10],
+  [5, 8],
+  [31, 19],
+  [29, 22],
+  [27, 24],
  ],
 };
 

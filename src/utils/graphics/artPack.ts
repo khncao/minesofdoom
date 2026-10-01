@@ -17,7 +17,9 @@
  *   papercut  the 32×32 paper-cut direction (docs/art-directions.md): the
  *             same in-game `MinerLook`s re-drawn as cut-paper characters,
  *             with the shape hints the look carries (hair / outfit / beard /
- *             cute face / critter form).
+ *             cute face / critter form) — and the crew cast (crewChars.ts),
+ *             so every purchasable miner is a character with a face, a mark
+ *             and an aura instead of a recolour of the player.
  *
  * Packs are pure: builders take data in and return a cached PNG data URI,
  * so nothing above this layer knows (or cares) how a sprite was made. The
@@ -37,8 +39,13 @@ import {
   buildPalette,
   minerLabels,
   renderDirection,
+  shapeForLook,
 } from "./characterArt";
-import { buildPremiumCharGrid, premiumCharById } from "./premiumChars";
+import {
+  buildCrewCharGrid,
+  crewCharById,
+  crewLookFor,
+} from "./crewChars";
 import type { SkinShape } from "./characterArt";
 import type { MinerLook, PickaxeThemeDef, PixelGrid } from "./pixelArt";
 
@@ -47,8 +54,20 @@ export type ArtPackId = (typeof ART_PACK_IDS)[number];
 
 /** Per-sprite request options a caller can pass down to the pack. */
 export interface SpriteOpts {
-  /** Render this premium-crew character instead of the look (see premiumChars). */
-  premiumId?: string;
+  /**
+   * Render this CREW CHARACTER instead of the plain look (see crewChars).
+   * Every purchasable miner type has one: the ordinary hires (names + faces),
+   * the fast crew (marks + motion motes) and the legendary line (grand marks
+   * + full aura). Roster rows only; the player never wears one.
+   */
+  crewId?: string;
+  /**
+   * The wardrobe rule: this crew slot has an OUTFIT ASSIGNED to it, so the
+   * character's clothes come from that outfit (they keep their face). False
+   * for an undressed slot, and never set for the gem tiers — nobody assigns
+   * outfits to them.
+   */
+  crewWearsOutfit?: boolean;
 }
 
 /** What a pack has to supply. Same names as this module's entry points. */
@@ -59,10 +78,10 @@ export interface ArtPack {
   /** Grid size the pack builds its sprites at (16 classic / 32 papercut). */
   gridSize: number;
   /**
-   * `opts.premiumId` asks for a PREMIUM CREW character (the legendary
-   * miners) by id — see premiumChars.ts. A pack that has no premium line
-   * ignores the id and draws the plain miner, which is exactly what the
-   * classic pixel pack does.
+   * `opts.crewId` asks for a CREW CHARACTER by id (every purchasable miner
+   * type has one — see crewChars.ts). A pack that has no cast ignores the id
+   * and draws the plain miner, which is exactly what the classic pixel pack
+   * does.
    */
   minerSprite(look: MinerLook, opts?: SpriteOpts): string;
   pickaxeSprite(theme: PickaxeThemeDef): string;
@@ -75,28 +94,9 @@ export interface ArtPack {
 // The papercut pack
 // ---------------------------------------------------------------------------
 
-/**
- * Map an in-game look onto the papercut shape axes.
- *
- * The look already carries `hatStyle` and `species` (both map 1:1), plus the
- * shape hints `rollMinerLook` appends (hair / outfit / beard / cute). A look
- * built by hand — a test, a preview — simply gets the defaults, so nothing
- * above the art layer has to know the papercut axes exist.
- *
- * `tool: false` is deliberate: in-game the pickaxe is its own rotating sprite
- * (the swing animation), so the body must not carry one.
- */
-export function shapeForLook(look: MinerLook): SkinShape {
- return {
-  form: look.species === "animal" ? "critter" : "human",
-  hatStyle: look.hatStyle,
-  hair: look.hair,
-  beard: look.beard ?? false,
-  outfit: look.outfit ?? "trousers",
-  cute: look.cute ?? false,
-  tool: false,
- };
-}
+/** Re-exported: the look → shape mapping belongs to characterArt, but tests
+ *  and previews have always imported it from here. */
+export { shapeForLook };
 
 /** Papercut grid for one in-game look (the pack's body sprite). */
 export function buildPapercutMinerGrid(look: MinerLook): PixelGrid {
@@ -118,12 +118,12 @@ const papercutPack: ArtPack = {
  gridSize: 32,
  minerSprite: (look, opts) => {
   const char =
-   opts?.premiumId == null ? undefined : premiumCharById(opts.premiumId);
-  return gridToPngDataUri(
-   char == null
-    ? buildPapercutMinerGrid(look)
-    : buildPremiumCharGrid(char),
-  );
+   opts?.crewId == null ? undefined : crewCharById(opts.crewId);
+  if (char == null) return gridToPngDataUri(buildPapercutMinerGrid(look));
+  // The wardrobe rule: an assigned outfit dresses the character, so the
+  // sprite is built from the merged look rather than the character's own.
+  const worn = opts?.crewWearsOutfit === true ? crewLookFor(char, look, false) : char.look;
+  return gridToPngDataUri(buildCrewCharGrid(char, worn));
  },
  pickaxeSprite: (theme) =>
   gridToPngDataUri(buildDirectionGrid("papercut", "pickaxe", { pickaxe: theme })),
@@ -141,7 +141,7 @@ const pixelPack: ArtPack = {
  id: "pixel",
  label: "Classic pixels",
  gridSize: 16,
- // No premium line: a legendary row falls back to the classic miner.
+ // No cast: a crew row falls back to the classic miner.
  minerSprite: (look) => pixelMinerSpriteUri(look),
  pickaxeSprite: pixelPickaxeSpriteUri,
  debrisSprite: pixelDebrisSpriteUri,
@@ -204,10 +204,11 @@ function cached(subject: string, key: string, build: () => string): string {
 }
 
 /**
- * Miner body for a look, as a PNG data URI. `opts.premiumId` renders a
- * premium-crew character instead of the look (legendary miners); it is part
- * of the cache key, so one player's crew can hold several of them and each
- * stays a single shared image.
+ * Miner body for a look, as a PNG data URI. `opts.crewId` renders a crew
+ * character instead of the plain look, and `opts.crewWearsOutfit` says their
+ * clothes come from an assigned outfit; both are part of the cache key, so
+ * one player's crew can hold several characters and each stays a single
+ * shared image.
  */
 export function minerSpriteUri(
  look: MinerLook,
@@ -225,7 +226,8 @@ export function minerSpriteUri(
   look.outfit ?? "",
   look.beard === true ? 1 : 0,
   look.cute === true ? 1 : 0,
-  opts?.premiumId ?? "",
+  opts?.crewId ?? "",
+  opts?.crewWearsOutfit === true ? "w" : "",
  ]);
  return cached("miner", key, () =>
   activeArtPack().minerSprite(look, opts),

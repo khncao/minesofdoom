@@ -125,7 +125,7 @@ export const es: Record<TranslationKey, string> = {
   "purchase.buyGem": "COMPRAR UNA GEMA (-{cost} 🪨)",
   "purchase.buyMiner": "COMPRAR UN MINERO (-{cost} 💎) ({count}{next})",
   "purchase.buyFastMiner":
-    "COMPRAR UN MINERO RÁPIDO (-{cost} 💎) ({count}, {output}/s cada uno{next})",
+    "CONTRATAR A {char}, LA CREW {aura} (-{cost} 💎) ({count}, {output}/s cada uno{next})",
   "purchase.buyFastMinerLocked": "🔒 COMPRAR MINERO RÁPIDO (Deep Shaft)",
   "purchase.buyLegendaryMiner":
     "CONTRATAR A {char}, LA CREW {aura} (-{cost} 💎) ({count}, {output}/s cada uno{next})",
@@ -599,7 +599,6 @@ export const es: Record<TranslationKey, string> = {
   "iap.outfitsDetail":
     "Los trajes comprados se asignan gratis — dale a cada minero su propio aspecto en la mina.",
   "iap.wearerYou": "👤 Tú",
-  "iap.wearerMiner": "Minero {n}",
   "iap.wear": "Vestir",
   "iap.worn": "✓ Puesto",
   "iap.revert": "Revertir",

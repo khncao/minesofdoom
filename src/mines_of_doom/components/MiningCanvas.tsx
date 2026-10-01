@@ -22,7 +22,7 @@ import {
 } from "src/utils/graphics/artPack";
 import { emojis } from "src/utils/graphics/emojis";
 import { rosterDisplay, rosterSeed } from "../cosmetics";
-import { premiumCharForIndex } from "src/utils/graphics/premiumChars";
+import { crewCharForIndex } from "src/utils/graphics/crewChars";
 import { styles } from "../styles";
 import { GemPocket, pocketPosition } from "../gemPocket";
 
@@ -302,10 +302,13 @@ const MiningCanvas = memo(function MiningCanvas({
                                       outfitId)
                                     : outfitId
                             }
-                            premiumId={
-                                item.kind === "legendary"
-                                    ? premiumCharForIndex(item.index).id
-                                    : undefined
+                            crewId={crewCharForIndex(item.kind, item.index).id}
+                            // The ordinary crew wear an assigned outfit when
+                            // one exists (they keep their own face); the gem
+                            // tiers have no per-crew outfits.
+                            crewWearsOutfit={
+                                item.kind === "normal" &&
+                                minerOutfits?.[String(item.index)] != null
                             }
                             pickaxeId={pickaxeId}
                             reduceMotion={reduceMotion}

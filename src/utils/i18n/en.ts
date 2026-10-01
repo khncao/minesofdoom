@@ -132,7 +132,7 @@ export const en = {
   "purchase.buyGem": "BUY A GEM (-{cost} 🪨)",
   "purchase.buyMiner": "BUY A MINER (-{cost} 💎) ({count}{next})",
   "purchase.buyFastMiner":
-    "BUY A FAST MINER (-{cost} 💎) ({count}, {output}/s each{next})",
+    "HIRE {char}, THE {aura} CREW (-{cost} 💎) ({count}, {output}/s each{next})",
   "purchase.buyFastMinerLocked": "🔒 BUY FAST MINER (Deep Shaft)",
   "purchase.buyLegendaryMiner":
     "HIRE {char}, THE {aura} CREW (-{cost} 💎) ({count}, {output}/s each{next})",
@@ -586,7 +586,6 @@ export const en = {
   "iap.outfitsDetail":
     "Owned outfits are free to assign — give each hired miner their own look in the shaft.",
   "iap.wearerYou": "👤 You",
-  "iap.wearerMiner": "Miner {n}",
   "iap.wear": "Wear",
   "iap.worn": "✓ Worn",
   "iap.revert": "Revert",

@@ -183,13 +183,17 @@ of Pressable so rapid tapping doesn't double-render).
   in one line. Earlier drafts (four `PixelGrid -> PixelGrid` style passes,
   a detail bevel, a high-res anime character) remain as the comparison set
   in `docs/art-styles.md` / `docs/art-detail.md` / `docs/art-anime.md`.
-- **Premium crew (legendary miners)** — the third miner type is a *cast*, not
-  a recolor: six named characters (Ember, Rime, Vesper, Gilded, Marrow, Quartz)
-  in hire order, each with a mark over the headwear (crown / halo / hood /
-  plume / antlers / crystal), an aura colour and a mote pattern, plus a rim
-  light and ground glow (`utils/graphics/premiumChars.ts`,
-  `docs/premium-characters.md`). The crew column renders them; the classic
-  pixel pack falls back to the plain miner.
+- **Crew characters** — every purchasable miner type is a *named character*,
+  not a recolour of the player (`utils/graphics/crewChars.ts`,
+  `docs/crew-characters.md`). Cast order is hire order, and each line is
+  dressed to its tier: the ordinary mineral hires are four named faces only
+  (Cog, Pebble, Tally, Bramble — no aura, and the outfits a player assigns
+  them override their clothes while they keep their face); the Deep Shaft
+  fast crew get working marks (goggles / kerchief / crest / wings), motion
+  motes (dust / streaks / sparks / swirl) and a rim light (Flint, Gale,
+  Cinder, Bolt); the Motherlode legendary line gets grand marks (circlet /
+  halo / hood / antlers / plume / crystal), static motes, a rim light and a
+  ground glow (Ember, Rime, Vesper, Gilded, Marrow, Quartz).
 - **Cave background** — one pixel-domain procedural cave (`caveTiles.ts`):
   the rock/gap silhouette and the rock body are both sampled at global
   pixels through domain-warped value noise, so masses cross tile and row

@@ -23,11 +23,18 @@ export interface MinerProps {
   outfitId: string;
   pickaxeId: string;
   /**
-   * Premium-crew character id (the legendary miners) — renders that
-   * character instead of the player's look (premiumChars.ts). Roster rows
-   * only; the player never wears one.
+   * Crew-character id — every purchasable miner type has one (ordinary
+   * hires, fast crew, legendary line); renders that character instead of the
+   * player's look (crewChars.ts). Roster rows only; the player never wears
+   * one.
    */
-  premiumId?: string;
+  crewId?: string;
+  /**
+   * This crew slot has an OUTFUT ASSIGNED to it, so the character's clothes
+   * come from that outfit and they keep only their own face (the wardrobe
+   * rule in crewChars). Ordinary-hire rows only.
+   */
+  crewWearsOutfit?: boolean;
   /** OS reduce-motion preference: suppresses the idle bob. */
   reduceMotion?: boolean;
   /**
@@ -194,7 +201,8 @@ function Miner({ scale = 1, ...props }: MinerProps) {
         ? props.emojiArt
           ? ""
           : minerSpriteUri(rollMinerLook(props.seed, props.outfitId), {
-              premiumId: props.premiumId,
+              crewId: props.crewId,
+              crewWearsOutfit: props.crewWearsOutfit,
             })
         : props.bodyOverrideUri,
     [
@@ -202,7 +210,8 @@ function Miner({ scale = 1, ...props }: MinerProps) {
       props.outfitId,
       props.emojiArt,
       props.bodyOverrideUri,
-      props.premiumId,
+      props.crewId,
+      props.crewWearsOutfit,
     ],
   );
   const pickaxeUri = useMemo(

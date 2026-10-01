@@ -1,23 +1,24 @@
 #!/usr/bin/env node
 /**
- * Renders the PREMIUM CREW contact sheets (docs/premium-characters.md).
+ * Renders the CREW CAST contact sheets (docs/crew-characters.md).
  *
- * The premium crew is the legendary miner type, given a cast: six named
- * characters, each with its own look, a mark worn over the headwear (crown /
- * halo / hood / plume / antlers / crystal spikes) and an aura (a colour plus
- * a mote pattern floating around the body).
+ * Every purchasable miner is a character, in three lines (crewChars.ts):
  *
- *   docs/premium-characters/samples/premium-crew.png        the cast, 6×1
- *   docs/premium-characters/samples/premium-crew-paper.png  the same on the
- *                                                          cream stock
- *   docs/premium-characters/samples/premium-crew-size.png   every character
- *                                                          at the sizes the
- *                                                          crew column
- *                                                          actually uses
- *                                                          (24/20/16 px)
+ *   normal     the ordinary mineral hires — named faces, no aura
+ *   fast       the gem hires of the Deep Shaft — working marks + motion motes
+ *   legendary  the endgame gem line — grand marks + the full aura
  *
- * Re-run after touching premiumChars.ts / characterArt.ts:
- *   node scripts/generate-premium-char-samples.mjs
+ *   docs/crew-characters/samples/crew-normal.png         the ordinary line
+ *   docs/crew-characters/samples/crew-fast.png           the fast line
+ *   docs/crew-characters/samples/crew-legendary.png      the legendary line
+ *   docs/crew-characters/samples/crew-all.png            all three, one sheet
+ *   docs/crew-characters/samples/crew-all-paper.png      the same on paper
+ *   docs/crew-characters/samples/crew-fast-size.png      the two gem lines at
+ *                                                        the crew sizes the
+ *                                                        column uses
+ *
+ * Re-run after touching crewChars.ts / characterArt.ts:
+ *   node scripts/generate-crew-char-samples.mjs
  *
  * Node 22.18+ runs the src/*.ts files directly (type stripping); the resolve
  * hook exists because the app's convention is extensionless relative imports.
@@ -50,10 +51,10 @@ registerHooks({
 });
 
 const {
-  PREMIUM_CHARS,
-  PREMIUM_CHAR_GRID_SIZE,
-  buildPremiumCharGrid,
-} = await import("../src/utils/graphics/premiumChars.ts");
+  CREW_CASTS,
+  CREW_CHAR_GRID_SIZE,
+  buildCrewCharGrid,
+} = await import("../src/utils/graphics/crewChars.ts");
 const { PAPERCUT_PAPER } = await import(
   "../src/utils/graphics/characterArt.ts"
 );
@@ -66,10 +67,12 @@ const GAP = 12;
 const MARGIN = 16;
 /** Sizes the crew column actually renders a roster miner at. */
 const CREW_SIZES = [24, 20, 16];
+/** One row of characters at `k`x, sized to the widest cast in it. */
+const ZOOM = 4;
 
-/** One row of characters at `k`× on `bg`. */
+/** One row of characters at `k`x on `bg`. */
 function line(sprites, k, bg) {
-  const cell = PREMIUM_CHAR_GRID_SIZE * k;
+  const cell = CREW_CHAR_GRID_SIZE * k;
   const g = blankGrid(
     MARGIN * 2 + cell * sprites.length + GAP * (sprites.length - 1),
     cell + MARGIN * 2,
@@ -77,6 +80,29 @@ function line(sprites, k, bg) {
   );
   sprites.forEach((sprite, i) => {
     place(g, scaleGrid(sprite, k), MARGIN + i * (cell + GAP), MARGIN);
+  });
+  return g;
+}
+
+/** Every cast stacked as one sheet, one row per line. */
+function allLines(casts, k, bg) {
+  const cols = Math.max(...casts.map((c) => c.length));
+  const cell = CREW_CHAR_GRID_SIZE * k;
+  const rowGap = GAP * 2;
+  const g = blankGrid(
+    MARGIN * 2 + cell * cols + GAP * (cols - 1),
+    MARGIN * 2 + (cell + rowGap) * casts.length - rowGap,
+    bg,
+  );
+  casts.forEach((cast, li) => {
+    cast.forEach((char, ci) => {
+      place(
+        g,
+        scaleGrid(buildCrewCharGrid(char), k),
+        MARGIN + ci * (cell + GAP),
+        MARGIN + li * (cell + rowGap),
+      );
+    });
   });
   return g;
 }
@@ -142,16 +168,34 @@ function sizeSheet(sprites) {
 const outDir = path.join(
   process.cwd(),
   "docs",
-  "premium-characters",
+  "crew-characters",
   "samples",
 );
 mkdirSync(outDir, { recursive: true });
 
-const sprites = PREMIUM_CHARS.map((c) => buildPremiumCharGrid(c));
+const spritesOf = (line) => line.map((c) => buildCrewCharGrid(c));
+const allCasts = [
+  CREW_CASTS.normal,
+  CREW_CASTS.fast,
+  CREW_CASTS.legendary,
+];
+// The size ladder only makes sense for the two gem lines: those are the
+// characters whose mark and aura have to survive the downscale.
+const gemSprites = [
+  ...spritesOf(CREW_CASTS.fast),
+  ...spritesOf(CREW_CASTS.legendary),
+];
+
 const sheets = [
-  ["premium-crew.png", () => line(sprites, 4, SLATE)],
-  ["premium-crew-paper.png", () => line(sprites, 4, PAPERCUT_PAPER)],
-  ["premium-crew-size.png", () => sizeSheet(sprites)],
+  ["crew-normal.png", () => line(spritesOf(CREW_CASTS.normal), ZOOM, SLATE)],
+  ["crew-fast.png", () => line(spritesOf(CREW_CASTS.fast), ZOOM, SLATE)],
+  [
+    "crew-legendary.png",
+    () => line(spritesOf(CREW_CASTS.legendary), ZOOM, SLATE),
+  ],
+  ["crew-all.png", () => allLines(allCasts, ZOOM, SLATE)],
+  ["crew-all-paper.png", () => allLines(allCasts, ZOOM, PAPERCUT_PAPER)],
+  ["crew-gem-size.png", () => sizeSheet(gemSprites)],
 ];
 
 for (const [name, build] of sheets) {
@@ -166,5 +210,12 @@ for (const [name, build] of sheets) {
 }
 
 console.log(
-  `cast: ${PREMIUM_CHARS.map((c) => `${c.name} (${c.aura})`).join(", ")}`,
+  ["normal", "fast", "legendary"]
+    .map(
+      (line) =>
+        `${line}: ${CREW_CASTS[line]
+          .map((c) => `${c.name}/${c.aura}`)
+          .join(", ")}`,
+    )
+    .join("\n"),
 );
