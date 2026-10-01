@@ -303,10 +303,10 @@ function IapPanel({
     () => minerSpriteUri(rollMinerLook(playerSeed, selectedOutfit)),
     [playerSeed, selectedOutfit],
   );
-  const playerPickaxeUri = useMemo(
-    () => pickaxeSpriteUri(getPickaxe(selectedPickaxe).theme),
-    [selectedPickaxe],
-  );
+  const playerPickaxeUri = useMemo(() => {
+    const p = getPickaxe(selectedPickaxe);
+    return pickaxeSpriteUri(p.theme, p.tool);
+  }, [selectedPickaxe]);
 
   /** Grid card for a pickaxe / outfit / cave-theme product (todo:
    *  "cosmetic shop with grid view cards and larger previews"). Outfit

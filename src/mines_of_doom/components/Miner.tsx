@@ -219,7 +219,10 @@ function Miner({ scale = 1, ...props }: MinerProps) {
       props.emojiArt
         ? ""
         : (props.pickaxeOverrideUri ??
-            pickaxeSpriteUri(getPickaxe(props.pickaxeId).theme)),
+            pickaxeSpriteUri(
+                getPickaxe(props.pickaxeId).theme,
+                getPickaxe(props.pickaxeId).tool,
+              )),
     [props.pickaxeId, props.emojiArt, props.pickaxeOverrideUri],
   );
 

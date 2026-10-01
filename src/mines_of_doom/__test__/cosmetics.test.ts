@@ -1,6 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  DIRECTION_GRID_SIZE,
+  TOOLS,
+  buildDirectionGrid,
+  pickaxeLabels,
+} from "src/utils/graphics/characterArt";
+import {
   CAVE_THEMES,
   DEFAULT_OWNED,
   DEFAULT_OUTFIT,
@@ -72,6 +78,55 @@ describe("catalog", () => {
     expect(isPickaxeId("nope")).toBe(false);
     expect(getCostGems("nope")).toBeUndefined();
     expect(getCostGems(DEFAULT_PICKAXE)).toBe(0);
+  });
+});
+
+describe("the pickaxe line is eight TOOLS, not eight colors", () => {
+  test("every pickaxe owns a distinct, real tool", () => {
+    const tools = PICKAXES.map((p) => p.tool);
+    // One tool per cosmetic — a shared tool is a recolor, which is exactly
+    // what this axis exists to stop.
+    expect(new Set(tools).size).toBe(PICKAXES.length);
+    for (const tool of tools) {
+      expect(TOOLS.map((t) => t.id)).toContain(tool);
+    }
+    // …and the tool table has no member the catalog does not use.
+    expect([...TOOLS.map((t) => t.id)].sort()).toEqual([...tools].sort());
+  });
+
+  test("each tool has its own silhouette (and a name worth showing)", () => {
+    const grids = PICKAXES.map((p) =>
+      buildDirectionGrid("papercut", "pickaxe", { pickaxe: p.theme, tool: p.tool }),
+    );
+    const names = PICKAXES.map((p) => p.toolName);
+    for (const name of names) expect(name.length).toBeGreaterThan(0);
+    expect(new Set(names).size).toBe(names.length);
+    for (let i = 0; i < grids.length; i++) {
+      for (let j = i + 1; j < grids.length; j++) {
+        let same = 0;
+        for (let y = 0; y < grids[i].length; y++) {
+          for (let x = 0; x < grids[i][y].length; x++) {
+            if (grids[i][y][x] === grids[j][y][x]) same++;
+          }
+        }
+        // The same three-color theme on two tools would be a recolor: the
+        // geometry has to differ, not just the palette.
+        expect(same / DIRECTION_GRID_SIZE ** 2).toBeLessThan(0.93);
+      }
+    }
+  });
+
+  test("a tool draws nothing but head, shine and handle", () => {
+    // The pickaxe palette only maps those three, so a tool that reaches for
+    // another material would render it as an unrelated base color.
+    for (const p of PICKAXES) {
+      const used = new Set(
+        pickaxeLabels(p.tool)
+          .flat()
+          .filter((m): m is NonNullable<typeof m> => m != null),
+      );
+      expect([...used].sort()).toEqual(["blade", "bladeShine", "handle"]);
+    }
   });
 });
 

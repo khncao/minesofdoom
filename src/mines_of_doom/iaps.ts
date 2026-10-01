@@ -94,15 +94,16 @@ const PACK_SPECS = [
  { id: "packAshen", line: "caveTheme", cosmeticId: "ashen" },
  { id: "packGothic", line: "caveTheme", cosmeticId: "gothic" },
  { id: "packCherry", line: "caveTheme", cosmeticId: "cherry" },
- // NOTE: the skin line (cosmetics.SKINS) is GEM-ONLY for now. A cash pack
- // needs a real Stripe price plus Play/App Store SKU created in the
- // accounts (`node scripts/stripe/syncStripe.mjs products`, the runbook in
- // docs/store-integration.md §2), and none exist for the new skins — a cash
+ // Items marked `pendingStoreSku` in cosmetics.ts (the whole skin line, plus
+ // the four tools added with the shape axis) have NO pack here on purpose:
+ // a cash pack needs a real Stripe price plus Play/App Store SKU created in
+ // the accounts (`node scripts/stripe/syncStripe.mjs products`, the runbook
+ // in docs/store-integration.md §2), and none exist for them yet — a cash
  // button pointing at a made-up price id would just error at checkout. When
- // the SKUs land, add one pack per paid skin here (in SKINS order) + the
- // Stripe price ids in storeConfig.ts + the mirrored entry in
- // pb_hooks/logic.js PRODUCTS, and drop the "skin" exception from
- // `exactly one pack per PAID cosmetic` in iaps.test.ts.
+ // the SKUs land: add one pack per item here (in catalog order), the Stripe
+ // price ids in storeConfig.ts, the mirrored entry in pb_hooks/logic.js
+ // PRODUCTS, drop the `pendingStoreSku` flag, and the "one pack per paid
+ // cosmetic" test in iaps.test.ts goes back to holding for every line.
  // The custom-skin feature pack (feature tier — the priciest line,
  // price derived from the gem price via packPriceLabel). `cosmeticId`
  // doubles as the store-slug stem (pack_skin — the store id is a
@@ -381,7 +382,10 @@ export function getIapProductPreview(id: IapProductId): IapProductPreview {
  }
  return {
   kind: "sprite",
-  uri: pickaxeSpriteUri(getPickaxe(grant.id).theme),
+  uri: pickaxeSpriteUri(
+   getPickaxe(grant.id).theme,
+   getPickaxe(grant.id).tool,
+  ),
  };
 }
 

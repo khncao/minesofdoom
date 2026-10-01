@@ -101,7 +101,10 @@ and the old art is still there. Under the seam:
 - `pixelArt.ts` — classic 16×16 grids (`buildMinerGrid` …) + the PNG encoder. The
   `pixel` pack is these builders unchanged; it also stays the debris shards.
 - `characterArt.ts` — 32×32 label-map geometry (`minerLabels(shape)`) + the five
-  art-direction renderers. The SKIN line (the player's own slot) is the
+  art-direction renderers. The PICKAXE line has a shape axis too:
+  `PickaxeCosmetic.tool` picks one of eight geometries (`characterArt.TOOLS`
+  / `pickaxeLabels(tool)`) and the sprite cache is keyed on theme AND tool —
+  don't collapse the tools back into one crescent. The SKIN line (the player's own slot) is the
   `SKINS` catalog in `mines_of_doom/cosmetics.ts` — a fixed look + a fixed
   shape per character, drawn by `artPack.skinSpriteUri`, sold as shop cards
   and gated on `SaveData.selectedSkin` (saveVersion 14). It is GEM-ONLY until

@@ -895,12 +895,226 @@ function critterBody(g: LabelGrid): void {
  fillRoundRect(g, 16, 28.5, 20.5, 30, 1, "boots");
 }
 
-/** A pickaxe on its own: crescent head over a straight handle. */
-export function pickaxeLabels(): LabelGrid {
+/**
+ * The TOOL axis — the pickaxe line's silhouette. Every pickaxe cosmetic
+ * owns one, so the line is eight different *objects* rather than eight
+ * colors of the same crescent (they also differ in swing feel and strike
+ * sound, which is what the line was for in the first place).
+ *
+ * The classic `pixel` pack has no tool axes — there every tool is the
+ * crescent colorway, and the theme still tells them apart.
+ */
+export type ToolId =
+ | "pickaxe"
+ | "mattock"
+ | "lance"
+ | "auger"
+ | "emberbrand"
+ | "sledge"
+ | "lanternhook"
+ | "prism";
+
+export const TOOL_IDS: readonly ToolId[] = [
+ "pickaxe",
+ "mattock",
+ "lance",
+ "auger",
+ "emberbrand",
+ "sledge",
+ "lanternhook",
+ "prism",
+];
+
+export type ToolDef = {
+ id: ToolId;
+ /** What a shop card would call it (a noun for the object). */
+ name: string;
+};
+
+/** The line, in catalog order — one tool per pickaxe cosmetic. */
+export const TOOLS: readonly ToolDef[] = [
+ { id: "pickaxe", name: "Pickaxe" },
+ { id: "mattock", name: "Mattock" },
+ { id: "lance", name: "Lance" },
+ { id: "auger", name: "Auger" },
+ { id: "emberbrand", name: "Emberbrand" },
+ { id: "sledge", name: "Sledge" },
+ { id: "lanternhook", name: "Lantern Hook" },
+ { id: "prism", name: "Prism Cutter" },
+];
+
+export function toolDef(id: ToolId): ToolDef {
+  return TOOLS.find((t) => t.id === id) ?? TOOLS[0];
+}
+
+/**
+ * One tool on its own. All eight share the same framing (head in the top
+ * third, haft running down to the bottom) because `Miner` rotates the
+ * sprite around a fixed origin for the swing — a tool with a different
+ * mass would swing wrong.
+ */
+export function pickaxeLabels(tool: ToolId = "pickaxe"): LabelGrid {
  const g = newLabels();
- fillCapsule(g, 16, 6, 16, 28, 1.8, "handle");
- fillArc(g, 16, 13, 9.5, 6.5, 15, 165, "blade");
- fillEllipse(g, 12, 6, 1.3, 1.3, "bladeShine");
+ switch (tool) {
+  case "pickaxe": {
+   // The classic: a crescent head over a straight haft.
+   fillCapsule(g, 16, 6, 16, 28, 1.8, "handle");
+   fillArc(g, 16, 13, 9.5, 6.5, 15, 165, "blade");
+   fillEllipse(g, 12, 6, 1.3, 1.3, "bladeShine");
+   break;
+  }
+  case "mattock": {
+   // An adze: a narrow blade set PERPENDICULAR to the haft, with a flared
+   // cutting edge on the right and a socket block at the left.
+   fillCapsule(g, 15, 12, 16, 28, 1.7, "handle");
+   fillRect(g, 8, 7, 26, 9, "blade");
+   fillPolygon(
+    g,
+    [
+     [26, 6],
+     [29, 8],
+     [26, 10],
+    ],
+    "bladeShine",
+   );
+   fillRect(g, 8, 7, 10, 9, "handle");
+   break;
+  }
+  case "lance": {
+   // A forked ice lance: two prongs off a collar, with a bright tip.
+   fillCapsule(g, 16, 14, 16, 28, 1.6, "handle");
+   fillRect(g, 11, 9, 21, 12, "blade");
+   fillRect(g, 10, 3, 12, 9, "blade");
+   fillRect(g, 20, 3, 22, 9, "blade");
+   put(g, 11, 2, "bladeShine");
+   put(g, 21, 2, "bladeShine");
+   put(g, 16, 13, "bladeShine");
+   break;
+  }
+  case "auger": {
+   // A drill bit: a tapering cone from a wide collar up to a point, with
+   // four dark flutes cut across it. (An earlier version drew the helix as
+   // paired pixels and it read as scattered dots, not a tool.)
+   fillCapsule(g, 16, 20, 16, 28, 1.7, "handle");
+   fillPolygon(
+    g,
+    [
+     [16, 1],
+     [22, 19],
+     [10, 19],
+    ],
+    "blade",
+   );
+   // Flutes: dark chevrons biting into the cone from both sides.
+   for (const [y, half] of [
+    [6, 2.4],
+    [10, 3.6],
+    [14, 4.6],
+   ] as const) {
+    fillPolygon(
+     g,
+     [
+      [16 - half, y],
+      [16, y + 2.4],
+      [16 - half + 1.2, y - 1.6],
+     ],
+     "handle",
+    );
+    fillPolygon(
+     g,
+     [
+      [16 + half, y],
+      [16, y + 2.4],
+      [16 + half - 1.2, y - 1.6],
+     ],
+     "handle",
+    );
+   }
+   fillPolygon(
+    g,
+    [
+     [16, 1],
+     [18, 6],
+     [14, 6],
+    ],
+    "bladeShine",
+   );
+   break;
+  }
+  case "emberbrand": {
+   // A burning brand: a teardrop flame over a short haft, with a hot core.
+   fillCapsule(g, 16, 16, 16, 28, 1.7, "handle");
+   fillPolygon(
+    g,
+    [
+     [16, 2],
+     [22, 10],
+     [20, 15],
+     [12, 15],
+     [10, 10],
+    ],
+    "blade",
+   );
+   fillPolygon(
+    g,
+    [
+     [16, 6],
+     [19, 11],
+     [17, 14],
+     [14, 14],
+     [13, 11],
+    ],
+    "bladeShine",
+   );
+   break;
+  }
+  case "sledge": {
+   // A sledge: the biggest head in the line, a flat striking face on the
+   // right, counterweight on the left.
+   fillCapsule(g, 16, 16, 16, 28, 1.9, "handle");
+   fillRoundRect(g, 5, 7, 27, 14, 1.5, "blade");
+   fillRect(g, 24, 8, 27, 13, "bladeShine");
+   fillRect(g, 5, 9, 8, 12, "handle");
+   break;
+  }
+  case "lanternhook": {
+   // A lantern hook: the hook arcs up and left, the lantern hangs below it
+   // on its own bail.
+   fillCapsule(g, 17, 15, 17, 28, 1.5, "handle");
+   fillArc(g, 14, 8, 6.5, 6.5, 150, 330, "blade");
+   fillRect(g, 21, 5, 24, 7, "blade");
+   // the lantern: a bail, a glass body, a lit core
+   fillRect(g, 20, 8, 26, 9, "bladeShine");
+   fillRoundRect(g, 20, 10, 26, 16, 1, "blade");
+   fillRect(g, 22, 12, 24, 15, "bladeShine");
+   fillRect(g, 20, 17, 26, 18, "blade");
+   break;
+  }
+  case "prism": {
+   // A faceted wedge: a broad triangular head with a refracting facet line
+   // down its middle.
+   fillCapsule(g, 16, 15, 16, 28, 1.7, "handle");
+   fillPolygon(
+    g,
+    [
+     [5, 13],
+     [16, 2],
+     [27, 13],
+    ],
+    "blade",
+   );
+   fillPolygon(
+    g,
+    [
+     [16, 3],
+     [16, 12],
+     [25, 12],
+    ],
+    "bladeShine",
+   );
+   break;
+  }
+ }
  return g;
 }
 
@@ -1630,15 +1844,16 @@ export function renderDirection(
 export function buildDirectionGrid(
  id: DirectionId,
  subject: SubjectId,
- look?: { miner?: MinerLook; pickaxe?: PickaxeThemeDef },
+ look?: { miner?: MinerLook; pickaxe?: PickaxeThemeDef; tool?: ToolId },
  seed = 1,
 ): PixelGrid {
- return renderDirection(
-  id,
-  SUBJECT_LABELS[subject](),
-  buildPalette(id, subject, look),
-  seed,
- );
+ // `pickaxeLabels` is the one subject that takes an argument (the tool
+ // silhouette); every other subject is a parameterless builder.
+ const labels =
+  subject === "pickaxe"
+   ? pickaxeLabels(look?.tool ?? "pickaxe")
+   : SUBJECT_LABELS[subject]();
+ return renderDirection(id, labels, buildPalette(id, subject, look), seed);
 }
 
 export type { HatStyle, MinerHair, MinerLook, PickaxeThemeDef, PixelGrid };

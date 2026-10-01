@@ -201,6 +201,8 @@ of Pressable so rapid tapping doesn't double-render).
   as unique bands rather than one strip repeating every 144px. No texture
   cycle anywhere (rows are addressed by absolute depth; the wall by band).
 - **Cosmetic shop** (gem prices; earnable, F2P-viable) — outfits, pickaxes
+  (eight distinct *tools*: shape + swing feel + strike sound each,
+  `utils/graphics/characterArt.ts` `TOOLS`, `docs/tool-line.md`), skins
   (each with a unique swing sound), and **cave themes** (background
   recolors); the IAP cosmetic pack sells the *same* items. The shop is the
   🛍️ `IapPanel` (the menu sheet has no shop tab): pickaxe/outfit/theme rows

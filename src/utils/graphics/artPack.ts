@@ -41,6 +41,7 @@ import {
   renderDirection,
   shapeForLook,
 } from "./characterArt";
+import type { ToolId } from "./characterArt";
 import {
   buildCrewCharGrid,
   crewCharById,
@@ -85,7 +86,9 @@ export interface ArtPack {
    * does.
    */
   minerSprite(look: MinerLook, opts?: SpriteOpts): string;
-  pickaxeSprite(theme: PickaxeThemeDef): string;
+  /** `tool` is the pickaxe line's silhouette axis (see characterArt TOOLS);
+   *  a pack without tool axes draws its one tool in every theme. */
+  pickaxeSprite(theme: PickaxeThemeDef, tool: ToolId): string;
   /** One skin character for the player's slot (see cosmetics.SKINS). */
   skinSprite(skin: SkinDef): string;
   debrisSprite(variant: number): string;
@@ -142,8 +145,10 @@ const papercutPack: ArtPack = {
   const worn = opts?.crewWearsOutfit === true ? crewLookFor(char, look, false) : char.look;
   return gridToPngDataUri(buildCrewCharGrid(char, worn));
  },
- pickaxeSprite: (theme) =>
-  gridToPngDataUri(buildDirectionGrid("papercut", "pickaxe", { pickaxe: theme })),
+ pickaxeSprite: (theme, tool) =>
+  gridToPngDataUri(
+   buildDirectionGrid("papercut", "pickaxe", { pickaxe: theme, tool }),
+  ),
  skinSprite: (skin) => gridToPngDataUri(buildPapercutSkinGrid(skin)),
  debrisSprite: (variant) => pixelDebrisSpriteUri(variant),
  mineralChunkSprite: () =>
@@ -161,7 +166,8 @@ const pixelPack: ArtPack = {
  gridSize: 16,
  // No cast: a crew row falls back to the classic miner.
  minerSprite: (look) => pixelMinerSpriteUri(look),
- pickaxeSprite: pixelPickaxeSpriteUri,
+ // No tool axes in the classic art: every tool is the crescent colorway.
+ pickaxeSprite: (theme) => pixelPickaxeSpriteUri(theme),
  // No silhouette axes in the classic art: a skin is its colorway there.
  skinSprite: (skin) => pixelMinerSpriteUri(skin.look),
  debrisSprite: pixelDebrisSpriteUri,
@@ -277,10 +283,21 @@ export function skinSpriteUri(skin: SkinDef): string {
   return cached("skin", key, () => activeArtPack().skinSprite(skin));
 }
 
-/** Pickaxe for a theme, as a PNG data URI. */
-export function pickaxeSpriteUri(theme: PickaxeThemeDef): string {
- const key = JSON.stringify([theme.head, theme.glow, theme.handle]);
- return cached("pickaxe", key, () => activeArtPack().pickaxeSprite(theme));
+/**
+ * A pickaxe as a PNG data URI: the theme's three colors AND the tool's
+ * silhouette are both part of the cache key, so eight tools never share an
+ * image (nor do two themes of the same tool).
+ */
+export function pickaxeSpriteUri(
+ theme: PickaxeThemeDef,
+ tool: ToolId,
+): string {
+ const key = JSON.stringify([theme.head, theme.glow, theme.handle, tool]);
+ return cached(
+  "pickaxe",
+  key,
+  () => activeArtPack().pickaxeSprite(theme, tool),
+ );
 }
 
 /** Debris shard for a variant index (wraps, like the classic pack). */

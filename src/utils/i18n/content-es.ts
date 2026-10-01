@@ -151,6 +151,10 @@ export const contentEs: ContentTable = {
   "pickaxe:gold": { title: "Oro" },
   "pickaxe:frost": { title: "Cristal" },
   "pickaxe:shadow": { title: "Sombra" },
+  "pickaxe:emberbrand": { title: "Marca de Brasa" },
+  "pickaxe:sledge": { title: "Martillo de Ceniza" },
+  "pickaxe:lanternhook": { title: "Gancho de Farol" },
+  "pickaxe:prism": { title: "Corte de Prisma" },
 
   "caveTheme:natural": { title: "Natural" },
   "caveTheme:amethyst": { title: "Cueva de amatista" },
@@ -186,21 +190,22 @@ export const contentEs: ContentTable = {
   "iap:packGold": {
     title: "Pico de Oro",
     detail:
-      "Compra única. Desbloquea el pico de Oro — con su propio sonido de " +
-      "balanceo y su propio golpeo. Puramente cosmético.",
+      "Compra única. Desbloquea el pico de Oro (una azuela recta) — con su " +
+      "propio sonido de balanceo y su propio golpeo. Puramente cosmético.",
   },
   "iap:packFrost": {
     title: "Pico de Cristal",
     detail:
-      "Compra única. Desbloquea el pico de Cristal — con su propio sonido " +
-      "de balanceo y su propio golpeo. Puramente cosmético.",
+      "Compra única. Desbloquea el pico de Cristal (una horquilla helada) — " +
+      "con su propio sonido de balanceo y su propio golpeo. " +
+      "Puramente cosmético.",
   },
   "iap:packShadow": {
     title: "Pico de Sombra",
     detail:
-      "Compra única. Desbloquea el pico de Sombra — con su propio sonido " +
-      "de balanceo y el golpeo más pesado y deliberado. " +
-      "Puramente cosmético.",
+      "Compra única. Desbloquea el pico de Sombra (una barrena de espiral) — " +
+      "con su propio sonido de balanceo y el golpeo más pesado y " +
+      "deliberado. Puramente cosmético.",
   },
   "iap:packNight": {
     title: "Traje de turno nocturno",

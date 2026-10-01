@@ -95,7 +95,7 @@ describe("the entry points", () => {
       // The miner and the pickaxe are the pack-sized ones. The debris shard
       // is deliberately small (a 12px particle), and the classic chunk/gem
       // icons are 12×12 rather than the pack's 16.
-      for (const uri of [minerSpriteUri(LOOK), pickaxeSpriteUri(THEME)]) {
+      for (const uri of [minerSpriteUri(LOOK), pickaxeSpriteUri(THEME, "pickaxe")]) {
         expect(uri.startsWith(PREFIX)).toBe(true);
         expect(pngSize(uri)).toEqual([grid, grid]);
       }
@@ -125,19 +125,19 @@ describe("the entry points", () => {
       expect(minerSpriteUri(LOOK)).not.toBe(
         minerSpriteUri({ ...LOOK, shirt: "#e8443a" }),
       );
-      expect(pickaxeSpriteUri(THEME)).toBe(pickaxeSpriteUri({ ...THEME }));
-      expect(pickaxeSpriteUri(THEME)).not.toBe(
-        pickaxeSpriteUri({ ...THEME, head: "#e8c33d" }),
+      expect(pickaxeSpriteUri(THEME, "pickaxe")).toBe(pickaxeSpriteUri({ ...THEME }, "pickaxe"));
+      expect(pickaxeSpriteUri(THEME, "pickaxe")).not.toBe(
+        pickaxeSpriteUri({ ...THEME, head: "#e8c33d" }, "pickaxe"),
       );
     }
   });
 
   it("swapping the pack changes every sprite (and back again)", () => {
     const papercutMiner = minerSpriteUri(LOOK);
-    const papercutPick = pickaxeSpriteUri(THEME);
+    const papercutPick = pickaxeSpriteUri(THEME, "pickaxe");
     setActiveArtPack("pixel");
     const pixelMiner = minerSpriteUri(LOOK);
-    const pixelPick = pickaxeSpriteUri(THEME);
+    const pixelPick = pickaxeSpriteUri(THEME, "pickaxe");
     expect(pixelMiner).not.toBe(papercutMiner);
     expect(pixelPick).not.toBe(papercutPick);
     // The classic pack IS the old art, byte for byte.

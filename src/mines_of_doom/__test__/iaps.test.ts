@@ -29,7 +29,9 @@ import {
   DEFAULT_OUTFIT,
   OUTFITS,
   PICKAXES,
+  SKINS,
   getCaveTheme,
+  getCostGems,
   rollMinerLook,
 } from "../cosmetics";
 // The art-pack seam, not pixelArt directly: the previews must match the
@@ -133,14 +135,21 @@ describe("cosmetic packs (plan §5.2)", () => {
   });
 
   it("exactly one pack per PAID cosmetic, in cosmetics.ts order per line", () => {
-    const paidPickaxes = PICKAXES.filter((p) => p.costGems > 0);
-    const paidOutfits = OUTFITS.filter((o) => o.costGems > 0);
-    const paidThemes = CAVE_THEMES.filter((t) => t.costGems > 0);
+    // `pendingStoreSku` items are the documented exception: they have no
+    // store SKU yet, so they are gem-only and get no pack (iaps.ts PACK_SPECS
+    // carries the runbook). Everything else is 1:1.
+    const packable = <T extends { costGems: number; pendingStoreSku?: true }>(
+      list: readonly T[],
+    ): T[] => list.filter((c) => c.costGems > 0 && c.pendingStoreSku !== true);
+    const paidPickaxes = packable(PICKAXES);
+    const paidOutfits = packable(OUTFITS);
+    const paidThemes = packable(CAVE_THEMES);
     const packs = IAP_PRODUCT_LIST; // the catalog is packs only
-    // Free defaults (steel / classic / natural) stay out of the catalog.
-    // The +1 is the custom-skin FEATURE pack (todo: "Custom skinning") —
-    // the catalog's one non-cosmetic line, which rides the same "skin" line
-    // as the skin characters but grants no catalog item.
+    // Free defaults (steel / classic / natural) and pendingStoreSku items
+    // stay out of the catalog. The +1 is the custom-skin FEATURE pack (todo:
+    // "Custom skinning") — the catalog's one non-cosmetic line, which rides
+    // the same "skin" line as the skin characters but grants no catalog
+    // item.
     expect(packs).toHaveLength(
       paidPickaxes.length + paidOutfits.length + paidThemes.length + 1,
     );
@@ -150,12 +159,35 @@ describe("cosmetic packs (plan §5.2)", () => {
     expect(byLine("outfit")).toEqual(paidOutfits.map((o) => "pack_" + o.id));
     expect(byLine("caveTheme")).toEqual(paidThemes.map((t) => "pack_" + t.id));
     // The skin line's ONLY product is the custom-skin FEATURE pack: the
-    // characters themselves are gem-only for now (a cash pack needs a real
-    // Stripe price + Play/App Store SKU, which don't exist for them yet —
-    // see the note in iaps.ts PACK_SPECS). `SKINS.every(costGems > 0)`
-    // keeps that exception honest: a free skin would be a pack that grants
-    // nothing.
+    // characters are all `pendingStoreSku`, so they are gem-only for now.
     expect(byLine("skin")).toEqual(["pack_skin"]);
+  });
+
+  it("every gem-only item is real, priced, and absent from the catalog", () => {
+    // The `pendingStoreSku` exception is easy to leave behind: a flagged
+    // item that gets a pack (or loses its flag) must show up here.
+    const allCosmetics: { id: string; costGems: number; pendingStoreSku?: true }[] =
+      [...PICKAXES, ...OUTFITS, ...CAVE_THEMES, ...SKINS];
+    const flagged = allCosmetics.filter((c) => c.pendingStoreSku === true);
+    expect(flagged.length).toBeGreaterThan(0);
+    for (const item of flagged) {
+      // It is a real, gem-priced catalog item (a flag on nothing is a bug).
+      expect(item.costGems).toBeGreaterThan(0);
+      expect(getCostGems(item.id)).toBe(item.costGems);
+      // …and no pack sells it yet.
+      const grantIds = Object.values(IAP_PACK_GRANTS).map((g) => g.id);
+      expect(grantIds).not.toContain(item.id);
+    }
+    // Nothing else may carry the flag: a store SKU exists for everything
+    // without one, so the flag is only for genuinely pending items.
+    expect(flagged.map((c) => c.id).sort()).toEqual(
+      [
+        ...PICKAXES.filter((p) => p.pendingStoreSku === true),
+        ...SKINS.filter((k) => k.pendingStoreSku === true),
+      ]
+        .map((c) => c.id)
+        .sort(),
+    );
   });
 
   it("pack blurbs and prices resolve from the gem shop (no drift)", () => {
@@ -215,10 +247,12 @@ describe("cosmetic packs (plan §5.2)", () => {
     // Each pickaxe previews as its own themed sprite; each outfit as its
     // own (preview-seed) look — in catalog order, which is cosmetics.ts
     // order minus the free defaults (the packs sell only paid items).
+    // Packed pickaxes only — a gem-only tool has no product row yet, but the
+    // preview branch is the same one, so the packed set is what is pinned.
     expect(spriteUris.pickaxe).toEqual(
-      PICKAXES.filter((p) => p.costGems > 0).map((p) =>
-        pickaxeSpriteUri(p.theme),
-      ),
+      PICKAXES.filter(
+        (p) => p.costGems > 0 && p.pendingStoreSku !== true,
+      ).map((p) => pickaxeSpriteUri(p.theme, p.tool)),
     );
     expect(spriteUris.outfit).toEqual(
       OUTFITS.filter((o) => o.costGems > 0).map((o) =>

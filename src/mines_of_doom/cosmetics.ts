@@ -1,7 +1,7 @@
 // Types come in through `import type` so this module can also be loaded by
 // the Node art-preview scripts, which strip types rather than compile them
 // (a value import of a type-only export is a runtime error there).
-import type { SkinShape } from "src/utils/graphics/characterArt";
+import type { SkinShape, ToolId } from "src/utils/graphics/characterArt";
 import type {
   HatStyle,
   MinerHair,
@@ -59,6 +59,19 @@ export type PickaxeCosmetic = {
   id: string;
   name: string;
   costGems: number;
+  /**
+   * The tool this pickaxe IS — the line's silhouette axis. Eight distinct
+   * objects, not eight colors of one crescent: the shape, the swing feel and
+   * the strike sound all change together (characterArt.TOOLS draws the
+   * silhouette; the classic `pixel` pack falls back to the colorway).
+   */
+  tool: ToolId;
+  /** What the tool is called on its own ("Mattock", "Prism Cutter"). */
+  toolName: string;
+  /** See `SkinCosmetic.pendingStoreSku` — the same gem-only exception. */
+  pendingStoreSku?: true;
+  /** One-line flavor, shown on the card. */
+  blurb: string;
   theme: PickaxeThemeDef;
   /** Unique swing sound, relative to public/assets (required in assets/index).
    *  Synthesized by scripts/generate-pickaxe-sounds.mjs. */
@@ -241,6 +254,9 @@ export const PICKAXES: PickaxeCosmetic[] = [
     id: "steel",
     name: "Steel",
     costGems: 0,
+    tool: "pickaxe",
+    toolName: "Pickaxe",
+    blurb: "the shift standard: honest steel, nothing fancy",
     theme: { head: "#9aa5b1", glow: "#d9e2ec", handle: "#8a5a2b" },
     soundFile: "audio/pickaxe-steel.wav",
     feel: { swingMs: 150, bounceDepth: 6 },
@@ -249,6 +265,9 @@ export const PICKAXES: PickaxeCosmetic[] = [
     id: "gold",
     name: "Gold",
     costGems: 25,
+    tool: "mattock",
+    toolName: "Mattock",
+    blurb: "a squared adze — the gem counter's favorite",
     theme: { head: "#e8c33d", glow: "#fff3b0", handle: "#8a5a2b" },
     soundFile: "audio/pickaxe-gold.wav",
     // Heavier metal: slower swing, deeper bounce.
@@ -259,19 +278,74 @@ export const PICKAXES: PickaxeCosmetic[] = [
     id: "frost",
     name: "Crystal",
     costGems: 45,
+    tool: "lance",
+    toolName: "Lance",
+    blurb: "a forked lance that leaves the seam cold",
     theme: { head: "#5ad8e8", glow: "#d0fbff", handle: "#3a2f5a" },
     soundFile: "audio/pickaxe-frost.wav",
     // Light and nimble: the fastest swing, the shallowest bounce.
     feel: { swingMs: 110, bounceDepth: 4 },
   },
   {
+    id: "emberbrand",
+    name: "Emberbrand",
+    costGems: 60,
+    pendingStoreSku: true,
+    tool: "emberbrand",
+    toolName: "Emberbrand",
+    blurb: "a burning brand — the rock smokes where it lands",
+    theme: { head: "#e8590c", glow: "#ffd54f", handle: "#5a2a12" },
+    soundFile: "audio/pickaxe-emberbrand.wav",
+    feel: { swingMs: 200, bounceDepth: 7 },
+  },
+  {
+    id: "sledge",
+    name: "Cinder Sledge",
+    costGems: 75,
+    pendingStoreSku: true,
+    tool: "sledge",
+    toolName: "Sledge",
+    blurb: "the biggest head in the crate; it does not need finesse",
+    theme: { head: "#8a6a5a", glow: "#ffb08a", handle: "#4a3020" },
+    soundFile: "audio/pickaxe-sledge.wav",
+    // The heaviest thing a miner can swing: slowest, deepest bounce.
+    feel: { swingMs: 260, bounceDepth: 12 },
+  },
+  {
+    id: "lanternhook",
+    name: "Lantern Hook",
+    costGems: 85,
+    pendingStoreSku: true,
+    tool: "lanternhook",
+    toolName: "Lantern Hook",
+    blurb: "hangs its own light on the gallery wall and hooks the rock",
+    theme: { head: "#c9a227", glow: "#ffe9a8", handle: "#6a4a22" },
+    soundFile: "audio/pickaxe-lanternhook.wav",
+    feel: { swingMs: 140, bounceDepth: 5 },
+  },
+  {
     id: "shadow",
     name: "Shadow",
     costGems: 90,
+    tool: "auger",
+    toolName: "Auger",
+    blurb: "a spiral bit that eats the seam instead of striking it",
     theme: { head: "#4a4a5a", glow: "#9a7fd0", handle: "#2a2233" },
     soundFile: "audio/pickaxe-shadow.wav",
-    // Slow and heavy: the biggest, most deliberate swing.
+    // Slow and heavy: deliberate, with a long tail on the bounce.
     feel: { swingMs: 230, bounceDepth: 10 },
+  },
+  {
+    id: "prism",
+    name: "Prism Cutter",
+    costGems: 100,
+    pendingStoreSku: true,
+    tool: "prism",
+    toolName: "Prism Cutter",
+    blurb: "cuts the seam at an angle the light likes",
+    theme: { head: "#7fd4e8", glow: "#ffffff", handle: "#4a3f6b" },
+    soundFile: "audio/pickaxe-prism.wav",
+    feel: { swingMs: 170, bounceDepth: 8 },
   },
 ];
 
@@ -515,6 +589,15 @@ export type SkinCosmetic = {
   /** Gem price. Unlike the other lines there is no free default: "no
    *  skin" is the player's own rolled look (selectedSkin ""), not an item. */
   costGems: number;
+  /**
+   * This item is GEM-ONLY for now: it has no store pack because creating
+   * one needs a real Stripe price plus Play/App Store SKU in those
+   * accounts (`scripts/stripe/syncStripe.mjs products`, the runbook in
+   * docs/store-integration.md §2). The store catalog skips flagged items
+   * (see iaps.ts) rather than pointing a cash button at a price id that
+   * doesn't exist — which would just error at checkout.
+   */
+  pendingStoreSku?: true;
   /** One-line flavor, shown on the card. */
   blurb: string;
   /** The character's colors (the same `MinerLook` the live line takes). */
@@ -532,6 +615,7 @@ export const SKINS: readonly SkinCosmetic[] = [
     id: "lantern-crew",
     name: "Lantern Crew",
     costGems: 25,
+    pendingStoreSku: true,
     blurb: "the shift's hard-hat standard, lamp on the brim",
     look: {
       skin: "#ffdbb4",
@@ -547,6 +631,7 @@ export const SKINS: readonly SkinCosmetic[] = [
     id: "frost-bit",
     name: "Frost Bit",
     costGems: 25,
+    pendingStoreSku: true,
     blurb: "red beanie, green wool, still swinging the pick",
     look: {
       skin: "#f2c9a0",
@@ -562,6 +647,7 @@ export const SKINS: readonly SkinCosmetic[] = [
     id: "deep-survey",
     name: "Deep Survey",
     costGems: 40,
+    pendingStoreSku: true,
     blurb: "visor cap and a beard; has mapped every gallery twice",
     look: {
       skin: "#8d5524",
@@ -577,6 +663,7 @@ export const SKINS: readonly SkinCosmetic[] = [
     id: "shift-foreman",
     name: "Shift Foreman",
     costGems: 40,
+    pendingStoreSku: true,
     blurb: "white hard hat, red shirt, runs the whole seam",
     look: {
       skin: "#e07020",
@@ -592,6 +679,7 @@ export const SKINS: readonly SkinCosmetic[] = [
     id: "fox-crew",
     name: "Fox Crew",
     costGems: 60,
+    pendingStoreSku: true,
     blurb: "red bandana, and always the first down the ladder",
     look: {
       skin: "#e07020",
@@ -607,6 +695,7 @@ export const SKINS: readonly SkinCosmetic[] = [
     id: "marmot-crew",
     name: "Marmot Crew",
     costGems: 60,
+    pendingStoreSku: true,
     blurb: "green beanie, permanently unbothered",
     look: {
       skin: "#a08058",
@@ -623,6 +712,7 @@ export const SKINS: readonly SkinCosmetic[] = [
     id: "rose-lantern",
     name: "Rose Lantern",
     costGems: 75,
+    pendingStoreSku: true,
     blurb: "long pink hair, lilac dress — carries the lamp basket",
     look: {
       skin: "#ffe3c8",
@@ -644,6 +734,7 @@ export const SKINS: readonly SkinCosmetic[] = [
     id: "mint-comet",
     name: "Mint Comet",
     costGems: 75,
+    pendingStoreSku: true,
     blurb: "mint ponytail; names every equation before it lands",
     look: {
       skin: "#f2c9a0",
@@ -665,6 +756,7 @@ export const SKINS: readonly SkinCosmetic[] = [
     id: "sky-bob",
     name: "Sky Bob",
     costGems: 85,
+    pendingStoreSku: true,
     blurb: "sky-blue bob under a little orange beanie",
     look: {
       skin: "#ffe3c8",
@@ -686,6 +778,7 @@ export const SKINS: readonly SkinCosmetic[] = [
     id: "twin-bells",
     name: "Twin Bells",
     costGems: 85,
+    pendingStoreSku: true,
     blurb: "twin tails, yellow dress, loudest lamp on the crew",
     look: {
       skin: "#f2c9a0",
@@ -707,6 +800,7 @@ export const SKINS: readonly SkinCosmetic[] = [
     id: "blossom-bun",
     name: "Blossom Bun",
     costGems: 100,
+    pendingStoreSku: true,
     blurb: "top knot, rose dress; runs the gem counters",
     look: {
       skin: "#ffe3c8",
@@ -728,6 +822,7 @@ export const SKINS: readonly SkinCosmetic[] = [
     id: "ember-sunrise",
     name: "Ember Sunrise",
     costGems: 100,
+    pendingStoreSku: true,
     blurb: "ginger hair to the waist, amber dress, first up the ladder",
     look: {
       skin: "#f7d9c0",

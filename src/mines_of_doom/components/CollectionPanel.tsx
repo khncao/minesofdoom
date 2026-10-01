@@ -96,7 +96,10 @@ const CollectionContent = memo(function CollectionContent({
     [],
   );
   const pickaxeThumbs = useMemo(
-    () => new Map(PICKAXES.map((p) => [p.id, pickaxeSpriteUri(p.theme)])),
+    () =>
+      new Map(
+        PICKAXES.map((p) => [p.id, pickaxeSpriteUri(p.theme, p.tool)]),
+      ),
     [],
   );
   // Skins are drawn as authored (never rolled), so the thumb IS the item.

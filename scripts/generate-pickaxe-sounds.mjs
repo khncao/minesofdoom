@@ -43,6 +43,36 @@ const DESIGNS = {
     decay: 13,
     noise: 0.55,
   },
+  // --- the four tools added with the shape axis: each strike is a
+  // different physical event, not a different pitch of the same one.
+  // Burning brand: a low whoosh with a soft wooden knock at the end.
+  emberbrand: {
+    base: 210,
+    parts: [[1, 0.7], [1.5, 0.35], [2.9, 0.12]],
+    decay: 9,
+    noise: 0.85,
+  },
+  // Sledge: the deepest thud in the line, almost no ring.
+  sledge: {
+    base: 120,
+    parts: [[1, 1.0], [1.35, 0.3], [2.1, 0.08]],
+    decay: 11,
+    noise: 0.7,
+  },
+  // Lantern hook: bright chain rattle — inharmonic, fast decay.
+  lanternhook: {
+    base: 740,
+    parts: [[1, 0.8], [2.4, 0.5], [4.7, 0.35], [6.2, 0.18]],
+    decay: 24,
+    noise: 0.45,
+  },
+  // Prism cutter: a clean glassy ring with a long shimmer.
+  prism: {
+    base: 1050,
+    parts: [[1, 0.75], [2.0, 0.5], [3.02, 0.3], [5.1, 0.12]],
+    decay: 15,
+    noise: 0.25,
+  },
 };
 
 function mulberry32(seed) {

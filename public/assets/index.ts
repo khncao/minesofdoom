@@ -12,6 +12,10 @@ export const pickaxeSoundFiles: Record<string, SoundAsset> = {
   gold: require("./audio/pickaxe-gold.wav"),
   frost: require("./audio/pickaxe-frost.wav"),
   shadow: require("./audio/pickaxe-shadow.wav"),
+  emberbrand: require("./audio/pickaxe-emberbrand.wav"),
+  sledge: require("./audio/pickaxe-sledge.wav"),
+  lanternhook: require("./audio/pickaxe-lanternhook.wav"),
+  prism: require("./audio/pickaxe-prism.wav"),
 };
 export const pickaxeImg = require("./pickaxe.png");
 // Looping cave-ambience music bed (todo: "Music / ambient loop"). Synthesized

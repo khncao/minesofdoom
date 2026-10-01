@@ -597,9 +597,9 @@ the console follows the code, not the other way around.
 
 | Store id | Product | Price | Grants (also earnable in-game) |
 | --- | --- | --- | --- |
-| `pack_gold` | Golden Pickaxe | $0.99 | `gold` pickaxe (25 💎) |
-| `pack_frost` | Frost Pickaxe | $1.99 | `frost` pickaxe (45 💎) |
-| `pack_shadow` | Shadow Pickaxe | $2.99 | `shadow` pickaxe (90 💎) |
+| `pack_gold` | Gold Pickaxe (Mattock) | $0.99 | `gold` pickaxe (25 💎) |
+| `pack_frost` | Crystal Pickaxe (Lance) | $1.99 | `frost` pickaxe (45 💎) |
+| `pack_shadow` | Shadow Pickaxe (Auger) | $2.99 | `shadow` pickaxe (90 💎) |
 | `pack_night` | Night Shift Outfit | $0.99 | `night` outfit (15 💎) |
 | `pack_goldrush` | Gold Rush Outfit | $0.99 | `goldrush` outfit (25 💎) |
 | `pack_crystal` | Crystal Miner Outfit | $1.99 | `crystal` outfit (40 💎) |
@@ -628,6 +628,41 @@ Every row's blurb in the purchase panel says plainly what it does and
 that the game stays fully free without it (guardrail 4), and shows the
 gem price of the granted cosmetic ("also earnable in-game for N 💎" —
 guardrail 1).
+
+### 2.1b Items with no store SKU yet (gem-only)
+
+Two catalog items groups are marked `pendingStoreSku` in `cosmetics.ts` and
+have **no row above and no product in the consoles**:
+
+| items | ids | gem price |
+| --- | --- | --- |
+| the whole skin line | the 12 `SKINS` | 25–100 💎 each |
+| four tools added with the pickaxe shape axis | `emberbrand`, `sledge`, `lanternhook`, `prism` | 60–100 💎 each |
+
+They are gem-purchasable in-game today and the game is fully playable
+without them. The reason is mechanical, not editorial: a cash button needs
+a live Stripe price plus the Play/App Store product, and inventing a price
+id would only produce a checkout that errors.
+
+To add them later (the catalog change is mechanical, the code paths already
+handle them):
+
+1. `node scripts/stripe/syncStripe.mjs products` after adding the rows to
+   `scripts/stripe/catalog.json` — it creates the prices and prints the
+   `storeConfig.ts` snippet to paste.
+2. Create the Play SKUs (`pack_<id>`) and the App Store products
+   (`{bundleId}.pack_<id>`) per §2.2–2.3.
+3. Add one `PACK_SPECS` entry per item in `cosmetics.ts` catalog order, the
+   price ids in `storeConfig.ts`, and the mirrored entry in
+   `pb_hooks/logic.js` `PRODUCTS` (a test pins that against the app's
+   `IAP_STORE_IDS`).
+4. Drop the `pendingStoreSku` flag — `iaps.test.ts`'s "exactly one pack per
+   PAID cosmetic" and "every gem-only item…" tests then cover them like any
+   other line.
+
+Note the hyphen→underscore fold: the skin ids are hyphenated
+(`lantern-crew`), and Play Billing SKUs accept `[a-z0-9_]` only, so the
+store id is `pack_lantern_crew`.
 
 ### 2.2 Create the products
 
