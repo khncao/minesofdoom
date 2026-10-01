@@ -1,6 +1,7 @@
 // Types come in through `import type` so this module can also be loaded by
 // the Node art-preview scripts, which strip types rather than compile them
 // (a value import of a type-only export is a runtime error there).
+import type { SkinShape } from "src/utils/graphics/characterArt";
 import type {
   HatStyle,
   MinerHair,
@@ -314,10 +315,27 @@ export function isPickaxeId(id: string): boolean {
   return PICKAXES.some((p) => p.id === id);
 }
 
-/** Any cosmetic by id (both lists), or undefined for unknown ids. */
+/** The skin by id; unknown ids are "no skin" (the rolled look). */
+export function getSkin(id: string): SkinCosmetic | undefined {
+  return SKINS.find((s) => s.id === id);
+}
+
+export function isSkinId(id: string): boolean {
+  return SKINS.some((s) => s.id === id);
+}
+
+/** Which half of the line a skin belongs to (dress + cute face = pretty). */
+export function skinGroup(skin: SkinCosmetic): SkinGroup {
+  return skin.shape.outfit === "dress" || skin.shape.cute === true
+    ? "pretty"
+    : "crew";
+}
+
+/** Any cosmetic by id (outfits / pickaxes / skins), or undefined if unknown. */
 export function getCostGems(id: string): number | undefined {
   if (isOutfitId(id)) return getOutfit(id).costGems;
   if (isPickaxeId(id)) return getPickaxe(id).costGems;
+  if (isSkinId(id)) return getSkin(id)?.costGems;
   return undefined;
 }
 
@@ -478,6 +496,259 @@ export const DEFAULT_CAVE_TINTS: string[] = [
   "#b8705a", // 3 Magma Frontier
   "#5ab8b8", // 4 Crystal Kingdom
 ];
+
+/**
+ * A SKIN is a whole CHARACTER for the player's own slot: a fixed `MinerLook`
+ * (one colorway, no reroll) plus the papercut `shape` axes (headwear, hair,
+ * dress, critter form, cute face). Unlike an outfit — which is a palette the
+ * player rerolls against — a skin is drawn as authored, which is why the
+ * line is a set of characters instead of colorways.
+ *
+ * The line (docs/skin-line.md) is half the mining crew, half the cute/pretty
+ * side, and every member is a distinct silhouette in a distinct palette:
+ * `skins.test.ts` pins that, because a "skin line" with two identical
+ * members is a bug, not a variant.
+ */
+export type SkinCosmetic = {
+  id: string;
+  name: string;
+  /** Gem price. Unlike the other lines there is no free default: "no
+   *  skin" is the player's own rolled look (selectedSkin ""), not an item. */
+  costGems: number;
+  /** One-line flavor, shown on the card. */
+  blurb: string;
+  /** The character's colors (the same `MinerLook` the live line takes). */
+  look: MinerLook;
+  /** The silhouette axes (papercut; the classic pack reads colors only). */
+  shape: SkinShape;
+};
+
+/** Which half of the line a skin belongs to — the shop's card sort. */
+export type SkinGroup = "crew" | "pretty";
+
+export const SKINS: readonly SkinCosmetic[] = [
+  // --- the crew half ---------------------------------------------------
+  {
+    id: "lantern-crew",
+    name: "Lantern Crew",
+    costGems: 25,
+    blurb: "the shift's hard-hat standard, lamp on the brim",
+    look: {
+      skin: "#ffdbb4",
+      shirt: "#4a90d9",
+      pants: "#3b4a6b",
+      boots: "#4a3524",
+      hat: "#e8c33d",
+      hatStyle: "helmet",
+    },
+    shape: { form: "human", hatStyle: "helmet" },
+  },
+  {
+    id: "frost-bit",
+    name: "Frost Bit",
+    costGems: 25,
+    blurb: "red beanie, green wool, still swinging the pick",
+    look: {
+      skin: "#f2c9a0",
+      shirt: "#57a94f",
+      pants: "#2f3b4a",
+      boots: "#333333",
+      hat: "#e8443a",
+      hatStyle: "beanie",
+    },
+    shape: { form: "human", hatStyle: "beanie" },
+  },
+  {
+    id: "deep-survey",
+    name: "Deep Survey",
+    costGems: 40,
+    blurb: "visor cap and a beard; has mapped every gallery twice",
+    look: {
+      skin: "#8d5524",
+      shirt: "#f0f0f0",
+      pants: "#7a5230",
+      boots: "#3a2a1a",
+      hat: "#3f8fd0",
+      hatStyle: "cap",
+    },
+    shape: { form: "human", hatStyle: "cap", beard: true },
+  },
+  {
+    id: "shift-foreman",
+    name: "Shift Foreman",
+    costGems: 40,
+    blurb: "white hard hat, red shirt, runs the whole seam",
+    look: {
+      skin: "#e07020",
+      shirt: "#d9534f",
+      pants: "#3b4a6b",
+      boots: "#4a3524",
+      hat: "#e8e8e8",
+      hatStyle: "helmet",
+    },
+    shape: { form: "human", hatStyle: "helmet", beard: true },
+  },
+  {
+    id: "fox-crew",
+    name: "Fox Crew",
+    costGems: 60,
+    blurb: "red bandana, and always the first down the ladder",
+    look: {
+      skin: "#e07020",
+      shirt: "#3a4a5a",
+      pants: "#c85a18",
+      boots: "#3a2a1a",
+      hat: "#e8443a",
+      hatStyle: "bandana",
+    },
+    shape: { form: "critter", hatStyle: "bandana", cute: true },
+  },
+  {
+    id: "marmot-crew",
+    name: "Marmot Crew",
+    costGems: 60,
+    blurb: "green beanie, permanently unbothered",
+    look: {
+      skin: "#a08058",
+      shirt: "#d94f30",
+      pants: "#8a6b48",
+      boots: "#5a4630",
+      hat: "#57a94f",
+      hatStyle: "beanie",
+    },
+    shape: { form: "critter", hatStyle: "beanie" },
+  },
+  // --- the pretty half -------------------------------------------------
+  {
+    id: "rose-lantern",
+    name: "Rose Lantern",
+    costGems: 75,
+    blurb: "long pink hair, lilac dress — carries the lamp basket",
+    look: {
+      skin: "#ffe3c8",
+      shirt: "#b48cff",
+      pants: "#8d6bb0",
+      boots: "#e8a0c8",
+      hat: "#ff9ecd",
+      hatStyle: "longhair",
+    },
+    shape: {
+      form: "human",
+      hatStyle: "longhair",
+      hair: "long",
+      outfit: "dress",
+      cute: true,
+    },
+  },
+  {
+    id: "mint-comet",
+    name: "Mint Comet",
+    costGems: 75,
+    blurb: "mint ponytail; names every equation before it lands",
+    look: {
+      skin: "#f2c9a0",
+      shirt: "#8fe3c0",
+      pants: "#57a94f",
+      boots: "#2f7a55",
+      hat: "#7ad0e8",
+      hatStyle: "longhair",
+    },
+    shape: {
+      form: "human",
+      hatStyle: "longhair",
+      hair: "ponytail",
+      outfit: "dress",
+      cute: true,
+    },
+  },
+  {
+    id: "sky-bob",
+    name: "Sky Bob",
+    costGems: 85,
+    blurb: "sky-blue bob under a little orange beanie",
+    look: {
+      skin: "#ffe3c8",
+      shirt: "#bdeeff",
+      pants: "#4a90d9",
+      boots: "#3b4a6b",
+      hat: "#f2913a",
+      hatStyle: "beanie",
+    },
+    shape: {
+      form: "human",
+      hatStyle: "beanie",
+      hair: "bob",
+      outfit: "dress",
+      cute: true,
+    },
+  },
+  {
+    id: "twin-bells",
+    name: "Twin Bells",
+    costGems: 85,
+    blurb: "twin tails, yellow dress, loudest lamp on the crew",
+    look: {
+      skin: "#f2c9a0",
+      shirt: "#ffd166",
+      pants: "#e8a33d",
+      boots: "#8a5a2b",
+      hat: "#ef476f",
+      hatStyle: "longhair",
+    },
+    shape: {
+      form: "human",
+      hatStyle: "longhair",
+      hair: "twin",
+      outfit: "dress",
+      cute: true,
+    },
+  },
+  {
+    id: "blossom-bun",
+    name: "Blossom Bun",
+    costGems: 100,
+    blurb: "top knot, rose dress; runs the gem counters",
+    look: {
+      skin: "#ffe3c8",
+      shirt: "#ff9ecd",
+      pants: "#e07ba5",
+      boots: "#c05f8a",
+      hat: "#e8443a",
+      hatStyle: "longhair",
+    },
+    shape: {
+      form: "human",
+      hatStyle: "longhair",
+      hair: "bun",
+      outfit: "dress",
+      cute: true,
+    },
+  },
+  {
+    id: "ember-sunrise",
+    name: "Ember Sunrise",
+    costGems: 100,
+    blurb: "ginger hair to the waist, amber dress, first up the ladder",
+    look: {
+      skin: "#f7d9c0",
+      shirt: "#e8703a",
+      pants: "#b4552a",
+      boots: "#6a3a22",
+      hat: "#e07020",
+      hatStyle: "longhair",
+    },
+    shape: {
+      form: "human",
+      hatStyle: "longhair",
+      hair: "long",
+      outfit: "dress",
+      cute: true,
+    },
+  },
+];
+
+/** "No skin" — the player's own rolled look (selectedSkin is ""). */
+export const DEFAULT_SKIN = "";
 
 export const CAVE_THEMES: CaveTheme[] = [
   {

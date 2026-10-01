@@ -138,8 +138,9 @@ describe("cosmetic packs (plan §5.2)", () => {
     const paidThemes = CAVE_THEMES.filter((t) => t.costGems > 0);
     const packs = IAP_PRODUCT_LIST; // the catalog is packs only
     // Free defaults (steel / classic / natural) stay out of the catalog.
-    // The +1 is the custom-skin feature pack (todo: "Custom skinning") —
-    // the catalog's one non-cosmetic line.
+    // The +1 is the custom-skin FEATURE pack (todo: "Custom skinning") —
+    // the catalog's one non-cosmetic line, which rides the same "skin" line
+    // as the skin characters but grants no catalog item.
     expect(packs).toHaveLength(
       paidPickaxes.length + paidOutfits.length + paidThemes.length + 1,
     );
@@ -148,6 +149,12 @@ describe("cosmetic packs (plan §5.2)", () => {
     expect(byLine("pickaxe")).toEqual(paidPickaxes.map((p) => "pack_" + p.id));
     expect(byLine("outfit")).toEqual(paidOutfits.map((o) => "pack_" + o.id));
     expect(byLine("caveTheme")).toEqual(paidThemes.map((t) => "pack_" + t.id));
+    // The skin line's ONLY product is the custom-skin FEATURE pack: the
+    // characters themselves are gem-only for now (a cash pack needs a real
+    // Stripe price + Play/App Store SKU, which don't exist for them yet —
+    // see the note in iaps.ts PACK_SPECS). `SKINS.every(costGems > 0)`
+    // keeps that exception honest: a free skin would be a pack that grants
+    // nothing.
     expect(byLine("skin")).toEqual(["pack_skin"]);
   });
 
@@ -173,9 +180,10 @@ describe("cosmetic packs (plan §5.2)", () => {
   it("shop previews show the actual item (todo: cosmetic previews in shop listings)", () => {
     const packs = IAP_PRODUCT_LIST; // the catalog is packs only
     expect(packs).toHaveLength(Object.keys(IAP_PACK_GRANTS).length);
-    const spriteUris: Record<"pickaxe" | "outfit", string[]> = {
+    const spriteUris: Record<"pickaxe" | "outfit" | "skin", string[]> = {
       pickaxe: [],
       outfit: [],
+      skin: [],
     };
     for (const p of packs) {
       const grant = IAP_PACK_GRANTS[p.id]!;
@@ -201,7 +209,7 @@ describe("cosmetic packs (plan §5.2)", () => {
         }
         expect(preview.uri).toMatch(/^data:image\/png;base64,/);
         // This branch is non-theme, so p.line is the pack's sprite line.
-        spriteUris[p.line as "pickaxe" | "outfit"].push(preview.uri);
+        spriteUris[p.line as "pickaxe" | "outfit" | "skin"].push(preview.uri);
       }
     }
     // Each pickaxe previews as its own themed sprite; each outfit as its
@@ -217,6 +225,9 @@ describe("cosmetic packs (plan §5.2)", () => {
         minerSpriteUri(rollMinerLook(COSMETIC_PREVIEW_SEED, o.id)),
       ),
     );
+    // No skin packs yet (gem-only line), so the sprite bucket is empty —
+    // pinned so adding a pack without a preview shows up here.
+    expect(spriteUris.skin).toEqual([]);
     // Duplicates would mean two rows showing the same image.
     for (const uris of Object.values(spriteUris)) {
       expect(new Set(uris).size).toBe(uris.length);
@@ -418,20 +429,32 @@ describe("unified shop rows (isIapProductOwned / isIapProductEquipped)", () => {
 
   it("equipped tracks the save's selected outfit/pickaxe/theme", () => {
     // Default selections: classic outfit, steel pickaxe, natural theme.
-    expect(isIapProductEquipped("packGold", "classic", "gold", "natural")).toBe(
-      true,
-    );
     expect(
-      isIapProductEquipped("packShadow", "classic", "gold", "natural"),
+      isIapProductEquipped("packGold", "classic", "gold", "natural", ""),
+    ).toBe(true);
+    expect(
+      isIapProductEquipped(
+        "packShadow",
+        "classic",
+        "gold",
+        "natural",
+        "",
+      ),
     ).toBe(false);
     expect(
-      isIapProductEquipped("packCrystal", "crystal", "steel", "natural"),
+      isIapProductEquipped("packCrystal", "crystal", "steel", "natural", ""),
     ).toBe(true);
     expect(
-      isIapProductEquipped("packAmethyst", "classic", "steel", "amethyst"),
+      isIapProductEquipped(
+        "packAmethyst",
+        "classic",
+        "steel",
+        "amethyst",
+        "",
+      ),
     ).toBe(true);
     expect(
-      isIapProductEquipped("packAmethyst", "classic", "steel", "natural"),
+      isIapProductEquipped("packAmethyst", "classic", "steel", "natural", ""),
     ).toBe(false);
   });
 });

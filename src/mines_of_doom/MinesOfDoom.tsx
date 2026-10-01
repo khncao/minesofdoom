@@ -16,7 +16,13 @@ import { useLocalStorage } from "src/hooks/useLocalStorage";
 import type { DebrisParticlesRef } from "src/components/DebrisParticles";
 import type { BlockBreakRef } from "src/components/BlockBreak";
 import { Context } from "./Context";
-import { getCaveTheme, getThemeTint, isOutfitId } from "./cosmetics";
+import {
+  getCaveTheme,
+  getSkin,
+  getThemeTint,
+  isOutfitId,
+} from "./cosmetics";
+import { skinSpriteUri } from "src/utils/graphics/artPack";
 import { styles } from "./styles";
 import DepthBanner from "./components/DepthBanner";
 import EquationDisplay from "./components/EquationDisplay";
@@ -251,6 +257,7 @@ export default function MinesOfDoom() {
     buyCosmetic,
     buyCustomSkin,
     selectCosmetic,
+    clearSkin,
     rerollPlayerSeed,
     assignMinerOutfit,
     clearMinerOutfit,
@@ -655,6 +662,19 @@ export default function MinesOfDoom() {
       gridToPngDataUri(g as unknown as PixelGrid),
     );
   }, [customSkin]);
+
+  // An equipped SKIN (cosmetics.SKINS) as a body data URI. Precedence for
+  // the player's body, most specific first:
+  //   1. the custom-skin slot's art (uploaded / bundled / sample) — the
+  //      player authored it, so it wins;
+  //   2. an owned+equipped skin character;
+  //   3. nothing — the rolled outfit look (the baseline).
+  const equippedSkin = getSkin(gameState.selectedSkin);
+  const equippedSkinUri = useMemo(
+    () => (equippedSkin ? skinSpriteUri(equippedSkin) : null),
+    [equippedSkin],
+  );
+  const playerBodyUri = customSkinBodyUri ?? equippedSkinUri;
   // The equipped skin's pickaxe art as a data URI — the player miner's
   // pickaxe override (full-sprite replacement; swing/wind-up still rotate
   // it, so one image covers every frame). null = the stock pickaxe.
@@ -1927,6 +1947,8 @@ export default function MinesOfDoom() {
                 selectedOutfit={gameState.selectedOutfit}
                 selectedPickaxe={gameState.selectedPickaxe}
                 selectedCaveTheme={gameState.selectedCaveTheme}
+                selectedSkin={gameState.selectedSkin}
+                onClearEquippedSkin={clearSkin}
                 purchasing={iap.purchasing}
                 entitlements={iap.entitlements}
                 saveOwnedCosmeticIds={saveOwnedCosmeticIds}
@@ -2039,7 +2061,7 @@ export default function MinesOfDoom() {
                   outfitId={gameState.selectedOutfit}
                   pickaxeId={gameState.selectedPickaxe}
                   minerOutfits={ownedMinerOutfits}
-                  playerBodyUri={customSkinBodyUri}
+                  playerBodyUri={playerBodyUri}
                   playerPickaxeUri={customSkinPickaxeUri}
                   reduceMotion={reduceMotion}
                   emojiArt={settingsData.emojiArt}

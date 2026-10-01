@@ -113,9 +113,13 @@ in rough priority order:
       its baked 16×16 sample sprites (`skinSamples.ts`) are still classic
       art next to paper-cut bodies; the upload path itself is untouched
       player data, so only the SAMPLES need regenerating.
-- [ ] **skin line as shop content.** The 12 named paper-cut skins
-      (`papercutSkins.ts`) are a draft line, not purchasable cosmetics;
-      wiring them means an outfit-like line + prices + per-crew assignment.
+- [x] **skin line as shop content.** SHIPPED 2026-09-14: the 12 named
+      paper-cut skins are the `SKINS` catalog in `cosmetics.ts` — a real
+      cosmetic line with gem prices, shop cards, a compendium group and
+      `selectedSkin` (saveVersion 14). See `docs/skin-line.md`. Still gem-only:
+      the cash packs need real Stripe/Play/App Store SKUs (the note in
+      `iaps.ts` PACK_SPECS is the runbook), and per-crew skin assignment was
+      deliberately NOT done — a skin is the player's own slot.
 - [ ] **art-style setting (optional).** The seam already supports it
       (`setActiveArtPack` + a `defaultArtPackId` in the save); only a
       settings row + i18n is missing. Not promised — papercut is the

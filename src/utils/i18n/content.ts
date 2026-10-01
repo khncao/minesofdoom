@@ -42,6 +42,8 @@ export type ContentNamespace =
  | "pickaxe"
  /** Cave theme name + blurb (CAVE_THEMES in cosmetics.ts). */
  | "caveTheme"
+ /** Skin name + blurb (SKINS in cosmetics.ts). */
+ | "skin"
  /** IAP product label + blurb (IAP_PRODUCTS in iaps.ts). */
  | "iap"
  /** Bundled sprite-library art name (BUNDLED_SPRITES in bundledSprites.ts). */

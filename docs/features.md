@@ -175,8 +175,8 @@ of Pressable so rapid tapping doesn't double-render).
   `game.ts: SettingsData.emojiArt`). Characters and cosmetics ship in the
   **paper-cut** direction (32×32 label-map geometry + a value-plane
   renderer), chosen from five drafted art directions
-  (`utils/graphics/characterArt.ts`, `papercutSkins.ts`,
-  `docs/art-directions.md`); the cave and the debris shards stay classic.
+  (`utils/graphics/characterArt.ts`, `docs/art-directions.md`); the cave and
+  the debris shards stay classic.
   All sprite drawing goes through the **art-pack seam**
   (`utils/graphics/artPack.ts`), which keeps the classic 16×16 art
   registered as the `pixel` pack — `setActiveArtPack("pixel")` restores it

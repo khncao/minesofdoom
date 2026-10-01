@@ -29,7 +29,8 @@
  * Papercut is the picked direction (docs/art-directions.md), so the miner
  * subject also grew a `SkinShape` — headwear / hair / outfit / beard /
  * critter form / cute face — which is what the skin line in
- * `papercutSkins.ts` is built from. A skin is a `MinerLook` + a `SkinShape`,
+ * the SKINS catalog in `mines_of_doom/cosmetics.ts` is built from. A skin is
+ * a `MinerLook` + a `SkinShape`,
  * so a new character is data, never drawing code.
  *
  * Pure, framework-free, deterministic (no Math.random / Date — the crayon

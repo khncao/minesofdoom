@@ -283,6 +283,56 @@ export const contentEs: ContentTable = {
       "(cabello largo, ropas más suaves, el mismo temple inquebrantable). " +
       "Puramente cosmético.",
   },
+// --- Skin line (SKINS in cosmetics.ts) — the player's own slot -------------------
+  "skin:lantern-crew": {
+    title: "Cuadrilla del Farol",
+    detail: "el estándar del turno: casco con lámpara en la visera",
+  },
+  "skin:frost-bit": {
+    title: "Escarcha",
+    detail: "gorro rojo, lana verde, y sigue golpeando",
+  },
+  "skin:deep-survey": {
+    title: "Plano Profundo",
+    detail: "gorro con visera y barba; ya mapeó cada galería dos veces",
+  },
+  "skin:shift-foreman": {
+    title: "Capataz del Turno",
+    detail: "casco blanco, camisa roja, DUEÑO de toda la veta",
+  },
+  "skin:fox-crew": {
+    title: "Cuadrilla Zorro",
+    detail: "pañuelo rojo, y siempre el primero en bajar",
+  },
+  "skin:marmot-crew": {
+    title: "Cuadrilla Marmota",
+    detail: "gorro verde, imperturbable para siempre",
+  },
+  "skin:rose-lantern": {
+    title: "Farol Rosa",
+    detail: "pelo rosa largo, vestido lila — lleva la cesta de lámparas",
+  },
+  "skin:mint-comet": {
+    title: "Cometa Menta",
+    detail: "coleta menta; nombra cada cuenta antes de que caiga",
+  },
+  "skin:sky-bob": {
+    title: "Bob Celeste",
+    detail: "bob celeste debajo de un pequeño gorro naranja",
+  },
+  "skin:twin-bells": {
+    title: "Campanillas",
+    detail: "coletas gemelas, vestido amarillo, la lámpara más ruidosa",
+  },
+  "skin:blossom-bun": {
+    title: "Moño Florido",
+    detail: "moño alto, vestido rosa; lleva la cuenta de las gemas",
+  },
+  "skin:ember-sunrise": {
+    title: "Amanecer de Brasa",
+    detail: "pelo pelirrojo hasta la cintura, vestido ámbar, primera en bajar",
+  },
+
   "iap:packAmethyst": {
     title: "Tema Cueva de amatista",
     detail:

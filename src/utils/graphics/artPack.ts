@@ -48,6 +48,7 @@ import {
 } from "./crewChars";
 import type { SkinShape } from "./characterArt";
 import type { MinerLook, PickaxeThemeDef, PixelGrid } from "./pixelArt";
+import type { SkinCosmetic as SkinDef } from "../../mines_of_doom/cosmetics";
 
 export const ART_PACK_IDS = ["pixel", "papercut"] as const;
 export type ArtPackId = (typeof ART_PACK_IDS)[number];
@@ -85,6 +86,8 @@ export interface ArtPack {
    */
   minerSprite(look: MinerLook, opts?: SpriteOpts): string;
   pickaxeSprite(theme: PickaxeThemeDef): string;
+  /** One skin character for the player's slot (see cosmetics.SKINS). */
+  skinSprite(skin: SkinDef): string;
   debrisSprite(variant: number): string;
   mineralChunkSprite(): string;
   gemSprite(): string;
@@ -108,6 +111,20 @@ export function buildPapercutMinerGrid(look: MinerLook): PixelGrid {
 }
 
 /**
+ * Papercut grid for one skin character (the pack's skin sprite).
+ *
+ * A skin carries its own `shape`, so — unlike the crew lines, which fold a
+ * character into a rolled look — the silhouette is drawn exactly as authored.
+ */
+export function buildPapercutSkinGrid(skin: SkinDef): PixelGrid {
+  return renderDirection(
+    "papercut",
+    minerLabels({ ...skin.shape, tool: false }),
+    buildPalette("papercut", "miner", { miner: skin.look }),
+  );
+}
+
+/**
  * Debris: the papercut direction has no shard subject, and a 32×32 rock
  * crushed into the 12 px particle box is mush. The classic shards stay until
  * a paper-cut shard exists — at 12 px the mix is invisible.
@@ -127,6 +144,7 @@ const papercutPack: ArtPack = {
  },
  pickaxeSprite: (theme) =>
   gridToPngDataUri(buildDirectionGrid("papercut", "pickaxe", { pickaxe: theme })),
+ skinSprite: (skin) => gridToPngDataUri(buildPapercutSkinGrid(skin)),
  debrisSprite: (variant) => pixelDebrisSpriteUri(variant),
  mineralChunkSprite: () =>
   gridToPngDataUri(buildDirectionGrid("papercut", "chunk")),
@@ -144,6 +162,8 @@ const pixelPack: ArtPack = {
  // No cast: a crew row falls back to the classic miner.
  minerSprite: (look) => pixelMinerSpriteUri(look),
  pickaxeSprite: pixelPickaxeSpriteUri,
+ // No silhouette axes in the classic art: a skin is its colorway there.
+ skinSprite: (skin) => pixelMinerSpriteUri(skin.look),
  debrisSprite: pixelDebrisSpriteUri,
  mineralChunkSprite: pixelMineralChunkSpriteUri,
  gemSprite: pixelGemSpriteUri,
@@ -232,6 +252,29 @@ export function minerSpriteUri(
  return cached("miner", key, () =>
   activeArtPack().minerSprite(look, opts),
  );
+}
+
+/**
+ * An equipped skin's body sprite, as a PNG data URI (the player's slot).
+ * Both the id and the look fields are in the cache key, so switching skins
+ * or swapping art packs can never serve a stale image.
+ */
+export function skinSpriteUri(skin: SkinDef): string {
+  const key = JSON.stringify([
+    skin.id,
+    skin.look.skin,
+    skin.look.shirt,
+    skin.look.pants,
+    skin.look.boots,
+    skin.look.hat,
+    skin.look.hatStyle,
+    skin.shape.form,
+    skin.shape.hair ?? "",
+    skin.shape.outfit ?? "",
+    skin.shape.beard === true ? 1 : 0,
+    skin.shape.cute === true ? 1 : 0,
+  ]);
+  return cached("skin", key, () => activeArtPack().skinSprite(skin));
 }
 
 /** Pickaxe for a theme, as a PNG data URI. */

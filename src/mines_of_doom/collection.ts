@@ -1,5 +1,5 @@
 import { SaveData } from "./game";
-import { CAVE_THEMES, OUTFITS, PICKAXES } from "./cosmetics";
+import { CAVE_THEMES, OUTFITS, PICKAXES, SKINS } from "./cosmetics";
 import { ACHIEVEMENTS, isAchievementComplete } from "./achievements";
 
 /**
@@ -19,11 +19,12 @@ import { ACHIEVEMENTS, isAchievementComplete } from "./achievements";
  * panel, so it survives spending and is cheat-resistant.
  */
 
-/** The compendium's four lines, in display order. */
+/** The compendium's five lines, in display order. */
 export const COLLECTION_KINDS = [
   "pickaxe",
   "outfit",
   "caveTheme",
+  "skin",
   "achievement",
 ] as const;
 export type CollectionKind = (typeof COLLECTION_KINDS)[number];
@@ -31,7 +32,7 @@ export type CollectionKind = (typeof COLLECTION_KINDS)[number];
 /** One catalog line. Cosmetics carry equipped; achievements completed. */
 export type CollectionEntry =
   | {
-      kind: "pickaxe" | "outfit" | "caveTheme";
+      kind: "pickaxe" | "outfit" | "caveTheme" | "skin";
       id: string;
       owned: boolean;
       /** This item is the one currently equipped on the player. */
@@ -75,6 +76,11 @@ export function getCollection(save: SaveData): Collection {
     owned: save.ownedCaveThemes.includes(t.id),
     equipped: save.selectedCaveTheme === t.id,
   }));
+  const ownedSkins = SKINS.map((s) => ({
+    id: s.id,
+    owned: save.ownedCosmetics.includes(s.id),
+    equipped: save.selectedSkin === s.id,
+  }));
   const doneAchievements = ACHIEVEMENTS.map((a) => ({
     id: a.id,
     completed: isAchievementComplete(save, a),
@@ -98,6 +104,12 @@ export function getCollection(save: SaveData): Collection {
       total: CAVE_THEMES.length,
       owned: ownedThemes.filter((e) => e.owned).length,
       entries: ownedThemes.map((e) => ({ kind: "caveTheme", ...e })),
+    },
+    {
+      kind: "skin",
+      total: SKINS.length,
+      owned: ownedSkins.filter((e) => e.owned).length,
+      entries: ownedSkins.map((e) => ({ kind: "skin", ...e })),
     },
     {
       kind: "achievement",

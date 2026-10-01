@@ -19,6 +19,7 @@ import {
   pickaxeSpriteUri,
   setActiveArtPack,
   shapeForLook,
+  skinSpriteUri,
 } from "src/utils/graphics/artPack";
 import {
   DEBRIS_VARIANTS,
@@ -28,6 +29,7 @@ import {
 } from "src/utils/graphics/pixelArt";
 import { buildMinerGrid, buildPickaxeGrid } from "src/utils/graphics/pixelArt";
 import { minerLabels } from "src/utils/graphics/characterArt";
+import { COSMETIC_PREVIEW_SEED, SKINS, rollMinerLook } from "src/mines_of_doom/cosmetics";
 import type { MinerLook } from "src/utils/graphics/pixelArt";
 
 const PREFIX = "data:image/png;base64,";
@@ -244,6 +246,24 @@ describe("the papercut pack", () => {
     expect(minerSpriteUri(LOOK, { crewId: "cog", crewWearsOutfit: false })).toBe(
       bare,
     );
+  });
+
+  it("draws an equipped skin as AUTHORED, per pack", () => {
+    // A skin is a whole character (fixed look + fixed silhouette), so the
+    // papercut pack draws its shape — not the rolled look passed in.
+    setActiveArtPack("papercut");
+    const skin = SKINS[SKINS.length - 1]; // Ember Sunrise: long hair + dress
+    const uri = skinSpriteUri(skin);
+    expect(uri).toMatch(/^data:image\/png;base64,/);
+    expect(skinSpriteUri(skin)).toBe(uri); // cached per skin
+    expect(uri).not.toBe(
+      minerSpriteUri(rollMinerLook(COSMETIC_PREVIEW_SEED, "classic")),
+    );
+    // A different skin is a different image; the classic pack falls back to
+    // its colorway (it has no silhouette axes).
+    expect(skinSpriteUri(SKINS[0])).not.toBe(uri);
+    setActiveArtPack("pixel");
+    expect(skinSpriteUri(skin)).toBe(pixelMinerSpriteUri(skin.look));
   });
 
   it("the classic pack has no cast and ignores the id", () => {

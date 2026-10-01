@@ -519,6 +519,7 @@ export const en = {
   "collection.groupPickaxes": "Pickaxes ({owned}/{total})",
   "collection.groupOutfits": "Outfits ({owned}/{total})",
   "collection.groupThemes": "Cave themes ({owned}/{total})",
+  "collection.groupSkins": "Skins ({owned}/{total})",
   "collection.groupBadges": "Achievement badges ({owned}/{total})",
   "collection.equipped": "✓ equipped",
   "collection.earned": "✓ earned",
@@ -577,7 +578,8 @@ export const en = {
   "iap.groupThemes": "Cave themes",
   "iap.equip": "Equip",
   "iap.equipped": "✓ Equipped",
-  "iap.groupSkin": "Custom skin",
+  "iap.groupSkin": "Skins",
+  "iap.skinTakeOff": "Take off skin",
   "iap.groupSkinDetail":
     "Your own pixels: upload a body image and a swing sound (one-time unlock).",
   // Per-crew customization (todo: "allow visual customization (iap

@@ -167,6 +167,7 @@ function IapPanel({
   selectedOutfit,
   selectedPickaxe,
   selectedCaveTheme,
+  selectedSkin,
   /** Hired normal crew count — the individually-customizable roster slots. */
   miners,
   /**
@@ -193,6 +194,7 @@ function IapPanel({
   onPickSkinSamplePickaxe,
   onPickSkinSampleSound,
   onClearSkin,
+  onClearEquippedSkin,
   onClearSkinPickaxe,
 }: {
   /** Provider is the dev simulation (dev builds only). */
@@ -216,6 +218,11 @@ function IapPanel({
   selectedOutfit: string;
   selectedPickaxe: string;
   selectedCaveTheme: string;
+  /** Equipped skin id ("" = the player's own rolled look). */
+  selectedSkin: string;
+  /** Take the equipped SKIN off (back to the player's own rolled look). The
+   *  custom-skin upload slot has its own clear button (`onClearSkin`). */
+  onClearEquippedSkin?: () => void;
   /** Hired normal crew count (per-crew customization scope). */
   miners: number;
   /** Owned-filtered per-crew outfit overrides (see the prop doc above). */
@@ -337,6 +344,7 @@ function IapPanel({
         selectedOutfit,
         selectedPickaxe,
         selectedCaveTheme,
+        selectedSkin,
         customSkin.equipped,
       );
     }
@@ -418,6 +426,7 @@ function IapPanel({
       selectedOutfit,
       selectedPickaxe,
       selectedCaveTheme,
+      selectedSkin,
       customSkin.equipped,
     );
     const gemsAffordable = gems >= pack.costGems;
@@ -718,6 +727,18 @@ function IapPanel({
     );
   };
 
+  // The skin line is the only one with two kinds of product: the character
+  // skins (cards, like every other line) and the one feature pack (a row).
+  const skinLineProducts = IAP_PRODUCT_LIST.filter(
+    (p) =>
+      p.line === "skin" && IAP_PACK_GRANTS[p.id].kind === "cosmetic",
+  );
+  const customSkinProduct =
+    IAP_PRODUCT_LIST.find(
+      (p) =>
+        p.line === "skin" && IAP_PACK_GRANTS[p.id].kind === "customSkin",
+    ) ?? null;
+
   const GROUP_ORDER: IapPackLine[] = ["pickaxe", "outfit", "caveTheme", "skin"];
 
   return (
@@ -792,8 +813,9 @@ function IapPanel({
               </Text>
             )}
             {line === "skin" && (
-              // The feature-tier line: the player's own pixels replace
-              // the outfit miner's body (docs/todo.md custom-skinning).
+              // Two things under one line now: the character skin cards, and
+              // the feature-tier upload slot below them (the player's own
+              // pixels — docs/todo.md custom-skinning).
               <Text style={{ ...styles.text, fontSize: 11, color: "#999" }}>
                 {t("iap.groupSkinDetail")}
               </Text>
@@ -838,7 +860,30 @@ function IapPanel({
               </>
             )}
             {line === "skin" ? (
-              IAP_PRODUCT_LIST.filter((p) => p.line === line).map(renderSkinRow)
+              <>
+                {/* The SKIN LINE: one card per character (papercut
+                    silhouettes, papercutSkins → cosmetics.SKINS), then the
+                    custom-skin FEATURE pack as its own control row (uploads
+                    and samples are row-shaped; cards don't fit them). */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    flexWrap: "wrap",
+                    gap: 6,
+                  }}
+                >
+                  {skinLineProducts.map(renderCard)}
+                  {selectedSkin !== "" && onClearEquippedSkin != null && (
+                    <Button
+                      tone="gem"
+                      title={t("iap.skinTakeOff")}
+                      onPress={onClearEquippedSkin}
+                    />
+                  )}
+                </View>
+                {customSkinProduct != null &&
+                  renderSkinRow(customSkinProduct)}
+              </>
             ) : (
               // Grid of cards (todo: "implement cosmetic shop with grid
               // view cards and larger previews") — previews at card size,

@@ -3,7 +3,11 @@ import { Image, View } from "react-native";
 import { T as Text } from "../textScale";
 import { useContent, useT } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
-import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/artPack";
+import {
+  minerSpriteUri,
+  pickaxeSpriteUri,
+  skinSpriteUri,
+} from "src/utils/graphics/artPack";
 import { emojis } from "src/utils/graphics/emojis";
 import { SaveData } from "../game";
 import { getAchievement } from "../achievements";
@@ -11,10 +15,12 @@ import {
   COSMETIC_PREVIEW_SEED,
   OUTFITS,
   PICKAXES,
+  SKINS,
   getCostGems,
   getCaveTheme,
   getPickaxe,
   getOutfit,
+  getSkin,
   rollMinerLook,
 } from "../cosmetics";
 import { getCollection, CollectionGroup } from "../collection";
@@ -93,6 +99,11 @@ const CollectionContent = memo(function CollectionContent({
     () => new Map(PICKAXES.map((p) => [p.id, pickaxeSpriteUri(p.theme)])),
     [],
   );
+  // Skins are drawn as authored (never rolled), so the thumb IS the item.
+  const skinThumbs = useMemo(
+    () => new Map(SKINS.map((s) => [s.id, skinSpriteUri(s)])),
+    [],
+  );
 
   const renderGroup = (group: CollectionGroup) => {
     const title =
@@ -111,10 +122,15 @@ const CollectionContent = memo(function CollectionContent({
                 owned: group.owned,
                 total: group.total,
               })
-            : t("collection.groupBadges", {
-                owned: group.owned,
-                total: group.total,
-              });
+            : group.kind === "skin"
+              ? t("collection.groupSkins", {
+                  owned: group.owned,
+                  total: group.total,
+                })
+              : t("collection.groupBadges", {
+                  owned: group.owned,
+                  total: group.total,
+                });
     return (
       <View key={group.kind} style={{ gap: 2 }}>
         <Text style={{ ...styles.text, opacity: 0.7, fontSize: 12 }}>
@@ -183,43 +199,43 @@ const CollectionContent = memo(function CollectionContent({
               />
             );
           }
-          const outfit = getOutfit(entry.id);
+          // Pickaxe / outfit / skin rows all share the shape: a sprite
+          // thumb, a name, an optional one-liner. The lookup differs, so
+          // each kind resolves its own strings (skins have no content
+          // entries, so they fall back to the catalog name/blurb).
+          const skin = getSkin(entry.id);
+          const strings =
+            entry.kind === "pickaxe"
+              ? content("pickaxe", entry.id, {
+                  title: getPickaxe(entry.id).name,
+                })
+              : entry.kind === "skin"
+                ? content("skin", entry.id, {
+                    title: skin?.name ?? entry.id,
+                    detail: skin?.blurb,
+                  })
+                : content("outfit", entry.id, {
+                    title: getOutfit(entry.id).name,
+                    detail: getOutfit(entry.id).blurb,
+                  });
+          const thumb =
+            entry.kind === "pickaxe"
+              ? pickaxeThumbs.get(entry.id)
+              : entry.kind === "skin"
+                ? skinThumbs.get(entry.id)
+                : outfitThumbs.get(entry.id);
           return (
             <EntryRow
               key={entry.id}
               thumb={
-                entry.kind === "pickaxe" ? (
-                  <Image
-                    source={{ uri: pickaxeThumbs.get(entry.id)! }}
-                    style={{ width: 20, height: 20 }}
-                    accessibilityRole="image"
-                  />
-                ) : (
-                  <Image
-                    source={{ uri: outfitThumbs.get(entry.id)! }}
-                    style={{ width: 20, height: 20 }}
-                    accessibilityRole="image"
-                  />
-                )
+                <Image
+                  source={{ uri: thumb ?? "" }}
+                  style={{ width: 20, height: 20 }}
+                  accessibilityRole="image"
+                />
               }
-              title={
-                entry.kind === "pickaxe"
-                  ? content("pickaxe", entry.id, {
-                      title: getPickaxe(entry.id).name,
-                    }).title
-                  : content("outfit", entry.id, {
-                      title: outfit.name,
-                      detail: outfit.blurb,
-                    }).title
-              }
-              detail={
-                entry.kind === "pickaxe"
-                  ? undefined
-                  : content("outfit", entry.id, {
-                      title: outfit.name,
-                      detail: outfit.blurb,
-                    }).detail
-              }
+              title={strings.title}
+              detail={entry.kind === "pickaxe" ? undefined : strings.detail}
               status={status}
               dim={!owned}
             />

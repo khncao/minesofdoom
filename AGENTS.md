@@ -101,7 +101,11 @@ and the old art is still there. Under the seam:
 - `pixelArt.ts` — classic 16×16 grids (`buildMinerGrid` …) + the PNG encoder. The
   `pixel` pack is these builders unchanged; it also stays the debris shards.
 - `characterArt.ts` — 32×32 label-map geometry (`minerLabels(shape)`) + the five
-  art-direction renderers; `papercutSkins.ts` is the named skin line.
+  art-direction renderers. The SKIN line (the player's own slot) is the
+  `SKINS` catalog in `mines_of_doom/cosmetics.ts` — a fixed look + a fixed
+  shape per character, drawn by `artPack.skinSpriteUri`, sold as shop cards
+  and gated on `SaveData.selectedSkin` (saveVersion 14). It is GEM-ONLY until
+  the store SKUs exist; see `docs/skin-line.md` and the note in `iaps.ts`.
 - `caveTiles.ts` — the cave background, deliberately OUTSIDE the pack seam (it is
   its own strip pipeline, and a paper-cut cave is still an open todo item). Its
   rock/gap silhouette and rock body are sampled at GLOBAL pixels through

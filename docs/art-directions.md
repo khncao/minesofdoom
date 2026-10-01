@@ -163,17 +163,22 @@ switches `characterArt.minerLabels(shape)` grew for exactly this:
 | `beard` | beard/moustache, drawn in the `hat` color (the in-game longhair trick) |
 | `cute` | bigger rounder eyes, lash ticks, a 1px catch-light, 2px blush |
 
-The line lives in `src/utils/graphics/papercutSkins.ts` (12 skins, pure data
-+ `buildPapercutSkinGrid`), tested in `papercutSkins.test.ts` (11 tests). The
+This started as a draft line and is now SHIPPED: the 12 skins are the
+`SKINS` catalog in `src/mines_of_doom/cosmetics.ts`, drawn by
+`artPack.buildPapercutSkinGrid` / `skinSpriteUri`, sold in the shop's skin
+line and listed in the compendium — see [skin-line.md](skin-line.md) and
+`src/mines_of_doom/__test__/skins.test.ts` (13 tests). Regenerate the sheets
+with `node scripts/generate-skin-line-samples.mjs`. The
 half that isn't crew is the cute/pretty half — the same read the anime draft
 ([art-anime.md](art-anime.md)) was reaching for: hair, dresses, bigger eyes,
 so the roster reads as characters rather than palette swaps.
 
 | sheet | what it is |
 | --- | --- |
-| ![skins](art-directions/samples/papercut-skins.png) | the line, 6×2, on the dark slate of the other art sheets — directly comparable with the direction sheet above |
-| ![skins on paper](art-directions/samples/papercut-skins-paper.png) | the same grid on the cream stock papercut is cut from. Papercut has to be judged on its own ground: on slate the cast shadow and the cut edges have nothing to sit on |
-| ![skins zoom](art-directions/samples/papercut-skins-zoom.png) | four of the cute half at 8× — the face detail (glint, lash, blush) is the part that dies first at 32px |
+| ![skins](skin-line/samples/skin-line.png) | the line, 6×2, on the dark slate of the other art sheets — directly comparable with the direction sheet above |
+| ![skins on paper](skin-line/samples/skin-line-paper.png) | the same grid on the cream stock papercut is cut from. Papercut has to be judged on its own ground: on slate the cast shadow and the cut edges have nothing to sit on |
+| ![skins at player size](skin-line/samples/skin-line-player-size.png) | the same twelve at 44px — the size the player's own slot renders at, so this is the read that matters |
+| ![skins zoom](skin-line/samples/skin-line-zoom.png) | four of the cute half at 8× — the face detail (glint, lash, blush) is the part that dies first at 32px |
 
 ### The cast
 

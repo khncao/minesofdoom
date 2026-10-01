@@ -1,6 +1,6 @@
 import { createEmptySaveData, SaveData } from "../game";
 import { getCollection, CollectionEntry } from "../collection";
-import { OUTFITS, PICKAXES, CAVE_THEMES } from "../cosmetics";
+import { OUTFITS, PICKAXES, CAVE_THEMES, SKINS } from "../cosmetics";
 import { ACHIEVEMENTS } from "../achievements";
 
 /** True for owned cosmetics / completed achievements (union helper). */
@@ -10,18 +10,20 @@ const done = (e: CollectionEntry): boolean =>
 describe("getCollection (features.md §7 compendium, iteration 23)", () => {
   const save = () => createEmptySaveData();
 
-  it("reports the four groups in display order, one per catalog line", () => {
+  it("reports the five groups in display order, one per catalog line", () => {
     const c = getCollection(save());
     expect(c.groups.map((g) => g.kind)).toEqual([
       "pickaxe",
       "outfit",
       "caveTheme",
+      "skin",
       "achievement",
     ]);
     expect(c.groups.map((g) => g.total)).toEqual([
       PICKAXES.length,
       OUTFITS.length,
       CAVE_THEMES.length,
+      SKINS.length,
       ACHIEVEMENTS.length,
     ]);
     // Every entry id matches its catalog, in catalog order.
@@ -35,6 +37,9 @@ describe("getCollection (features.md §7 compendium, iteration 23)", () => {
       CAVE_THEMES.map((t) => t.id),
     );
     expect(c.groups[3].entries.map((e) => e.id)).toEqual(
+      SKINS.map((k) => k.id),
+    );
+    expect(c.groups[4].entries.map((e) => e.id)).toEqual(
       ACHIEVEMENTS.map((a) => a.id),
     );
   });
@@ -48,14 +53,18 @@ describe("getCollection (features.md §7 compendium, iteration 23)", () => {
     expect(done(entry(0, "gold"))).toBe(false);
     expect(done(entry(2, "natural"))).toBe(true);
     expect(done(entry(2, "amethyst"))).toBe(false);
+    // The skin line has no free member: a fresh save owns none of them.
     expect(c.groups[3].owned).toBe(0);
     expect(c.groups[3].entries.every((e) => !done(e))).toBe(true);
+    expect(c.groups[4].owned).toBe(0);
+    expect(c.groups[4].entries.every((e) => !done(e))).toBe(true);
     // totalOwned = the three free defaults only.
     expect(c.totalOwned).toBe(3);
     expect(c.totalItems).toBe(
       PICKAXES.length +
         OUTFITS.length +
         CAVE_THEMES.length +
+        SKINS.length +
         ACHIEVEMENTS.length,
     );
   });

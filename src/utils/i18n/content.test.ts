@@ -23,7 +23,12 @@ import {
   SKIN_SAMPLE_SOUNDS,
 } from "src/mines_of_doom/skinSamples";
 import { LEGAL_DOCS } from "src/mines_of_doom/legal";
-import { OUTFITS, PICKAXES, CAVE_THEMES } from "src/mines_of_doom/cosmetics";
+import {
+  OUTFITS,
+  PICKAXES,
+  CAVE_THEMES,
+  SKINS,
+} from "src/mines_of_doom/cosmetics";
 import { translateContent, contentKey, type ContentStrings } from "./content";
 import { contentEs } from "./content-es";
 
@@ -71,6 +76,9 @@ function expectedItems(): Map<string, ContentStrings> {
   }
   for (const t of CAVE_THEMES) {
     m.set(contentKey("caveTheme", t.id), { title: t.name, detail: t.blurb });
+  }
+  for (const k of SKINS) {
+    m.set(contentKey("skin", k.id), { title: k.name, detail: k.blurb });
   }
   for (const doc of LEGAL_DOCS) {
     m.set(contentKey("legalDoc", doc.id), { title: doc.title });

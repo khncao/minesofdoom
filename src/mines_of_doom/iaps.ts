@@ -29,11 +29,17 @@ import {
  getCaveTheme,
  getOutfit,
  getPickaxe,
+ getSkin,
  isOutfitId,
+ isSkinId,
  rollMinerLook,
 } from "./cosmetics";
 import { CUSTOM_SKIN_UNLOCK_COST_GEMS } from "./customSkin";
-import { minerSpriteUri, pickaxeSpriteUri } from "src/utils/graphics/artPack";
+import {
+ minerSpriteUri,
+ pickaxeSpriteUri,
+ skinSpriteUri,
+} from "src/utils/graphics/artPack";
 // The real provider (native; a no-op on web via the .web swap). Imported
 // here (not the reverse) so the selection rules stay in one pure module;
 // the import is only read at call time inside selectIapProvider, which
@@ -55,7 +61,8 @@ export type IapPackLine = "pickaxe" | "outfit" | "caveTheme" | "skin";
 
 /**
  * One pack per PAID cosmetic (costGems > 0) in cosmetics.ts, in
- * cosmetics.ts catalog order per line (pickaxes, outfits, cave themes).
+ * cosmetics.ts catalog order per line (pickaxes, outfits, cave themes,
+ * skins).
  * The internal id is `pack` + the cosmetic id PascalCased — and it is
  * deliberately NOT the store id (the store id is the Play Billing SKU /
  * App Store product id; the two name different things and must stay
@@ -87,6 +94,15 @@ const PACK_SPECS = [
  { id: "packAshen", line: "caveTheme", cosmeticId: "ashen" },
  { id: "packGothic", line: "caveTheme", cosmeticId: "gothic" },
  { id: "packCherry", line: "caveTheme", cosmeticId: "cherry" },
+ // NOTE: the skin line (cosmetics.SKINS) is GEM-ONLY for now. A cash pack
+ // needs a real Stripe price plus Play/App Store SKU created in the
+ // accounts (`node scripts/stripe/syncStripe.mjs products`, the runbook in
+ // docs/store-integration.md §2), and none exist for the new skins — a cash
+ // button pointing at a made-up price id would just error at checkout. When
+ // the SKUs land, add one pack per paid skin here (in SKINS order) + the
+ // Stripe price ids in storeConfig.ts + the mirrored entry in
+ // pb_hooks/logic.js PRODUCTS, and drop the "skin" exception from
+ // `exactly one pack per PAID cosmetic` in iaps.test.ts.
  // The custom-skin feature pack (feature tier — the priciest line,
  // price derived from the gem price via packPriceLabel). `cosmeticId`
  // doubles as the store-slug stem (pack_skin — the store id is a
@@ -319,6 +335,10 @@ export function getIapPackCosmetic(productId: IapProductId): {
   const outfit = getOutfit(grant.id);
   return { name: outfit.name, costGems: outfit.costGems };
  }
+ if (isSkinId(grant.id)) {
+  const skin = getSkin(grant.id)!;
+  return { name: skin.name, costGems: skin.costGems };
+ }
  const pickaxe = getPickaxe(grant.id);
  return { name: pickaxe.name, costGems: pickaxe.costGems };
 }
@@ -353,6 +373,11 @@ export function getIapProductPreview(id: IapProductId): IapProductPreview {
    kind: "sprite",
    uri: minerSpriteUri(rollMinerLook(COSMETIC_PREVIEW_SEED, grant.id)),
   };
+ }
+ if (isSkinId(grant.id)) {
+  // The skin AS AUTHORED — not a rolled look: the whole point of the line
+  // is that the card shows the character you get.
+  return { kind: "sprite", uri: skinSpriteUri(getSkin(grant.id)!) };
  }
  return {
   kind: "sprite",
@@ -635,6 +660,7 @@ export function isIapProductEquipped(
  selectedOutfit: string,
  selectedPickaxe: string,
  selectedCaveTheme: string,
+ selectedSkin: string,
  /** The device-local skin slot's equip flag (useCustomSkin). */
  customSkinEquipped?: boolean,
 ): boolean {
@@ -642,6 +668,7 @@ export function isIapProductEquipped(
  if (grant.kind === "customSkin") return customSkinEquipped === true;
  if (grant.kind === "caveTheme") return selectedCaveTheme === grant.id;
  if (isOutfitId(grant.id)) return selectedOutfit === grant.id;
+ if (isSkinId(grant.id)) return selectedSkin === grant.id;
  return selectedPickaxe === grant.id;
 }
 

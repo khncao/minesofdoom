@@ -530,6 +530,7 @@ export const es: Record<TranslationKey, string> = {
   "collection.groupPickaxes": "Picos ({owned}/{total})",
   "collection.groupOutfits": "Trajes ({owned}/{total})",
   "collection.groupThemes": "Temas de cueva ({owned}/{total})",
+  "collection.groupSkins": "Pieles ({owned}/{total})",
   "collection.groupBadges": "Insignias de logro ({owned}/{total})",
   "collection.equipped": "✓ equipado",
   "collection.earned": "✓ conseguida",
@@ -589,7 +590,8 @@ export const es: Record<TranslationKey, string> = {
   "iap.groupThemes": "Temas de cueva",
   "iap.equip": "Equipar",
   "iap.equipped": "✓ Equipado",
-  "iap.groupSkin": "Piel personalizada",
+  "iap.groupSkin": "Pieles",
+  "iap.skinTakeOff": "Quitar piel",
   "iap.groupSkinDetail":
     "Tus propios píxeles: sube una imagen de cuerpo y un sonido de balanceo (desbloqueo único).",
   // Personalización por minero (todo: "allow visual customization (iap

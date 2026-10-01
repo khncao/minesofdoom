@@ -1,6 +1,7 @@
 import {
   DEFAULT_OWNED,
   DEFAULT_OUTFIT,
+  DEFAULT_SKIN,
   DEFAULT_PICKAXE,
   DEFAULT_OWNED_CAVE_THEMES,
   DEFAULT_CAVE_THEME,
@@ -9,6 +10,7 @@ import {
   isCaveThemeId,
   isOutfitId,
   isPickaxeId,
+  isSkinId,
 } from "./cosmetics";
 import { localDayKeyDaysAgo } from "./dailyBonus";
 import { Equation, Ops } from "src/utils/math/equations";
@@ -103,6 +105,13 @@ export type SaveData = {
   // one. Like every cosmetic, they survive a sunk shaft.
   ownedCaveThemes: string[];
   selectedCaveTheme: string;
+  /**
+   * Skin line (the PLAYER's own slot): equipped skin id, or "" for "no skin"
+   * — which is the player's own rolled look, not an item. Skins live in
+   * `ownedCosmetics` (like outfits and pickaxes), so ownership, gem buys and
+   * store packs all ride the existing plumbing; only the selection is new.
+   */
+  selectedSkin: string;
   /**
    * Per-roster-miner outfit overrides (todo: "allow visual customization
    * (iap cosmetic) of hired miners individually"): a map of roster slot
@@ -231,7 +240,7 @@ export type SettingsData = {
 };
 
 export const saveDataKey = "save";
-export const saveVersion = 13;
+export const saveVersion = 14;
 export const settingsDataKey = "settings";
 export const equationSettingsKey = "equationSettings";
 
@@ -421,6 +430,13 @@ const migrations: Record<
     saveVersion: 13,
     minerOutfits: sanitizeMinerOutfits(data.minerOutfits),
   }),
+  // 13 -> 14: the skin line (the player's own slot). Old saves own no skins
+  // and wear their rolled look, which is what selectedSkin "" means.
+  13: (data) => ({
+    ...data,
+    saveVersion: 14,
+    selectedSkin: DEFAULT_SKIN,
+  }),
   // 7 -> 8: tier-4 cosmetic line (cave themes). Old saves own just the free
   // default and haven't changed the cave look; junk ids are dropped and the
   // free default is always kept owned, like every other cosmetic field.
@@ -545,7 +561,8 @@ export function buildSaveData(
         ...(Array.isArray(migrated.ownedCosmetics)
           ? migrated.ownedCosmetics.filter(
               (c): c is string =>
-                typeof c === "string" && (isOutfitId(c) || isPickaxeId(c)),
+                typeof c === "string" &&
+                (isOutfitId(c) || isPickaxeId(c) || isSkinId(c)),
             )
           : []),
       ]),
@@ -576,6 +593,17 @@ export function buildSaveData(
       isCaveThemeId(migrated.selectedCaveTheme)
         ? migrated.selectedCaveTheme
         : DEFAULT_CAVE_THEME,
+    // An unknown skin id falls back to "no skin" (the rolled look) — and a
+    // skin that is selected but NOT owned is dropped too, so a save can't
+    // show a character the player never bought.
+    selectedSkin:
+      typeof migrated.selectedSkin === "string" &&
+      isSkinId(migrated.selectedSkin) &&
+      (Array.isArray(migrated.ownedCosmetics)
+        ? migrated.ownedCosmetics.includes(migrated.selectedSkin)
+        : false)
+        ? migrated.selectedSkin
+        : DEFAULT_SKIN,
     minerOutfits: sanitizeMinerOutfits(migrated.minerOutfits),
   };
 }
@@ -951,6 +979,7 @@ export function createEmptySaveData(): SaveData {
     selectedPickaxe: DEFAULT_PICKAXE,
     ownedCaveThemes: [...DEFAULT_OWNED_CAVE_THEMES],
     selectedCaveTheme: DEFAULT_CAVE_THEME,
+    selectedSkin: DEFAULT_SKIN,
     // No per-miner overrides yet — every hire wears the selected outfit.
     minerOutfits: {},
   };

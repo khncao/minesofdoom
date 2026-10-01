@@ -141,8 +141,8 @@ export type AnalyticsState = {
   lastStaleReturnDay: string;
 };
 
-/** The three cosmetic lines the catalog is organized by. */
-export type CosmeticLine = "outfit" | "pickaxe" | "theme";
+/** The four cosmetic lines the catalog is organized by. */
+export type CosmeticLine = "outfit" | "pickaxe" | "theme" | "skin";
 
 /** How the cosmetic was paid for: the in-game gem price or a store pack. */
 export type CosmeticPurchasePath = "gems" | "iap";
@@ -579,7 +579,10 @@ function isCosmeticPurchaseEvent(e: unknown): e is CosmeticPurchaseEvent {
   if (typeof e !== "object" || e === null) return false;
   const o = e as Record<string, unknown>;
   return (
-    (o.line === "outfit" || o.line === "pickaxe" || o.line === "theme") &&
+    (o.line === "outfit" ||
+      o.line === "pickaxe" ||
+      o.line === "theme" ||
+      o.line === "skin") &&
     typeof o.id === "string" &&
     (o.path === "gems" || o.path === "iap") &&
     typeof o.gems === "number" &&

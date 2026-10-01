@@ -45,10 +45,12 @@ import { getAchievementBonus } from "../achievements";
 import { getTierBonus } from "../goals";
 import { getLocalDayKey } from "../dailyBonus";
 import {
+  DEFAULT_SKIN,
   getCaveThemeCost,
   getCostGems,
   isOutfitId,
   isPickaxeId,
+  isSkinId,
 } from "../cosmetics";
 import {
   decodeSaveCode,
@@ -710,11 +712,16 @@ export function useGameEngine(
         ownedCosmetics: [...n.ownedCosmetics, id],
         selectedOutfit: isOutfitId(id) ? id : n.selectedOutfit,
         selectedPickaxe: isPickaxeId(id) ? id : n.selectedPickaxe,
+        selectedSkin: isSkinId(id) ? id : n.selectedSkin,
       };
     });
     if (willBuy) {
       onCosmeticPurchasedRef.current?.({
-        line: isOutfitId(id) ? "outfit" : "pickaxe",
+        line: isOutfitId(id)
+          ? "outfit"
+          : isSkinId(id)
+            ? "skin"
+            : "pickaxe",
         id,
         path: "gems",
         gems: cur.gems - cost,
@@ -728,12 +735,22 @@ export function useGameEngine(
       if (!n.ownedCosmetics.includes(id)) return n;
       if (isOutfitId(id) && n.selectedOutfit === id) return n;
       if (isPickaxeId(id) && n.selectedPickaxe === id) return n;
+      if (isSkinId(id) && n.selectedSkin === id) return n;
       return {
         ...n,
         selectedOutfit: isOutfitId(id) ? id : n.selectedOutfit,
         selectedPickaxe: isPickaxeId(id) ? id : n.selectedPickaxe,
+        selectedSkin: isSkinId(id) ? id : n.selectedSkin,
       };
     });
+  }, []);
+
+  // Take the skin off (the player's own rolled look is the "" selection —
+  // the skin line is an overlay on the player slot, so it needs a way back).
+  const clearSkin = useCallback(() => {
+    setGameState((n: SaveData) =>
+      n.selectedSkin === DEFAULT_SKIN ? n : { ...n, selectedSkin: DEFAULT_SKIN },
+    );
   }, []);
 
   // Reroll the player sprite randomizer (roster variants follow, since they
@@ -1248,6 +1265,7 @@ export function useGameEngine(
     completeAchievements,
     buyCosmetic,
     selectCosmetic,
+    clearSkin,
     rerollPlayerSeed,
     assignMinerOutfit,
     clearMinerOutfit,
