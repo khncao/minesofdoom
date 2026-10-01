@@ -34,8 +34,9 @@ const WALL_PARALLAX = 1.25;
  *                  opacity, behind everything else);
  *   3. mid rows  — the original rows at 1× (the depth-metered descent);
  *   4. walls     — baked jagged rock columns on the screen edges at
- *                  WALL_PARALLAX speed, period CAVE_WALL_TILE_H (the
- *                  vertical repeat makes the wrap seamless).
+ *                  WALL_PARALLAX speed, one band per CAVE_WALL_TILE_H of
+ *                  descent, each band its own texture (addressed by absolute
+ *                  depth like the rows — no repeating wall strip).
  * Every layer keeps the original re-index hand-off: when its descent
  * crosses one period, the content re-indexes and the animated value is
  * advanced by the same period in the same commit, so each descent is
@@ -56,7 +57,8 @@ interface CaveBackgroundProps {
 /**
  * One descent layer: given the layer's descent in px, return its animated
  * translateY. The layer's content is re-indexed every `periodPx` of
- * descent (rows: the row set; walls: nothing — the strip repeats); the
+ * descent (rows and wall bands both address their content by that index);
+ * the
  * value's in-period phase is what scrolls. Mirrors the original
  * single-strip implementation for each layer's own domain.
  */
@@ -161,20 +163,22 @@ function CaveBackground({
           ),
     [emojiArt, farRowStart, rowCount, tint, stripWidth],
   );
-  const wallLeftUri = useMemo(
-    () =>
-      emojiArt
-        ? undefined
-        : caveWallUri({ tint, side: "left", widthPx: width }),
-    [emojiArt, tint, width],
-  );
-  const wallRightUri = useMemo(
-    () =>
-      emojiArt
-        ? undefined
-        : caveWallUri({ tint, side: "right", widthPx: width }),
-    [emojiArt, tint, width],
-  );
+  // The wall descends on the same absolute-band addressing as the rows, so
+  // each band is a unique texture — the old single strip repeated every
+  // CAVE_WALL_TILE_H, which read as a visible vertical pattern down the
+  // screen edge. One extra band above the window keeps the wrap covered.
+  const wallBandStart = Math.floor(wallDomain / CAVE_WALL_TILE_H);
+  const wallUris = (side: "left" | "right"): string[] =>
+    emojiArt
+      ? []
+      : Array.from({ length: wallStrips }, (_, i) =>
+          caveWallUri({
+            tint,
+            side,
+            widthPx: width,
+            band: wallBandStart - 1 + i,
+          }),
+        );
 
   // Identity interpolation keeps RN Web's transform animation happy
   // (the original single-strip version needed the same).
@@ -192,7 +196,7 @@ function CaveBackground({
   });
 
   const wallColumn = (
-    uri: string | undefined,
+    uris: string[],
     animated: boolean,
     side: "left" | "right",
   ) => {
@@ -204,7 +208,7 @@ function CaveBackground({
       width: wallWidth,
       ...(side === "left" ? { left: 0 } : { right: 0 }),
     };
-    if (!animated || !uri) {
+    if (!animated || uris.length === 0) {
       return (
         <View
           style={[
@@ -226,7 +230,7 @@ function CaveBackground({
           styles.wallColumn,
         ]}
       >
-        {Array.from({ length: wallStrips }, (_, i) => (
+        {uris.map((uri, i) => (
           <Image
             key={i}
             source={{ uri }}
@@ -311,8 +315,8 @@ function CaveBackground({
         </Animated.View>
       )}
       {/* 4. Foreground walls (fast parallax, jagged inner edge). */}
-      {wallColumn(wallLeftUri, !emojiArt, "left")}
-      {wallColumn(wallRightUri, !emojiArt, "right")}
+      {wallColumn(wallUris("left"), !emojiArt, "left")}
+      {wallColumn(wallUris("right"), !emojiArt, "right")}
     </View>
   );
 }

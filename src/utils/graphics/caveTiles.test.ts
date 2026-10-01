@@ -191,11 +191,18 @@ describe("buildCaveRow", () => {
     // The shade field is sampled at GLOBAL pixel y with a per-tier seed,
     // so the bottom of row r and the top of row r+1 continue the same rock
     // body. (The old per-row seed + per-row bottom fade reset every 24px
-    // and read as a repeating dark stripe at every row boundary.) For rock
-    // pixels on BOTH sides of the boundary, most must share a shade.
+    // and read as a repeating dark stripe at every row boundary.)
+    //
+    // The seam pair must be no coarser than a typical pair ANYWHERE inside a
+    // row — comparing against an interior control (rather than a fixed
+    // ratio) is what makes this a banding test: a row-local reseed or fade
+    // would make the seam far worse than the interior, and that is what
+    // fails here.
     for (const tier of [0, 2]) {
       let both = 0;
       let same = 0;
+      let innerBoth = 0;
+      let innerSame = 0;
       for (let row = 0; row < 8; row++) {
         const a = buildCaveRow(tier, row, "#8fa8b8");
         const b = buildCaveRow(tier, row + 1, "#8fa8b8");
@@ -206,11 +213,72 @@ describe("buildCaveRow", () => {
             both++;
             if (pa === pb) same++;
           }
+          // Interior control: a vertically adjacent pair in the middle of
+          // this same row, away from any strip boundary.
+          const qa = a[10][x];
+          const qb = a[11][x];
+          if (qa != null && qb != null) {
+            innerBoth++;
+            if (qa === qb) innerSame++;
+          }
         }
       }
       expect(both).toBeGreaterThan(400);
-      expect(same / both).toBeGreaterThan(0.6);
+      expect(innerBoth).toBeGreaterThan(400);
+      // The seam is within a shade step of the interior (see the note above).
+      expect(same / both).toBeGreaterThan(innerSame / innerBoth - 0.08);
     }
+  });
+
+  test("the rock silhouette crosses tile and row boundaries (no 24px lattice)", () => {
+    // The layout used to be decided once per 24px TILE, so every rock mass
+    // was a staircase of tile-sized steps and a mass was chopped wherever it
+    // crossed a row boundary. Now the rock is per pixel: a healthy share of
+    // tiles must be MIXED (both rock and gap), and the rock must continue
+    // across the row seam rather than ending at it.
+    let mixedTiles = 0;
+    let totalTiles = 0;
+    let seamRockContinues = 0;
+    let seamRockTotal = 0;
+    for (let tier = 0; tier < 5; tier++) {
+      for (let row = 20; row < 24; row++) {
+        const a = buildCaveRow(tier, row, "#7a6a8a");
+        const b = buildCaveRow(tier, row + 1, "#7a6a8a");
+        const count = a[0].length / CAVE_TILE_PX;
+        const [pa, pb] = cavePathTiles(count);
+        for (let tile = 0; tile < count; tile++) {
+          if (tile === pa || tile === pb) continue;
+          let opaque = 0;
+          let total = 0;
+          for (let y = 0; y < CAVE_TILE_PX; y++) {
+            for (let x = tile * CAVE_TILE_PX; x < (tile + 1) * CAVE_TILE_PX; x++) {
+              total++;
+              if (a[y][x] != null) opaque++;
+            }
+          }
+          totalTiles++;
+          if (opaque > 0.08 * total && opaque < 0.92 * total) mixedTiles++;
+        }
+        // Rock at the bottom row of `a` continues into the top row of `b`
+        // wherever `b` also has rock (and vice versa) — a chopped mass
+        // would show far more mismatch than this.
+        for (let x = 0; x < a[0].length; x++) {
+          const top = a[CAVE_TILE_PX - 1][x] != null;
+          const cont = b[0][x] != null;
+          if (top || cont) {
+            seamRockTotal++;
+            if (top && cont) seamRockContinues++;
+          }
+        }
+      }
+    }
+    expect(totalTiles).toBeGreaterThan(200);
+    // Measured ≈0.41 of tiles straddle the rock/gap contour; the old
+    // tile-decided layout was 0.00 by construction (every tile was all rock
+    // or all gap). 0.3 leaves headroom while still failing the old code.
+    expect(mixedTiles / totalTiles).toBeGreaterThan(0.3);
+    // …and the two rows agree about being rock far more often than not.
+    expect(seamRockContinues / seamRockTotal).toBeGreaterThan(0.75);
   });
 
   test("gap layout keeps rock density near target (coherent, not a die roll)", () => {
@@ -671,6 +739,86 @@ describe("foreground cave walls (todo 2026-07-14 #3)", () => {
     expect(gridR[0][9]).toBeNull();
     expect(gridR[0][10]).not.toBeNull();
     for (let y = 0; y < CAVE_WALL_TILE_H; y++) expect(gridR[y][0]).toBeNull();
+  });
+
+  test("wall bands are unique per band and continue one rock body", () => {
+    // The wall used to be ONE strip repeated every CAVE_WALL_TILE_H — the
+    // most obvious repeat on screen. Bands are addressed by absolute depth
+    // now, so every band is its own texture…
+    const a = buildCaveWall("left", tint, 48, 0);
+    const b = buildCaveWall("left", tint, 48, 1);
+    expect(b).not.toEqual(a);
+    expect(buildCaveWall("left", tint, 48, 7)).not.toEqual(a);
+    // …and because the rock field is sampled at GLOBAL y, band 1's first
+    // row continues band 0's last row (no seam line at the boundary).
+    // Compare the seam against an interior control: a per-band reseed would
+    // make the boundary far coarser than any pair inside a band, and that is
+    // what fails. Aggregated over many bands — one 12px seam is too small a
+    // sample for an exact-shade match ratio.
+    const solid = Array.from({ length: 12 }, (_, i) => i); // outer band
+    let seamSame = 0;
+    let seamBoth = 0;
+    let innerSame = 0;
+    let innerBoth = 0;
+    for (let band = 0; band < 20; band++) {
+      const cur = buildCaveWall("left", tint, 48, band);
+      const nextBand = buildCaveWall("left", tint, 48, band + 1);
+      for (const x of solid) {
+        const seamPair = [cur[CAVE_WALL_TILE_H - 1][x], nextBand[0][x]];
+        if (seamPair[0] != null && seamPair[1] != null) {
+          seamBoth++;
+          if (seamPair[0] === seamPair[1]) seamSame++;
+        }
+        const innerPair = [cur[60][x], cur[61][x]];
+        if (innerPair[0] != null && innerPair[1] != null) {
+          innerBoth++;
+          if (innerPair[0] === innerPair[1]) innerSame++;
+        }
+      }
+    }
+    expect(seamBoth).toBeGreaterThan(150);
+    expect(innerBoth).toBeGreaterThan(150);
+    expect(seamSame / seamBoth).toBeGreaterThan(innerSame / innerBoth - 0.12);
+  });
+
+  test("the wall edge profile varies down the wall instead of repeating", () => {
+    // Not just the rock: the jagged inner cut must wander. Measure how far
+    // each row's cut sits from the wall's mean — a constant cut (or a strip
+    // that repeats every band) would collapse this spread.
+    const spread = (band: number): number => {
+      const grid = buildCaveWall("left", tint, 48, band);
+      const cuts: number[] = [];
+      for (let y = 0; y < CAVE_WALL_TILE_H; y += 3) {
+        let cut = 0;
+        for (let x = 47; x >= 0 && grid[y][x] == null; x--) cut++;
+        cuts.push(cut);
+      }
+      const mean = cuts.reduce((s, c) => s + c, 0) / cuts.length;
+      return Math.sqrt(
+        cuts.reduce((s, c) => s + (c - mean) ** 2, 0) / cuts.length,
+      );
+    };
+    for (const band of [0, 1, 5, 9]) {
+      expect(spread(band)).toBeGreaterThan(1);
+    }
+  });
+
+  test("caveWallUri is band-keyed and rolls its cache", () => {
+    clearCaveTileCache();
+    const first = caveWallUri({ tint, side: "left", widthPx: 48, band: 0 });
+    expect(caveWallUri({ tint, side: "left", widthPx: 48, band: 0 })).toBe(first);
+    const second = caveWallUri({ tint, side: "left", widthPx: 48, band: 1 });
+    expect(second).not.toBe(first);
+    // Re-encoding a band after eviction reproduces it byte for byte.
+    for (let band = 0; band < 40; band++) {
+      caveWallUri({ tint, side: "left", widthPx: 48, band });
+    }
+    expect(caveWallUri({ tint, side: "left", widthPx: 48, band: 0 })).toBe(first);
+    // A band id is part of the key: band 5 ≠ band 5 on the other side.
+    expect(
+      caveWallUri({ tint, side: "right", widthPx: 48, band: 5 }),
+    ).not.toBe(caveWallUri({ tint, side: "left", widthPx: 48, band: 5 }));
+    clearCaveTileCache();
   });
 
   test("wall strips are deterministic and differ by side/tint/width", () => {

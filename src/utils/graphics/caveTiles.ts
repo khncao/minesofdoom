@@ -57,29 +57,55 @@ export const CAVE_STRIPS_PER_TIER = 4;
 /** Crystal density per tier — deeper bands glitter more. */
 const GEM_CHANCE = [0.05, 0.08, 0.12, 0.1, 0.16];
 /**
- * Share of tiles that are solid rock (the rest are empty gaps). The
- * layout itself is a two-octave coherent value-noise field (GAP_FIELD below)
- * thresholded at GAP_LEVEL; ROCK_CHANCE is the target density that
- * GAP_LEVEL is calibrated to.
+ * Share of pixels that are solid rock (the rest are empty gaps). The layout
+ * is a domain-warped three-octave field (LAYOUT_FIELD below) thresholded at
+ * GAP_LEVEL; ROCK_CHANCE is the target density GAP_LEVEL is calibrated to.
  */
 export const ROCK_CHANCE = 0.62;
-/** Calibrated threshold of the gap field that yields ~ROCK_CHANCE rock. */
-export const GAP_LEVEL = 0.468;
+/**
+ * Calibrated threshold of the layout field that yields ~ROCK_CHANCE rock at
+ * PIXEL scale (measured over 5 tiers × a 400×200px sample: 0.622).
+ */
+export const GAP_LEVEL = 0.46;
+
+/** One layout seed per tier — the layout is continuous down the whole wall. */
+const LAYOUT_SEEDS = CAVE_TIER_ATS.map((_, t) => hashSeed(t * 7919, 0x1a70));
 
 /**
- * The rock/gap layout field at (tile, absolute row, tier): two octaves of
- * value noise at TILE scale — a low octave (~2.5-tile features) so the
- * layout drifts coherently down the wall, and a high octave (~1.6-tile)
- * so gaps scatter inside the rock instead of marching in long clumps. The
- * y coord is the ABSOLUTE row (scaled), so the field is unique per row:
- * rows are no longer cycled textures. Deterministic integer-seeded math.
+ * The rock/gap layout field at a GLOBAL PIXEL: three octaves of value noise
+ * (≈60px / 34px / 17px features) sampled through a low-frequency DOMAIN WARP.
+ *
+ * Two changes from the tile-level field it replaces, both aimed at visible
+ * patterns:
+ *
+ *  - **Per pixel, not per tile.** The old field decided rock-vs-gap once per
+ *    24px tile, so every rock mass was a staircase of tile-sized steps and a
+ *    mass was chopped wherever it crossed a row boundary. Sampling at pixel
+ *    scale makes the silhouette follow a smooth contour, and because the
+ *    coordinates are global, one mass simply continues into the next row
+ *    strip (and into the next row's PNG) with no seam at all.
+ *  - **One seed per tier, not per row.** A per-row seed meant each 24px strip
+ *    carried a completely different field, so nothing lined up vertically.
+ *
+ * The warp is the standard cure for value noise's residual regularity: the
+ * octaves are sampled at displaced coordinates, which breaks the axis-aligned
+ * lattice that otherwise reads as a repeating grid. Deterministic integer
+ * math throughout.
  */
-export function gapField(tile: number, row: number, tier: number): number {
-  const s = hashSeed(tier * 7919 + row * 104729, 61);
+export function layoutField(px: number, py: number, tier: number): number {
+  const s = LAYOUT_SEEDS[Math.max(0, Math.min(tier, LAYOUT_SEEDS.length - 1))];
+  const wx = px + 14 * (valueNoise(px / 61, py / 47, s + 17) - 0.5);
+  const wy = py + 14 * (valueNoise(px / 53, py / 67, s + 29) - 0.5);
   return (
-    valueNoise(tile / 2.5, (tier * 40 + row) / 1.4, s) * 0.62 +
-    valueNoise(tile / 1.6, (tier * 40 + row) / 0.52, s + 113) * 0.38
+    valueNoise(wx / 60, wy / 55, s) * 0.5 +
+    valueNoise(wx / 34, wy / 30, s + 113) * 0.32 +
+    valueNoise(wx / 17, wy / 15, s + 227) * 0.18
   );
+}
+
+/** Is there rock at this global pixel? */
+export function isRockPixel(px: number, py: number, tier: number): boolean {
+  return layoutField(px, py, tier) > GAP_LEVEL;
 }
 /**
  * Ore fleck density per tier — deeper mines carry more visible veins. The
@@ -218,20 +244,36 @@ export function valueNoise(x: number, y: number, seed: number): number {
 }
 
 /**
- * Three-octave fBm of value noise, sampled at PIXEL coords. Coherent
- * across tiles: the same (tier, strip) seed + global pixel x/y → the same
- * value, so widening the strip (adaptive width) never reshuffles the rock.
- * Exported for tests.
+ * Domain-warp offset for the rock body, in pixels. Two slow noise samples
+ * displace the octave lookup coordinates; this is what stops bilinear value
+ * noise from reading as a regular grid of blobs (the "pattern in the rock"
+ * tell). Kept smooth (≈20px wavelength) so it never becomes its own pattern.
+ */
+function rockWarp(px: number, py: number, seed: number): [number, number] {
+  return [
+    px + 5 * (valueNoise(px / 23, py / 21, seed + 401) - 0.5),
+    py + 5 * (valueNoise(px / 19, py / 26, seed + 733) - 0.5),
+  ];
+}
+
+/**
+ * Three-octave fBm of value noise, sampled at PIXEL coords through a domain
+ * warp. Coherent across tiles AND rows: the same seed + global pixel x/y →
+ * the same value, so widening the strip never reshuffles the rock and
+ * consecutive row strips continue one body (tests pin both).
+ *
+ * The octaves are isotropic on purpose. They used to be anisotropic (fine in
+ * x, slow in y) to read as sedimentary strata, but at 24px tiles that read
+ * as vertical hatching — a fine repeated texture across the whole wall.
+ * Isotropic octaves keep the rock coherent across row seams on their own
+ * (the field is globally continuous), so the strata effect costs nothing.
  */
 export function rockField(px: number, py: number, seed: number): number {
+  const [wx, wy] = rockWarp(px, py, seed);
   return (
-    valueNoise(px / 7, py / 7, seed) * 0.4 +
-    valueNoise(px / 3.2, py / 4.5, seed + 101) * 0.2 +
-    // Every octave is anisotropic — fine in x, slow in y — so the rock
-    // reads as sedimentary strata: the fine octaves break up 2×2 pixel
-    // cells horizontally while the slow y-scale keeps adjacent rows in
-    // the same shade (no per-row banding at strip seams).
-    valueNoise(px / 1.6, py / 6, seed + 202) * 0.4
+    valueNoise(wx / 7.5, wy / 7, seed) * 0.42 +
+    valueNoise(wx / 3.4, wy / 3.1, seed + 101) * 0.34 +
+    valueNoise(wx / 1.7, wy / 2.1, seed + 202) * 0.24
   );
 }
 
@@ -280,30 +322,38 @@ export function rockShadeRamp(tint: string): string[] {
 }
 
 /**
- * One 24×24 rock tile: per-pixel coherent shade noise (from the shared
- * strip field, so neighbouring tiles continue the same rock body) with a
- * slight bottom falloff. `x0` is the tile's global pixel column; the shade
- * is `rockShadeIndex(x0 + px, py, seed)`, so the field is continuous across
- * tile boundaries.
+ * Paint one row strip's rock at PIXEL resolution: every pixel whose layout
+ * field clears GAP_LEVEL gets the coherent shade ramp, sampled at GLOBAL
+ * pixel coords so the body continues seamlessly across tile boundaries,
+ * row strips and the adaptive-width widening.
+ *
+ * Per-pixel is the whole point: the old version painted whole 24×24 tiles
+ * whenever the tile's layout value cleared the threshold, which is what made
+ * every rock mass a staircase of tile-sized steps ("regular blocks").
+ * Returns the per-tile opaque-pixel counts so the caller can gate objects
+ * (crystals, eggs) on there actually being rock under them.
  */
-function drawRockTile(
+function drawRockStrip(
   grid: PixelGrid,
-  x0: number,
-  y0: number,
+  rowStartY: number,
+  tier: number,
   seed: number,
   ramp: string[],
-): void {
-  // The shade field is sampled at GLOBAL pixel coords (y0 + py), so the
-  // rock body continues seamlessly from one row strip into the next. (The
-  // old per-row seed + per-row bottom fade reset every 24px and read as a
-  // repeating dark stripe at every row boundary.)
+  pathTiles: ReadonlySet<number>,
+): number[] {
+  const counts = new Array(grid[0].length / CAVE_TILE_PX).fill(0);
   for (let py = 0; py < CAVE_TILE_PX; py++) {
-    const gy = y0 + py;
-    for (let px = 0; px < CAVE_TILE_PX; px++) {
-      const shade = ramp[rockShadeIndex(x0 + px, gy, seed)];
-      setPixel(grid, x0 + px, py, shade);
+    const gy = rowStartY + py;
+    for (let px = 0; px < grid[0].length; px++) {
+      const tile = Math.floor(px / CAVE_TILE_PX);
+      // The mined shaft stays open — the layout field runs through it, but
+      // rock never does (the player digs this column).
+      if (pathTiles.has(tile) || !isRockPixel(px, gy, tier)) continue;
+      grid[py][px] = ramp[rockShadeIndex(px, gy, seed)];
+      counts[tile]++;
     }
   }
+  return counts;
 }
 
 /** A diamond crystal cluster with a white glint, centered on the tile. */
@@ -416,18 +466,24 @@ export function eggForStrip(
   };
 }
 
-/** A few small ore flecks in a rock tile (two-pixel veins). */
+/**
+ * A few small ore flecks in a rock tile (two-pixel veins). `isRock` gates
+ * each fleck on the pixel actually having rock under it, so a vein on a
+ * ragged silhouette edge never ends up floating in the gap.
+ */
 function drawOre(
   grid: PixelGrid,
   x0: number,
   rng: () => number,
   color: string,
+  isRock: (px: number, py: number) => boolean,
 ): void {
   for (let i = 0; i < 4; i++) {
     const fx = x0 + 2 + Math.floor(rng() * (CAVE_TILE_PX - 4));
     const fy = 2 + Math.floor(rng() * (CAVE_TILE_PX - 4));
-    setPixel(grid, fx, fy, color);
-    setPixel(grid, fx + 1, fy, color);
+    for (let d = 0; d < 2; d++) {
+      if (isRock(fx + d, fy)) setPixel(grid, fx + d, fy, color);
+    }
   }
 }
 
@@ -554,39 +610,47 @@ export function buildCaveRow(
   const gem = gemColor(tint);
   const [pa, pb] = cavePathTiles(count);
   const egg = eggForStrip(t, row, count);
+  // Rock body first: the layout field is per PIXEL and global, so rock
+  // masses cross tile and row boundaries instead of stepping along them.
+  // `tileFill[t]` = opaque pixels in tile t, used to gate objects below.
+  const tileFill = drawRockStrip(
+    grid,
+    row * CAVE_TILE_PX,
+    t,
+    SHADE_SEEDS[t],
+    ramp,
+    new Set([pa, pb]),
+  );
+  /** A tile with real rock under it — objects never float in a gap. */
+  const solid = (tile: number): boolean =>
+    tileFill[tile] > 0.5 * CAVE_TILE_PX * CAVE_TILE_PX;
   for (let tile = 0; tile < count; tile++) {
     const x0 = tile * CAVE_TILE_PX;
     const inPath = tile === pa || tile === pb;
     if (!inPath) {
       const seed = hashSeed(t * 7919 + row * 104729, 0x5eed + tile * 131);
-      // Rock/gap layout: a TWO-OCTAVE coherent field (GAP_FIELD), NOT an
-      // independent per-tile die roll (the old roll scattered
-      // checkerboard-style) and not a single low-frequency octave either
-      // (that clumped each row into one or two big rock masses — the
-      // "regular blocks" pattern). The high octave scatters gaps inside
-      // the clumps while the low octave keeps the layout coherent down
-      // the wall. Absolute row in the y coord: every row is unique, no
-      // texture cycle.
-      const gap = gapField(tile, row, t);
-      if (gap > GAP_LEVEL) {
-        // Coherent rock: the shade field is seeded per tier and sampled at
-        // GLOBAL pixel coords, so adjacent tiles, the adaptive-width
-        // widening, and the row strips below/above continue the same rock
-        // body instead of each tile/row being an independent die roll.
-        drawRockTile(grid, x0, row * CAVE_TILE_PX, SHADE_SEEDS[t], ramp);
-        // Ore veins ride on rock only — a gap tile never shows floating ore.
-        if (mulberry32(hashSeed(seed, 4))() < ORE_CHANCE[t]) {
-          const color =
-            ORE_COLORS[
-              Math.floor(mulberry32(hashSeed(seed, 6))() * ORE_COLORS.length)
-            ];
-          drawOre(grid, x0, mulberry32(hashSeed(seed, 5)), color);
-        }
+      // Ore veins ride on rock only — with a per-pixel silhouette, check the
+      // pixel itself, not the tile: a fleck on a ragged edge would float.
+      if (
+        tileFill[tile] > 0 &&
+        mulberry32(hashSeed(seed, 4))() < ORE_CHANCE[t]
+      ) {
+        const color =
+          ORE_COLORS[
+            Math.floor(mulberry32(hashSeed(seed, 6))() * ORE_COLORS.length)
+          ];
+        drawOre(
+          grid,
+          x0,
+          mulberry32(hashSeed(seed, 5)),
+          color,
+          (px, py) => isRockPixel(px, row * CAVE_TILE_PX + py, t),
+        );
       }
-      if (mulberry32(hashSeed(seed, 2))() < GEM_CHANCE[t]) {
+      if (solid(tile) && mulberry32(hashSeed(seed, 2))() < GEM_CHANCE[t]) {
         drawGem(grid, x0, mulberry32(hashSeed(seed, 3)), gem, t >= 2);
       }
-      if (egg != null && egg.tile === tile) {
+      if (solid(tile) && egg != null && egg.tile === tile) {
         drawEgg(grid, x0, egg.kind);
       }
     } else {
@@ -638,32 +702,44 @@ export function caveWallWidthPx(width: number): number {
 
 /**
  * One wall strip: a `widthPx` × CAVE_WALL_TILE_H column of solid rock with
- * a jagged inner edge (the side facing the shaft) cut in 2px steps, a dark
- * edge accent along the cut, a few ore flecks, and (deterministically)
- * maybe a crystal. Deterministic in (side, tint, widthPx).
+ * a jagged inner edge (the side facing the shaft), a dark edge accent along
+ * the cut, a few ore flecks, and (deterministically) maybe a crystal.
+ *
+ * `band` is the strip's ABSOLUTE vertical band index — the wall scrolls like
+ * the rows do, addressed by depth, so successive strips are different
+ * textures instead of the same 144px strip repeating forever (the visible
+ * vertical repeat). Both the rock field and the edge profile are sampled at
+ * GLOBAL y = band * CAVE_WALL_TILE_H + py, so consecutive bands continue one
+ * rock body and one edge line with no seam between them. Deterministic in
+ * (side, tint, widthPx, band).
  */
 export function buildCaveWall(
   side: "left" | "right",
   tint: string,
   widthPx: number,
+  band = 0,
 ): PixelGrid {
   const w = Math.max(CAVE_TILE_PX, Math.round(widthPx));
   const h = CAVE_WALL_TILE_H;
   const grid = createGrid(w, h);
   const edge = pathEdgeColor(tint);
   const gem = gemColor(tint);
+  const bandY = band * h;
   const rng = mulberry32(
-    hashSeed(w * 7919 + (side === "left" ? 31 : 97), 0x5eed),
+    hashSeed(
+      w * 7919 + (side === "left" ? 31 : 97) + band * 104729,
+      0x5eed,
+    ),
   );
   // Base rock: the SAME coherent value-noise field as the tile rows (seeded
-  // per side), so the wall reads as one rock body with the cave behind it.
-  // No per-strip fade: the wall repeats every CAVE_WALL_TILE_H, and a fade
-  // would print a dark line at every repeat seam.
+  // per side), so the wall reads as one rock body with the cave behind it,
+  // and sampled at global y so consecutive bands continue it.
+  // No per-strip fade: a fade would print a dark line at every band seam.
   const wallSeed = hashSeed(w * 7919 + (side === "left" ? 31 : 97), 0x5eed + 1);
   const ramp = rockShadeRamp(tint);
   for (let py = 0; py < h; py++) {
     for (let px = 0; px < w; px++) {
-      setPixel(grid, px, py, ramp[rockShadeIndex(px, py, wallSeed)]);
+      setPixel(grid, px, py, ramp[rockShadeIndex(px, bandY + py, wallSeed)]);
     }
   }
   // A few ore flecks anywhere (the cut below may clip some — that reads
@@ -684,29 +760,32 @@ export function buildCaveWall(
     }
     setPixel(grid, gx, gy, "#ffffff");
   }
-  // Jagged inner edge: a bounded random walk per 2px row keeps the cut
-  // organic; at least 12px of rock always survives on the outer side.
+  // Jagged inner edge: a mean-reverting random walk over GLOBAL y, so it is
+  // organic, never pins to one depth (the old walk drifted into a flat
+  // diagonal cliff), and continues across band boundaries instead of
+  // restarting every strip. At least 12px of rock survives on the outer side.
   const maxCut = w - 12;
   const targetCut = Math.max(2, Math.floor(w / 4));
   let cut = targetCut;
-  for (let i = 0; i < h / 2; i++) {
-    // Mean-reverting random walk: the plain walk above drifted and could sit
-    // pinned at maxCut for long stretches (the edge read as a flat diagonal
-    // cliff). Pulling a fraction of the way back to `targetCut` keeps the
-    // cut wandering around the middle of the column at every width.
+  for (let y = 0; y < h; y++) {
+    const gy = bandY + y;
     const pull = (targetCut - cut) / 6;
-    cut = Math.max(0, Math.min(maxCut, Math.round(cut + Math.floor(rng() * 5) - 2 + pull)));
-    for (let dy = 0; dy < 2; dy++) {
-      const y = i * 2 + dy;
-      if (side === "left") {
-        // Inner edge = the strip's RIGHT side: clear the rightmost cut px.
-        for (let x = w - cut; x < w; x++) grid[y][x] = null;
-        grid[y][w - cut - 1] = edge;
-      } else {
-        // Inner edge = the LEFT side: clear the leftmost cut px.
-        for (let x = 0; x < cut; x++) grid[y][x] = null;
-        grid[y][cut] = edge;
-      }
+    const step =
+      Math.round(
+        (valueNoise(gy / 23, side === "left" ? 0.5 : 9.5, wallSeed + 5) - 0.5) *
+          7,
+      ) + Math.round((rng() - 0.5) * 3);
+    // Floor of 1: the inner edge must always open at least one pixel, or a
+    // stray row paints solid rock across the shaft side of the wall.
+    cut = Math.max(1, Math.min(maxCut, cut + step + pull));
+    if (side === "left") {
+      // Inner edge = the strip's RIGHT side: clear the rightmost cut px.
+      for (let x = w - cut; x < w; x++) grid[y][x] = null;
+      grid[y][w - cut - 1] = edge;
+    } else {
+      // Inner edge = the LEFT side: clear the leftmost cut px.
+      for (let x = 0; x < cut; x++) grid[y][x] = null;
+      grid[y][cut] = edge;
     }
   }
   return grid;
@@ -717,6 +796,16 @@ export function buildCaveWall(
 // ---------------------------------------------------------------------------
 
 const cache = new Map<string, string>();
+/**
+ * Rolling-cache span for the wall bands: the wall layer shows ~4 bands per
+ * screen, so a span of ~24 covers the window plus slack. Wall keys are
+ * `wall|side|width|tint|band`; the band is after the last pipe, and ROW keys
+ * are `<width>|<tint>|<tier>|<row>` — the two evictions share one Map but
+ * each only touches its own prefix, so they can't delete each other's rows.
+ */
+const WALL_CACHE_SPAN = 24;
+/** Deepest absolute wall band requested so far (the wall descends monotonically). */
+let wallHighWater = Number.NEGATIVE_INFINITY;
 /**
  * Rolling-cache span (rows): the window shows ~26 rows per layer and the
  * far layer lags at half speed, so a span of ~3 windows covers both plus
@@ -732,6 +821,7 @@ let rowHighWater = Number.NEGATIVE_INFINITY;
 export function clearCaveTileCache(): void {
   cache.clear();
   rowHighWater = Number.NEGATIVE_INFINITY;
+  wallHighWater = Number.NEGATIVE_INFINITY;
 }
 
 /**
@@ -764,6 +854,7 @@ export function caveRowUri(opts: {
     const floor = rowHighWater - ROW_CACHE_SPAN;
     if (Number.isFinite(floor)) {
       for (const k of cache.keys()) {
+        if (k.startsWith("wall|")) continue; // wall bands roll separately
         // Keys are `${width}|${tint}|${tier}|${row}`; the row is the part
         // after the last pipe (tint is a hex color, never contains '|').
         const lastPipe = k.lastIndexOf("|");
@@ -776,22 +867,38 @@ export function caveRowUri(opts: {
 }
 
 /**
- * Cached PNG data URI for a foreground cave-wall strip (todo #3). The
- * strip content is what repeats vertically (CAVE_WALL_TILE_H), so the
- * cache stays small: one entry per (side, width, tint).
+ * Cached PNG data URI for ONE band of a foreground cave-wall strip (todo #3).
+ *
+ * Bands are addressed by absolute depth like the rows (`band`), so the wall
+ * scrolls as unique textures instead of one strip repeating forever. Its
+ * cache rolls the same way: entries older than WALL_CACHE_SPAN bands behind
+ * the deepest band requested are evicted. A wall strip is `widthPx` × 144 px
+ * (≈1 KB), so the span costs well under a megabyte per theme/width.
  */
 export function caveWallUri(opts: {
   tint: string;
   side: "left" | "right";
   /** Container width in px — sizes the column (see caveWallWidthPx). */
   widthPx?: number;
+  /** Absolute band index (floor of the wall's world px / CAVE_WALL_TILE_H). */
+  band?: number;
 }): string {
   const w = caveWallWidthPx(opts.widthPx ?? 0);
-  const key = `wall|${opts.side}|${w}|${opts.tint}`;
+  const band = Math.floor(opts.band ?? 0);
+  const key = `wall|${opts.side}|${w}|${opts.tint}|${band}`;
   let uri = cache.get(key);
   if (uri == null) {
-    uri = gridToPngDataUri(buildCaveWall(opts.side, opts.tint, w));
+    uri = gridToPngDataUri(buildCaveWall(opts.side, opts.tint, w, band));
     cache.set(key, uri);
+    if (band > wallHighWater) wallHighWater = band;
+    const floor = wallHighWater - WALL_CACHE_SPAN;
+    if (Number.isFinite(floor)) {
+      for (const k of cache.keys()) {
+        if (!k.startsWith("wall|")) continue;
+        const b = Number(k.slice(k.lastIndexOf("|") + 1));
+        if (Number.isFinite(b) && b < floor) cache.delete(k);
+      }
+    }
   }
   return uri;
 }
