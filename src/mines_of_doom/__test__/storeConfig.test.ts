@@ -12,44 +12,44 @@ import {
 } from "../storeConfig";
 import { IAP_PRODUCT_IDS, IAP_PRODUCTS } from "../iaps";
 
-// Unity Ads placement ids (Unity dashboard → Monetization → Ad units →
-// Rewarded; docs/store-integration.md §1). PLACEHOLDERS until the owner's
-// Unity project exists: they are NOT wired into storeConfig, they only
-// document the shape the paste must have and keep the "no test/demo ids"
-// net honest. Real ids are numeric strings, one per placement.
+// The wired Android set (Unity dashboard → Monetization → Ad units →
+// Rewarded; docs/store-integration.md §1): ONE rewarded placement shared by
+// all four ad kinds. iOS has none — the native bridge is Android-only.
 const ANDROID_UNITS = {
-  gemRolls: "0000001",
-  offlineDouble: "0000002",
-  offlineTopUp: "0000003",
-  comboSave: "0000004",
+  gemRolls: "BP_Rewarded_Android",
+  offlineDouble: "BP_Rewarded_Android",
+  offlineTopUp: "BP_Rewarded_Android",
+  comboSave: "BP_Rewarded_Android",
 };
-const IOS_UNITS = { ...ANDROID_UNITS };
 
 // Unity's PUBLIC TEST placement ids (Unity dashboard test mode) must never
 // appear in a shipped config — they fill instantly on any device.
 const UNITY_TEST_PLACEMENTS = ["1234567", "1234568"];
 
 describe("storeConfig (runbook §1 — the single SDK config point)", () => {
-  it("pins the storeConfig values (empty = unconfigured)", () => {
+  it("pins the storeConfig values (Android Unity Ads live, iOS empty)", () => {
     // Native ads moved to Unity Ads (2026-10-01) because Play's Families
     // rules require a rewarded ad to be closeable within 5 seconds and the
-    // AdMob rewarded unit cannot be. Values stay EMPTY until the owner's
-    // Unity project exists (docs/store-integration.md §1) — empty = hidden
-    // entry points, so the game is still shippable without them.
-    expect(storeConfig.unityAds.androidGameId).toBe("");
-    expect(storeConfig.unityAds.iosGameId).toBe("");
-    expect(storeConfig.unityAds.rewardedPlacementAndroid).toEqual({
-      gemRolls: "",
-      offlineDouble: "",
-      offlineTopUp: "",
-      comboSave: "",
-    });
+    // AdMob rewarded unit cannot be. The owner's Unity project now exists
+    // (Game ID 800386304, one rewarded placement shared by all four ad
+    // kinds) so the Android rewarded entry points are LIVE; iOS stays empty
+    // because the native bridge is Android-only.
+    expect(storeConfig.unityAds.androidGameId).toBe("800386304");
+    expect(storeConfig.unityAds.rewardedPlacementAndroid).toEqual(ANDROID_UNITS);
+    // …and the ids really are the wired ones, so a dashboard rename can't
+    // quietly point the app at a placement that does not exist.
+    expect(isUnityAdsConfigured(getUnityAdsIds("android"))).toBe(true);
+    expect(isUnityAdsConfigured(getUnityAdsIds("ios"))).toBe(false);
     expect(storeConfig.unityAds.rewardedPlacementIos).toEqual({
       gemRolls: "",
       offlineDouble: "",
       offlineTopUp: "",
       comboSave: "",
     });
+    // iOS stays EMPTY on purpose — modules/unity-ads is Android only, so an
+    // iOS set could never fill, and a filled-but-unsupported platform is
+    // exactly the kind of thing this assertion catches.
+    expect(storeConfig.unityAds.iosGameId).toBe("");
     // Guardrail 6 (kid safety): ads are served child-directed /
     // non-personalized for EVERY user, which is what makes one ad surface
     // valid for all ages (docs/store-integration.md §0 "Re-opened"), and it
@@ -71,7 +71,6 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
       ...Object.values(storeConfig.unityAds.rewardedPlacementAndroid),
       ...Object.values(storeConfig.unityAds.rewardedPlacementIos),
       ...Object.values(ANDROID_UNITS),
-      ...Object.values(IOS_UNITS),
     ];
     for (const placement of all) {
       expect(UNITY_TEST_PLACEMENTS).not.toContain(placement);

@@ -345,22 +345,31 @@ its manifest plugin and its App IDs deleted, the AD_ID permission
 stripped by `plugins/withUnityAds.js`) because its rewarded unit cannot
 be closed within the 5 seconds Play's Families rules require — §0.
 
-The Game ID and placement ids are **empty** in `storeConfig.unityAds`
-until an owner Unity project exists, and empty still means OFF end to
-end (no-op provider, every "watch" entry point hidden). Re-enabling is a
-data paste into `storeConfig.ts` — **plus the dashboard steps below,
-which the app cannot enforce**.
+**Status (2026-09-14): the Android ids are PASTED and the rewarded entry
+points are LIVE.** `storeConfig.unityAds` now carries Game ID
+**`800386304`** and one rewarded placement, **`BP_Rewarded_Android`**, used
+by all four `AdKind`s — a rewarded video is a rewarded video, and one
+placement means one thing to configure, moderate and check on the
+dashboard. iOS stays empty on purpose: `modules/unity-ads` is an Android
+bridge, so an iOS set could never fill.
+
+That paste is only the app half; the dashboard half below is what actually
+makes the ads compliant and fillable, and the app cannot enforce any of it.
+Until it is done, `hasUnityAdsConfig()` is true (the ids exist) and a
+production Android build WILL show "watch for a reward" — so steps 3 and 4
+in particular (5-second skip, Designed for Families) are now blocking, not
+"do this before launch".
 
 ### 1.1 Owner steps in the Unity dashboard (do these FIRST)
 
-1. **Create a Unity project** for Android (Unity dashboard → Monetization
-   → create project, platform Android, package
-   `com.minesofdoom.minesofdoom`... see `android.package` in
-   `app.config.ts` for the exact id) and note the **Game ID** (7 digits).
-   A second project for iOS later (`docs/backlog.md`).
-2. **Create the four rewarded placements** (Monetization → Ad units →
-   Add ad unit → Rewarded), one per `AdKind`, and note each placement
-   id: `gemRolls`, `offlineDouble`, `offlineTopUp`, `comboSave`.
+1. ~~**Create a Unity project** for Android~~ — DONE: Game ID
+   `800386304` (Unity dashboard → Monetization → project, platform
+   Android, package `com.minus4kelvin.minesofdoom` — see `android.package`
+   in `app.config.ts`). A second project for iOS later
+   (`docs/backlog.md`).
+2. ~~**Create the four rewarded placements**~~ — DONE, as ONE shared
+   placement: `BP_Rewarded_Android` (Monetization → Ad units → Add ad unit
+   → Rewarded). All four `AdKind`s point at it. Verify step 3 on it.
 3. **THE COMPLIANCE STEP — on every rewarded placement: “Allow skip
    after” = 5 seconds.** This is what makes the format satisfy Play's
    Families ad-format rule ("rewarded or opt-in ads … must be closeable

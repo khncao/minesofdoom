@@ -60,17 +60,25 @@ export const storeConfig = {
   //
   // EMPTY = OFF (unchanged rule): with any of these empty,
   // isUnityAdsConfigured() is false → the no-op provider → every "watch"
-  // entry point stays hidden. There is no recorded production set yet —
-  // the Unity project does not exist — so the first paste is recorded
-  // nowhere else; __test__/storeConfig.test.ts pins the SHAPE (and keeps
-  // the no-test-id net honest) and fails loudly if the flags drift.
-  androidGameId: "",
+  // entry point stays hidden.
+  //
+  // ANDROID IS LIVE (pasted 2026-09-14, owner's Unity project):
+  //   Game ID 800386304, one rewarded placement (BP_Rewarded_Android) used
+  //   by all four ad kinds — a rewarded video is a rewarded video, and one
+  //   placement means one thing to configure, moderate and check on the
+  //   dashboard. iOS stays EMPTY on purpose: the native bridge is Android
+  //   only (modules/unity-ads), so an iOS set could never fill.
+  //
+  // __test__/storeConfig.test.ts pins the Android pair, pins iOS as still
+  // empty, and keeps the no-test-id net honest (a Unity PUBLIC TEST
+  // placement fills instantly on any device, so one must never ship).
+  androidGameId: "800386304",
   iosGameId: "",
   rewardedPlacementAndroid: {
-   gemRolls: "",
-   offlineDouble: "",
-   offlineTopUp: "",
-   comboSave: "",
+   gemRolls: "BP_Rewarded_Android",
+   offlineDouble: "BP_Rewarded_Android",
+   offlineTopUp: "BP_Rewarded_Android",
+   comboSave: "BP_Rewarded_Android",
   },
   rewardedPlacementIos: {
    gemRolls: "",

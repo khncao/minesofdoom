@@ -224,6 +224,15 @@ moduleNameMapper, and Metro resolves it through `app.config.ts`'s
 
 ## Gotchas
 
+- **Unity Ads ids are live on Android (2026-09-14):** `storeConfig.unityAds`
+  holds Game ID `800386304` + one rewarded placement
+  (`BP_Rewarded_Android`) shared by all four `AdKind`s, so
+  `hasUnityAdsConfig()` is true and a PRODUCTION Android build shows the
+  "watch" entry points. iOS stays empty (no native bridge). Two dashboard
+  steps are now blocking rather than pre-launch: "Allow skip after 5
+  seconds" on the placement, and the project's Designed for Families flag
+  (`docs/store-integration.md` §1.1 steps 3–4) — the app can gate on ids but
+  cannot enforce either.
 - **Cash prices follow DEPTH, not gem cost.** Every cosmetic carries a
   `cashTier` (1–4 → `CASH_PRICE_USD`, $0.99–$3.99) meaning how much new art
   the item is; the store price is that tier, NOT the gem price. Already-sold

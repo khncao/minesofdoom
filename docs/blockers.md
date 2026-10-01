@@ -46,9 +46,14 @@ Google Designed for Families flag. Every request is child-treated
 (`childDirectedTreatment: true` → `UnityAds.setNonBehavioral(true)`) and
 the advertising-id permissions are stripped from the APK, so ONE
 rewarded surface is valid for all ages with no neutral age screen. The
-owner still owes the dashboard steps + the id paste
-(store-integration.md §1.1/§1.2) — until then the config is empty and
-the app ships ad-free, which is still the correct interim state.)
+owner pasted the Android ids on 2026-09-14 (Game ID 800386304, one
+rewarded placement BP_Rewarded_Android for all four ad kinds), so the
+rewarded entry points are LIVE on Android now. What the app cannot
+enforce is still owed on the dashboard and is now BLOCKING rather than
+pre-launch: "Allow skip after 5 seconds" on the placement and the
+project's Google Designed for Families flag
+(store-integration.md §1.1 steps 3–4). iOS has no ids and no native
+bridge, so the iOS surface stays empty.)
 
 **The decision (owner: Kelvin):** where does this app land?
 
