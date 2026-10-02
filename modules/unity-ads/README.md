@@ -8,11 +8,12 @@ Why it exists (and why it is hand-written): Google Play's Families policy bans
 "rewarded or opt-in ads that are **not closeable after 5 seconds**", and the
 AdMob rewarded unit cannot be made closeable in 5 s from the app side — that is
 what got v1.0.10 rejected (2026-09-30, `docs/store-integration.md` §0). Unity
-Ads *is* a Families Self-Certified Ads SDK and its rewarded placements have a
-documented **"Allow skip after 5 seconds"** setting plus a
-**Google Designed for Families** app-store-compliance flag, so the same
-player-tapped rewarded flow is compliant for every age. See
-`docs/store-integration.md` §1 for the dashboard runbook.
+Ads *is* a Families Self-Certified Ads SDK and its rewarded **ad units** have
+a documented **"Allow skip after 5 seconds"** setting (set on the ad unit, not
+on the placement — placements inherit it) plus a per-app
+**child-directed designation** that restricts demand to contextual ads, so the
+same player-tapped rewarded flow is compliant for every age. See
+`docs/store-integration.md` §1.1 for the dashboard runbook.
 
 No maintained React Native Unity Ads SDK exists, and mediating through AdMob
 would leave AdMob's own non-skippable demand in the waterfall — the same

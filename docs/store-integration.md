@@ -262,7 +262,7 @@ exists to keep ads *not suitable for children* away from children
    console; code: a `RewardedInterstitialAd` branch in `adProvider.ts`
    behind the same "empty = hidden" gate, mapping
    `OnUserEarnedReward` → `"rewarded"` and a close → `"closed"`.
-2. **Unity Ads, rewarded placement with "Allow skip after 5 seconds".**
+2. **Unity Ads, rewarded ad unit with "Allow skip after 5 seconds".**
    Unity Ads **is on the Families Self-Certified Ads SDK list**
    (`com.unity3d.ads:unity-ads` 4.0.1+; current 4.20.1) and its docs
    describe precisely our requirement: *"Compliance with kid-friendly
@@ -356,9 +356,20 @@ bridge, so an iOS set could never fill.
 That paste is only the app half; the dashboard half below is what actually
 makes the ads compliant and fillable, and the app cannot enforce any of it.
 Until it is done, `hasUnityAdsConfig()` is true (the ids exist) and a
-production Android build WILL show "watch for a reward" — so steps 3 and 4
-in particular (5-second skip, Designed for Families) are now blocking, not
-"do this before launch".
+production Android build WILL show "watch for a reward" — so step 3
+(the 5-second skip) is now blocking, not "do this before launch". Step 4
+(the child-directed designation) is a confirmation of a posture the app
+already enforces in code, not a lever (see the note there).
+
+**WHERE the two settings actually live (2026-10-02, checked against the
+current Unity docs — the old runbook sent us to the wrong pages, which is
+why they looked missing).** The skip toggle is **not on the placement**:
+ad *format* settings live on an **Ad Unit**, and a placement is only an
+eCPM target that inherits its ad unit's settings (Unity's ad-units wiki:
+"Formats are set for an ad-unit … Placements are assigned to those
+ad-units and inherit the settings"). And the child-directed designation
+has moved out of Overview → Settings entirely, to a per-app page. Both
+paths are spelled out in §1.1 steps 3 and 4.
 
 ### 1.1 Owner steps in the Unity dashboard (do these FIRST)
 
@@ -370,26 +381,46 @@ in particular (5-second skip, Designed for Families) are now blocking, not
 2. ~~**Create the four rewarded placements**~~ — DONE, as ONE shared
    placement: `BP_Rewarded_Android` (Monetization → Ad units → Add ad unit
    → Rewarded). All four `AdKind`s point at it. Verify step 3 on it.
-3. **THE COMPLIANCE STEP — on every rewarded placement: “Allow skip
-   after” = 5 seconds.** This is what makes the format satisfy Play's
-   Families ad-format rule ("rewarded or opt-in ads … must be closeable
-   after 5 seconds"); rewarded units are **not skippable by default**
-   (docs.unity.com → Project Settings → “Skipping rewarded ads”: *"all
-   monetized (rewarded) ads can be dismissed after 5 seconds"*, and the
-   ad-unit help: *"select Allow skip after ___ … Five seconds is the
-   minimum value for app store compliance"*). A skipped ad resolves
-   "closed" — no reward, nothing taken away.
-4. **Enable App store compliance → Google Designed for Families**
-   (Monetization → Overview → Settings → App Store Compliance). Unity
-   docs: selecting it *"automatically configures the age designation
-   setting to ‘This app is directed to children under the age of 13’, and
-   set[s] the age limits filter to ‘Do not show ads rated 13+ or
-   stricter’"* — i.e. contextual-only demand for every user, which is
-   exactly the all-ages posture (no personalized demand exists to
-   screen out, so **no neutral age screen is needed**).
-   Cross-check under **Monetization → Apps → <app> → Child-directed ad
-   network settings**: game-level designation “primarily targeting
-   children”, age filter “Do not show ads rated 13+ or stricter”.
+3. **THE COMPLIANCE STEP — the 5-second skip. It is on the AD UNIT, not
+   on the placement.** Path: **Monetization → Ad Units** → open the
+   **Rewarded / Android** ad unit → **More (⋮)** → **“Allow skip
+   after \_\_\_”** = **5**. Do not look for it on `BP_Rewarded_Android`:
+   placements are just eCPM targets and inherit their ad unit's format
+   settings, so the toggle genuinely does not exist on the placement page
+   (this is the whole reason step 3 read as "missing"). This is what
+   makes the format satisfy Play's Families ad-format rule ("rewarded or
+   opt-in ads … must be closeable after 5 seconds"); rewarded units are
+   **not skippable by default** (ad-unit wiki: *"select Allow skip
+   after \_\_\_ … Five seconds is the minimum value for app store
+   compliance"*). A skipped ad resolves "closed" — no reward, nothing
+   taken away. **The app cannot do this one**: `unity-ads` 4.20.1 has no
+   skip-delay API (verified by disassembling the AAR — `UnityAdsShowOptions`
+   exposes only `showConfiguration`, and `ShowConfiguration` carries just
+   `customRewardString` + `extras`; `javap com.unity3d.ads.UnityAds` shows
+   `setNonBehavioral`/`setUserConsent`/`setUserOptOut` and nothing about
+   skipping), so the dashboard is the only lever. Hence blocking.
+4. **Child-directed ad network settings — i.e. "don't show ads rated
+   13+ to this 9+ audience".** Path: **Monetization → Apps** → click the
+   app → **Monetization** tab → **Child-directed ad network settings** →
+   set the **app-level** designation to **“This app is primarily
+   targeting children as defined by applicable laws”**, and leave **“Is
+   this a Mixed Audience App?” = No** (no age gate, no per-age branches).
+   Per Unity's table, that designation alone means Unity *"can therefore
+   only serve contextual (non-targeted) ads to all users"* — contextual
+   demand is Unity's child-safe tier, i.e. nothing rated 13+ or stricter.
+   The same page has the **age limit filters** ("Do not show ads rated
+   13+ or stricter") if you want the rating belt-and-braces.
+   **This one is confirmation, not a lever** — the app already forces the
+   same posture: `childDirectedTreatment: true` → `UnityAds.nonBehavioral
+   = true` *before* `initialize`, so no behavioral/remarketing request
+   can go out, and Unity's own default for a user with no user-level age
+   designation is *"treat as a child, contextual ads only"*. If this
+   screen is unfindable, the shipping behavior is still non-personalized;
+   it is step 3 that gates the release.
+   (The older instructions pointed at Overview → Settings → App Store
+   Compliance → "Google Designed for Families", which is the
+   *mediation-side* equivalent and is not the control that governs a
+   direct/non-mediated Unity Ads project.)
 5. **Leave test mode OFF for the production placements.** Test
    placements fill instantly on any device, so a stray test placement in
    the config is worse than useless. How the two build types behave:
@@ -1383,6 +1414,7 @@ and the
   the shipped ad posture is child-directed / non-personalized
   (`storeConfig.unityAds.childDirectedTreatment: true` →
   `UnityAds.setNonBehavioral(true)`) with the advertising-id permissions
-  removed from the APK (`stripAdvertisingId`), and every placement is
-  required to be skippable after 5 seconds (Unity dashboard, §1.1).
+  removed from the APK (`stripAdvertisingId`), and the rewarded ad unit is
+  required to be skippable after 5 seconds (Unity dashboard, §1.1 step 3 —
+  on the AD UNIT, not the placement).
   Confirm all three before the ids go live beyond test.

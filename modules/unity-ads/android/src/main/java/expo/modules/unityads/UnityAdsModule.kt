@@ -23,9 +23,11 @@ import expo.modules.kotlin.modules.ModuleDefinition
  * Native Unity Ads SDK (the npm community wrappers stopped years ago), and the
  * AdMob-mediation route would let Google's own non-skippable rewarded demand
  * backfill a request — the exact Play Families rejection this module exists to
- * avoid. Owning the SDK means 100% of demand is Unity's, so the placement's
- * "Allow skip after 5 seconds" setting (docs/store-integration.md §1) is the
- * only thing that decides how long a player can be held.
+ * avoid. Owning the SDK means 100% of demand is Unity's, so the "Allow skip
+ * after 5 seconds" setting on the AD UNIT that owns the placement
+ * (docs/store-integration.md §1.1 step 3) is the only thing that decides how
+ * long a player can be held — and 4.20.1 has no skip-delay API, so there is
+ * no app-side alternative to it.
  *
  * Contract with the JS layer (modules/unity-ads/index.ts ->
  * src/mines_of_doom/unityAdProvider.ts): every function returns an AdResult
@@ -104,7 +106,8 @@ class UnityAdsModule : Module() {
     /**
      * Load then show one rewarded ad for `placementId`.
      *
-     * The placement must be configured with "Allow skip after 5 seconds" in
+     * The AD UNIT that owns this placement must be configured with
+     * "Allow skip after 5 seconds" in
      * the Unity dashboard (the Play Families requirement, and the reason we
      * switched providers: the AdMob rewarded unit cannot be made closeable in
      * 5 s). Skipping therefore arrives as SKIPPED with no reward event and

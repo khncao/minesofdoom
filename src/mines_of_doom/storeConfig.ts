@@ -46,17 +46,20 @@ export const storeConfig = {
   // that are not closeable after 5 seconds" — and the AdMob rewarded unit
   // cannot be made closeable in 5 s from the app side (docs/store-integration
   // .md §0). Unity Ads IS a Families Self-Certified Ads SDK (unity-ads 4.0.1+)
-  // and its rewarded placements carry a documented "Allow skip after 5
-  // seconds" setting + a "Google Designed for Families" app-store-compliance
-  // flag, so the SAME player-tapped rewarded flow is compliant for every
-  // age — no neutral age screen needed, no per-age branches.
+  // and its rewarded AD UNIT carries a documented "Allow skip after 5
+  // seconds" setting + a child-directed designation, so the SAME
+  // player-tapped rewarded flow is compliant for every age — no neutral
+  // age screen needed, no per-age branches.
   //
-  // DASHBOARD SIDE (owner, docs/store-integration.md §1 — the app cannot
-  // enforce these): every placement below must have "Allow skip after 5
-  // seconds" AND the project must have App store compliance → Google Designed
-  // for Families enabled (which also forces contextual-only demand). A single
-  // creative that ignores the skip setting is one rejection, so verify on a
-  // real build before submitting.
+  // DASHBOARD SIDE (owner, docs/store-integration.md §1.1): the rewarded AD
+  // UNIT that owns the placement below must have "Allow skip after 5 seconds"
+  // (Monetization → Ad Units → ⋮; NOT on the placement — placements only
+  // carry eCPM targets and inherit the ad unit's format settings), and the
+  // app should be designated "primarily targeting children" under
+  // Monetization → Apps → Child-directed ad network settings. The app
+  // cannot enforce the skip: unity-ads 4.20.1 exposes no skip-delay API, so
+  // that ONE step gates the release. A single creative that ignores the skip
+  // setting is one rejection, so verify on a real build before submitting.
   //
   // EMPTY = OFF (unchanged rule): with any of these empty,
   // isUnityAdsConfigured() is false → the no-op provider → every "watch"

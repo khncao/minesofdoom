@@ -72,7 +72,7 @@ Only work on continuous tasks after other tasks are completed
       `modules/unity-ads` (`unity-ads` 4.20.1, Families self-certified)
       + `src/mines_of_doom/unityAdProvider.ts`. Why: Play's Families rule
       bans rewarded ads that aren't closeable in 5 seconds, and the AdMob
-      rewarded unit can't be — Unity placements have a documented
+      rewarded unit can't be — Unity's rewarded ad units have a documented
       "Allow skip after 5 seconds" setting, so ONE player-tapped
       rewarded surface is compliant for all ages (a skip resolves
       "closed": no reward). Every request is child-treated
@@ -81,9 +81,11 @@ Only work on continuous tasks after other tasks are completed
       the APK, so **no neutral age screen is needed**. Tests/lint/
       typecheck green; a release AAB with the module compiles.
       **Owner (see store-integration.md §1):** 1) create the Unity
-      Android project (Game ID) + four rewarded placements, 2) set
-      "Allow skip after 5 seconds" on EVERY placement, 3) enable App
-      store compliance → Google Designed for Families, 4) paste the ids
+      Android project (Game ID) + the rewarded placement ~~2) set
+      "Allow skip after 5 seconds" on the rewarded AD UNIT (Monetization →
+      Ad Units → ⋮; NOT on the placement), 3) mark the app "primarily
+      targeting children" under Monetization → Apps → Child-directed ad
+      network settings, 4) paste the ids
       into `storeConfig.unityAds`, 5) verify on a release build that a
       5-second skip really is available, 6) then set the console
       answers to match the build (target audience may include children,

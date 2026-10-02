@@ -7,7 +7,7 @@
  * "rewarded or opt-in ads that cannot be closed after 5 seconds", and the
  * AdMob rewarded unit has no app-side control over that countdown — that is
  * what got the v1.0.10 update rejected. Unity Ads is a Families
- * Self-Certified Ads SDK whose rewarded placements carry an "Allow skip after
+ * Self-Certified Ads SDK whose rewarded ad units carry an "Allow skip after
  * 5 seconds" setting, so the SAME player-tapped rewarded flow is compliant
  * for every age with no age screen and no second ad surface.
  *

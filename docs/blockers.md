@@ -41,8 +41,8 @@ stances can have rewarded ads once the unit format is swapped.**
 **DECIDED for the format, 2026-10-01: option 2 above — Unity Ads.**
 AdMob is removed from the app (package, config plugin, App IDs, AD_ID
 permission) and replaced by the local Expo module `modules/unity-ads`
-with each placement set to "Allow skip after 5 seconds" + the project's
-Google Designed for Families flag. Every request is child-treated
+with the rewarded AD UNIT set to "Allow skip after 5 seconds" + the app's
+child-directed designation (contextual-only demand). Every request is child-treated
 (`childDirectedTreatment: true` → `UnityAds.setNonBehavioral(true)`) and
 the advertising-id permissions are stripped from the APK, so ONE
 rewarded surface is valid for all ages with no neutral age screen. The
@@ -50,9 +50,11 @@ owner pasted the Android ids on 2026-09-14 (Game ID 800386304, one
 rewarded placement BP_Rewarded_Android for all four ad kinds), so the
 rewarded entry points are LIVE on Android now. What the app cannot
 enforce is still owed on the dashboard and is now BLOCKING rather than
-pre-launch: "Allow skip after 5 seconds" on the placement and the
-project's Google Designed for Families flag
-(store-integration.md §1.1 steps 3–4). iOS has no ids and no native
+pre-launch: "Allow skip after 5 seconds" on the AD UNIT (store-integration.md
+§1.1 step 3 — it is on the ad unit, not the placement; 4.20.1 has no
+app-side skip API, so this one gate truly). The child-directed designation
+(step 4) is confirmation only: the app already sends nonBehavioral=true, and
+Unity defaults unknown-age users to contextual ads. iOS has no ids and no native
 bridge, so the iOS surface stays empty.)
 
 **The decision (owner: Kelvin):** where does this app land?
