@@ -83,9 +83,11 @@ Only work on continuous tasks after other tasks are completed
       **Owner (see store-integration.md §1):** 1) create the Unity
       Android project (Game ID) + the rewarded placement ~~2) set
       "Allow skip after 5 seconds" on the rewarded AD UNIT (Monetization →
-      Ad Units → ⋮; NOT on the placement), 3) mark the app "primarily
-      targeting children" under Monetization → Apps → Child-directed ad
-      network settings, 4) paste the ids
+      Placements → expand the ad unit row → ⋮; there is no Ad Units page,
+      and the nested placement's own menu does not carry it), 3) set the
+      project's Game-level age designation to "directed to children"
+      (project Settings → Privacy controls) and App store compliance →
+      Google Designed for Families, 4) paste the ids
       into `storeConfig.unityAds`, 5) verify on a release build that a
       5-second skip really is available, 6) then set the console
       answers to match the build (target audience may include children,
