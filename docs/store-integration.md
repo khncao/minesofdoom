@@ -361,15 +361,18 @@ production Android build WILL show "watch for a reward" — so step 3
 (the child-directed designation) is a confirmation of a posture the app
 already enforces in code, not a lever (see the note there).
 
-**WHERE the two settings actually live (2026-10-02, checked against the
-current Unity docs — the old runbook sent us to the wrong pages, which is
-why they looked missing).** The skip toggle is **not on the placement**:
-ad *format* settings live on an **Ad Unit**, and a placement is only an
-eCPM target that inherits its ad unit's settings (Unity's ad-units wiki:
-"Formats are set for an ad-unit … Placements are assigned to those
-ad-units and inherit the settings"). And the child-directed designation
-has moved out of Overview → Settings entirely, to a per-app page. Both
-paths are spelled out in §1.1 steps 3 and 4.
+**WHERE the two settings actually live (2026-10-02, verified against the
+current Unity docs — every path the old runbook gave is wrong, which is
+why they looked missing).** Three separate mistakes:
+1. There is **no "Ad Units" page**. Unity folded ad units into the
+   **Placements** page: "On the **Placements** page … select the ellipses
+   (… ) in the ad unit row of a specific ad unit or placement".
+2. The skip toggle is **not on the placement**. Placements are eCPM
+   targets nested under their ad unit and inherit its format settings.
+3. The child-directed designation is on the **project → Settings** page
+   (Privacy controls), not on the placement or in Overview → Settings →
+   App Store Compliance.
+Exact clicks: §1.1 steps 3 and 4.
 
 ### 1.1 Owner steps in the Unity dashboard (do these FIRST)
 
@@ -381,13 +384,17 @@ paths are spelled out in §1.1 steps 3 and 4.
 2. ~~**Create the four rewarded placements**~~ — DONE, as ONE shared
    placement: `BP_Rewarded_Android` (Monetization → Ad units → Add ad unit
    → Rewarded). All four `AdKind`s point at it. Verify step 3 on it.
-3. **THE COMPLIANCE STEP — the 5-second skip. It is on the AD UNIT, not
-   on the placement.** Path: **Monetization → Ad Units** → open the
-   **Rewarded / Android** ad unit → **More (⋮)** → **“Allow skip
-   after \_\_\_”** = **5**. Do not look for it on `BP_Rewarded_Android`:
-   placements are just eCPM targets and inherit their ad unit's format
-   settings, so the toggle genuinely does not exist on the placement page
-   (this is the whole reason step 3 read as "missing"). This is what
+3. **THE COMPLIANCE STEP — the 5-second skip. There is no "Ad Units"
+   page: ad units are rows ON the Placements page, and the setting is in
+   the AD UNIT row's menu, not the placement's.** Path: **Monetization →
+   Placements** → expand the **Rewarded / Android** ad-unit row (the
+   placement `BP_Rewarded_Android` is nested inside it) → **⋯** on the
+   **ad unit row itself** → **ad format settings** → **“Allow skip
+   after \_\_\_”** = **5**. Two traps: the ⋮ menu lives on the *Placements*
+   page (there is no separate Ad Units page to look for), and the ⋮ on
+   the nested *placement* row does not carry the setting — you need the
+   parent ad unit row, so expand the row rather than clicking the
+   placement directly. This is what
    makes the format satisfy Play's Families ad-format rule ("rewarded or
    opt-in ads … must be closeable after 5 seconds"); rewarded units are
    **not skippable by default** (ad-unit wiki: *"select Allow skip
@@ -400,16 +407,24 @@ paths are spelled out in §1.1 steps 3 and 4.
    `setNonBehavioral`/`setUserConsent`/`setUserOptOut` and nothing about
    skipping), so the dashboard is the only lever. Hence blocking.
 4. **Child-directed ad network settings — i.e. "don't show ads rated
-   13+ to this 9+ audience".** Path: **Monetization → Apps** → click the
-   app → **Monetization** tab → **Child-directed ad network settings** →
-   set the **app-level** designation to **“This app is primarily
-   targeting children as defined by applicable laws”**, and leave **“Is
-   this a Mixed Audience App?” = No** (no age gate, no per-age branches).
+   13+ to this 9+ audience".** Path: the project's **Settings** page
+   (Unity's wording: "select **CURRENT PROJECT > Settings**") →
+   **Privacy controls** → **Game-level age designation** = **“This app is
+   directed to children”**, and leave **“Is this app is a Mixed Audience
+   Game” = No** (no age gate, no per-age branches).
    Per Unity's table, that designation alone means Unity *"can therefore
    only serve contextual (non-targeted) ads to all users"* — contextual
    demand is Unity's child-safe tier, i.e. nothing rated 13+ or stricter.
-   The same page has the **age limit filters** ("Do not show ads rated
-   13+ or stricter") if you want the rating belt-and-braces.
+   In the same Settings page, the **App store compliance** section holds
+   **Google Designed for Families**: selecting it *"will automatically
+   configure the age designation setting to This app is directed to
+   children under the age of 13, and set your age limits filter to Do not
+   show ads rated 13+ or stricter"* — i.e. that one checkbox is the literal
+   "don't display 13+ ads" switch, plus the age-limit filter
+   (Monetization → **Ad controls**) if you want it enforced separately.
+   Unity documents the same designation per-app as well (**Monetization →
+   Apps → <app> → Monetization tab → Child-directed ad network
+   settings**) — use whichever of the two pages your account shows.
    **This one is confirmation, not a lever** — the app already forces the
    same posture: `childDirectedTreatment: true` → `UnityAds.nonBehavioral
    = true` *before* `initialize`, so no behavioral/remarketing request
@@ -417,10 +432,12 @@ paths are spelled out in §1.1 steps 3 and 4.
    designation is *"treat as a child, contextual ads only"*. If this
    screen is unfindable, the shipping behavior is still non-personalized;
    it is step 3 that gates the release.
-   (The older instructions pointed at Overview → Settings → App Store
-   Compliance → "Google Designed for Families", which is the
-   *mediation-side* equivalent and is not the control that governs a
-   direct/non-mediated Unity Ads project.)
+   (The old runbook's error here was only the menu path — "Monetization →
+   Overview → Settings"; it is the project's **Settings** page — plus
+   treating the Designed-for-Families checkbox as the load-bearing
+   control. The load-bearing one is the **Game-level age designation**;
+   Designed for Families is just the one-click way to set it, because it
+   writes that designation and the age-limits filter for you.)
 5. **Leave test mode OFF for the production placements.** Test
    placements fill instantly on any device, so a stray test placement in
    the config is worse than useless. How the two build types behave:
@@ -1416,5 +1433,6 @@ and the
   `UnityAds.setNonBehavioral(true)`) with the advertising-id permissions
   removed from the APK (`stripAdvertisingId`), and the rewarded ad unit is
   required to be skippable after 5 seconds (Unity dashboard, §1.1 step 3 —
-  on the AD UNIT, not the placement).
+  reached from the Placements page, on the AD UNIT row, not the nested
+  placement).
   Confirm all three before the ids go live beyond test.

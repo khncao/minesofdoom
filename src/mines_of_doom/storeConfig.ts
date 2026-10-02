@@ -53,10 +53,14 @@ export const storeConfig = {
   //
   // DASHBOARD SIDE (owner, docs/store-integration.md §1.1): the rewarded AD
   // UNIT that owns the placement below must have "Allow skip after 5 seconds"
-  // (Monetization → Ad Units → ⋮; NOT on the placement — placements only
-  // carry eCPM targets and inherit the ad unit's format settings), and the
-  // app should be designated "primarily targeting children" under
-  // Monetization → Apps → Child-directed ad network settings. The app
+  // (Monetization → Placements → expand the ad unit row → ⋮ on the AD UNIT
+  // row; there is no separate "Ad Units" page, and the nested placement's own
+  // menu does not carry the setting — placements only carry eCPM targets and
+  // inherit the ad unit's format settings), and the project must be
+  // designated "directed to children" on the project's Settings page →
+  // Privacy controls (plus App store compliance → Google Designed for
+  // Families, which auto-sets the age-limits filter to "13+ or stricter").
+  // The app
   // cannot enforce the skip: unity-ads 4.20.1 exposes no skip-delay API, so
   // that ONE step gates the release. A single creative that ignores the skip
   // setting is one rejection, so verify on a real build before submitting.
