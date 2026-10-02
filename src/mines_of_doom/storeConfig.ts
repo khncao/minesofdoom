@@ -21,8 +21,10 @@
  *    `stripe` and `adsense` blocks below).
  */
 
-/** The platforms a store/SDK value is keyed for (web is never keyed — it
- *  runs the no-op providers by construction). */
+/** The platforms a store/SDK value is keyed for (web is never keyed — Unity
+ *  Ads has no web SDK at all, so web runs the AdSense no-op pair by
+ *  construction: see `unityAdProvider.web.ts` + docs/store-integration.md
+ *  §1.6). */
 export type StorePlatform = "android" | "ios";
 
 import type { AdKind } from "./ads";

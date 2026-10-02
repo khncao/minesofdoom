@@ -515,6 +515,13 @@ interactive ads** on the rewarded unit, and keep
 
 ### 1.6 Web rewarded (AdSense Ad Placement API)
 
+**Why AdSense and not Unity here:** Unity Ads has no web SDK at all —
+its FAQ states the network is "for iOS and Android" and explicitly lists
+"Web platforms such as WebPlayer or WebGL" as unsupported, so there is
+nothing to port. `unityAdProvider.web.ts` is therefore a deliberate no-op
+(`hasUnityAdsConfig() === false`) that keeps the native module out of the
+web bundle; AdSense is the only web-capable option on the table.
+
 The web app's ad parity path for the native rewarded placements, via
 the AdSense "Ad Placement API" (H5 Games Ads) — rewarded full-screen
 ads ONLY, player-tapped (guardrail 2 holds for web exactly like
