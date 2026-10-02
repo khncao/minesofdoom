@@ -515,6 +515,31 @@ interactive ads** on the rewarded unit, and keep
 
 ### 1.6 Web rewarded (AdSense Ad Placement API)
 
+**Skippability on web (asked 2026-10-02):** the ad is **dismissible by
+the player at any time, and the delay before the close affordance is NOT
+ours to set.** Two facts from the API reference:
+- *Dismissible, documented outcome.* `adBreak({type: 'reward'})` has an
+  `adDismissed` callback ("Called only for rewarded ads when the player
+  dismisses the ad. It is only called if the player dismisses the ad
+  before it completes. **In this case the reward should not be
+  granted**"), plus `breakStatus: 'dismissed'`. Google only documents it
+  as a first-class path, so the ad is closeable — the exact countdown is
+  Google's auto-ad player, not a knob. This provider maps that path to
+  `"closed"` (no reward), identical to a Unity skip.
+- *No skip-delay knob exists.* The API's entire configuration surface is
+  `adConfig({ sound, preloadAdBreaks, onReady })` — three knobs, none of
+  them about skipping, and no per-placement options. So the Unity
+  "Allow skip after 5 seconds" toggle has **no web counterpart to
+  configure**, and there is nothing to check in the AdSense console for
+  it. Nothing here gates the release either: Play's Families 5-second
+  rule governs the Play Store build, not the web build.
+- *The web-side kid-safety switch is AdSense's, not the SDK's*:
+  AdSense → Privacy & messaging → **Child-directed treatment (TFCDT)**
+  must be enabled for a kids' game (personalized CPC ads additionally
+  require Google's child-directed certification). That is an account-level
+  console setting we cannot make from the repo — same category as
+  §1.1's Unity dashboard steps.
+
 **Why AdSense and not Unity here:** Unity Ads has no web SDK at all —
 its FAQ states the network is "for iOS and Android" and explicitly lists
 "Web platforms such as WebPlayer or WebGL" as unsupported, so there is
