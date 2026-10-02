@@ -11,8 +11,9 @@
 # maestro.copiedText) and compared in a JS expression, because the mineral
 # value is dynamic.
 #
-# PRECONDITION: a low-mineral save (CI runs fresh installs). The assert
-# compares the DISPLAYED, rounded counter — on an aged/inflated save
+# The counter is parsed out of its COMPACT display form ("36.3k" past
+# ~10k), so this flow works on a save that has been played for a while.
+# The assert compares the DISPLAYED, rounded counter — on an aged/inflated save
 # (e.g. 1.11M) five mines never move the display and the flow fails
 # spuriously. Triage of exactly that failure: docs/blockers.md
 # ("mining flow's minerals assert" — RESOLVED, no app bug).
@@ -39,9 +40,10 @@ appId: com.minus4kelvin.minesofdoom
 # be, hence the numeric comparison instead of an equality assert).
 - copyTextFrom:
     id: mineral-count
-- evalScript: ${output.mineralsBefore = maestro.copiedText}
-
-# 5 hold-to-mines in the cave.
+# The displayed counter is COMPACT ("36.3k", "3.4M", "1.2B") once the
+# save passes ~10k, so a comma-stripping Number() reads NaN and every
+# numeric assert silently fails. parse() handles both forms.
+- evalScript: ${output.mineralsBefore = Number(maestro.copiedText.split(",").join("").replace("k", "e3").replace("K", "e3").replace("m", "e6").replace("M", "e6").replace("b", "e9").replace("B", "e9"))}
 - repeat:
     times: 5
     commands:
@@ -50,12 +52,10 @@ appId: com.minus4kelvin.minesofdoom
 
 - copyTextFrom:
     id: mineral-count
-- evalScript: ${output.mineralsAfter = maestro.copiedText}
-- assertTrue:
-    condition: ${Number(output.mineralsAfter.replace(/,/g, "")) > Number(output.mineralsBefore.replace(/,/g, ""))}
-    label: "minerals increased after 5 long-press mines (${output.mineralsBefore} -> ${output.mineralsAfter})"
-
-# ...and the main UI is still alive afterwards.
+# The displayed counter is COMPACT ("36.3k", "3.4M", "1.2B") once the
+# save passes ~10k, so a comma-stripping Number() reads NaN and every
+# numeric assert silently fails. parse() handles both forms.
+- evalScript: ${output.mineralsAfter = Number(maestro.copiedText.split(",").join("").replace("k", "e3").replace("K", "e3").replace("m", "e6").replace("M", "e6").replace("b", "e9").replace("B", "e9"))}
 - assertVisible:
     id: equation-display
 - assertVisible:

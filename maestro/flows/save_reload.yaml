@@ -2,10 +2,16 @@
 # pill, kill the app, relaunch — the loaded save must show the SAME
 # mineral count, proving the save was written and read back.
 #
-# This relies on a miner-free save (a fresh install in CI): with zero
-# miners there is no offline income, so the count is stable across the
-# kill/relaunch. If a future flow buys miners first, this flow's assert
-# would need an "offline earnings are additive" check instead.
+# On a miner-free save (the CI premise) the count is IDENTICAL across the
+# kill/relaunch. Once the save has miners, the relaunch credits offline
+# income, so the assert is "never fewer" — the additive case this flow's
+# original comment anticipated. Either way a DROP means the save was not
+# written or came back stale, which is the bug this flow exists to catch.
+#
+# The counter is read COMPACTLY: past ~10k the UI shows "36.3k", so a
+# comma-stripping Number() reads NaN and the numeric assert below fails on
+# any save that has been played for a while. The parse handles both forms,
+# which is what makes this flow runnable in sequence with the others.
 appId: com.minus4kelvin.minesofdoom
 ---
 - launchApp: com.minus4kelvin.minesofdoom
@@ -34,10 +40,13 @@ appId: com.minus4kelvin.minesofdoom
 
 - copyTextFrom:
     id: mineral-count
-- evalScript: ${output.mineralsBefore = maestro.copiedText}
+# The displayed counter is COMPACT ("36.3k", "3.4M", "1.2B") once the
+# save passes ~10k, so a comma-stripping Number() reads NaN and every
+# numeric assert silently fails. parse() handles both forms.
+- evalScript: ${output.mineralsBefore = Number(maestro.copiedText.split(",").join("").replace("k", "e3").replace("K", "e3").replace("m", "e6").replace("M", "e6").replace("b", "e9").replace("B", "e9"))}
 - assertTrue:
-    condition: ${Number(output.mineralsBefore.replace(/,/g, "")) > 0}
-    label: "mined some minerals before saving (${output.mineralsBefore})"
+    condition: ${output.mineralsBefore > 0}
+    label: "mined some minerals before saving (${maestro.copiedText})"
 
 # Explicit save (autosave would eventually write it too, but the pill is
 # the first-class path this flow is meant to exercise).
@@ -74,9 +83,18 @@ appId: com.minus4kelvin.minesofdoom
 
 - copyTextFrom:
     id: mineral-count
+# Compare the PARSED value, not the display string: the counter is
+# compact-formatted, so "46.4k" and 46400 are the same amount and the
+# string comparison this used to do could only ever fail on a big save.
+- evalScript: ${output.mineralsAfter = Number(maestro.copiedText.split(",").join("").replace("k", "e3").replace("K", "e3").replace("m", "e6").replace("M", "e6").replace("b", "e9").replace("B", "e9"))}
+# Equal on a miner-free save (the CI premise); ADDITIVE once the save has
+# miners, because the relaunch credits offline income — the original flow
+# comment's own "if a future flow buys miners first" case. What must never
+# happen is minerals going DOWN: that would mean the save was not written
+# or was read back stale.
 - assertTrue:
-    condition: ${output.mineralsBefore !== null && maestro.copiedText === output.mineralsBefore}
-    label: "minerals identical across save/reload (${output.mineralsBefore} -> ${maestro.copiedText})"
+    condition: ${output.mineralsAfter >= output.mineralsBefore}
+    label: "minerals survived save/reload (${output.mineralsBefore} -> ${output.mineralsAfter})"
 
 # And no loading screen is stuck on top.
 - assertNotVisible:

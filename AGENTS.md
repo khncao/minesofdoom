@@ -193,7 +193,15 @@ moduleNameMapper, and Metro resolves it through `app.config.ts`'s
   the disabled workflow is re-enabled (`.github/workflows/e2e-android.yml.disabled`
   — rename to `e2e-android.yml`); locally: `pnpm run test:e2e` with a device
   booted, flows one at a time (parallel mode on a single emulator is
-  unreliable — see `docs/blockers.md`).
+  unreliable — see `docs/blockers.md`). Machine setup for the flows (each of
+  these was missing once already, so they are written down): Maestro from
+  `curl -Ls "https://get.maestro.mobile.dev" | bash` (installs to
+  `~/.maestro/bin`, already on PATH) and a JDK that HAS `javac` for it —
+  the system JDK is a headless JRE, so point `JAVA_HOME` at the Temurin in
+  `~/.jdks/`. A headless box needs
+  `xvfb-run -a emulator -avd <name> -no-window -no-audio`, and the
+  `save_reload` premise (no miners → no offline income across the relaunch)
+  wants `adb shell pm clear <pkg>` first when the flows run in sequence.
   **Web e2e** (Playwright, `e2e/web/`, config `playwright.config.ts`):
   `pnpm run test:e2e:web` exports the web build first, then serves `dist/`
   from `e2e/web/server.mjs` (which injects Google's `data-adbreak-test="on"`
