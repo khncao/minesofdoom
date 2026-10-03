@@ -134,14 +134,17 @@ The two critter skins sit at tier 3 because a round animal body is a new
 shape, not a palette; the top three are the most hand-drawn characters in
 the line (twin tails, top knot, waist-length hair).
 
-> **Owner (2026-10-03):** re-authoring the cast changed four skin blurbs
-> (Rose Lantern, Mint Comet, Blossom Bun, Ember Sunrise) because the old
-> ones described silhouettes that no longer exist ("lilac dress" for the
-> gown). `scripts/stripe/catalog.json` is updated and the drift test passes,
-> but `syncStripe.mjs products` only sets a product description at CREATE —
-> so the live listing text is edited by hand: the Stripe product description
-> and the Play one-time product description for those four (prices and ids
-> are untouched, and neither store lets a price object be edited anyway).
+> **Store listing text (2026-10-03):** re-authoring the cast changed four
+> skin blurbs (Rose Lantern, Mint Comet, Blossom Bun, Ember Sunrise), because
+> the old ones described silhouettes that no longer exist ("lilac dress" for
+> the gown). `scripts/stripe/catalog.json` is resynced and both stores have
+> been pushed through the CLI (Play `sync-products` for those four, Stripe
+> `descriptions` in the test account) — see docs/store-integration.md §2.1e.
+> **Still owner-only:** the LIVE Stripe account (this machine holds only the
+> `sk_test_` key), so run
+> `node scripts/stripe/syncStripe.mjs descriptions --live` with the live key.
+> That same run also fixes nine product NAMES that drifted when cosmetics were
+> renamed (`--titles-only` on Play already did the Android side).
 
 ## Notes
 

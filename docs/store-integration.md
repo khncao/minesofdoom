@@ -765,6 +765,37 @@ live, `syncStripe.mjs verify`), and `node scripts/play/play.mjs
 products-check` reports 43/43 live Android products with none left DRAFT —
 including `pack_skin`, which had been sitting un-activated.
 
+### 2.1e Store listing text (renames and blurb changes)
+
+Names and descriptions are **not** kept in sync by creating the product:
+`create-product` / `products` only set them at CREATE, so a cosmetic renamed
+or re-blurbbed in the game leaves the store listing stale indefinitely (which
+is how nine Play products ended up selling under a name the game no longer
+uses — "Frost Pickaxe" for the Crystal Pickaxe, "Mist & Lantern" for Fog &
+Lantern). Two commands push the text, and both are text-only and idempotent —
+no price API, no `active`, no purchase option, and anything already in sync is
+not sent:
+
+```bash
+# Stripe (catalog.json verbatim; --live for the live key)
+node scripts/stripe/syncStripe.mjs descriptions [--dry-run] [--only=id,id]
+
+# Play (the listing text derived from the same catalog row: the
+# "Mines of Doom: " prefix and the "One-time purchase." / "Purely cosmetic."
+# framing are Stripe-only and are stripped)
+node scripts/play/play.mjs sync-products [--dry-run] [--only=sku,sku]
+node scripts/play/play.mjs sync-products --titles-only   # names only
+```
+
+`--titles-only` exists because the Play copy was hand-written for Play ("also
+earnable in-game for 25 💎") while `catalog.json` holds the Stripe voice:
+rewriting 26 descriptions into the other store's voice is a marketing call, so
+the default reconcile is scoped to the rows whose blurb actually changed, and
+the names — which must match the game — are a separate flag.
+
+Run `--dry-run` first and read the diff: it prints the exact before/after for
+every row it would touch.
+
 ### 2.2 Create the products
 
 The **Play Developer API fully manages one-time products** via the new

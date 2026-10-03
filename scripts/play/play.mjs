@@ -67,6 +67,26 @@
  *                              googleGroups).
    delete-product --sku=.. --yes        delete a one-time product
  *   products-check                       compare live products vs iaps.ts
+ *   sync-products [--lang=en-US] [--only=sku,sku] [--titles-only] [--dry-run]
+ *                                  reconcile the LISTING TITLE +
+ *                                  DESCRIPTION of every one-time product
+ *                                  from the repo catalog
+ *                                  (scripts/stripe/catalog.json — the one
+ *                                  catalog both stores are built from,
+ *                                  pinned to iaps.ts by the drift test).
+ *                                  Text only: it never touches prices or
+ *                                  purchase options, it keeps every
+ *                                  non-target language, and it skips what
+ *                                  is already in sync, so it is safe to
+ *                                  run against the live catalog. This is
+ *                                  the command a cosmetic blurb change
+ *                                  needs — `create-product` only sets the
+ *                                  text at CREATE, so without it the store
+ *                                  listing silently goes stale.
+ *                                  --titles-only reconciles just the
+ *                                  names (a cosmetic renamed in-game), for
+ *                                  when the copy was written for Play and
+ *                                  should be left alone.
  *
  * Global options: --app=<packageName> (default: the app.config.ts package),
  *                 --key=<path> (credentials override), --no-commit (for
@@ -581,6 +601,114 @@ async function cmdActivateProduct(pub) {
   out(data);
 }
 
+/**
+ * The repo's store catalog — the single source both stores are built from
+ * (`catalog.json`; scripts/stripe/__test__/stripeCatalog.test.ts pins every
+ * row against iaps.ts, so it cannot drift from the game's own names/prices/
+ * blurbs). Reused here so the Play listing text follows the game's instead
+ * of being retyped into a console.
+ */
+async function loadCatalog() {
+  const file = path.join(ROOT, "scripts", "stripe", "catalog.json");
+  return JSON.parse(await readFile(file, "utf8"));
+}
+
+/** The Play listing text for one catalog row. */
+function playListingFor(entry, lang) {
+  return {
+    languageCode: lang,
+    // Play's listing carries the item on its own — the "Mines of Doom: "
+    // prefix and the "One-time purchase." / "Purely cosmetic." framing are
+    // Stripe-only. Strip exactly those, and leave anything else alone.
+    title: String(entry.name).replace(/^Mines of Doom: /, ""),
+    description: String(entry.blurb)
+      .replace(/^One-time purchase\. /, "")
+      .replace(/ Purely cosmetic\.$/, ""),
+  };
+}
+
+/**
+ * Reconcile one-time product listing TEXT from the repo catalog.
+ *
+ * Deliberately narrow: `updateMask: "listings"` cannot touch prices or the
+ * purchase option's state, every other language's listing is echoed back
+ * unchanged (the mask replaces the whole repeated field), and a product that
+ * already matches is not sent at all — so a run against the live catalog
+ * writes exactly the rows that drifted, and nothing else.
+ */
+async function cmdSyncProducts(pub) {
+  const catalog = await loadCatalog();
+  const lang = String(args.lang ?? "en-US");
+  const only = args.only ? new Set(String(args.only).split(",")) : null;
+  const live = new Map(
+    (await listAllProducts(pub)).map((p) => [p.productId, p]),
+  );
+  const selected = only
+    ? catalog.filter((e) => only.has(String(e.storeId)))
+    : catalog;
+  let updated = 0;
+  let same = 0;
+  let missing = 0;
+  for (const entry of selected) {
+    const sku = String(entry.storeId);
+    const product = live.get(sku);
+    if (product == null) {
+      missing++;
+      console.log(`missing ${sku} — create-product first`);
+      continue;
+    }
+    const want = playListingFor(entry, lang);
+    const have = (product.listings ?? []).find((l) => l.languageCode === lang);
+    // --titles-only keeps the live description: the copy on Play was written
+    // for Play ("also earnable in-game for N gems"), and rewriting it into
+    // the Stripe voice is a marketing call, not a drift fix.
+    const titlesOnly = args["titles-only"] === true;
+    const next = titlesOnly
+      ? { ...have, ...want, description: have?.description ?? "" }
+      : want;
+    if (have?.title === want.title && have?.description === next.description) {
+      same++;
+      continue;
+    }
+    if (args["dry-run"]) {
+      console.log(
+        `would update ${sku} [${lang}]\n` +
+          `  title ${JSON.stringify(have?.title ?? null)} -> ${JSON.stringify(want.title)}\n` +
+          `  desc  ${JSON.stringify(have?.description ?? null)}\n` +
+          `    -> ${JSON.stringify(next.description)}`,
+      );
+      updated++;
+      continue;
+    }
+    // The mask replaces the whole `listings` array, so every other language
+    // the product carries has to ride along or it would be dropped.
+    const listings = [
+      next,
+      ...(product.listings ?? []).filter((l) => l.languageCode !== lang),
+    ];
+    // The API rejects a patch with no regions version ("Regions Version must
+    // be specified") even for a text-only edit — echo the product's OWN
+    // current version so nothing about pricing moves.
+    const { data: current } = await pub.monetization.onetimeproducts.get({
+      packageName: app,
+      productId: sku,
+    });
+    await pub.monetization.onetimeproducts.patch({
+      packageName: app,
+      productId: sku,
+      "regionsVersion.version": current.regionsVersion?.version,
+      updateMask: "listings",
+      requestBody: { listings },
+    });
+    console.error(`updated ${sku} [${lang}]`);
+    updated++;
+  }
+  console.log(
+    `${updated} to update, ${same} already in sync, ${missing} missing (of ${selected.length} selected)`,
+  );
+  if (missing) process.exitCode = 1;
+}
+
 async function cmdDeleteProduct(pub) {
   const { sku, yes } = args;
   if (!sku) fail("delete-product needs --sku=…");
@@ -652,6 +780,7 @@ const COMMANDS = {
   "create-product": cmdCreateProduct,
   "activate-product": cmdActivateProduct,
   "delete-product": cmdDeleteProduct,
+  "sync-products": cmdSyncProducts,
   "products-check": cmdProductsCheck,
 };
 

@@ -18,6 +18,15 @@
  *     enabled, and prints the STRIPE_WEBHOOK_SECRET line for the sidecar
  *     env (VPS, ~/docker/pocketbase — never in the repo).
  *
+ *   node scripts/stripe/syncStripe.mjs descriptions [--only=id,id]
+ *     [--titles-only] [--dry-run]
+ *     Text-only reconcile of every product's NAME + DESCRIPTION from
+ *     catalog.json. `products` only sets them at CREATE, so a cosmetic
+ *     renamed or re-blurbbed in the game leaves the listing stale
+ *     forever; this pushes the copy. Never calls the price API and never
+ *     sends `active`, skips whatever is already in sync, and prints the
+ *     diff under --dry-run.
+ *
  *   node scripts/stripe/syncStripe.mjs verify
  *     READ-ONLY drift check (no create/update): the account's mdoom-
  *     marked products + prices vs scripts/stripe/catalog.json vs the
@@ -163,6 +172,64 @@ async function listMdoomProducts(apiKey) {
     start = page.has_more ? page.data[page.data.length - 1].id : undefined;
   } while (start);
   return byId;
+}
+
+/**
+ * Text-only reconcile: every mdoom product's NAME + DESCRIPTION from
+ * catalog.json. `products` only sets them at CREATE, so a cosmetic renamed
+ * or re-blurbbed in the game leaves the store listing stale forever — and
+ * that is exactly what happened: the listing has to be pushed by hand.
+ *
+ * Deliberately narrow: it never calls the price API and never sends
+ * `active`, so a rename cannot unpublish a product or move a price (a
+ * Stripe price object is immutable anyway — prices are `products`' job).
+ * Anything already in sync is not sent at all. --titles-only reconciles
+ * just the names; --only=<id,id> scopes the run; --dry-run prints the
+ * diff.
+ */
+async function syncDescriptions(apiKey, { only, titlesOnly, dryRun }) {
+  const byId = await listMdoomProducts(apiKey);
+  const rows = CATALOG.filter((e) => !only || only.has(e.id));
+  let updated = 0;
+  let same = 0;
+  const missing = [];
+  for (const e of rows) {
+    const product = byId.get(e.id);
+    if (!product) {
+      missing.push(e.id);
+      continue;
+    }
+    const name = e.name;
+    const description = titlesOnly ? product.description : e.blurb;
+    if (product.name === name && product.description === description) {
+      same++;
+      continue;
+    }
+    if (dryRun) {
+      console.log(
+        `would update ${e.id}\n` +
+          `  name ${JSON.stringify(product.name)} -> ${JSON.stringify(name)}\n` +
+          `  desc ${JSON.stringify(product.description)} -> ${JSON.stringify(description)}`,
+      );
+      updated++;
+      continue;
+    }
+    // POST is Stripe's update verb; only these fields are sent, so `active`
+    // and the metadata markers are left as they are.
+    await stripe(apiKey, "POST", `/products/${product.id}`, {
+      name,
+      description,
+    });
+    console.error(`updated ${e.id}`);
+    updated++;
+  }
+  console.log(
+    `${updated} to update, ${same} already in sync, ${missing.length} missing (of ${rows.length} selected)`,
+  );
+  if (missing.length) {
+    console.log("missing (products command creates them):", missing.join(" "));
+    process.exitCode = 1;
+  }
 }
 
 /**
@@ -381,10 +448,17 @@ async function ensureWebhook(apiKey) {
 
 const [cmd, ...flags] = process.argv.slice(2);
 
+/** `--name=value` → value, or null (the flag parser stays tiny on purpose). */
+function flagValue(name) {
+  const hit = flags.find((f) => f.startsWith(name + "="));
+  return hit ? hit.slice(name.length + 1) : null;
+}
+
 async function main() {
-  if (!["products", "webhook", "verify"].includes(cmd)) {
+  if (!["products", "descriptions", "webhook", "verify"].includes(cmd)) {
     console.error(
-      "usage: node scripts/stripe/syncStripe.mjs products | webhook | verify\n" +
+      "usage: node scripts/stripe/syncStripe.mjs products | descriptions | webhook | verify\n" +
+        "       descriptions [--only=id,id] [--titles-only] [--dry-run]\n" +
         "       (--live allowed for a sk_live_ key; sandbox is the default)",
     );
     return 2;
@@ -405,8 +479,7 @@ async function main() {
   }
   if (cmd === "products") {
     const result = await ensureProducts(apiKey);
-    const live = flags.includes("--live");
-    console.log(
+    const live = flags.includes("--live");    console.log(
       "\nPaste into src/mines_of_doom/storeConfig.ts " +
         (live
           ? "(stripeProd — auto-enabled on the prod domain)"
@@ -419,6 +492,13 @@ async function main() {
     console.log(
       "\nAll-or-nothing gate: the web shop appears only when every id in\nIAP_PRODUCT_IDS has a price (isStripeConfigured).",
     );
+  } else if (cmd === "descriptions") {
+    await syncDescriptions(apiKey, {
+      only: flagValue("--only")
+        ? new Set(flagValue("--only").split(","))
+        : null,      titlesOnly: flags.includes("--titles-only"),
+      dryRun: flags.includes("--dry-run"),
+    });
   } else if (cmd === "verify") {
     const keyEnv = apiKey.startsWith("sk_live_") ? "live" : "test";
     const cfg = parseStoreConfig();
