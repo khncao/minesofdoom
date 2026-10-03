@@ -241,10 +241,14 @@ install.**
    AND `minesofdoom.pages.dev` both still NOT AUTHORIZED (no popup; FedCM
    `NetworkError`) — web Google sign-in is dead on both hosts. Re-run
    `node scripts/gsiOriginProbe.mjs <origin>` after the console change.
-2. **Deploy the web build** — the live Pages bundle still carries the OLD
-   `pocketbaseUrl` (scanned: it calls `minesofdoom.minus4kelvin.com`, not
-   `api.…`). Push to `main` (Pages CI) or
-   `npx wrangler login && pnpm run deploy`.
+2. ~~Deploy the web build~~ — **DONE 2026-10-03**: pushed to `main`
+   (`e7f8e44`), Cloudflare Pages build green. Verified live on the deployed
+   assets: the bundle calls `api.minesofdoom.minus4kelvin.com` and no longer
+   the old host; the shim answers `POST /api/app/restore` 200
+   (`{"entitlements":[]}`, was 405); a forged webhook through the shim is
+   still 400 (fail-closed survives the hop); `robots.txt`, `sitemap.xml`,
+   the legal pages and SPA deep links all 200 (the Functions only intercept
+   the two prefixes).
 3. **Play 1.0.12 (vc 12)** carrying the new URL, rolled out on production.
 4. Post-deploy proof: `node scripts/stripe/checkoutTest.mjs` (real checkout →
    webhook lands on the `api.` host → entitlement minted), plus one manual
