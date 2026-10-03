@@ -275,6 +275,13 @@ export function minerSpriteUri(
   look.outfit ?? "",
   look.beard === true ? 1 : 0,
   look.cute === true ? 1 : 0,
+  // An outfit's authored silhouette (see rollMinerLook): two outfits can
+  // roll the same six colors and still be two different characters, so the
+  // axes have to be in the key or one would serve the other's body.
+  look.build ?? "",
+  look.gown === true ? 1 : 0,
+  look.pretty === true ? 1 : 0,
+  look.prop ?? "",
   opts?.crewId ?? "",
   opts?.crewWearsOutfit === true ? "w" : "",
  ]);

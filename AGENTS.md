@@ -168,6 +168,16 @@ and the old art is still there. Under the seam:
   the provider), rows for the custom-skin line (uploads/samples). The menu
   sheet deliberately has NO shop tab — this panel is the single purchase
   surface.
+- **A paid cosmetic is a CHARACTER, not a palette** — the rule every paid line
+  is measured against, and the one both catalogs' tests pin. Skins carry a
+  `SkinShape`; outfits carry `OutfitCosmetic.shape` (the same axes minus
+  tool/crown/motes), AUTHORED rather than rolled, so the player's miner keeps
+  one body per outfit while the colors still reroll per seed. `crown`/`motes`
+  stay with the crew cast (its premium language). `shapeForLook` carries the
+  axes from the look, `minerSpriteUri`'s cache key includes them, and
+  `rollMinerLook` copies them AFTER the color picks (never an extra `pick` —
+  that would reshuffle every existing save's miner). See docs/outfit-line.md
+  and docs/skin-line.md.
 
 ## Module Resolution (important — easy to get wrong)
 

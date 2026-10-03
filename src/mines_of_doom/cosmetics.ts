@@ -18,6 +18,15 @@ import { hashSeed, mulberry32 } from "src/utils/graphics/pixelArt";
  * programmatic sprites — no art assets.
  */
 
+/**
+ * An outfit's authored SILHOUETTE — the axes a paid outfit owns, so buying it
+ * buys a character and not a palette. `Omit` of the skin line's shape: the
+ * crown/mote axes stay with the crew cast (its premium mark-making, and
+ * putting them on a purchasable outfit would blur that language), and the
+ * tool is never part of a body.
+ */
+export type OutfitShape = Omit<SkinShape, "tool" | "crown" | "motes">;
+
 export type OutfitCosmetic = {
   id: string;
   name: string;
@@ -27,6 +36,13 @@ export type OutfitCosmetic = {
   cashTier: CashTier;
   /** Optional one-line flavor/shown in the picker (e.g. homage credit). */
   blurb?: string;
+  /**
+   * The character's shape, read by the papercut art pack (docs/art-directions.md)
+   * and ignored by the classic one. AUTHORED, never rolled: the colors still
+   * reroll per player seed, but the body is the item. Absent on the free
+   * starter outfit, which is deliberately the plain default miner.
+   */
+  shape?: OutfitShape;
   /**
    * Body type (plan §4.5): "human" (default) or "animal" (round critter —
    * see buildAnimalBody in pixelArt.ts). Animal outfits must set `fur`.
@@ -144,44 +160,48 @@ export const OUTFITS: OutfitCosmetic[] = [
     name: "Night Shift",
     cashTier: 1,
     costGems: 15,
+    shape: { hatStyle: "beanie", beard: true, build: "sturdy" },
     shirts: ["#3a4a7a", "#4a3a7a", "#2b3a5c", "#5a4a8a"],
     pants: ["#22283a", "#2a2f45"],
     boots: ["#1a1a24", "#333344"],
     hats: ["#333344", "#444455", "#2b2b3a"],
-    hatStyles: ["beanie", "cap", "bandana"],
+    hatStyles: ["beanie"],
   },
   {
     id: "goldrush",
     name: "Gold Rush",
     cashTier: 1,
     costGems: 25,
+    shape: { hatStyle: "helmet", build: "sturdy", prop: "satchel" },
     shirts: ["#e8c33d", "#d4a017", "#f0d060", "#c89010"],
     pants: ["#5a4a20", "#6b5a30"],
     boots: ["#4a3524", "#3a2a18"],
     hats: ["#f0d060", "#e8c33d", "#fff3b0"],
-    hatStyles: ["cap", "bandana"],
+    hatStyles: ["helmet"],
   },
   {
     id: "crystal",
     name: "Crystal Miner",
     cashTier: 2,
     costGems: 40,
+    shape: { hatStyle: "beanie", build: "slim", cute: true },
     shirts: ["#3ac0c0", "#2a90d9", "#7fe0d0", "#40b0e0"],
     pants: ["#2a4a5a", "#1f3a4a"],
     boots: ["#1a2f3a", "#2a3f4a"],
     hats: ["#a0f0f0", "#d0fbff", "#70d8e8"],
-    hatStyles: ["helmet", "beanie"],
+    hatStyles: ["beanie"],
   },
   {
     id: "magma",
     name: "Lava Worker",
     cashTier: 2,
     costGems: 50,
+    shape: { hatStyle: "bandana", beard: true, build: "sturdy" },
     shirts: ["#d94f30", "#e07020", "#b03020", "#f09030"],
     pants: ["#4a2a1a", "#3a2015"],
     boots: ["#2a1a10", "#3a251a"],
     hats: ["#f09030", "#e8e8e8", "#d94f30"],
-    hatStyles: ["helmet", "cap"],
+    hatStyles: ["bandana"],
   },
   // Homage line (plan §4.5 / art todo): original palettes that evoke famous
   // game worlds WITHOUT using any of their names, sprites, or assets — an
@@ -192,11 +212,12 @@ export const OUTFITS: OutfitCosmetic[] = [
     cashTier: 1,
     costGems: 30,
     blurb: "a voxel-sandbox tribute",
+    shape: { hatStyle: "cap", build: "sturdy" },
     shirts: ["#2f88c4", "#35a0cc", "#2a6a98"],
     pants: ["#3a5aa8", "#2a4a8a"],
     boots: ["#565b6e", "#3a3f4e"],
     hats: ["#2f88c4", "#e8e8e8", "#565b6e"],
-    hatStyles: ["cap", "bandana"],
+    hatStyles: ["cap"],
   },
   {
     id: "surface",
@@ -204,11 +225,12 @@ export const OUTFITS: OutfitCosmetic[] = [
     cashTier: 2,
     costGems: 40,
     blurb: "a surface-to-underground sandbox tribute",
+    shape: { hatStyle: "cap", build: "slim", beard: true },
     shirts: ["#4a8a3a", "#6aa84a", "#3a7030"],
     pants: ["#6a4a2a", "#5a3e20"],
     boots: ["#4a3018", "#3a2810"],
     hats: ["#7a5a3a", "#8a6a4a", "#4a8a3a"],
-    hatStyles: ["cap", "bandana"],
+    hatStyles: ["cap"],
   },
   {
     id: "knight",
@@ -216,11 +238,12 @@ export const OUTFITS: OutfitCosmetic[] = [
     cashTier: 2,
     costGems: 50,
     blurb: "a dark-fantasy soulslike tribute",
+    shape: { hatStyle: "helmet", beard: true, build: "slim" },
     shirts: ["#8a9099", "#6a707a", "#5a606a"],
     pants: ["#4a4e58", "#3a3e48"],
     boots: ["#33363e", "#262932"],
     hats: ["#7a808a", "#9aa0aa", "#b8703a"],
-    hatStyles: ["helmet", "cap"],
+    hatStyles: ["helmet"],
   },
   {
     id: "hunter",
@@ -228,11 +251,12 @@ export const OUTFITS: OutfitCosmetic[] = [
     cashTier: 2,
     costGems: 60,
     blurb: "a gothic hunt tribute",
+    shape: { hatStyle: "bandana", build: "slim", prop: "satchel" },
     shirts: ["#4a5a3a", "#3a4a2a", "#5a4a3a"],
     pants: ["#3a3a2a", "#2e2e22"],
     boots: ["#2a241a", "#1f1a12"],
     hats: ["#5a4a3a", "#4a3a2a", "#6a5a4a"],
-    hatStyles: ["bandana", "cap", "beanie"],
+    hatStyles: ["bandana"],
   },
   {
     id: "oni",
@@ -240,11 +264,12 @@ export const OUTFITS: OutfitCosmetic[] = [
     cashTier: 3,
     costGems: 75,
     blurb: "a samurai-era vengeance tribute",
+    shape: { hatStyle: "bandana", build: "sturdy" },
     shirts: ["#b03030", "#8a2020", "#c04040"],
     pants: ["#2a2a33", "#1f1f28"],
     boots: ["#1a1a22", "#12121a"],
     hats: ["#d8d0c0", "#b03030", "#4a4a5a"],
-    hatStyles: ["bandana", "cap"],
+    hatStyles: ["bandana"],
   },
   // Critter line (plan §4.5 / art todo): full animal bodies
   // (species: "animal" — round heads, ears, vests, tails; see
@@ -257,11 +282,12 @@ export const OUTFITS: OutfitCosmetic[] = [
     blurb: "a pocket-sized rodent with a pickaxe bigger than it",
     species: "animal",
     fur: ["#a08058", "#8a6b48", "#b89868"],
+    shape: { hatStyle: "beanie", cute: true, prop: "basket" },
     shirts: ["#d94f30", "#e8a33d", "#5cb85c", "#4a90d9"],
     pants: ["#8a6b48", "#a08058", "#7a5c3e"],
     boots: ["#5a4630", "#4a3826"],
     hats: ["#e8c33d", "#d9534f", "#5cb85c", "#4a90d9"],
-    hatStyles: ["bandana", "beanie"],
+    hatStyles: ["beanie"],
   },
   {
     id: "fox",
@@ -271,11 +297,12 @@ export const OUTFITS: OutfitCosmetic[] = [
     blurb: "all fire, no smoke — the crew's resident gambler",
     species: "animal",
     fur: ["#e07020", "#c85a18", "#f09040"],
+    shape: { hatStyle: "bandana", prop: "satchel" },
     shirts: ["#3a4a5a", "#2b3a5c", "#4a3a7a"],
     pants: ["#c85a18", "#e07020", "#a84810"],
     boots: ["#3a2a1a", "#2e2214"],
     hats: ["#e8e8e8", "#d9534f", "#3a4a5a"],
-    hatStyles: ["bandana", "cap"],
+    hatStyles: ["bandana"],
   },
   {
     id: "otter",
@@ -285,11 +312,12 @@ export const OUTFITS: OutfitCosmetic[] = [
     blurb: "rivers' finest — hoards shiny things in a nest of pebbles",
     species: "animal",
     fur: ["#7a5a3a", "#6a4e32", "#8a6b4a"],
+    shape: { hatStyle: "cap", cute: true },
     shirts: ["#4a90d9", "#3ac0c0", "#5cb85c"],
     pants: ["#6a4e32", "#7a5a3a"],
     boots: ["#3a2f22", "#2e251a"],
     hats: ["#4a90d9", "#e8e8e8", "#e8c33d"],
-    hatStyles: ["beanie", "cap"],
+    hatStyles: ["cap"],
   },
   // Hair line: the "cute girl" ask, done tastefully at 16×16 — long hair
   // (a hat-style, not a hat) and softer palettes, same human body.
@@ -298,12 +326,13 @@ export const OUTFITS: OutfitCosmetic[] = [
     name: "Damsel of the Deep",
     cashTier: 3,
     costGems: 75,
-    blurb: "long hair, softer clothes, the same unshakeable nerve",
+    blurb: "long hair and a floor-length gown — the same unshakeable nerve",
+    shape: { hatStyle: "longhair", hair: "long", build: "slim", gown: true, pretty: true },
     shirts: ["#e070a0", "#d9534f", "#8e6fc0", "#e8a33d"],
     pants: ["#3b4a6b", "#555b66"],
     boots: ["#4a3524", "#333333"],
     hats: ["#6a4a3a", "#3a2a20", "#8a5a4a", "#c8a060"],
-    hatStyles: ["longhair", "beanie"],
+    hatStyles: ["longhair"],
   },
 ];
 
@@ -495,10 +524,13 @@ export const COSMETIC_PREVIEW_SEED = 42;
  * the look; switching the outfit reshuffles it again (different palette).
  * Animal outfits draw their fur from `fur` instead of SKIN_TONES.
  *
- * The shape hints appended at the end (hair / outfit / beard / cute) are read
- * only by the papercut art pack (docs/art-directions.md); the classic pixel
- * pack ignores them. They come AFTER the color picks on purpose — an extra
- * `pick` earlier in the stream would reshuffle every existing save's miner.
+ * The shape hints appended at the end (hair / outfit / beard / cute / the
+ * papercut axes) are read only by the papercut art pack
+ * (docs/art-directions.md); the classic pixel pack ignores them. They come
+ * AFTER the color picks on purpose — an extra `pick` earlier in the stream
+ * would reshuffle every existing save's miner. An outfit that ships a
+ * `shape` OVERRIDES the rolled hints outright: the item is a character, and
+ * rerolling colors must not reroll who they are.
  */
 export function rollMinerLook(seed: number, outfitId: string): MinerLook {
   const outfit = getOutfit(outfitId);
@@ -516,6 +548,24 @@ export function rollMinerLook(seed: number, outfitId: string): MinerLook {
     species,
   };
   // --- papercut silhouette personality (see artPack.shapeForLook) ----------
+  const shape = outfit.shape;
+  if (shape != null) {
+    // An authored character: copy its axes onto the look. NOT rolled, and
+    // appended after the color picks, so no existing player's miner moves.
+    // `hatStyle` overrides the rolled one too — headwear is the loudest
+    // silhouette axis there is, and a character who changes their hat every
+    // reroll is a palette again. The hat COLOR still rolls from the pool.
+    look.hatStyle = shape.hatStyle ?? look.hatStyle;
+    look.hair = shape.hair ?? look.hair;
+    look.outfit = shape.outfit ?? "trousers";
+    look.beard = shape.beard ?? false;
+    look.cute = shape.cute ?? false;
+    look.build = shape.build;
+    look.gown = shape.gown ?? false;
+    look.pretty = shape.pretty ?? false;
+    look.prop = shape.prop;
+    return look;
+  }
   // Hair only ROLLS on a bare head: authored hair does draw under a hat now
   // (a beanie no longer eats it — the skin line's Sky Bob), and letting the
   // roll do it here would quietly give every saved miner a new silhouette.

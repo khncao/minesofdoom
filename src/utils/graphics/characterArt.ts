@@ -363,12 +363,11 @@ export type MoteStyle =
   | "swirl";
 
 /**
- * Re-exported so a skin line never has to import two modules. The two extra
- * styles are cut-paper-only (a braid and big waved volume are silhouette
- * work, not something the live 16×16 pipeline needs to know about), so this
- * is a WIDENING of `MinerHair`, not a change to it.
+ * Re-exported so a skin line never has to import two modules. One type, the
+ * game model's `MinerHair` — the cut-paper-only styles (`braid`, `waves`)
+ * live there so an OUTFIT's authored silhouette can travel on a look.
  */
-export type HairStyle = MinerHair | "braid" | "waves";
+export type HairStyle = MinerHair;
 
 const DEFAULT_SHAPE: Required<SkinShape> = {
  form: "human",
@@ -416,6 +415,14 @@ export function shapeForLook(look: MinerLook): SkinShape {
   beard: look.beard ?? false,
   outfit: look.outfit ?? "trousers",
   cute: look.cute ?? false,
+  // An OUTFIT's authored silhouette (see `OutfitCosmetic.shape`). Carried on
+  // the look rather than looked up here so the sprite stays a pure function
+  // of the look — and so the crew, which builds its looks from its own cast,
+  // is unaffected.
+  build: look.build,
+  gown: look.gown,
+  pretty: look.pretty,
+  prop: look.prop,
   tool: false,
  };
 }

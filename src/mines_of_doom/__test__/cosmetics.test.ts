@@ -4,7 +4,9 @@ import {
   DIRECTION_GRID_SIZE,
   TOOLS,
   buildDirectionGrid,
+  minerLabels,
   pickaxeLabels,
+  shapeForLook,
 } from "src/utils/graphics/characterArt";
 import {
   CAVE_THEMES,
@@ -290,9 +292,94 @@ describe("critter + hair line (mineral skins: animals & long hair)", () => {
         } else {
           expect(look.skin).toMatch(HEX6);
         }
-        expect(o.hatStyles).toContain(look.hatStyle);
+        // An authored character wears its own hat; the rest roll theirs out
+        // of the pool. Either way the style has to be one the outfit ships.
+        if (o.shape?.hatStyle) {
+          expect(look.hatStyle).toBe(o.shape.hatStyle);
+          expect(o.hatStyles).toContain(look.hatStyle);
+        } else {
+          expect(o.hatStyles).toContain(look.hatStyle);
+        }
+        // The hat's COLOR still comes from the outfit's pool.
+        expect(o.hats).toContain(look.hat);
       }
     }
+  });
+});
+
+describe("every PAID outfit is a character, not a recolor", () => {
+  // The line's rule, and the regression for what it used to be: every outfit
+  // was a palette, so buying one bought the default miner in new colors.
+  // Asserted on the drawn LABEL MAP (the body), because a silhouette is not
+  // a color question.
+  const outline = (outfitId: string, seed = 3): string =>
+    minerLabels(shapeForLook(rollMinerLook(seed, outfitId)))
+      .map((row) => row.map((c) => (c == null ? "." : c[0])).join(""))
+      .join("\n");
+  const paid = OUTFITS.filter((o) => o.costGems > 0);
+
+  test("every paid outfit ships a shape; the free starter does not", () => {
+    for (const o of paid) expect(o.shape).toBeDefined();
+    // The starter is deliberately the plain default miner — it is what a
+    // player has before buying anything.
+    expect(getOutfit(DEFAULT_OUTFIT).shape).toBeUndefined();
+  });
+
+  test("no two paid outfits draw the same body", () => {
+    const byShape = new Map<string, string[]>();
+    for (const o of paid) {
+      const key = outline(o.id);
+      byShape.set(key, [...(byShape.get(key) ?? []), o.id]);
+    }
+    // The failure names the outfits that collided.
+    expect([...byShape.values()].filter((ids) => ids.length > 1)).toEqual([]);
+  });
+
+  test("no paid outfit is the default miner", () => {
+    const plain = outline(DEFAULT_OUTFIT);
+    const sameAsDefault = paid
+      .filter((o) => outline(o.id) === plain)
+      .map((o) => o.id);
+    expect(sameAsDefault).toEqual([]);
+  });
+
+  test("an outfit is a fixed character: the seed rerolls colors, not the body", () => {
+    for (const o of paid) {
+      const bodies = new Set(
+        Array.from({ length: 8 }, (_, i) => outline(o.id, i)),
+      );
+      expect([...bodies]).toHaveLength(1);
+      // …while the colors still vary, so two players wearing it differ.
+      const colors = new Set(
+        Array.from({ length: 8 }, (_, i) => {
+          const l = rollMinerLook(i, o.id);
+          return `${l.shirt}${l.pants}${l.hat}`;
+        }),
+      );
+      expect(colors.size).toBeGreaterThan(1);
+    }
+  });
+
+  test("the critter outfits stay critters and the damsel reads as one", () => {
+    for (const o of paid) {
+      const labels = minerLabels(shapeForLook(rollMinerLook(3, o.id)));
+      const used = new Set(labels.flat().filter((m) => m != null));
+      // A critter outfit has no skin-coloured cheeks: its muzzle and ears are
+      // the tell, and the human arms must not be there.
+      if ((o.species ?? "human") === "animal") {
+        expect(used.has("boots")).toBe(true); // feet, not boots
+      }
+    }
+    const damsel = paid.find((o) => o.shape?.gown === true);
+    expect(damsel).toBeDefined();
+    const labels = minerLabels(shapeForLook(rollMinerLook(3, damsel!.id)));
+    const used = new Set(labels.flat().filter((m) => m != null));
+    // The gown reaches the floor and hides the boots — the one read that
+    // says "not a miner in a costume".
+    expect(used.has("boots")).toBe(false);
+    expect(used.has("shirt")).toBe(true);
+    // …and her silhouette is her own.
+    expect(outline(damsel!.id)).not.toBe(outline(DEFAULT_OUTFIT));
   });
 });
 
@@ -301,7 +388,7 @@ describe("rollMinerLook", () => {
     expect(rollMinerLook(7, "classic")).toEqual(rollMinerLook(7, "classic"));
   });
 
-  test("carries papercut shape hints (hair on a bare head only)", () => {
+  test("carries papercut shape hints (rolled on the unshaped, authored on the rest)", () => {
     const HAIRS = ["bob", "long", "ponytail", "twin", "bun"];
     let dresses = 0;
     let beards = 0;
@@ -312,6 +399,15 @@ describe("rollMinerLook", () => {
         expect(["trousers", "dress"]).toContain(look.outfit);
         expect(typeof look.beard).toBe("boolean");
         expect(typeof look.cute).toBe("boolean");
+        if (o.shape != null) {
+          // An authored character: the same person on every seed.
+          expect(look.outfit).toBe(o.shape.outfit ?? "trousers");
+          expect(look.beard).toBe(o.shape.beard ?? false);
+          expect(look.cute).toBe(o.shape.cute ?? false);
+          expect(look.build).toBe(o.shape.build);
+          expect(look.prop).toBe(o.shape.prop);
+          continue;
+        }
         if (look.hatStyle === "longhair") {
           expect(HAIRS).toContain(look.hair);
         } else {
@@ -323,7 +419,9 @@ describe("rollMinerLook", () => {
         if (look.cute) cuties++;
       }
     }
-    // The crew must actually see a mix of silhouettes, not one body.
+    // The free starter (the only unshaped outfit) must actually see a mix of
+    // silhouettes, not one body.
+    expect(OUTFITS.filter((o) => o.shape == null)).toHaveLength(1);
     expect(dresses).toBeGreaterThan(0);
     expect(beards).toBeGreaterThan(0);
     expect(cuties).toBeGreaterThan(0);

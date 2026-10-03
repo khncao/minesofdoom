@@ -46,13 +46,12 @@ import {
 import { darkenHex, lightenHex, mixHex } from "./detailPass";
 import type {
  CrownStyle,
- HairStyle,
  LabelGrid,
  MoteStyle,
  Palette,
  SkinShape,
 } from "./characterArt";
-import type { MinerHair, MinerLook, PixelGrid } from "./pixelArt";
+import type { MinerLook, PixelGrid } from "./pixelArt";
 
 /** The three purchasable crew lines (see the roster kinds in cosmetics.ts). */
 export type CrewLine = "normal" | "fast" | "legendary";
@@ -491,31 +490,11 @@ export function crewLookFor(
  const base = own ? char.look : rolled;
  return {
   ...base,
-  hair: gameHair(char.shape.hair),
+  hair: char.shape.hair,
   beard: char.shape.beard ?? false,
   outfit: char.shape.outfit ?? "trousers",
   cute: char.shape.cute ?? false,
  };
-}
-
-/**
- * The hair styles the GAME model knows. `SkinShape.hair` is deliberately
- * wider (the cut-paper-only `braid` and `waves` are authored per skin), and a
- * crew character's hair travels back through a `MinerLook` — so anything the
- * classic 16×16 pipeline has never heard of is dropped here rather than
- * widening the look type (and the save data with it).
- */
-function gameHair(style: HairStyle | undefined): MinerHair | undefined {
- switch (style) {
-  case "bob":
-  case "long":
-  case "ponytail":
-  case "twin":
-  case "bun":
-   return style;
-  default:
-   return undefined;
- }
 }
 
 /**

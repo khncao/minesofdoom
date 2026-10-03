@@ -316,7 +316,22 @@ export type HatStyle = "helmet" | "beanie" | "cap" | "bandana" | "longhair";
  * look (not of `HatStyle`) because the classic 16×16 grid has no hair other
  * than the `longhair` hat — the pixel art pack ignores it entirely.
  */
-export type MinerHair = "bob" | "long" | "ponytail" | "twin" | "bun";
+/**
+ * Hair style. The classic 16×16 pipeline does not read this at all (it draws
+ * one solid fall for `hatStyle: "longhair"`), so the two cut-paper styles
+ * live here too — they are paper-cut geometry, and the type is the single
+ * place both layers agree on. The ROLL pool (`MINER_HAIR_STYLES`) stays the
+ * five classic styles: a longer pool changes `pick`'s modulus and would
+ * reshuffle every existing player's miner.
+ */
+export type MinerHair =
+  | "bob"
+  | "long"
+  | "ponytail"
+  | "twin"
+  | "bun"
+  | "braid"
+  | "waves";
 
 /** Silhouette switches the papercut art pack reads off a look. */
 export interface MinerShape {
@@ -326,6 +341,15 @@ export interface MinerShape {
   beard?: boolean;
   /** Cute face: bigger eyes with lash ticks, plus blush. */
   cute?: boolean;
+  // --- the papercut-only axes (characterArt.SkinShape) ---------------------
+  // A paid OUTFIT carries its own silhouette, so these arrive on the look
+  // from `OutfitCosmetic.shape` — AUTHORED, never rolled. That is the point:
+  // a roll would reshuffle every existing player's miner when the catalog
+  // grows, and an item that rerolls its own face is a recolor.
+  build?: "sturdy" | "slim";
+  gown?: boolean;
+  pretty?: boolean;
+  prop?: "none" | "basket" | "satchel";
 }
 
 /**

@@ -4,6 +4,7 @@
     "storeId": "pack_gold",
     "name": "Mines of Doom: Gold Pickaxe",
     "blurb": "One-time purchase. Unlocks the Gold pickaxe — its own swing sound and swing feel. Purely cosmetic.",
+    "playBlurb": "Unlocks the Gold Pickaxe (also earnable in-game for 25 💎). The game stays fully free without it.",
     "amountUsd": 99
   },
   {
@@ -11,6 +12,7 @@
     "storeId": "pack_frost",
     "name": "Mines of Doom: Crystal Pickaxe",
     "blurb": "One-time purchase. Unlocks the Crystal pickaxe — its own swing sound and swing feel. Purely cosmetic.",
+    "playBlurb": "Unlocks the Crystal Pickaxe (also earnable in-game for 45 💎). The game stays fully free without it.",
     "amountUsd": 199
   },
   {
@@ -39,6 +41,7 @@
     "storeId": "pack_shadow",
     "name": "Mines of Doom: Shadow Pickaxe",
     "blurb": "One-time purchase. Unlocks the Shadow pickaxe — its own swing sound and swing feel. Purely cosmetic.",
+    "playBlurb": "Unlocks the Shadow Pickaxe (also earnable in-game for 90 💎). The game stays fully free without it.",
     "amountUsd": 299
   },
   {
@@ -53,6 +56,7 @@
     "storeId": "pack_night",
     "name": "Mines of Doom: Night Shift Outfit",
     "blurb": "One-time purchase. Unlocks the Night Shift outfit. Purely cosmetic.",
+    "playBlurb": "Unlocks the Night Shift Outfit (also earnable in-game for 15 💎). The game stays fully free without it.",
     "amountUsd": 99
   },
   {
@@ -60,6 +64,7 @@
     "storeId": "pack_goldrush",
     "name": "Mines of Doom: Gold Rush Outfit",
     "blurb": "One-time purchase. Unlocks the Gold Rush outfit. Purely cosmetic.",
+    "playBlurb": "Unlocks the Gold Rush Outfit (also earnable in-game for 25 💎). The game stays fully free without it.",
     "amountUsd": 99
   },
   {
@@ -67,6 +72,7 @@
     "storeId": "pack_crystal",
     "name": "Mines of Doom: Crystal Miner Outfit",
     "blurb": "One-time purchase. Unlocks the Crystal Miner outfit. Purely cosmetic.",
+    "playBlurb": "Unlocks the Crystal Miner Outfit (also earnable in-game for 40 💎). The game stays fully free without it.",
     "amountUsd": 199
   },
   {
@@ -74,6 +80,7 @@
     "storeId": "pack_magma",
     "name": "Mines of Doom: Lava Worker Outfit",
     "blurb": "One-time purchase. Unlocks the Lava Worker outfit. Purely cosmetic.",
+    "playBlurb": "Unlocks the Lava Worker Outfit (also earnable in-game for 50 💎). The game stays fully free without it.",
     "amountUsd": 199
   },
   {
@@ -81,6 +88,7 @@
     "storeId": "pack_blocky",
     "name": "Mines of Doom: Blocky Adventurer Outfit",
     "blurb": "One-time purchase. Unlocks the Blocky Adventurer outfit — a voxel-sandbox tribute. Purely cosmetic.",
+    "playBlurb": "Unlocks the Blocky Adventurer Outfit (also earnable in-game for 30 💎). The game stays fully free without it.",
     "amountUsd": 99
   },
   {
@@ -88,6 +96,7 @@
     "storeId": "pack_surface",
     "name": "Mines of Doom: Frontier Explorer Outfit",
     "blurb": "One-time purchase. Unlocks the Frontier Explorer outfit — a surface-to-underground sandbox tribute. Purely cosmetic.",
+    "playBlurb": "Unlocks the Frontier Explorer Outfit (also earnable in-game for 40 💎). The game stays fully free without it.",
     "amountUsd": 199
   },
   {
@@ -95,6 +104,7 @@
     "storeId": "pack_knight",
     "name": "Mines of Doom: Ashen Knight Outfit",
     "blurb": "One-time purchase. Unlocks the Ashen Knight outfit — a dark-fantasy soulslike tribute. Purely cosmetic.",
+    "playBlurb": "Unlocks the Ashen Knight Outfit (also earnable in-game for 50 💎). The game stays fully free without it.",
     "amountUsd": 199
   },
   {
@@ -102,6 +112,7 @@
     "storeId": "pack_hunter",
     "name": "Mines of Doom: Wandering Hunter Outfit",
     "blurb": "One-time purchase. Unlocks the Wandering Hunter outfit — a gothic hunt tribute. Purely cosmetic.",
+    "playBlurb": "Unlocks the Wandering Hunter Outfit (also earnable in-game for 60 💎). The game stays fully free without it.",
     "amountUsd": 199
   },
   {
@@ -109,6 +120,7 @@
     "storeId": "pack_oni",
     "name": "Mines of Doom: Crimson Oni Outfit",
     "blurb": "One-time purchase. Unlocks the Crimson Oni outfit — a samurai-era vengeance tribute. Purely cosmetic.",
+    "playBlurb": "Unlocks the Crimson Oni Outfit (also earnable in-game for 75 💎). The game stays fully free without it.",
     "amountUsd": 299
   },
   {
@@ -116,6 +128,7 @@
     "storeId": "pack_marmot",
     "name": "Mines of Doom: Burrow Marmot Outfit",
     "blurb": "One-time purchase. Unlocks the Burrow Marmot outfit — a pocket-sized rodent with a pickaxe bigger than it. Purely cosmetic.",
+    "playBlurb": "Unlocks the Burrow Marmot Outfit (also earnable in-game for 60 💎). The game stays fully free without it.",
     "amountUsd": 199
   },
   {
@@ -123,6 +136,7 @@
     "storeId": "pack_fox",
     "name": "Mines of Doom: Fox of the Vein Outfit",
     "blurb": "One-time purchase. Unlocks the Fox of the Vein outfit — all fire, no smoke — the crew's resident gambler. Purely cosmetic.",
+    "playBlurb": "Unlocks the Fox of the Vein Outfit (also earnable in-game for 70 💎). The game stays fully free without it.",
     "amountUsd": 299
   },
   {
@@ -130,13 +144,15 @@
     "storeId": "pack_otter",
     "name": "Mines of Doom: Otter of the River Outfit",
     "blurb": "One-time purchase. Unlocks the Otter of the River outfit — rivers' finest — hoards shiny things in a nest of pebbles. Purely cosmetic.",
+    "playBlurb": "Unlocks the Otter of the River Outfit (also earnable in-game for 85 💎). The game stays fully free without it.",
     "amountUsd": 299
   },
   {
     "id": "packDamsel",
     "storeId": "pack_damsel",
     "name": "Mines of Doom: Damsel of the Deep Outfit",
-    "blurb": "One-time purchase. Unlocks the Damsel of the Deep outfit — long hair, softer clothes, the same unshakeable nerve. Purely cosmetic.",
+    "blurb": "One-time purchase. Unlocks the Damsel of the Deep outfit — long hair and a floor-length gown — the same unshakeable nerve. Purely cosmetic.",
+    "playBlurb": "Unlocks the Damsel of the Deep outfit — long hair and a floor-length gown (also earnable in-game for 75 💎). The game stays fully free without it.",
     "amountUsd": 299
   },
   {
@@ -144,6 +160,7 @@
     "storeId": "pack_amethyst",
     "name": "Mines of Doom: Amethyst Cavern Theme",
     "blurb": "One-time purchase. Unlocks the Amethyst Cavern cave theme. Purely cosmetic.",
+    "playBlurb": "Unlocks the Amethyst Cavern Theme (also earnable in-game for 25 💎). The game stays fully free without it.",
     "amountUsd": 99
   },
   {
@@ -151,6 +168,7 @@
     "storeId": "pack_verdant",
     "name": "Mines of Doom: Verdant Hollow Theme",
     "blurb": "One-time purchase. Unlocks the Verdant Hollow cave theme. Purely cosmetic.",
+    "playBlurb": "Unlocks the Verdant Hollow Theme (also earnable in-game for 35 💎). The game stays fully free without it.",
     "amountUsd": 199
   },
   {
@@ -158,6 +176,7 @@
     "storeId": "pack_solar",
     "name": "Mines of Doom: Solar Vein Theme",
     "blurb": "One-time purchase. Unlocks the Solar Vein cave theme. Purely cosmetic.",
+    "playBlurb": "Unlocks the Solar Vein Theme (also earnable in-game for 55 💎). The game stays fully free without it.",
     "amountUsd": 199
   },
   {
@@ -165,6 +184,7 @@
     "storeId": "pack_void",
     "name": "Mines of Doom: Void Depths Theme",
     "blurb": "One-time purchase. Unlocks the Void Depths cave theme. Purely cosmetic.",
+    "playBlurb": "Unlocks the Void Depths Theme (also earnable in-game for 75 💎). The game stays fully free without it.",
     "amountUsd": 299
   },
   {
@@ -172,6 +192,7 @@
     "storeId": "pack_voxel",
     "name": "Mines of Doom: Blockfall Mines Theme",
     "blurb": "One-time purchase. Unlocks the Blockfall Mines cave theme — dirt, grass & glowing ore — a voxel tribute. Purely cosmetic.",
+    "playBlurb": "Unlocks the Blockfall Mines Theme (also earnable in-game for 90 💎). The game stays fully free without it.",
     "amountUsd": 299
   },
   {
@@ -179,6 +200,7 @@
     "storeId": "pack_wilds",
     "name": "Mines of Doom: Wilds Below Theme",
     "blurb": "One-time purchase. Unlocks the Wilds Below cave theme — from the grassy surface to hellstone — a sandbox tribute. Purely cosmetic.",
+    "playBlurb": "Unlocks the Wilds Below Theme (also earnable in-game for 110 💎). The game stays fully free without it.",
     "amountUsd": 399
   },
   {
@@ -186,6 +208,7 @@
     "storeId": "pack_ashen",
     "name": "Mines of Doom: Ashen Depths Theme",
     "blurb": "One-time purchase. Unlocks the Ashen Depths cave theme — fog, grey stone & a single ember — a dark-fantasy tribute. Purely cosmetic.",
+    "playBlurb": "Unlocks the Ashen Depths Theme (also earnable in-game for 130 💎). The game stays fully free without it.",
     "amountUsd": 399
   },
   {
@@ -193,6 +216,7 @@
     "storeId": "pack_gothic",
     "name": "Mines of Doom: Fog & Lantern Theme",
     "blurb": "One-time purchase. Unlocks the Fog & Lantern cave theme — moonlit fog, lantern glow, one drop of blood — a gothic hunt tribute. Purely cosmetic.",
+    "playBlurb": "Unlocks the Fog & Lantern Theme (also earnable in-game for 150 💎). The game stays fully free without it.",
     "amountUsd": 399
   },
   {
@@ -200,6 +224,7 @@
     "storeId": "pack_cherry",
     "name": "Mines of Doom: Cherry & Indigo Theme",
     "blurb": "One-time purchase. Unlocks the Cherry & Indigo cave theme — blossom over indigo night, gold at the bottom — a samurai-era tribute. Purely cosmetic.",
+    "playBlurb": "Unlocks the Cherry & Indigo Theme (also earnable in-game for 170 💎). The game stays fully free without it.",
     "amountUsd": 399
   },
   {
@@ -291,6 +316,7 @@
     "storeId": "pack_skin",
     "name": "Mines of Doom: Custom Skin",
     "blurb": "One-time purchase. Unlocks Custom Skin — upload your own 16×16 miner sprite and swing sound. Purely cosmetic.",
+    "playBlurb": "Unlocks the custom skin feature (also earnable in-game for 250 💎). The game stays fully free without it.",
     "amountUsd": 399
   }
 ]

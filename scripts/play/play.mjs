@@ -621,9 +621,17 @@ function playListingFor(entry, lang) {
     // prefix and the "One-time purchase." / "Purely cosmetic." framing are
     // Stripe-only. Strip exactly those, and leave anything else alone.
     title: String(entry.name).replace(/^Mines of Doom: /, ""),
-    description: String(entry.blurb)
-      .replace(/^One-time purchase\. /, "")
-      .replace(/ Purely cosmetic\.$/, ""),
+    // `playBlurb` is the escape hatch: the Play copy was written for Play
+    // ("also earnable in-game for 25 gems — the game stays fully free without
+    // it" — the F2P-transparency wording a store review wants) and it is NOT
+    // the Stripe blurb with the framing stripped. When a row carries one it
+    // wins outright; otherwise the derived text below is used.
+    description:
+      entry.playBlurb != null
+        ? String(entry.playBlurb)
+        : String(entry.blurb)
+            .replace(/^One-time purchase\. /, "")
+            .replace(/ Purely cosmetic\.$/, ""),
   };
 }
 

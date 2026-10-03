@@ -149,6 +149,20 @@ in rough priority order:
       and the lamp basket in her hand. Pinned by `skins.test.ts`: no two
       skins share a drawn outline and none is drawn as the default miner.
       Sheets: `node scripts/generate-skin-line-samples.mjs`.
+- [x] **every paid OUTFIT a distinct CHARACTER too** (2026-10-03). The
+      outfit line was the last palette-only line: each item was five color
+      pools, so buying "Crystal Miner" bought the default miner in
+      turquoise. `OutfitCosmetic.shape` (the skin axes minus tool/crown/
+      motes) is now AUTHORED per paid outfit — 13 bodies, no two alike,
+      none the default miner — and `rollMinerLook` copies it after the
+      color picks so no existing player's miner moves while their
+      colorway still rerolls. The Damsel of the Deep (the item that was
+      "same human body" by its own comment) is now a slim pretty face
+      under a floor-length gown. Pinned by `cosmetics.test.ts`; see
+      **docs/outfit-line.md**, sheet via
+      `node scripts/generate-outfit-line-samples.mjs`. PICKAXES were
+      already one tool shape each (8 tools / 8 items); the nine CAVE
+      THEMES are a tint by definition and stay one.
 - [ ] **art-style setting (optional).** The seam already supports it
       (`setActiveArtPack` + a `defaultArtPackId` in the save); only a
       settings row + i18n is missing. Not promised — papercut is the
