@@ -105,6 +105,44 @@ export const es: Record<TranslationKey, string> = {
   // --- Equation area ------------------------------------------------------
   "equation.hint": "×{mult}{suffix}",
   "equation.tagHard": "difícil",
+  // --- Pista contextual para la pregunta ACTUAL -------------------------
+  // Solo técnicas. Nunca los números de la ecuación actual: enseñar los
+  // operandos sería entregar la aritmética (y en varias formas, también la
+  // respuesta), convirtiendo la pista en un botón de resolver.
+  "hint.open": "Pista para esta pregunta",
+  "hint.multiply":
+    "Descompónlo: 7 × 8 es 7 × 5 + 7 × 3, y los números redondos van más rápido que los exactos.",
+  "hint.add":
+    "Redondea un lado a una decena y corrige después: 47 + 28 es 47 + 30 − 2.",
+  "hint.subtract":
+    "Resta desde el número redondo y devuelve después: 52 − 18 es 52 − 20 + 2.",
+  "hint.division":
+    "Léelo al revés: ¿qué multiplicado por el divisor da el dividendo?",
+  "hint.percent":
+    "Los dos números se intercambian: el 8% de 50 es el 50% de 8. El 50% es la mitad, el 25% es la cuarta.",
+  "hint.square":
+    "Para un número que acaba en 5: multiplica sus primeras cifras por una más y añade 25 al final.",
+  "hint.missing":
+    "Trabaja al revés. En a + b = ? resta; en a × b = ? divide.",
+  "hint.missingDivisor":
+    "La ? está debajo del ÷, así que ya no divides: pregunta qué multiplicado por el resultado da el total.",
+  "hint.balance":
+    "Los dos lados deben dar el mismo total: suma primero el lado más cargado y quita lo que ya había.",
+  "hint.sequence":
+    "Mira los SALTOS entre los términos, no los términos. Saltos que suben es +; saltos que crecen es ×.",
+  "hint.tip":
+    "El 10% es mover la coma un lugar a la izquierda. El 20% es el doble, el 5% la mitad, y el 15% es la suma.",
+  "hint.discount":
+    "Resta el porcentaje por partes: el 15% es 10% + 5%, así que quita ambos del precio.",
+  "hint.change":
+    "Cuenta hasta el billete, o resta el precio al billete: normalmente es " +
+    "más rápido restar.",
+  "hint.time":
+    "Contar hasta la siguiente hora y seguir es más rápido que contar a través de la hora.",
+  "hint.splitBill":
+    "Busca una parte redonda y reparte la cola una segunda vez.",
+  "hint.hardMode":
+    "Tres términos, estrictamente de izquierda a derecha. Resuelve los dos primeros y usa ese resultado.",
 
   // --- Purchase buttons ---------------------------------------------------
   "purchase.groupMinerals": "GASTAR 🪨 MINERALES",

@@ -114,6 +114,27 @@ export const en = {
   // --- Equation area ------------------------------------------------------
   "equation.hint": "×{mult}{suffix}",
   "equation.tagHard": "hard",
+  // --- Contextual hint for the CURRENT question --------------------------
+  // Techniques only. Never the current equation's numbers: showing the
+  // operands would hand over the arithmetic (and for several shapes the
+  // answer), turning a hint into a solve button.
+  "hint.open": "Hint for this question",
+  "hint.multiply": "Break it apart: 7 × 8 is 7 × 5 + 7 × 3, and round numbers are quicker than exact ones.",
+  "hint.add": "Round one side to a ten and correct afterwards: 47 + 28 is 47 + 30 − 2.",
+  "hint.subtract": "Take from the round number, then add back: 52 − 18 is 52 − 20 + 2.",
+  "hint.division": "Read it as the other way round: what multiplied by the divisor gives the dividend?",
+  "hint.percent": "The two numbers swap freely — 8% of 50 is 50% of 8. 50% is halve, 25% is quarter.",
+  "hint.square": "For a number ending in 5: multiply its first digits by one more and append 25.",
+  "hint.missing": "Work backwards. In a + b = ? subtract; in a × b = ? divide.",
+  "hint.missingDivisor": "The ? is under the ÷, so divide no more — ask what multiplied by the result gives the total.",
+  "hint.balance": "Both sides must total the same: add the busier side first, then take away what is already there.",
+  "hint.sequence": "Look at the GAPS between the terms, not the terms. Rising gaps are +; gaps that grow are ×.",
+  "hint.tip": "10% is move the point one left. 20% is double that, 5% is half, and 15% is the two added.",
+  "hint.discount": "Take the percentage off in the same pieces: 15% is 10% + 5%, so subtract both from the price.",
+  "hint.change": "Count up to the note, or subtract the price from the note — usually subtracting is quicker.",
+  "hint.time": "Counting to the next hour and then past it is quicker than counting across the hour.",
+  "hint.splitBill": "Aim for a round share and pass the remainder around a second time.",
+  "hint.hardMode": "Three terms, strictly left to right. Solve the first two, then use that result.",
 
   // --- Purchase buttons ---------------------------------------------------
   "purchase.groupMinerals": "SPEND 🪨 MINERALS",

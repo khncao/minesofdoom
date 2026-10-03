@@ -46,7 +46,19 @@ of Pressable so rapid tapping doesn't double-render).
   (`utils/math/money.ts`), replacing an epsilon comparator that accepted
   answers wrong by a cent. The paid value is rounded half-up at the reward
   boundary because `BigInt()` throws on a fraction
-  (`hooks/useEquations.ts`). The display shows the **exact pending
+  (`hooks/useEquations.ts`).
+- **Contextual hint** — a "?" button under the equation opens a
+  **temporary** bubble with the technique for whatever shape is on screen
+  ("read a ÷ b as b × what = a", "15% is 10% + 5%", "split the awkward
+  part second"). It self-dismisses after 6 s, re-tapping closes it, and a
+  new equation retires it — the hint belongs to the question it was opened
+  for. The same text is the button's `accessibilityHint`, so a screen
+  reader gets it without opening anything. Hints are **methods only, never
+  the current operands**: interpolating the numbers would hand over the
+  arithmetic, and for several shapes the answer outright. Free of charge —
+  the same content is already in Settings ▸ tips, just a tap away from the
+  question that needs it (`components/QuestionHint.tsx: getHintKey`,
+  `components/EquationDisplay.tsx`). The display shows the **exact pending
   gain**, answer value included (`components/EquationDisplay.tsx` —
   `getPendingAnswerGain`, mirroring the engine's integer core so it
   agrees with the floating "+N" on solve). Answer via the **on-screen

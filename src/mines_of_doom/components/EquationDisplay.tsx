@@ -11,6 +11,7 @@ import {
 } from "src/utils/math/equations";
 import { useT } from "src/hooks/useI18n";
 import { getEquationOpBonus, getAnswerPayoutMultiplier } from "../game";
+import QuestionHint from "./QuestionHint";
 import { styles } from "../styles";
 
 const EquationDisplay = memo(function EquationDisplay({
@@ -65,6 +66,11 @@ const EquationDisplay = memo(function EquationDisplay({
             })
           : " "}
       </Text>
+      {/* The contextual-hint button: one tap for the technique behind
+          whatever shape is on screen. It lives inside the panel so it
+          cannot drift away from the question it explains, and it re-keys
+          itself on every equation (see QuestionHint). */}
+      <QuestionHint equation={equation} />
     </View>
   );
 });
