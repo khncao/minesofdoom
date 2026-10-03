@@ -32,8 +32,7 @@ const ALL_ON: EquationSettings = {
   tip: false,
   change: false,
   time: false,
-  moneyAdd: false,
-  unitPrice: false,
+  discount: false,
   splitBill: false,
   hardMode: false,
   multiplySymbol: "asterisk",
@@ -52,8 +51,7 @@ const ALL_TYPES_ON: EquationSettings = {
   tip: true,
   change: true,
   time: true,
-  moneyAdd: true,
-  unitPrice: true,
+  discount: true,
   splitBill: true,
 };
 
@@ -184,8 +182,7 @@ describe("getRandomEquation", () => {
     expect(defaultEquationSettings.tip).toBe(false);
     expect(defaultEquationSettings.change).toBe(false);
     expect(defaultEquationSettings.time).toBe(false);
-    expect(defaultEquationSettings.moneyAdd).toBe(false);
-    expect(defaultEquationSettings.unitPrice).toBe(false);
+    expect(defaultEquationSettings.discount).toBe(false);
     expect(defaultEquationSettings.splitBill).toBe(false);
     expect(defaultEquationSettings.multiplySymbol).toBe("asterisk");
   });
@@ -315,73 +312,14 @@ describe("soft-mode-only equation types (iteration 11, all ages)", () => {
 
   test("new types appear with equal-ish frequency when enabled", () => {
     const counts: Record<string, number> = {};
-    for (let i = 0; i < 16000; i++) {
+    for (let i = 0; i < 15000; i++) {
       const eq = getRandomEquation(ALL_TYPES_ON);
       const key = eq.balance ? "balance" : eq.sequence ? Ops.seq : isMissingDivisor(eq) ? "missingDivisor" : eq.missing ? "missing" : eq.op;
       counts[key] = (counts[key] ?? 0) + 1;
     }
-    // 16 toggles over 16000 rolls. "money sums" is ONE toggle covering BOTH
-    // directions, so its two ops land at half a slot each — which is the
-    // intended behaviour (the player sees that toggle as often as any
-    // other), not a frequency bug. Everything else gets a full slot.
-    for (const key of [Ops.mult, Ops.add, Ops.sub, Ops.div, Ops.pct, Ops.sq, Ops.seq, "missing", "missingDivisor", "balance", Ops.tip, Ops.change, Ops.time, Ops.unitPrice, Ops.splitBill]) {
+    // 15 toggles over 15000 rolls: every kind should land near a full slot.
+    for (const key of [Ops.mult, Ops.add, Ops.sub, Ops.div, Ops.pct, Ops.sq, Ops.seq, "missing", "missingDivisor", "balance", Ops.tip, Ops.discount, Ops.change, Ops.time, Ops.splitBill]) {
       expect(counts[key]).toBeGreaterThan(700);
-    }
-    for (const key of [Ops.moneyAdd, Ops.moneySub]) {
-      expect(counts[key]).toBeGreaterThan(300);
-    }
-    // ...and together the two money directions fill exactly one slot.
-    expect((counts[Ops.moneyAdd] ?? 0) + (counts[Ops.moneySub] ?? 0)).toBeGreaterThan(700);
-  });
-});
-
-describe("real-world: tip (bill + rate = what you hand over)", () => {
-  const ONLY_TIP: EquationSettings = { ...ONLY, tip: true };
-
-  test("the answer is the bill PLUS the tip, and the tip is always whole", () => {
-    const seenRates = new Set<number>();
-    for (let i = 0; i < 4000; i++) {
-      const eq = getRandomEquation(ONLY_TIP);
-      expect(eq.op).toBe(Ops.tip);
-      expect([15, 20, 25]).toContain(eq.b);
-      expect(eq.answer).toBe(eq.a + (eq.a * eq.b) / 100);
-      // The whole point of moneyStep(): the tip is never a fraction.
-      expect(Number.isInteger((eq.a * eq.b) / 100)).toBe(true);
-      expect(Number.isInteger(eq.answer)).toBe(true);
-      expect(eq.answer).toBeGreaterThan(0);
-      expect(eq.a).toBeGreaterThanOrEqual(4);
-      seenRates.add(eq.b);
-    }
-    expect(seenRates.size).toBe(3); // all three rates actually roll
-  });
-
-  test("bills are whole dollars and step outside the operand range (money ≠ 0–12)", () => {
-    // Each bill is a multiple of 100 / gcd(rate, 100): 20 at 15%, 5 at
-    // 20%, 4 at 25%. At 15% that is well above the default maxNumber of
-    // 12, which is exactly why bills are not clamped to the operand range.
-    const stepOf = (rate: number) => 100 / (rate === 15 ? 5 : rate === 20 ? 20 : 25);
-    let sawBigBill = false;
-    for (let i = 0; i < 4000; i++) {
-      const eq = getRandomEquation(ONLY_TIP);
-      expect(Number.isInteger(eq.a)).toBe(true);
-      expect(eq.a % stepOf(eq.b)).toBe(0);
-      expect(eq.a).toBeGreaterThanOrEqual(stepOf(eq.b));
-      if (eq.a >= 12) sawBigBill = true;
-    }
-    expect(sawBigBill).toBe(true);
-  });
-
-  test("a raised minNumber raises the bills", () => {
-    for (let i = 0; i < 1000; i++) {
-      const eq = getRandomEquation({ ...ONLY_TIP, minNumber: 40 });
-      expect(eq.a).toBeGreaterThanOrEqual(40);
-      expect(Number.isInteger((eq.a * eq.b) / 100)).toBe(true);
-    }
-  });
-
-  test("never emitted in hard mode", () => {
-    for (let i = 0; i < 1000; i++) {
-      expect(getRandomEquation({ ...ONLY_TIP, hardMode: true }).op).not.toBe(Ops.tip);
     }
   });
 });
@@ -431,156 +369,173 @@ describe("real-world: change from a note", () => {
   });
 });
 
-describe("decimal money drills (cents-exact by construction)", () => {
-  /** Every real-world shape that can emit a DECIMAL answer. */
-  const MONEY_DRILLS: EquationSettings[] = [
-    { ...ONLY, moneyAdd: true },
-    { ...ONLY, unitPrice: true },
+describe("whole operands, decimal answers", () => {
+  /** Every shape that can put cents in the ANSWER. */
+  const DECIMAL_DRILLS: EquationSettings[] = [
+    { ...ONLY, tip: true },
+    { ...ONLY, discount: true },
     { ...ONLY, splitBill: true },
   ];
 
-  test("every operand and answer is a whole number of cents", () => {
-    for (const prefs of MONEY_DRILLS) {
-      for (let i = 0; i < 2000; i++) {
+  test("no equation EVER shows a decimal operand — only the answer", () => {
+    // The house rule: every number the game displays is a whole number, so
+    // the money drills read like every other equation and the cents show up
+    // only where they belong (in what the player types).
+    const everything: EquationSettings = { ...ALL_ON, ...ALL_TYPES_ON };
+    for (let i = 0; i < 20000; i++) {
+      const eq = getRandomEquation(everything);
+      for (const v of [eq.a, eq.b, eq.c ?? eq.a]) {
+        expect(Number.isInteger(v)).toBe(true);
+      }
+    }
+  });
+
+  test("a decimal answer is always a whole number of cents", () => {
+    // isMoney is the invariant the reward path depends on: toCents is
+    // lossless, so the typed answer and the stored answer meet exactly.
+    for (const prefs of DECIMAL_DRILLS) {
+      for (let i = 0; i < 3000; i++) {
         const eq = getRandomEquation(prefs);
-        // The invariant the reward path depends on: toCents is lossless, so
-        // the typed answer and the stored answer meet exactly in cents.
-        expect(isMoney(eq.a)).toBe(true);
         expect(isMoney(eq.answer)).toBe(true);
         expect(eq.answer).toBeGreaterThanOrEqual(1);
       }
     }
   });
 
-  test("the operands really are decimal (these drills earn their keep)", () => {
-    // If the generator quietly produced whole dollars the feature would be
-    // a duplicate of add / subtract / multiply / divide.
-    let sawFraction = 0;
-    for (const prefs of MONEY_DRILLS) {
-      for (let i = 0; i < 2000; i++) {
-        const eq = getRandomEquation(prefs);
-        if (!Number.isInteger(eq.a)) sawFraction++;
+  test("these drills really do produce decimal answers (they earn their keep)", () => {
+    let withCents = 0;
+    for (const prefs of DECIMAL_DRILLS) {
+      for (let i = 0; i < 3000; i++) {
+        if (!Number.isInteger(getRandomEquation(prefs).answer)) withCents++;
       }
     }
-    expect(sawFraction).toBeGreaterThan(100);
+    expect(withCents).toBeGreaterThan(500);
   });
 });
 
-describe("real-world: money sums (decimal + / -)", () => {
-  const ONLY_MONEY: EquationSettings = { ...ONLY, moneyAdd: true };
+describe("real-world: tip (whole bill + whole rate = a total in cents)", () => {
+  const ONLY_TIP: EquationSettings = { ...ONLY, tip: true };
 
-  test("the answer is exactly the sum or difference of the two amounts", () => {
-    const seen = new Set<string>();
+  test("the answer is the bill grossed up by the rate, exact to the cent", () => {
     for (let i = 0; i < 5000; i++) {
-      const eq = getRandomEquation(ONLY_MONEY);
-      expect([Ops.moneyAdd, Ops.moneySub]).toContain(eq.op);
-      const expected = eq.op === Ops.moneyAdd ? eq.a + eq.b : eq.a - eq.b;
-      expect(toCents(eq.answer)).toBe(toCents(expected));
-      expect(isMoney(eq.a)).toBe(true);
-      expect(isMoney(eq.b)).toBe(true);
-      expect(eq.answer).toBeGreaterThanOrEqual(1);
-      // Subtraction never leaves a negative to type.
-      if (eq.op === Ops.moneySub) expect(eq.a).toBeGreaterThan(eq.b);
-      seen.add(eq.op);
-    }
-    expect(seen.size).toBe(2); // both directions actually roll
-  });
-
-  test("money subtraction floors the difference at a dollar", () => {
-    for (let i = 0; i < 2000; i++) {
-      const eq = getRandomEquation(ONLY_MONEY);
-      if (eq.op === Ops.moneySub) expect(eq.answer).toBeGreaterThanOrEqual(1);
-    }
-  });
-
-  test("a raised minNumber raises the amounts", () => {
-    for (let i = 0; i < 1000; i++) {
-      const eq = getRandomEquation({ ...ONLY_MONEY, minNumber: 5 });
-      expect(eq.a).toBeGreaterThanOrEqual(5);
-      expect(eq.b).toBeGreaterThanOrEqual(5);
-    }
-  });
-
-  test("never emitted in hard mode", () => {
-    for (let i = 0; i < 1000; i++) {
-      const eq = getRandomEquation({ ...ONLY_MONEY, hardMode: true });
-      expect([Ops.moneyAdd, Ops.moneySub]).not.toContain(eq.op);
-    }
-  });
-});
-
-describe("real-world: unit price (decimal × count)", () => {
-  const ONLY_UNIT: EquationSettings = { ...ONLY, unitPrice: true };
-
-  test("the answer is price × quantity, exact to the cent", () => {
-    for (let i = 0; i < 5000; i++) {
-      const eq = getRandomEquation(ONLY_UNIT);
-      expect(eq.op).toBe(Ops.unitPrice);
+      const eq = getRandomEquation(ONLY_TIP);
+      expect(eq.op).toBe(Ops.tip);
+      expect([15, 20, 25]).toContain(eq.b);
+      expect(Number.isInteger(eq.a)).toBe(true);
       expect(Number.isInteger(eq.b)).toBe(true);
-      expect(eq.b).toBeGreaterThanOrEqual(2);
-      expect(toCents(eq.answer)).toBe(toCents(eq.a) * eq.b);
+      expect(toCents(eq.answer)).toBe(toCents((eq.a * (100 + eq.b)) / 100));
       expect(eq.answer).toBeGreaterThanOrEqual(1);
     }
   });
 
-  test("prices read like shelf labels: under $10 and a multiple of 5 cents", () => {
-    for (let i = 0; i < 3000; i++) {
-      const eq = getRandomEquation(ONLY_UNIT);
-      expect(eq.a).toBeGreaterThan(0);
-      expect(eq.a).toBeLessThanOrEqual(10);
-      expect(toCents(eq.a) % 5).toBe(0);
+  test("15% is finally reachable — it needs cents to come out", () => {
+    // This is the rate the old moneyStep() filter had to exclude, because
+    // 15% of a whole bill is only ever whole for bills that are multiples
+    // of 20. With a decimal answer the bill no longer has to cooperate.
+    let saw15 = false;
+    let sawCents = false;
+    for (let i = 0; i < 5000; i++) {
+      const eq = getRandomEquation(ONLY_TIP);
+      if (eq.b === 15) {
+        saw15 = true;
+        if (!Number.isInteger(eq.answer)) sawCents = true;
+      }
     }
+    expect(saw15).toBe(true);
+    expect(sawCents).toBe(true);
   });
 
-  test("a raised maxNumber widens the possible quantities", () => {
-    let big = 0;
-    for (let i = 0; i < 2000; i++) {
-      if (getRandomEquation({ ...ONLY_UNIT, maxNumber: 20 }).b > 9) big++;
+  test("the player-set range still scales the bills", () => {
+    // moneyWindow maps the range onto dollars: minNumber is the floor and
+    // 5 × maxNumber the ceiling (a 0–12 dial has no $45 in it).
+    for (let i = 0; i < 1000; i++) {
+      const eq = getRandomEquation({ ...ONLY_TIP, minNumber: 20, maxNumber: 40 });
+      expect(eq.a).toBeGreaterThanOrEqual(20);
+      expect(eq.a).toBeLessThanOrEqual(200); // 5 × 40
     }
-    expect(big).toBeGreaterThan(0);
   });
 
   test("never emitted in hard mode", () => {
     for (let i = 0; i < 1000; i++) {
-      expect(getRandomEquation({ ...ONLY_UNIT, hardMode: true }).op).not.toBe(
-        Ops.unitPrice,
-      );
+      expect(getRandomEquation({ ...ONLY_TIP, hardMode: true }).op).not.toBe(Ops.tip);
     }
   });
 });
 
-describe("real-world: split the bill (decimal ÷ count, always exact)", () => {
+describe("real-world: discount (the mirror of tip)", () => {
+  const ONLY_DISCOUNT: EquationSettings = { ...ONLY, discount: true };
+
+  test("the answer is the price net of the rate, exact to the cent", () => {
+    for (let i = 0; i < 5000; i++) {
+      const eq = getRandomEquation(ONLY_DISCOUNT);
+      expect(eq.op).toBe(Ops.discount);
+      expect([15, 20, 25]).toContain(eq.b);
+      expect(Number.isInteger(eq.a)).toBe(true);
+      expect(toCents(eq.answer)).toBe(toCents((eq.a * (100 - eq.b)) / 100));
+      expect(eq.answer).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  test("a discount is always worth less than the sticker price", () => {
+    for (let i = 0; i < 3000; i++) {
+      const eq = getRandomEquation(ONLY_DISCOUNT);
+      expect(eq.answer).toBeLessThan(eq.a);
+    }
+  });
+
+  test("never emitted in hard mode", () => {
+    for (let i = 0; i < 1000; i++) {
+      expect(
+        getRandomEquation({ ...ONLY_DISCOUNT, hardMode: true }).op,
+      ).not.toBe(Ops.discount);
+    }
+  });
+});
+
+describe("real-world: split the bill (whole bill, whole headcount)", () => {
   const ONLY_SPLIT: EquationSettings = { ...ONLY, splitBill: true };
 
-  test("the bill divides evenly into the per-person share", () => {
+  test("the division is EXACT — a bill that needs rounding is never drawn", () => {
     for (let i = 0; i < 5000; i++) {
       const eq = getRandomEquation(ONLY_SPLIT);
       expect(eq.op).toBe(Ops.splitBill);
+      expect(Number.isInteger(eq.a)).toBe(true);
       expect(Number.isInteger(eq.b)).toBe(true);
       expect(eq.b).toBeGreaterThanOrEqual(2);
-      // Exact division is the WHOLE point of this drill: no remainder.
+      // In CENTS the division must come out whole — that is the guarantee
+      // that makes 95 / 3 unrepresentable and 90 / 4 = 22.50 fine.
       expect(toCents(eq.a) % eq.b).toBe(0);
       expect(toCents(eq.answer)).toBe(toCents(eq.a) / eq.b);
       expect(eq.answer).toBeGreaterThanOrEqual(1);
     }
   });
 
+  test("the share lands on cents when the headcount divides the dollars oddly", () => {
+    // 8 is the interesting case: 90 / 8 = 11.25, which needs cents and is
+    // still exact. That combination is the whole reason the drill exists.
+    let sawCents = false;
+    for (let i = 0; i < 8000; i++) {
+      const eq = getRandomEquation({ ...ONLY_SPLIT, maxNumber: 12 });
+      if (eq.b === 8 && !Number.isInteger(eq.answer)) sawCents = true;
+    }
+    expect(sawCents).toBe(true);
+  });
+
   test("the headcount stays a sensible number of people", () => {
     for (let i = 0; i < 3000; i++) {
       const eq = getRandomEquation(ONLY_SPLIT);
-      expect(eq.b).toBeLessThanOrEqual(7);
+      expect(eq.b).toBeLessThanOrEqual(8);
     }
   });
 
   test("never emitted in hard mode", () => {
     for (let i = 0; i < 1000; i++) {
-      expect(getRandomEquation({ ...ONLY_SPLIT, hardMode: true }).op).not.toBe(
-        Ops.splitBill,
-      );
+      expect(
+        getRandomEquation({ ...ONLY_SPLIT, hardMode: true }).op,
+      ).not.toBe(Ops.splitBill);
     }
   });
 });
-
 describe("real-world: elapsed time", () => {
   const ONLY_TIME: EquationSettings = { ...ONLY, time: true };
 
@@ -875,30 +830,25 @@ describe("getOpDisplay / formatEquation (iteration 11)", () => {
     expect(getOpDisplay(Ops.time, "asterisk")).toBe("◷");
   });
 
-  test("formats the decimal money shapes with two decimal places", () => {
+  test("the money shapes render WHOLE operands, never a decimal", () => {
     expect(
-      formatEquation({ op: Ops.moneyAdd, a: 12.4, b: 7.6, answer: 20 }, "asterisk"),
-    ).toBe("12.40 + 7.60");
+      formatEquation({ op: Ops.tip, a: 45, b: 15, answer: 51.75 }, "asterisk"),
+    ).toBe("45 + 15% tip");
     expect(
-      formatEquation({ op: Ops.moneySub, a: 20, b: 7.6, answer: 12.4 }, "letter"),
-    ).toBe("20.00 - 7.60");
-    // b is a QUANTITY here, not money — it must not pick up ".00".
+      formatEquation({ op: Ops.discount, a: 45, b: 15, answer: 38.25 }, "asterisk"),
+    ).toBe("45 - 15% off");
+    // The bill is a whole dollar; only the share can end in cents.
     expect(
-      formatEquation({ op: Ops.unitPrice, a: 3.2, b: 7, answer: 22.4 }, "asterisk"),
-    ).toBe("3.20 × 7");
+      formatEquation({ op: Ops.splitBill, a: 90, b: 4, answer: 22.5 }, "asterisk"),
+    ).toBe("90 / 4");
     expect(
-      formatEquation({ op: Ops.unitPrice, a: 3.2, b: 7, answer: 22.4 }, "letter"),
-    ).toBe("3.20 × 7");
-    // ...and a HEADCOUNT here.
-    expect(
-      formatEquation({ op: Ops.splitBill, a: 94.5, b: 3, answer: 31.5 }, "asterisk"),
-    ).toBe("94.50 ÷ 3");
+      formatEquation({ op: Ops.splitBill, a: 90, b: 4, answer: 22.5 }, "letter"),
+    ).toBe("90 ÷ 4");
   });
 
   test("the money shapes get their own payout-hint glyphs", () => {
-    expect(getOpDisplay(Ops.moneyAdd, "asterisk")).toBe("+");
-    expect(getOpDisplay(Ops.moneySub, "asterisk")).toBe("-");
-    expect(getOpDisplay(Ops.unitPrice, "asterisk")).toBe("×");
+    expect(getOpDisplay(Ops.tip, "asterisk")).toBe("%");
+    expect(getOpDisplay(Ops.discount, "asterisk")).toBe("%");
     expect(getOpDisplay(Ops.splitBill, "asterisk")).toBe("÷");
   });
 

@@ -254,19 +254,18 @@ export const es: Record<TranslationKey, string> = {
   "settings.op.sequence":
     "Bonus de operador ×4. Encuentra el siguiente número de la secuencia.",
   "settings.op.tip":
-    "Bonus de operador ×3. La respuesta es la cuenta más la propina: lo " +
-    "que entregas.",
+    "Bonus de operador ×3. La respuesta es la cuenta más la propina, en " +
+    "dólares y céntimos.",
+  "settings.op.discount":
+    "Bonus de operador ×3. La respuesta es lo que pagas de verdad una vez " +
+    "sacado el porcentaje.",
   "settings.op.change":
     "Bonus de operador ×2. La vuelta siempre es el billete menos el precio.",
   "settings.op.time":
     "Bonus de operador ×4. La respuesta son los minutos enteros entre las " +
     "dos horas.",
-  "settings.op.moneyAdd":
-    "Bonus de operador ×2 o ×3. Sumar y restar dinero hasta el céntimo.",
-  "settings.op.unitPrice":
-    "Bonus de operador ×4. Un precio por unidad, por cuántas quieres.",
   "settings.op.splitBill":
-    "Bonus de operador ×4. La cuenta siempre sale exacta.",
+    "Bonus de operador ×4. La cuenta siempre sale exacta entre las personas.",
   "settings.opName.multiply": "multiplicación",
   "settings.opName.add": "suma",
   "settings.opName.subtract": "resta",
@@ -278,18 +277,18 @@ export const es: Record<TranslationKey, string> = {
   "settings.opName.balance": "igualar la ecuación",
   "settings.opName.sequence": "secuencia",
   "settings.opName.tip": "propina",
+  "settings.opName.discount": "descuento",
   "settings.opName.change": "vuelta",
   "settings.opName.time": "tiempo transcurrido",
-  "settings.opName.moneyAdd": "sumas de dinero",
-  "settings.opName.unitPrice": "precio por unidad",
   "settings.opName.splitBill": "repartir la cuenta",
   "settings.multiplySymbol": "Símbolos: ",
   "settings.drills": "Ejercicios (desactivados por defecto, solo modo fácil):",
   "settings.realWorld":
     "Cálculo de la vida real (desactivado por defecto, solo modo fácil):",
   "settings.moneyNote":
-    "Los ejercicios de dinero se responden en dólares y céntimos: usa la " +
-    "tecla . del teclado en pantalla, o el teclado decimal del sistema.",
+    "La propina, el descuento y repartir la cuenta usan números enteros, " +
+    "pero la respuesta puede acabar en céntimos: usa la tecla . del teclado " +
+    "en pantalla, o el teclado decimal del sistema.",
   "settings.hardMode": "Modo difícil (3 términos ×2): ",
   "settings.hardModeLocked": "🔒 Modo difícil (Motherlode): ",
   "settings.hardModeHelp":
@@ -353,8 +352,9 @@ export const es: Record<TranslationKey, string> = {
   "settings.tip.realTip.body":
     "El 10% es mover la coma un lugar a la izquierda, así que el 10% de " +
     "45 son 4,50. De ahí sale el resto: el 20% es el doble, el 5% es la " +
-    "mitad, y el 15% es 10% + 5%. Para llegar al total más rápido, «multiplica " +
-    "por 1,2»: el precio por sí mismo, más una quinta parte.",
+    "mitad, y el 15% es 10% + 5%. Para llegar al total, suma la propina al " +
+    "precio; para llegar a lo que pagas en una rebajas, quita esas mismas " +
+    "partes.",
   "settings.tip.change.title": "La vuelta: resta del billete, no del precio",
   "settings.tip.change.body":
     "Contar hacia arriba hasta el billete es la forma lenta. Toma el número " +
@@ -367,22 +367,17 @@ export const es: Record<TranslationKey, string> = {
     "minutos hasta las 10:00, y luego 25 más. Cualquier tramo que cruce " +
     "una hora funciona igual: primero los minutos hasta la hora " +
     "siguiente, y después sumo lo que falte.",
-  "settings.tip.moneyAdd.title": "Sumas de dinero: alinea las columnas",
-  "settings.tip.moneyAdd.body":
-    "Haz los céntimos y los dólares en dos pasadas: 12,40 + 7,60 son 0,60 " +
-    "de céntimos más 20 de dólares, luego 20,60. Cuando los céntimos se " +
-    "pasan (0,80 + 0,50) eseesso es un dólar entero, no un problema.",
-  "settings.tip.unitPrice.title": "Precio por unidad: multiplica los céntimos",
-  "settings.tip.unitPrice.body":
-    "3,20 × 7 es 3,20 × 5 más 3,20 × 2: duplica primero los términos con " +
-    "dinero. O pasa por los céntimos: 320 × 7 = 2240, o sea 22,40. Nunca " +
-    "redondees el precio a un dólar entero antes de empezar; el error se te " +
-    "queda dentro.",
+  "settings.tip.discount.title": "Descuentos: quita una quinta, no una centésima",
+  "settings.tip.discount.body":
+    "El 15% es 10% + 5%, y el 5% es la mitad del 10%: constrúyelo en vez de " +
+    "contar centésimas. 45 con 15% de descuento es 45 − (4,50 + 2,25) = " +
+    "38,25. Las mismas partes sirven para la propina: súmalas al precio en " +
+    "vez de restarlas.",
   "settings.tip.splitBill.title": "Repartir la cuenta: la del redondo",
   "settings.tip.splitBill.body":
     "Dividir mentalmente es difícil, así que busca un reparto redondo y " +
-    "reparte la cola: 94,50 ÷ 3 son 30 cada uno y sobran 4,50, y 4,50 ÷ 3 " +
-    "son 1,50, luego 31,50 cada uno. Reparte la parte incómoda la segunda, " +
+    "reparte la cola: 90 / 4 son 20 cada uno y sobran 10, y 10 / 4 son " +
+    "2,50 — luego 22,50 cada uno. Reparte la parte incómoda la segunda, " +
     "nunca la primera.",
   "settings.haptics": "Retroalimentación háptica: ",
   "settings.hapticsHelp":

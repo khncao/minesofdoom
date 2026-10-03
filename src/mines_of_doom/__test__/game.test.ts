@@ -1027,37 +1027,21 @@ describe("operator bonuses (iteration 11: new equation types)", () => {
     expect(getAnswerPayoutMultiplier(sequence)).toBe(4);
   });
 
-  test("the real-world types pay their own premiums", () => {
-    const tip: Equation = { op: Ops.tip, a: 45, b: 20, answer: 54 };
+  test("the money types pay their own premiums", () => {
+    const tip: Equation = { op: Ops.tip, a: 45, b: 15, answer: 51.75 };
+    const discount: Equation = { op: Ops.discount, a: 45, b: 15, answer: 38.25 };
     const change: Equation = { op: Ops.change, a: 20, b: 13, answer: 7 };
     const time: Equation = { op: Ops.time, a: 580, b: 45, answer: 45 };
-    // Tipping sits at the percentage tier (it IS percent work), change at
-    // the subtraction tier, elapsed time with the square premium (a fresh
-    // skill rather than a new fact table).
-    expect(getEquationOpBonus(tip)).toBe(3);
-    expect(getEquationOpBonus(change)).toBe(2);
-    expect(getEquationOpBonus(time)).toBe(4);
+    const split: Equation = { op: Ops.splitBill, a: 90, b: 4, answer: 22.5 };
+    // Tipping and discounting are both percent work; change is subtraction,
+    // and elapsed time / splitting a bill are fresh skills.
     expect(getOpPayoutMultiplier(Ops.tip)).toBe(3);
+    expect(getOpPayoutMultiplier(Ops.discount)).toBe(3);
     expect(getOpPayoutMultiplier(Ops.change)).toBe(2);
     expect(getOpPayoutMultiplier(Ops.time)).toBe(4);
-    // None of them is a "?" shape, so none collects a drill premium.
-    for (const eq of [tip, change, time]) {
-      expect(getAnswerPayoutMultiplier(eq)).toBe(getEquationOpBonus(eq));
-    }
-  });
-
-  test("the decimal money types pay their own premiums", () => {
-    const add: Equation = { op: Ops.moneyAdd, a: 12.4, b: 7.6, answer: 20 };
-    const sub: Equation = { op: Ops.moneySub, a: 20, b: 7.6, answer: 12.4 };
-    const unit: Equation = { op: Ops.unitPrice, a: 3.2, b: 7, answer: 22.4 };
-    const split: Equation = { op: Ops.splitBill, a: 94.5, b: 3, answer: 31.5 };
-    // Both money directions sit ABOVE their plain-arithmetic equivalents
-    // (+ is ×1 and − is ×2) because carrying cents is a different skill.
-    expect(getOpPayoutMultiplier(Ops.moneyAdd)).toBe(2);
-    expect(getOpPayoutMultiplier(Ops.moneySub)).toBe(3);
-    expect(getOpPayoutMultiplier(Ops.unitPrice)).toBe(4);
     expect(getOpPayoutMultiplier(Ops.splitBill)).toBe(4);
-    for (const eq of [add, sub, unit, split]) {
+    // None of them is a "?" shape, so none collects a drill premium.
+    for (const eq of [tip, discount, change, time, split]) {
       expect(getEquationOpBonus(eq)).toBe(getOpPayoutMultiplier(eq.op));
       expect(getAnswerPayoutMultiplier(eq)).toBe(getOpPayoutMultiplier(eq.op));
     }

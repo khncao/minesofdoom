@@ -1,4 +1,4 @@
-import { fromCents, formatMoney } from "./money";
+import { fromCents } from "./money";
 
 export type MultiplySymbol = "asterisk" | "letter";
 
@@ -49,10 +49,9 @@ export type DrillKey = (typeof DRILL_KEYS)[number];
  */
 export const REAL_WORLD_KEYS = [
   "tip",
+  "discount",
   "change",
   "time",
-  "moneyAdd",
-  "unitPrice",
   "splitBill",
 ] as const;
 export type RealWorldKey = (typeof REAL_WORLD_KEYS)[number];
@@ -100,17 +99,15 @@ export type EquationSettings = {
   balance: boolean;
   /** sequence: "1, 4, 9, 16, ?" — the next term (soft mode only) */
   sequence: boolean;
-  /** tip: "45 + 20% tip" — what you hand over (soft mode only) */
+  /** tip: "45 + 15% tip" — the total you hand over (soft mode only) */
   tip: boolean;
+  /** discount: "45 - 15% off" — what you actually pay (soft mode only) */
+  discount: boolean;
   /** change: "20 - 13" — change from a note (soft mode only) */
   change: boolean;
   /** time: "9:40 → 10:25" — minutes elapsed (soft mode only) */
   time: boolean;
-  /** moneyAdd: "12.40 + 7.60" / "20.00 - 7.60" (soft mode only) */
-  moneyAdd: boolean;
-  /** unitPrice: "3.20 × 7" — the total for N (soft mode only) */
-  unitPrice: boolean;
-  /** splitBill: "94.50 ÷ 3" — the per-person share (soft mode only) */
+  /** splitBill: "90 ÷ 4" — the per-person share (soft mode only) */
   splitBill: boolean;
 };
 
@@ -128,10 +125,9 @@ export const defaultEquationSettings: EquationSettings = {
   balance: false,
   sequence: false,
   tip: false,
+  discount: false,
   change: false,
   time: false,
-  moneyAdd: false,
-  unitPrice: false,
   splitBill: false,
   hardMode: false,
   multiplySymbol: "asterisk",
@@ -152,25 +148,21 @@ export const Ops = {
    * consumer that reads operands sees a sane number).
    */
   seq: "seq",
-  /** tip: the equation shows "45 + 20% tip"; a = bill, b = rate %. */
+  /** tip: the equation shows "45 + 15% tip"; a = bill, b = rate %. */
   tip: "tip",
+  /** discount: "45 - 15% off"; a = price, b = rate %. */
+  discount: "-%",
   /** change: "20 - 13"; a = the note paid, b = the cost. */
   change: "chg",
   /** time: "9:40 → 10:25"; a = start (minutes past midnight),
    *  b = the elapsed minutes (which are also the answer). */
   time: "time",
   /**
-   * The DECIMAL money types. Their op symbols ARE the glyphs they display
-   * (formatMoney supplies the two decimal places), which is why they are
-   * distinct from Ops.add/Ops.sub/Ops.mult: those render raw integers.
+   * The DECIMAL-ANSWER money types. Every operand the game displays is a
+   * whole number — these two exist only so the ANSWER can carry cents,
+   * which is what finally makes 15% and an inexact split usable.
    */
-  /** "12.40 + 7.60" — a = the first amount, b = the second (dollars). */
-  moneyAdd: "+$",
-  /** "20.00 - 7.60" */
-  moneySub: "-$",
-  /** "3.20 × 7" — a = unit price, b = quantity. */
-  unitPrice: "×",
-  /** "94.50 ÷ 3" — a = the total, b = the number of people. */
+  /** "45 - 15% off" — a = the price, b = the rate. */
   splitBill: "÷",
 };
 
@@ -573,74 +565,89 @@ function generateSequenceEquation(
 }
 
 /**
- * The realistic tipping rates. 15/20/25% are the ones people are expected
- * to do by sight, and — unlike PERCENT_CHOICES — 100 / 15 is not a whole
- * number, so the bill is filtered through moneyStep() instead.
+ * The realistic tipping rates, and the same list serves the discount drill
+ * (you pay MORE vs LESS by the same rate).
+ *
+ * 15% is here and always was, but it only became USABLE once answers were
+ * allowed to carry cents: 15% of 45 is 6.75, which no whole-bill rate can
+ * produce. The earlier moneyStep() filter existed purely to hide that.
  */
 const TIP_RATES = [15, 20, 25] as const;
 
 /** Denominations people actually hand over / get back in. */
 const CHANGE_NOTES = [5, 10, 20, 50, 100] as const;
 
-/** Euclidean GCD — the smallest whole-dollar bill step for a given rate. */
+/**
+ * The dollar window the money drills draw amounts from.
+ *
+ * Money is the one place the operand range genuinely does not apply — a
+ * "0–12" dial has no $45 in it — so the player's minNumber/maxNumber
+ * scale the window rather than bounding it directly: the floor is
+ * minNumber dollars, the ceiling is 5 × maxNumber dollars (so the default
+ * range reaches a plausible $60). Every amount is a WHOLE dollar: the
+ * game's numbers stay integral everywhere, and only the ANSWER may carry
+ * cents.
+ */
+function moneyWindow(minNumber: number, maxNumber: number): [number, number] {
+  const low = Math.max(1, minNumber);
+  const high = Math.max(low + 3, 5 * maxNumber);
+  return [low, high];
+}
+
+/** A whole number in [lo, hi]. */
+function pickWhole(lo: number, hi: number, rng: () => number): number {
+  return lo + Math.floor(rng() * (hi - lo + 1));
+}
+
+/** Euclidean GCD — used to make a division come out exact. */
 function greatestCommonDivisor(x: number, y: number): number {
   while (y !== 0) [x, y] = [y, x % y];
   return x;
 }
 
 /**
- * The step between two bills that both produce a WHOLE-number tip at
- * `rate` percent: bill × rate must be divisible by 100, and the smallest
- * such bill is 100 / gcd(rate, 100) — 20 for 15%, 5 for 20%, 4 for 25%.
- * This is what keeps the money drills off the keypad's decimal problem.
- */
-function moneyStep(rate: number): number {
-  return 100 / greatestCommonDivisor(rate, 100);
-}
-
-/**
- * A whole-dollar bill of `step` between `first` and `last` (both
- * themselves multiples of step). At least four bills are always on offer,
- * so this can never come up empty for the tip drill.
- */
-function pickBill(
-  first: number,
-  step: number,
-  last: number,
-  rng: () => number,
-): number {
-  const span = (last - first) / step;
-  return first + Math.floor(rng() * (span + 1)) * step;
-}
-
-/**
- * Tipping: "45 + 20% tip" — the everyday question is what you actually
+ * Tipping: "45 + 15% tip" — the everyday question is what you actually
  * HAND OVER, so `answer` is the bill plus the tip, not the tip. That makes
  * it a multiply-then-add in your head rather than the `percent` type
  * again, and it is the number that matters at the table.
  *
- * Bills deliberately step outside [minNumber, maxNumber): money does not
- * fit a 0–12 operand dial, and at 15% the first whole-dollar bill is 20.
- * The range still acts as a floor/ceiling (a raised minNumber starts the
- * bills higher, a raised maxNumber adds more), and every bill is a
- * multiple of moneyStep(rate) so the tip is always whole.
+ * Both operands are whole (a whole-dollar bill, a whole-percent rate), so
+ * the drill reads exactly like every other equation — the cents show up
+ * only where they belong, in the answer the player types: 45 at 15% is
+ * 51.75. Computed in cents so that is exact rather than a float rounding.
  */
 function generateTipEquation(
   minNumber: number,
   maxNumber: number,
   rng: () => number = Math.random,
 ): Equation {
+  const [low, high] = moneyWindow(minNumber, maxNumber);
   const rate = TIP_RATES[Math.floor(rng() * TIP_RATES.length)];
-  const step = moneyStep(rate);
-  const first = Math.ceil(Math.max(step, minNumber, 1) / step) * step;
-  // Four bills minimum (so the drill always has choices), and every bill
-  // the player's maxNumber admits on top of that.
-  const last = Math.max(
-    first + 3 * step,
-    Math.floor((maxNumber - 1) / step) * step,
-  );
-  const bill = pickBill(first, step, last, rng);
-  return { op: Ops.tip, a: bill, b: rate, answer: bill + (bill * rate) / 100 };
+  const bill = pickWhole(low, high, rng);
+  const totalCents = bill * (100 + rate);
+  return { op: Ops.tip, a: bill, b: rate, answer: fromCents(totalCents) };
+}
+
+/**
+ * Taking money OFF a price: "45 - 15% off" → 38.25. Sales, vouchers, tax
+ * and refunds all reduce to this, and it is a different mental move from
+ * tipping: ×1.15 adds a share, ×0.75 takes a fifth off.
+ *
+ * Whole price, whole rate, so the only decimal is in the answer. The
+ * price floors at 2 because the deepest discount is 25% and $1 less a
+ * quarter is $0.75 — under the payout floor, and a drill whose whole
+ * answer is "seventy-five cents" teaches nothing.
+ */
+function generateDiscountEquation(
+  minNumber: number,
+  maxNumber: number,
+  rng: () => number = Math.random,
+): Equation {
+  const [low, high] = moneyWindow(minNumber, maxNumber);
+  const rate = TIP_RATES[Math.floor(rng() * TIP_RATES.length)];
+  const price = pickWhole(Math.max(low, 2), high, rng);
+  const finalCents = price * (100 - rate);
+  return { op: Ops.discount, a: price, b: rate, answer: fromCents(finalCents) };
 }
 
 /**
@@ -697,93 +704,17 @@ function generateTimeEquation(
 }
 
 /**
- * The cent window the DECIMAL money drills draw from.
+ * Splitting a bill: "90 ÷ 4" → 22.50. Both operands whole (a whole-dollar
+ * bill, a whole headcount); the per-person share may land on cents.
  *
- * Money is the one place the operand range genuinely does not apply — a
- * "0–12" dial has no $0.60 in it — so the player's minNumber/maxNumber
- * scale the window rather than bounding it directly: the floor is
- * minNumber dollars, the ceiling is 5 × maxNumber dollars (so the default
- * range reaches a plausible $60). The +200-cent floor guarantees the
- * subtraction branch always has a legal pair.
- */
-function moneyWindow(minNumber: number, maxNumber: number): [number, number] {
-  const low = 100 * Math.max(1, minNumber);
-  const high = Math.max(low + 200, 100 * 5 * maxNumber);
-  return [low, high];
-}
-
-/** A whole number of cents in [lo, hi]. */
-function pickCents(lo: number, hi: number, rng: () => number): number {
-  return lo + Math.floor(rng() * (hi - lo + 1));
-}
-
-/**
- * Adding up or taking away money: "12.40 + 7.60" / "20.00 - 7.60".
- *
- * Every amount is a whole number of cents picked from moneyWindow, so the
- * sum and difference are exact by construction — there is no rounding step
- * to get wrong. The operands (not just the answer) are decimals: a player
- * who can only carry whole dollars cannot do this at all, which is the
- * whole skill ("you owe me 40 and I have a 50 and two coins").
- *
- * Subtraction floors the difference at a dollar, so the drill is never the
- * near-zero case and never an answer below the payout floor.
- */
-function generateMoneyAddEquation(
-  minNumber: number,
-  maxNumber: number,
-  rng: () => number = Math.random,
-): Equation {
-  const [low, high] = moneyWindow(minNumber, maxNumber);
-  const isSub = rng() < 0.5;
-  // + needs no ordering; − needs a >= b + 100 so the difference is >= $1.
-  const a = pickCents(isSub ? low + 100 : low, high, rng);
-  const b = pickCents(low, isSub ? a - 100 : high, rng);
-  const totalCents = isSub ? a - b : a + b;
-  return {
-    op: isSub ? Ops.moneySub : Ops.moneyAdd,
-    a: fromCents(a),
-    b: fromCents(b),
-    answer: fromCents(totalCents),
-  };
-}
-
-/**
- * Unit price: "3.20 × 7" — what N of something at a shelf price costs.
- * The single most common decimal sum in ordinary life, and the one people
- * reach for a phone calculator for.
- *
- * `a` is the unit price (always a multiple of 5 cents and under $10, so
- * it reads like a real price tag) and `b` the quantity; the product in
- * cents is exact, so the total always lands on a real cent.
- */
-function generateUnitPriceEquation(
-  minNumber: number,
-  maxNumber: number,
-  rng: () => number = Math.random,
-): Equation {
-  const [low, high] = moneyWindow(minNumber, maxNumber);
-  const quantity = 2 + Math.floor(rng() * Math.max(1, maxNumber - 1));
-  const lowest = 5 * Math.ceil(Math.min(low, 1000) / 5);
-  const highest = 5 * Math.floor(Math.min(high, 1000) / 5);
-  const unitCents =
-    lowest + 5 * Math.floor(rng() * ((highest - lowest) / 5 + 1));
-  return {
-    op: Ops.unitPrice,
-    a: fromCents(unitCents),
-    b: quantity,
-    answer: fromCents(unitCents * quantity),
-  };
-}
-
-/**
- * Splitting a bill: "94.50 ÷ 3" — the per-person share.
- *
- * Built per-PERSON first and multiplied up, so the division is exact by
- * construction. Deliberately NOT "divide any bill by any number": a bill
- * that does not come out even ($95.00 ÷ 3 = $31.67) is a rounding lesson
- * about remainders, not a mental-math one, and there is no way to type the
- * rounded answer without guessing which way it rounds.
+ * Built per-PERSON first and multiplied up, so the division is EXACT by
+ * construction. Deliberately not "divide any bill by any number": a bill
+ * that does not come out even (95 ÷ 3 = 31.67) is a remainders lesson, not
+ * a mental-math one, and there is no way to type the rounded answer without
+ * guessing which way it rounds. Exactness comes from the total being a
+ * multiple of people — for a share to end in cents the total only has to
+ * be a multiple of people / gcd(people, 100), which is why 90 ÷ 8 is 11.25
+ * but 95 ÷ 3 is never drawn.
  */
 function generateSplitBillEquation(
   minNumber: number,
@@ -791,13 +722,22 @@ function generateSplitBillEquation(
   rng: () => number = Math.random,
 ): Equation {
   const [low, high] = moneyWindow(minNumber, maxNumber);
-  const people = 2 + Math.floor(rng() * Math.max(1, Math.min(maxNumber - 1, 5)));
-  const shareCents = pickCents(low, Math.max(low, Math.min(high, Math.floor(20000 / people))), rng);
+  // Headcount 2..8: eight is what makes the drill worth having, because
+  // it is the smallest everyday split where the share lands on cents
+  // (90 / 8 = 11.25) while still dividing exactly.
+  const people = 2 + Math.floor(rng() * Math.max(1, Math.min(maxNumber - 1, 7)));
+  // Whole-dollar totals only, on the multiples that divide exactly, and
+  // never below 2 × people so the share is a couple of dollars or more
+  // ("3 ÷ 3 = 1.00" is arithmetic, not a split).
+  const step = people / greatestCommonDivisor(people, 100);
+  const first = Math.max(people * 2, Math.ceil(low / step) * step);
+  const last = Math.max(first + 3 * step, Math.floor(high / step) * step);
+  const bill = first + Math.floor(rng() * ((last - first) / step + 1)) * step;
   return {
     op: Ops.splitBill,
-    a: fromCents(shareCents * people),
+    a: bill,
     b: people,
-    answer: fromCents(shareCents),
+    answer: fromCents((bill / people) * 100),
   };
 }
 
@@ -864,10 +804,9 @@ export function getRandomEquation(
     | { kind: "balance" }
     | { kind: "sequence" }
     | { kind: "tip" }
+    | { kind: "discount" }
     | { kind: "change" }
     | { kind: "time" }
-    | { kind: "moneyAdd" }
-    | { kind: "unitPrice" }
     | { kind: "splitBill" };
   const softExtras: Choice[] = prefs.hardMode
     ? []
@@ -877,10 +816,9 @@ export function getRandomEquation(
         ...(prefs.balance ? ([{ kind: "balance" }] as const) : []),
         ...(prefs.sequence ? ([{ kind: "sequence" }] as const) : []),
         ...(prefs.tip ? ([{ kind: "tip" }] as const) : []),
+        ...(prefs.discount ? ([{ kind: "discount" }] as const) : []),
         ...(prefs.change ? ([{ kind: "change" }] as const) : []),
         ...(prefs.time ? ([{ kind: "time" }] as const) : []),
-        ...(prefs.moneyAdd ? ([{ kind: "moneyAdd" }] as const) : []),
-        ...(prefs.unitPrice ? ([{ kind: "unitPrice" }] as const) : []),
         ...(prefs.splitBill ? ([{ kind: "splitBill" }] as const) : []),
       ];
   const choices: Choice[] = [
@@ -917,17 +855,14 @@ export function getRandomEquation(
         case "tip":
           eq = generateTipEquation(minNumber, maxNumber, rng);
           break;
+        case "discount":
+          eq = generateDiscountEquation(minNumber, maxNumber, rng);
+          break;
         case "change":
           eq = generateChangeEquation(minNumber, maxNumber, rng);
           break;
         case "time":
           eq = generateTimeEquation(minNumber, maxNumber, rng);
-          break;
-        case "moneyAdd":
-          eq = generateMoneyAddEquation(minNumber, maxNumber, rng);
-          break;
-        case "unitPrice":
-          eq = generateUnitPriceEquation(minNumber, maxNumber, rng);
           break;
         case "splitBill":
           eq = generateSplitBillEquation(minNumber, maxNumber, rng);
@@ -1084,14 +1019,12 @@ export function getOpDisplay(
       return "…";
     case Ops.tip:
       return "%";
+    case Ops.discount:
+      return "%";
     case Ops.change:
       return "$";
     case Ops.time:
       return "◷";
-    case Ops.moneyAdd:
-      return "+";
-    case Ops.moneySub:
-      return "-";
     default:
       return op;
   }
@@ -1106,12 +1039,11 @@ export function getOpDisplay(
  *   missing          "7 + ? = 12"     (or "24 / ? = 6" for the divisor form)
  *   balance          "6 + ? = 4 + 9"
  *   sequence         "1, 4, 9, 16, "  (comma-terminated — the caller adds "?")
- *   tip              "45 + 20% tip"   (the answer is the total you hand over)
+ *   tip              "45 + 15% tip"   (the answer is the total you hand over)
+ *   discount         "45 - 15% off"   (the answer is what you actually pay)
  *   change           "20 - 13"
  *   time             "9:40 → 10:25"   (the answer is the minutes between)
- *   money add/sub    "12.40 + 7.60" / "20.00 - 7.60"
- *   unit price       "3.20 × 7"
- *   split the bill   "94.50 ÷ 3"
+ *   split the bill   "90 / 4"         (the answer is the per-person share)
  * A hard-mode second step is appended: " 2 * 3".
  */
 export function formatEquation(
@@ -1129,24 +1061,17 @@ export function formatEquation(
     // "9:40 → 10:25" — a = start, b = elapsed, so the end is their sum.
     return `${formatClock(equation.a)} → ${formatClock(equation.a + equation.b)}`;
   }
-  if (
-    equation.op === Ops.moneyAdd ||
-    equation.op === Ops.moneySub ||
-    equation.op === Ops.unitPrice ||
-    equation.op === Ops.splitBill
-  ) {
-    // The decimal money shapes. `a` is always an amount and gets its two
-    // decimal places so a bill reads "12.40", never "12.4"; `b` is only an
-    // amount for the add/sub pair — for unit price it is the quantity and
-    // for a split it is the headcount, so those stay bare integers.
-    const isAmountPair =
-      equation.op === Ops.moneyAdd || equation.op === Ops.moneySub;
-    const rhs = isAmountPair ? formatMoney(equation.b) : String(equation.b);
-    return `${formatMoney(equation.a)} ${getOpDisplay(equation.op, multiplySymbol)} ${rhs}`;
+  if (equation.op === Ops.splitBill) {
+    // "90 / 4" — a whole-dollar bill and a whole headcount.
+    return `${equation.a} ${getOpDisplay(Ops.div, multiplySymbol)} ${equation.b}`;
   }
   if (equation.op === Ops.tip) {
-    // "45 + 20% tip" — a = the bill, b = the rate.
+    // "45 + 15% tip" — a whole-dollar bill and a whole-percent rate.
     return `${equation.a} + ${equation.b}% tip`;
+  }
+  if (equation.op === Ops.discount) {
+    // "45 - 15% off" — the same rate taken off instead of added.
+    return `${equation.a} - ${equation.b}% off`;
   }
   if (equation.op === Ops.change) {
     // "20 - 13" — a = the note handed over, b = the cost.

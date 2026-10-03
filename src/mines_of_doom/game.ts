@@ -1725,22 +1725,16 @@ export const SEQUENCE_PAYOUT = 4;
 /**
  * Real-world premiums (todo: "More types of simple mental arithmetics for
  * all ages"). Tipping sits at the percentage tier (it IS percent work);
- * change sits at the subtraction tier; elapsed time gets the square
- * premium because "how long did that take" is a fresh skill rather than a
- * new fact table.
+ * change at the subtraction tier; elapsed time with the square premium
+ * because "how long did that take" is a fresh skill rather than a new fact
+ * table. Discount is the mirror of tip (you pay less rather than more) and
+ * splitting a bill is a decimal division, so both are priced by difficulty
+ * rather than by which arithmetic operator they resemble.
  */
 export const TIP_PAYOUT = 3;
+export const DISCOUNT_PAYOUT = 3;
 export const CHANGE_PAYOUT = 2;
 export const TIME_PAYOUT = 4;
-/**
- * Decimal money premiums. Both sit above their plain-arithmetic
- * equivalents (money add ×2 vs + ×1, money sub ×3 vs − ×2) because
- * carrying cents is a different and much less automatic skill.
- */
-export const MONEY_ADD_PAYOUT = 2;
-export const MONEY_SUB_PAYOUT = 3;
-/** Unit price and splitting: a decimal ×/÷ by an integer count. */
-export const UNIT_PRICE_PAYOUT = 4;
 export const SPLIT_BILL_PAYOUT = 4;
 
 /**
@@ -1767,12 +1761,8 @@ export function getOpPayoutMultiplier(op: string): number {
       return CHANGE_PAYOUT;
     case Ops.time:
       return TIME_PAYOUT;
-    case Ops.moneyAdd:
-      return MONEY_ADD_PAYOUT;
-    case Ops.moneySub:
-      return MONEY_SUB_PAYOUT;
-    case Ops.unitPrice:
-      return UNIT_PRICE_PAYOUT;
+    case Ops.discount:
+      return DISCOUNT_PAYOUT;
     case Ops.splitBill:
       return SPLIT_BILL_PAYOUT;
     default:

@@ -60,15 +60,10 @@ const TYPE_INFO: Record<EquationTypeKey, TypeToggleInfo> = {
   tip: { name: "settings.opName.tip", symbol: "$", noteKey: "settings.op.tip" },
   change: { name: "settings.opName.change", symbol: "$", noteKey: "settings.op.change" },
   time: { name: "settings.opName.time", symbol: "◷", noteKey: "settings.op.time" },
-  moneyAdd: {
-    name: "settings.opName.moneyAdd",
-    symbol: "+",
-    noteKey: "settings.op.moneyAdd",
-  },
-  unitPrice: {
-    name: "settings.opName.unitPrice",
-    symbol: "×",
-    noteKey: "settings.op.unitPrice",
+  discount: {
+    name: "settings.opName.discount",
+    symbol: "%",
+    noteKey: "settings.op.discount",
   },
   splitBill: {
     name: "settings.opName.splitBill",
@@ -221,8 +216,8 @@ const SettingsContent = memo(function SettingsContent({
       />
       {/* The money drills are the only ones that answer in cents, so the
           decimal key is worth calling out where the player turns them on. */}
-      {(equationSettings.moneyAdd ||
-        equationSettings.unitPrice ||
+      {(equationSettings.tip ||
+        equationSettings.discount ||
         equationSettings.splitBill) && (
         <View style={styles.flexCenteredRow}>
           <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
@@ -808,7 +803,7 @@ const SettingsContent = memo(function SettingsContent({
 });
 
 /**
- * The seventeen tips, in display order (title + body are separate keys so
+ * The sixteen tips, in display order (title + body are separate keys so
  * the title can be bolded in the UI without parsing a template).
  */
 const TIPS: readonly { title: TranslationKey; body: TranslationKey }[] = [
@@ -854,12 +849,8 @@ const TIPS: readonly { title: TranslationKey; body: TranslationKey }[] = [
   },
   // The money strategies — the only drills whose answers are in cents.
   {
-    title: "settings.tip.moneyAdd.title",
-    body: "settings.tip.moneyAdd.body",
-  },
-  {
-    title: "settings.tip.unitPrice.title",
-    body: "settings.tip.unitPrice.body",
+    title: "settings.tip.discount.title",
+    body: "settings.tip.discount.body",
   },
   {
     title: "settings.tip.splitBill.title",
@@ -870,7 +861,7 @@ const TIPS: readonly { title: TranslationKey; body: TranslationKey }[] = [
 /**
  * Mental math tips (todo: "Add a tips section in settings menu teaching
  * techniques for mental arithmetic", then "Show tips one at a time with
- * auto scrolling"): the seventeen tips used to stack into a long column that
+ * auto scrolling"): the sixteen tips used to stack into a long column that
  * pushed the rest of settings off-screen; now ONE tip is shown at a time.
  * The auto-advance was removed (todo: "disable mental math tip auto
  * scroll") — the card is fully manual: tapping it advances to the next
