@@ -48,6 +48,8 @@ export function getHintKey(equation: Equation): TranslationKey {
       return "hint.time";
     case Ops.splitBill:
       return "hint.splitBill";
+    case Ops.unitPrice:
+      return "hint.unitPrice";
     case Ops.pct:
       return "hint.percent";
     case Ops.sq:

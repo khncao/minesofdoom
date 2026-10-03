@@ -16,16 +16,17 @@ multipliers, combo and prestige (`components/MiningCanvas.tsx: MINE_HOLD_MS`,
 `hooks/useMineTaps.ts` — the web canvas uses a plain-View responder instead
 of Pressable so rapid tapping doesn't double-render).
 - **Equations** — the main active loop: solve arithmetic to earn minerals ×
-  click power × combo multiplier. **Fifteen toggleable types** in three
+  click power × combo multiplier. **Sixteen toggleable types** in three
   settings groups, all soft-mode-only except the classic four:
   - *Operators* (7) — multiply, add, subtract, division, percent, square,
     "missing"-operand.
   - *Drills* (3) — missing divisor (`24 ÷ ? = 6`), balance the equation
     (`6 + ? = 4 + 9`), next-in-sequence (`3, 6, 9, 12, ?`, four families).
-  - *Real-world math* (5) — tip (`45 + 15% tip` → the total you hand over),
+  - *Real-world math* (6) — tip (`45 + 15% tip` → the total you hand over),
     discount (`45 - 15% off` → what you actually pay), change from a note,
-    elapsed time (`9:40 → 10:25` → minutes) and split the bill
-    (`90 ÷ 4` → the per-person share, always exact).
+    elapsed time (`9:40 → 10:25` → minutes), split the bill (`90 ÷ 4` → the
+    per-person share, always exact) and unit price in both directions
+    (`4 each × 12` → the total, `30 ÷ 12` → the price of one, always exact).
 
   The nine added types stay out of the first-run tour's row list on purpose
   — that card is absolutely positioned and does not scroll — so they get a
@@ -39,7 +40,9 @@ of Pressable so rapid tapping doesn't double-render).
   trivial 0·n / 0² equations —
   `utils/math/equations.ts: generateTermsEquation`; the money drills scale
   that range into a dollar window rather than bounding it, because a 0–12
-  dial has no $45 in it),
+  dial has no $45 in it; unit price covers both shopping questions —
+multiply for the total, divide for the price of one — since the multiply
+half on its own is just `multiply` with a story attached),
   **hard mode** (3-term equations, 2× payout), and a display-symbol
   preference (`*`/`×`, `/`/`÷`). A decimal answer is always a whole number
   of cents — generated in integer cents and compared in integer cents

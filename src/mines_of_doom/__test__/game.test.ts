@@ -1033,6 +1033,7 @@ describe("operator bonuses (iteration 11: new equation types)", () => {
     const change: Equation = { op: Ops.change, a: 20, b: 13, answer: 7 };
     const time: Equation = { op: Ops.time, a: 580, b: 45, answer: 45 };
     const split: Equation = { op: Ops.splitBill, a: 90, b: 4, answer: 22.5 };
+    const unit: Equation = { op: Ops.unitPrice, a: 30, b: 12, answer: 2.5, unitEach: true };
     // Tipping and discounting are both percent work; change is subtraction,
     // and elapsed time / splitting a bill are fresh skills.
     expect(getOpPayoutMultiplier(Ops.tip)).toBe(3);
@@ -1040,8 +1041,9 @@ describe("operator bonuses (iteration 11: new equation types)", () => {
     expect(getOpPayoutMultiplier(Ops.change)).toBe(2);
     expect(getOpPayoutMultiplier(Ops.time)).toBe(4);
     expect(getOpPayoutMultiplier(Ops.splitBill)).toBe(4);
+    expect(getOpPayoutMultiplier(Ops.unitPrice)).toBe(4);
     // None of them is a "?" shape, so none collects a drill premium.
-    for (const eq of [tip, discount, change, time, split]) {
+    for (const eq of [tip, discount, change, time, split, unit]) {
       expect(getEquationOpBonus(eq)).toBe(getOpPayoutMultiplier(eq.op));
       expect(getAnswerPayoutMultiplier(eq)).toBe(getOpPayoutMultiplier(eq.op));
     }

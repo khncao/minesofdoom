@@ -134,6 +134,8 @@ export const en = {
   "hint.change": "Count up to the note, or subtract the price from the note — usually subtracting is quicker.",
   "hint.time": "Counting to the next hour and then past it is quicker than counting across the hour.",
   "hint.splitBill": "Aim for a round share and pass the remainder around a second time.",
+  "hint.unitPrice":
+    "Price × count for the total. For the price of one, divide the total by the count — and it can land on cents.",
   "hint.hardMode": "Three terms, strictly left to right. Solve the first two, then use that result.",
 
   // --- Purchase buttons ---------------------------------------------------
@@ -289,6 +291,9 @@ export const en = {
     "times.",
   "settings.op.splitBill":
     "Operator bonus ×4. The bill always divides evenly between the people.",
+  "settings.op.unitPrice":
+    "Operator bonus ×4. Both directions: price × count, and total ÷ count " +
+    "for the price of one.",
   "settings.opName.multiply": "multiplication",
   "settings.opName.add": "addition",
   "settings.opName.subtract": "subtraction",
@@ -304,6 +309,7 @@ export const en = {
   "settings.opName.change": "change",
   "settings.opName.time": "elapsed time",
   "settings.opName.splitBill": "split the bill",
+  "settings.opName.unitPrice": "unit price",
   "settings.multiplySymbol": "Symbol display: ",
   "settings.drills": "Drills (off by default, soft mode only):",
   "settings.realWorld":
@@ -399,6 +405,12 @@ export const en = {
     "remainder around: 90 / 4 is 20 each, which leaves 10 — that is 2.50 " +
     "each on top, so 22.50 apiece. Split the awkward part second, never " +
     "first.",
+  "settings.tip.unitPrice.title": "Unit price: the same two questions, both ways",
+  "settings.tip.unitPrice.body":
+    "Working out the total is just multiplying: 4 each × 12 is 48. Working " +
+    "out what ONE costs means dividing the total back by the count: 30 for " +
+    "12 is 2.50 each. When you divide, go to a round share first and pass " +
+    "the remainder round a second time — never round the answer itself.",
   "settings.tooltipIdleReminder": "Idle reminder",
   "settings.idleReminder": "Idle reminder: ",
   "settings.idleReminderHelp":

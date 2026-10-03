@@ -68,6 +68,7 @@ describe("getHintKey", () => {
     expect(getHintKey(eq({ op: Ops.change }))).toBe("hint.change");
     expect(getHintKey(eq({ op: Ops.time }))).toBe("hint.time");
     expect(getHintKey(eq({ op: Ops.splitBill }))).toBe("hint.splitBill");
+    expect(getHintKey(eq({ op: Ops.unitPrice }))).toBe("hint.unitPrice");
   });
 
   test("the sequence drill is keyed off `sequence`, not its op", () => {
@@ -126,6 +127,7 @@ describe("getHintKey", () => {
       eq({ op: Ops.change }),
       eq({ op: Ops.time }),
       eq({ op: Ops.splitBill }),
+      eq({ op: Ops.unitPrice }),
       eq({ op: Ops.add, op2: Ops.mult, c: 2 }),
     ];
     for (const shape of shapes) {

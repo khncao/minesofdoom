@@ -141,6 +141,9 @@ export const es: Record<TranslationKey, string> = {
     "Contar hasta la siguiente hora y seguir es más rápido que contar a través de la hora.",
   "hint.splitBill":
     "Busca una parte redonda y reparte la cola una segunda vez.",
+  "hint.unitPrice":
+    "Precio × cantidad para el total. Para el precio de uno, divide el " +
+    "total entre la cantidad — y puede salir en céntimos.",
   "hint.hardMode":
     "Tres términos, estrictamente de izquierda a derecha. Resuelve los dos primeros y usa ese resultado.",
 
@@ -304,6 +307,9 @@ export const es: Record<TranslationKey, string> = {
     "dos horas.",
   "settings.op.splitBill":
     "Bonus de operador ×4. La cuenta siempre sale exacta entre las personas.",
+  "settings.op.unitPrice":
+    "Bonus de operador ×4. Las dos direcciones: precio × cantidad, y total ÷ " +
+    "cantidad para el precio de uno.",
   "settings.opName.multiply": "multiplicación",
   "settings.opName.add": "suma",
   "settings.opName.subtract": "resta",
@@ -319,6 +325,7 @@ export const es: Record<TranslationKey, string> = {
   "settings.opName.change": "vuelta",
   "settings.opName.time": "tiempo transcurrido",
   "settings.opName.splitBill": "repartir la cuenta",
+  "settings.opName.unitPrice": "precio por unidad",
   "settings.multiplySymbol": "Símbolos: ",
   "settings.drills": "Ejercicios (desactivados por defecto, solo modo fácil):",
   "settings.realWorld":
@@ -417,6 +424,12 @@ export const es: Record<TranslationKey, string> = {
     "reparte la cola: 90 / 4 son 20 cada uno y sobran 10, y 10 / 4 son " +
     "2,50 — luego 22,50 cada uno. Reparte la parte incómoda la segunda, " +
     "nunca la primera.",
+  "settings.tip.unitPrice.title": "Precio por unidad: las dos preguntas, en ambos sentidos",
+  "settings.tip.unitPrice.body":
+    "Calcular el total es solo multiplicar: 4 cada uno × 12 son 48. Calcular " +
+    "cuánto cuesta UNO es dividir el total entre la cantidad: 30 por 12 son " +
+    "2,50 cada uno. Al dividir, ve primero a una parte redonda y pasa la " +
+    "cola otra vuelta — nunca redondees la respuesta.",
   "settings.haptics": "Retroalimentación háptica: ",
   "settings.hapticsHelp":
     "Activado (por defecto): el dispositivo vibra con los eventos de la " +

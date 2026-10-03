@@ -1736,6 +1736,8 @@ export const DISCOUNT_PAYOUT = 3;
 export const CHANGE_PAYOUT = 2;
 export const TIME_PAYOUT = 4;
 export const SPLIT_BILL_PAYOUT = 4;
+/** Unit price: a whole-dollar total divided by an item count. */
+export const UNIT_PRICE_PAYOUT = 4;
 
 /**
  * Operator premium, per op symbol. Division stays the top scorer (×10);
@@ -1765,6 +1767,8 @@ export function getOpPayoutMultiplier(op: string): number {
       return DISCOUNT_PAYOUT;
     case Ops.splitBill:
       return SPLIT_BILL_PAYOUT;
+    case Ops.unitPrice:
+      return UNIT_PRICE_PAYOUT;
     default:
       return 1;
   }

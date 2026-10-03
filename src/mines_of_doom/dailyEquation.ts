@@ -64,6 +64,7 @@ export const DAILY_EQUATION_PREFS: EquationSettings = {
   time: false,
   discount: false,
   splitBill: false,
+  unitPrice: false,
   hardMode: false,
   multiplySymbol: "asterisk",
 };

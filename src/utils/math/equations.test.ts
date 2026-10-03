@@ -34,6 +34,7 @@ const ALL_ON: EquationSettings = {
   time: false,
   discount: false,
   splitBill: false,
+  unitPrice: false,
   hardMode: false,
   multiplySymbol: "asterisk",
 };
@@ -53,6 +54,7 @@ const ALL_TYPES_ON: EquationSettings = {
   time: true,
   discount: true,
   splitBill: true,
+  unitPrice: true,
 };
 
 // Classic ops off — isolates one new type at a time.
@@ -184,6 +186,7 @@ describe("getRandomEquation", () => {
     expect(defaultEquationSettings.time).toBe(false);
     expect(defaultEquationSettings.discount).toBe(false);
     expect(defaultEquationSettings.splitBill).toBe(false);
+    expect(defaultEquationSettings.unitPrice).toBe(false);
     expect(defaultEquationSettings.multiplySymbol).toBe("asterisk");
   });
 });
@@ -312,13 +315,13 @@ describe("soft-mode-only equation types (iteration 11, all ages)", () => {
 
   test("new types appear with equal-ish frequency when enabled", () => {
     const counts: Record<string, number> = {};
-    for (let i = 0; i < 15000; i++) {
+    for (let i = 0; i < 16000; i++) {
       const eq = getRandomEquation(ALL_TYPES_ON);
       const key = eq.balance ? "balance" : eq.sequence ? Ops.seq : isMissingDivisor(eq) ? "missingDivisor" : eq.missing ? "missing" : eq.op;
       counts[key] = (counts[key] ?? 0) + 1;
     }
-    // 15 toggles over 15000 rolls: every kind should land near a full slot.
-    for (const key of [Ops.mult, Ops.add, Ops.sub, Ops.div, Ops.pct, Ops.sq, Ops.seq, "missing", "missingDivisor", "balance", Ops.tip, Ops.discount, Ops.change, Ops.time, Ops.splitBill]) {
+    // 16 toggles over 16000 rolls: every kind should land near a full slot.
+    for (const key of [Ops.mult, Ops.add, Ops.sub, Ops.div, Ops.pct, Ops.sq, Ops.seq, "missing", "missingDivisor", "balance", Ops.tip, Ops.discount, Ops.change, Ops.time, Ops.splitBill, Ops.unitPrice]) {
       expect(counts[key]).toBeGreaterThan(700);
     }
   });
@@ -375,6 +378,7 @@ describe("whole operands, decimal answers", () => {
     { ...ONLY, tip: true },
     { ...ONLY, discount: true },
     { ...ONLY, splitBill: true },
+    { ...ONLY, unitPrice: true },
   ];
 
   test("no equation EVER shows a decimal operand — only the answer", () => {
@@ -536,6 +540,73 @@ describe("real-world: split the bill (whole bill, whole headcount)", () => {
     }
   });
 });
+describe("real-world: unit price (both directions under one toggle)", () => {
+  const ONLY_UNIT: EquationSettings = { ...ONLY, unitPrice: true };
+
+  test("the multiply direction is price × count, both operands whole", () => {
+    for (let i = 0; i < 3000; i++) {
+      const eq = getRandomEquation(ONLY_UNIT);
+      if (eq.unitEach !== false) continue;
+      expect(eq.op).toBe(Ops.unitPrice);
+      expect(Number.isInteger(eq.a)).toBe(true);
+      expect(Number.isInteger(eq.b)).toBe(true);
+      expect(eq.b).toBeGreaterThanOrEqual(3);
+      expect(eq.answer).toBe(eq.a * eq.b);
+      expect(Number.isInteger(eq.answer)).toBe(true);
+    }
+  });
+
+  test("the divide direction is EXACT — a total that needs rounding is never drawn", () => {
+    for (let i = 0; i < 5000; i++) {
+      const eq = getRandomEquation(ONLY_UNIT);
+      if (eq.unitEach !== true) continue;
+      expect(eq.op).toBe(Ops.unitPrice);
+      expect(Number.isInteger(eq.a)).toBe(true);
+      // In CENTS the division must come out whole: 30 / 12 = 2.50 is
+      // legal, 29 / 12 never is.
+      expect(toCents(eq.a) % eq.b).toBe(0);
+      expect(toCents(eq.answer)).toBe(toCents(eq.a) / eq.b);
+      expect(eq.answer).toBeGreaterThanOrEqual(2);
+      expect(eq.answer).toBeLessThan(eq.a);
+    }
+  });
+
+  test("both directions actually roll — this is not just a multiply drill", () => {
+    const dirs = new Set<boolean>();
+    let eachWithCents = 0;
+    for (let i = 0; i < 5000; i++) {
+      const eq = getRandomEquation(ONLY_UNIT);
+      dirs.add(eq.unitEach === true);
+      if (eq.unitEach && !Number.isInteger(eq.answer)) eachWithCents++;
+    }
+    expect(dirs.size).toBe(2);
+    // The cents only ever come from the divide direction — that is what
+    // the toggle exists for.
+    expect(eachWithCents).toBeGreaterThan(500);
+  });
+
+  test("the item count is a shop quantity, not a dinner table", () => {
+    // The distinction from splitBill: many items (up to 20), not 2-8
+    // people. Counts that high are what make a unit price land on cents
+    // in ordinary shopping.
+    let sawBig = false;
+    for (let i = 0; i < 5000; i++) {
+      const eq = getRandomEquation(ONLY_UNIT);
+      expect(eq.b).toBeLessThanOrEqual(20);
+      if (eq.b > 8) sawBig = true;
+    }
+    expect(sawBig).toBe(true);
+  });
+
+  test("never emitted in hard mode", () => {
+    for (let i = 0; i < 1000; i++) {
+      expect(getRandomEquation({ ...ONLY_UNIT, hardMode: true }).op).not.toBe(
+        Ops.unitPrice,
+      );
+    }
+  });
+});
+
 describe("real-world: elapsed time", () => {
   const ONLY_TIME: EquationSettings = { ...ONLY, time: true };
 
@@ -846,10 +917,29 @@ describe("getOpDisplay / formatEquation (iteration 11)", () => {
     ).toBe("90 ÷ 4");
   });
 
+  test("unit price reads as a shopping question, not a bare multiply", () => {
+    // Without the "each" the multiply direction would be character-for-
+    // character a plain multiplication drill — the exact thing this toggle
+    // used to collapse into.
+    expect(
+      formatEquation({ op: Ops.unitPrice, a: 4, b: 12, answer: 48, unitEach: false }, "asterisk"),
+    ).toBe("4 each * 12");
+    expect(
+      formatEquation({ op: Ops.unitPrice, a: 4, b: 12, answer: 48, unitEach: false }, "letter"),
+    ).toBe("4 each x 12");
+    expect(
+      formatEquation({ op: Ops.unitPrice, a: 30, b: 12, answer: 2.5, unitEach: true }, "asterisk"),
+    ).toBe("30 / 12");
+    expect(
+      formatEquation({ op: Ops.unitPrice, a: 30, b: 12, answer: 2.5, unitEach: true }, "letter"),
+    ).toBe("30 ÷ 12");
+  });
+
   test("the money shapes get their own payout-hint glyphs", () => {
     expect(getOpDisplay(Ops.tip, "asterisk")).toBe("%");
     expect(getOpDisplay(Ops.discount, "asterisk")).toBe("%");
     expect(getOpDisplay(Ops.splitBill, "asterisk")).toBe("÷");
+    expect(getOpDisplay(Ops.unitPrice, "asterisk")).toBe("×");
   });
 
   test("a balance equation is never mistaken for hard mode (no 3rd term appended)", () => {

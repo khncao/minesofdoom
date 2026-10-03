@@ -53,6 +53,7 @@ export const REAL_WORLD_KEYS = [
   "change",
   "time",
   "splitBill",
+  "unitPrice",
 ] as const;
 export type RealWorldKey = (typeof REAL_WORLD_KEYS)[number];
 
@@ -109,6 +110,8 @@ export type EquationSettings = {
   time: boolean;
   /** splitBill: "90 ÷ 4" — the per-person share (soft mode only) */
   splitBill: boolean;
+  /** unitPrice: "4 each × 12" / "30 ÷ 12" (soft mode only) */
+  unitPrice: boolean;
 };
 
 export const defaultEquationSettings: EquationSettings = {
@@ -129,6 +132,7 @@ export const defaultEquationSettings: EquationSettings = {
   change: false,
   time: false,
   splitBill: false,
+  unitPrice: false,
   hardMode: false,
   multiplySymbol: "asterisk",
 };
@@ -164,6 +168,12 @@ export const Ops = {
    */
   /** "45 - 15% off" — a = the price, b = the rate. */
   splitBill: "÷",
+  /**
+   * Unit price, both directions under ONE op (the direction lives in
+   * `Equation.unitEach`): false → a = price, b = count ("4 each × 12");
+   * true → a = total, b = count ("30 ÷ 12").
+   */
+  unitPrice: "unit",
 };
 
 export type Equation = {
@@ -202,6 +212,12 @@ export type Equation = {
   /** Sequence equations ("1, 4, 9, 16, ?"): the shown terms, ascending
    *  step order. `answer` is the next term; a/b mirror terms[0]/terms[1]. */
   sequence?: number[];
+  /**
+   * Unit-price equations ("4 each × 12" / "30 ÷ 12"): true for the
+   * divide direction, where `a` is the TOTAL and the answer is the price
+   * per item. Soft-mode only; both directions share Ops.unitPrice.
+   */
+  unitEach?: boolean;
 };
 
 /** "a ○ ? = b" — the shapes whose displayed text contains a literal "?". */
@@ -741,6 +757,62 @@ function generateSplitBillEquation(
   };
 }
 
+/**
+ * Unit price, both directions — the two questions a shopper actually asks,
+ * and they pull in opposite ways, so one toggle covering both is the honest
+ * shape:
+ *
+ *   multiply  "4 each × 12"  → 48      (what do N cost at a price?)
+ *   divide    "30 ÷ 12"      → 2.50    (a pack costs 30 — what each?)
+ *
+ * The multiply direction answers in whole dollars; the divide direction is
+ * where the cents come from, because a pack of 12 for $30 is $2.50 each.
+ * Without the divide direction this would just be multiplication with a
+ * story attached, which is why it earns its own toggle.
+ *
+ * The divide direction is built share-first and multiplied up, so it is
+ * EXACT by construction — the same rule as splitBill: a pack that needs
+ * rounding ($29 ÷ 12 = $2.4166…) is a remainders lesson, not a unit-price
+ * one. Counts are 3..20 (far more items than the 2..8 of a dinner split,
+ * which is what makes the two drills feel different) and the total never
+ * drops below 2 × count, so the unit price is a couple of dollars or more.
+ */
+function generateUnitPriceEquation(
+  minNumber: number,
+  maxNumber: number,
+  rng: () => number = Math.random,
+): Equation {
+  const [low, high] = moneyWindow(minNumber, maxNumber);
+  const maxCount = Math.max(4, Math.min(20, maxNumber + 8));
+  const count = 3 + Math.floor(rng() * (maxCount - 2));
+
+  if (rng() < 0.5) {
+    // Multiply: price × count. Both operands whole, so the total is whole.
+    const price = pickWhole(low, Math.min(high, Math.floor(9999 / count)), rng);
+    return {
+      op: Ops.unitPrice,
+      a: price,
+      b: count,
+      answer: price * count,
+      unitEach: false,
+    };
+  }
+  // Divide: total ÷ count, exact. A share of x dollars needs the total to
+  // be a multiple of count / gcd(count, 100) — so 30 ÷ 12 = 2.50 is legal
+  // (12/gcd(12,100) = 3) while 29 ÷ 12 never is.
+  const step = count / greatestCommonDivisor(count, 100);
+  const first = Math.max(count * 2, Math.ceil(low / step) * step);
+  const last = Math.max(first + 2 * step, Math.floor(high / step) * step);
+  const total = first + Math.floor(rng() * ((last - first) / step + 1)) * step;
+  return {
+    op: Ops.unitPrice,
+    a: total,
+    b: count,
+    answer: fromCents((total / count) * 100),
+    unitEach: true,
+  };
+}
+
 /** "9:40" from a minutes-past-midnight count. */
 export function formatClock(minutesOfDay: number): string {
   const h = Math.floor(minutesOfDay / 60) % 24;
@@ -807,7 +879,8 @@ export function getRandomEquation(
     | { kind: "discount" }
     | { kind: "change" }
     | { kind: "time" }
-    | { kind: "splitBill" };
+    | { kind: "splitBill" }
+    | { kind: "unitPrice" };
   const softExtras: Choice[] = prefs.hardMode
     ? []
     : [
@@ -820,6 +893,7 @@ export function getRandomEquation(
         ...(prefs.change ? ([{ kind: "change" }] as const) : []),
         ...(prefs.time ? ([{ kind: "time" }] as const) : []),
         ...(prefs.splitBill ? ([{ kind: "splitBill" }] as const) : []),
+        ...(prefs.unitPrice ? ([{ kind: "unitPrice" }] as const) : []),
       ];
   const choices: Choice[] = [
     ...regularOps.map((op): Choice => ({ kind: "op", op })),
@@ -866,6 +940,9 @@ export function getRandomEquation(
           break;
         case "splitBill":
           eq = generateSplitBillEquation(minNumber, maxNumber, rng);
+          break;
+        case "unitPrice":
+          eq = generateUnitPriceEquation(minNumber, maxNumber, rng);
           break;
         default:
           eq = generateTermsEquation(choice.op, minNumber, maxNumber, rng);
@@ -1023,6 +1100,8 @@ export function getOpDisplay(
       return "%";
     case Ops.change:
       return "$";
+    case Ops.unitPrice:
+      return "×";
     case Ops.time:
       return "◷";
     default:
@@ -1064,6 +1143,15 @@ export function formatEquation(
   if (equation.op === Ops.splitBill) {
     // "90 / 4" — a whole-dollar bill and a whole headcount.
     return `${equation.a} ${getOpDisplay(Ops.div, multiplySymbol)} ${equation.b}`;
+  }
+  if (equation.op === Ops.unitPrice) {
+    // "4 each × 12" or "30 ÷ 12". The multiply direction needs the "each"
+    // to read as a shopping question rather than plain multiplication —
+    // without it the display would be character-for-character a multiply
+    // drill, which is exactly what this toggle used to collapse into.
+    return equation.unitEach
+      ? `${equation.a} ${getOpDisplay(Ops.div, multiplySymbol)} ${equation.b}`
+      : `${equation.a} each ${getOpDisplay(Ops.mult, multiplySymbol)} ${equation.b}`;
   }
   if (equation.op === Ops.tip) {
     // "45 + 15% tip" — a whole-dollar bill and a whole-percent rate.
