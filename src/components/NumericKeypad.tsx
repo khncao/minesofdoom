@@ -4,6 +4,7 @@ import { T as Text } from "src/mines_of_doom/textScale";
 import { useT } from "src/hooks/useI18n";
 
 export interface NumericKeypadProps {
+  /** Append one key. Keys are "0"–"9" or "." — see appendAnswerKey. */
   onDigit: (digit: string) => void;
   onBackspace: () => void;
   onClear: () => void;
@@ -54,8 +55,13 @@ const Key = ({
  *   7 8 9 ⌫
  *   4 5 6 C
  *   1 2 3 =
- *   0 0 0 0
- * ⌫ deletes one digit; C (or holding ⌫) clears the whole answer.
+ *   0 0 0 .
+ * ⌫ deletes one character; C (or holding ⌫) clears the whole answer.
+ *
+ * The bottom-right key is the decimal point rather than a third zero: the
+ * money drills need a separator (todo: "decimal money answers"), and the
+ * corner is where every phone keypad puts it. Three zeros remain, and
+ * that is enough to type any answer the game can produce.
  *
  * Layout: the grid is built as FOUR KEY COLUMNS (not rows) so the keys
  * are MAIN-axis flex items of a column. That makes the 56px keys able to
@@ -122,7 +128,15 @@ const NumericKeypad = memo(function NumericKeypad({
           highlighted
           onPress={onSubmit}
         />
-        {digit("0")}
+        {/* The decimal point replaces one of the three remaining zeros —
+            see the layout note above. */}
+        <Key
+          title="."
+          testID="keypad-decimal"
+          accessibilityLabel={t("a11y.decimalPoint")}
+          accessibilityHint={t("a11y.decimalPointHint")}
+          onPress={() => onDigit(".")}
+        />
       </View>
     </View>
   );

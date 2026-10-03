@@ -26,7 +26,7 @@ import { skinSpriteUri } from "src/utils/graphics/artPack";
 import { styles } from "./styles";
 import DepthBanner from "./components/DepthBanner";
 import EquationDisplay from "./components/EquationDisplay";
-import AnswerInput, { MAX_ANSWER_LENGTH } from "./components/AnswerInput";
+import AnswerInput, { appendAnswerKey } from "./components/AnswerInput";
 import NumericKeypad from "src/components/NumericKeypad";
 import ComboIndicator from "./components/ComboIndicator";
 import ComboSaveIndicator from "./components/ComboSaveIndicator";
@@ -1119,17 +1119,20 @@ export default function MinesOfDoom() {
   // Feel (todo: "refine the on-screen keypad"): every keypress gets the
   // same light "tap" tick a cave tap does (50 ms throttle in useHaptics
   // keeps fast typing from buzzing), and the two input BOUNDARIES —
-  // an empty `=` and a digit past the 12-digit cap — get a VISUAL-ONLY
-  // shake: no sound, no haptic, no penalty, no roll (F53.1 stands —
-  // these are input limits, not wrong answers).
+  // an empty `=` and a key that can't apply (a second ".", or a character
+  // past the 12-character cap) — get a VISUAL-ONLY shake: no sound, no
+  // haptic, no penalty, no roll (F53.1 stands — these are input limits,
+  // not wrong answers). appendAnswerKey owns the rules and returns the
+  // text unchanged when a key can't apply, which is what this compares.
   const handleKeypadDigit = useCallback(
     (digit: string) => {
-      if (textInputRef.current.length >= MAX_ANSWER_LENGTH) {
+      const next = appendAnswerKey(textInputRef.current, digit);
+      if (next === textInputRef.current) {
         shake();
         return;
       }
       haptic("tap", 1);
-      setTextInput((old) => old + digit);
+      setTextInput(next);
     },
     [haptic, shake, setTextInput],
   );

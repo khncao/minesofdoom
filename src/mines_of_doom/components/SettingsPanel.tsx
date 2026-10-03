@@ -7,10 +7,12 @@ import { useI18n } from "src/hooks/useI18n";
 import { type TranslationKey } from "src/utils/i18n/i18n";
 import {
   EquationSettings,
+  DRILL_KEYS,
   OPERATOR_KEYS,
+  REAL_WORLD_KEYS,
   Ops,
   getOpDisplay,
-  type OperatorKey,
+  type EquationTypeKey,
   type MultiplySymbol,
 } from "src/utils/math/equations";
 import {
@@ -23,52 +25,120 @@ import { formatNumber } from "src/utils/format";
 import { styles } from "../styles";
 
 /**
- * How a correct answer pays, per equation type (kept in sync with
- * getEquationOpBonus: division ×10, square ×4, percent ×3, missing ×3,
- * subtraction ×2, +/* ×1). The tooltip text is a translation key
- * (settings.op.*).
+ * Label, glyph and payout note for EVERY toggleable equation type (kept
+ * in sync with getOpPayoutMultiplier / getEquationOpBonus in game.ts:
+ * division ×10, missing-divisor ×5, square/balance/sequence/time ×4,
+ * percent/tip ×3, subtraction/change ×2, +/* ×1). One record for all three
+ * groups — Operators, Drills and Real-world math — because the rows render
+ * identically and only the grouping differs.
  */
-const OPERATOR_HELP: Record<
-  OperatorKey,
-  { symbol: string; noteKey: TranslationKey }
-> = {
-  multiply: { symbol: "*", noteKey: "settings.op.multiply" },
-  add: { symbol: "+", noteKey: "settings.op.add" },
-  subtract: {
-    symbol: "-",
-    noteKey: "settings.op.subtract",
-  },
-  division: {
-    symbol: "/",
-    noteKey: "settings.op.division",
-  },
-  percent: {
-    symbol: "%",
-    noteKey: "settings.op.percent",
-  },
-  square: {
-    symbol: "²",
-    noteKey: "settings.op.square",
-  },
-  missing: {
+type TypeToggleInfo = {
+  /** The plain name shown next to the glyph, and the operatorEquations
+   *  tooltip label ("{name} equations"). A literal template key wouldn't
+   *  type-check against TranslationKey. */
+  name: TranslationKey;
+  symbol: string;
+  /** settings.op.* — the one-line payout + guarantee note. */
+  noteKey: TranslationKey;
+};
+
+const TYPE_INFO: Record<EquationTypeKey, TypeToggleInfo> = {
+  multiply: { name: "settings.opName.multiply", symbol: "*", noteKey: "settings.op.multiply" },
+  add: { name: "settings.opName.add", symbol: "+", noteKey: "settings.op.add" },
+  subtract: { name: "settings.opName.subtract", symbol: "-", noteKey: "settings.op.subtract" },
+  division: { name: "settings.opName.division", symbol: "/", noteKey: "settings.op.division" },
+  percent: { name: "settings.opName.percent", symbol: "%", noteKey: "settings.op.percent" },
+  square: { name: "settings.opName.square", symbol: "²", noteKey: "settings.op.square" },
+  missing: { name: "settings.opName.missing", symbol: "?", noteKey: "settings.op.missing" },
+  missingDivisor: {
+    name: "settings.opName.missingDivisor",
     symbol: "?",
-    noteKey: "settings.op.missing",
+    noteKey: "settings.op.missingDivisor",
+  },
+  balance: { name: "settings.opName.balance", symbol: "?", noteKey: "settings.op.balance" },
+  sequence: { name: "settings.opName.sequence", symbol: "…", noteKey: "settings.op.sequence" },
+  tip: { name: "settings.opName.tip", symbol: "$", noteKey: "settings.op.tip" },
+  change: { name: "settings.opName.change", symbol: "$", noteKey: "settings.op.change" },
+  time: { name: "settings.opName.time", symbol: "◷", noteKey: "settings.op.time" },
+  moneyAdd: {
+    name: "settings.opName.moneyAdd",
+    symbol: "+",
+    noteKey: "settings.op.moneyAdd",
+  },
+  unitPrice: {
+    name: "settings.opName.unitPrice",
+    symbol: "×",
+    noteKey: "settings.op.unitPrice",
+  },
+  splitBill: {
+    name: "settings.opName.splitBill",
+    symbol: "÷",
+    noteKey: "settings.op.splitBill",
   },
 };
 
 /**
- * Human names for the operatorEquations label ("{name} equations") — the
- * raw keys would otherwise render untranslated in every locale.
+ * One wrapping row of type toggles. `multiply` is the only type whose
+ * glyph follows the player's symbol preference, so it is resolved here
+ * rather than stored in TYPE_INFO.
  */
-const OP_NAME_KEYS: Record<OperatorKey, TranslationKey> = {
-  multiply: "settings.opName.multiply",
-  add: "settings.opName.add",
-  subtract: "settings.opName.subtract",
-  division: "settings.opName.division",
-  percent: "settings.opName.percent",
-  square: "settings.opName.square",
-  missing: "settings.opName.missing",
-};
+function TypeToggleGroup({
+  titleKey,
+  keys,
+  equationSettings,
+  onChangeEquationSettings,
+}: {
+  /** A small caption above the row (the top group passes undefined — it
+   *  is the one the player finds first, so it needs no heading). */
+  titleKey?: TranslationKey;
+  keys: readonly EquationTypeKey[];
+  equationSettings: EquationSettings;
+  onChangeEquationSettings: (newSettings: EquationSettings) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <View style={{ gap: 2 }}>
+      {titleKey !== undefined && (
+        <View style={styles.flexCenteredRow}>
+          <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
+            {t(titleKey)}
+          </Text>
+        </View>
+      )}
+      <View style={{ ...styles.flexCenteredRow, gap: 4, flexWrap: "wrap" }}>
+        {keys.map((key) => {
+          const info = TYPE_INFO[key];
+          return (
+            <View
+              key={key}
+              style={{ flexDirection: "row", alignItems: "center", gap: 2 }}
+            >
+              {/* Plain name (todo) next to the glyph, so the row reads
+                    "division /" instead of a lone symbol. */}
+              <Text style={styles.text}>{t(info.name)}</Text>
+              <Tooltip
+                label={t("settings.operatorEquations", { name: t(info.name) })}
+                content={`${t(info.noteKey)} ${t("settings.gainFormula")}`}
+              >
+                <Text style={styles.text}>
+                  {key === "multiply"
+                    ? getOpDisplay(Ops.mult, equationSettings.multiplySymbol)
+                    : info.symbol}
+                </Text>
+              </Tooltip>
+              <Switch
+                value={equationSettings[key]}
+                onValueChange={(newVal) => {
+                  onChangeEquationSettings({ ...equationSettings, [key]: newVal });
+                }}
+              />
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
 
 /**
  * Menu "Settings" tab (todo: "reorganize menus with clean reimplementation"):
@@ -120,52 +190,46 @@ const SettingsContent = memo(function SettingsContent({
           })
         }
       />
-      <View
-        style={{
-          ...styles.flexCenteredRow,
-          gap: 4,
-          // 7 toggles no longer fit a phone-width row — let them wrap
-          // instead of overflowing.
-          flexWrap: "wrap",
-        }}
-      >
-        {OPERATOR_KEYS.map((key) => (
-          <View
-            key={key}
-            style={{ flexDirection: "row", alignItems: "center", gap: 2 }}
-          >
-            {/* Plain name (todo) next to the glyph, so the row reads
-                  "division /" instead of a lone symbol. */}
-            <Text style={styles.text}>{t(OP_NAME_KEYS[key])}</Text>
-            <Tooltip
-              label={t("settings.operatorEquations", {
-                name: t(OP_NAME_KEYS[key]),
-              })}
-              content={`${t(OPERATOR_HELP[key].noteKey)} ${t("settings.gainFormula")}`}
-            >
-              <Text style={styles.text}>
-                {key === "multiply"
-                  ? getOpDisplay(Ops.mult, equationSettings.multiplySymbol)
-                  : OPERATOR_HELP[key].symbol}
-              </Text>
-            </Tooltip>
-            <Switch
-              value={equationSettings[key]}
-              onValueChange={(newVal) => {
-                onChangeEquationSettings({
-                  ...equationSettings,
-                  [key]: newVal,
-                });
-              }}
-            />
-          </View>
-        ))}
-      </View>
+      {/* The three toggle groups (todo: "More types of simple mental
+          arithmetics for all ages"). They live outside OPERATOR_KEYS as
+          separate lists because that one is also the first-run setup step's
+          row list, and ten 44px rows overflow the non-scrolling onboarding
+          card — so Drills and Real-world math get their own labelled groups
+          here instead of six more tour rows. All six are off by default and
+          soft-mode only. */}
+      <TypeToggleGroup
+        keys={OPERATOR_KEYS}
+        equationSettings={equationSettings}
+        onChangeEquationSettings={onChangeEquationSettings}
+      />
       <View style={styles.flexCenteredRow}>
         <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
           {t("settings.operatorHelp")}
         </Text>
       </View>
+      <TypeToggleGroup
+        titleKey="settings.drills"
+        keys={DRILL_KEYS}
+        equationSettings={equationSettings}
+        onChangeEquationSettings={onChangeEquationSettings}
+      />
+      <TypeToggleGroup
+        titleKey="settings.realWorld"
+        keys={REAL_WORLD_KEYS}
+        equationSettings={equationSettings}
+        onChangeEquationSettings={onChangeEquationSettings}
+      />
+      {/* The money drills are the only ones that answer in cents, so the
+          decimal key is worth calling out where the player turns them on. */}
+      {(equationSettings.moneyAdd ||
+        equationSettings.unitPrice ||
+        equationSettings.splitBill) && (
+        <View style={styles.flexCenteredRow}>
+          <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
+            {t("settings.moneyNote")}
+          </Text>
+        </View>
+      )}
       {/* Symbol display toggle (todo: "Configurable equation display" +
           "alt display for other operations"): the choice now covers
           BOTH the multiplication and division glyphs — "7 * 2" / "7 / 2"
@@ -744,7 +808,7 @@ const SettingsContent = memo(function SettingsContent({
 });
 
 /**
- * The eight tips, in display order (title + body are separate keys so
+ * The seventeen tips, in display order (title + body are separate keys so
  * the title can be bolded in the UI without parsing a template).
  */
 const TIPS: readonly { title: TranslationKey; body: TranslationKey }[] = [
@@ -762,12 +826,51 @@ const TIPS: readonly { title: TranslationKey; body: TranslationKey }[] = [
     title: "settings.tip.division.title",
     body: "settings.tip.division.body",
   },
+  // The three drills' strategies (Settings ▸ Drills turns them on).
+  {
+    title: "settings.tip.missingDivisor.title",
+    body: "settings.tip.missingDivisor.body",
+  },
+  {
+    title: "settings.tip.balance.title",
+    body: "settings.tip.balance.body",
+  },
+  {
+    title: "settings.tip.sequence.title",
+    body: "settings.tip.sequence.body",
+  },
+  // The real-world strategies (Settings ▸ Real-world math turns them on).
+  {
+    title: "settings.tip.realTip.title",
+    body: "settings.tip.realTip.body",
+  },
+  {
+    title: "settings.tip.change.title",
+    body: "settings.tip.change.body",
+  },
+  {
+    title: "settings.tip.time.title",
+    body: "settings.tip.time.body",
+  },
+  // The money strategies — the only drills whose answers are in cents.
+  {
+    title: "settings.tip.moneyAdd.title",
+    body: "settings.tip.moneyAdd.body",
+  },
+  {
+    title: "settings.tip.unitPrice.title",
+    body: "settings.tip.unitPrice.body",
+  },
+  {
+    title: "settings.tip.splitBill.title",
+    body: "settings.tip.splitBill.body",
+  },
 ];
 
 /**
  * Mental math tips (todo: "Add a tips section in settings menu teaching
  * techniques for mental arithmetic", then "Show tips one at a time with
- * auto scrolling"): the eight tips used to stack into a long column that
+ * auto scrolling"): the seventeen tips used to stack into a long column that
  * pushed the rest of settings off-screen; now ONE tip is shown at a time.
  * The auto-advance was removed (todo: "disable mental math tip auto
  * scroll") — the card is fully manual: tapping it advances to the next

@@ -4,8 +4,10 @@ import { T as Text } from "../textScale";
 import {
   Equation,
   MultiplySymbol,
-  formatEquation,
+  formatEquationPrompt,
   getOpDisplay,
+  hasQuestionMark,
+  isHardMode,
 } from "src/utils/math/equations";
 import { useT } from "src/hooks/useI18n";
 import { getEquationOpBonus, getAnswerPayoutMultiplier } from "../game";
@@ -27,8 +29,13 @@ const EquationDisplay = memo(function EquationDisplay({
   // the readout let a player divide the answer straight back out of it
   // (todo: "remove the predicted reward mineral amount").
   const opMultiplier = getEquationOpBonus(equation);
-  const hardMode = equation.op2 !== undefined;
+  // isHardMode(), not `op2 !== undefined`: the balance drill carries a
+  // right-hand op2/c and is NOT hard mode (it must not show the ×2 tag).
+  const hardMode = isHardMode(equation);
   const payoutMultiplier = getAnswerPayoutMultiplier(equation);
+  // The "?" shapes (missing / missing-divisor / balance) hint with "?"; the
+  // rest hint with their own glyph, which is "…" for sequences.
+  const opHint = hasQuestionMark(equation) ? "?" : getOpDisplay(equation.op, multiplySymbol);
 
   return (
     // Translucent panel (todo: "improve visibility of ui … where
@@ -46,7 +53,7 @@ const EquationDisplay = memo(function EquationDisplay({
       }}
     >
       <Text style={styles.text} testID="equation-display">
-        {formatEquation(equation, multiplySymbol)}?
+        {formatEquationPrompt(equation, multiplySymbol)}
       </Text>
       {/* The line always renders (a space when there is no premium) so the
        * stack below it does not shift between equations. */}
@@ -54,7 +61,7 @@ const EquationDisplay = memo(function EquationDisplay({
         {payoutMultiplier > 1
           ? t("equation.hint", {
               mult: payoutMultiplier,
-              suffix: `${opMultiplier > 1 ? ` ${equation.missing ? "?" : getOpDisplay(equation.op, multiplySymbol)}` : ""}${hardMode ? ` ${t("equation.tagHard")}` : ""}`,
+              suffix: `${opMultiplier > 1 ? ` ${opHint}` : ""}${hardMode ? ` ${t("equation.tagHard")}` : ""}`,
             })
           : " "}
       </Text>

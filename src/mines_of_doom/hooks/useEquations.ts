@@ -3,8 +3,8 @@ import {
   Equation,
   EquationSettings,
   getRandomEquation,
-  approxeq,
 } from "src/utils/math/equations";
+import { answersEqual } from "src/utils/math/money";
 import { getAnswerPayoutMultiplier } from "../game";
 
 /**
@@ -92,13 +92,19 @@ export function useEquations({
       // console.log(e);
     }
 
-    if (approxeq(value, equation.answer)) {
-      // Operator bonus (÷ ×10, ² ×4, %/missing ×3, − ×2) × hard-mode
-      // premium (×2 for 3-term equations) — see getAnswerPayoutMultiplier.
-      // Answers are always integral & non-negative by construction, so no
-      // abs/fround.
-      value *= getAnswerPayoutMultiplier(equation);
-      onCorrect(Math.max(1, value));
+    if (answersEqual(value, equation.answer)) {
+      // Operator bonus (÷ ×10, missing-divisor ×5, ²/sequence/money ×4,
+      // %/tip ×3, −/change ×2) × hard-mode premium (×2 for 3-term
+      // equations) — see getAnswerPayoutMultiplier.
+      //
+      // Math.round here is load-bearing, not cosmetic: the reward path
+      // converts this value with BigInt(), which THROWS on a non-integer,
+      // so a decimal money answer (22.40 × ×4 = 89.6) has to become an
+      // integer mineral count before it leaves this function. Half-up,
+      // matching mulFloats' own rounding rule. It is symmetric, so no
+      // systematic bias either way.
+      value = Math.max(1, Math.round(value * getAnswerPayoutMultiplier(equation)));
+      onCorrect(value);
       setTextInput("");
       setEquation(getRandomEquation(equationSettings));
       // eslint-disable-next-line react-hooks/exhaustive-deps

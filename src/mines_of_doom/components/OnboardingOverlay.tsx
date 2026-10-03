@@ -209,6 +209,13 @@ const OnboardingOverlay = memo(function OnboardingOverlay({
  * here sees it off in Settings later), the × / ÷ symbol display, and the
  * answer-input style (on-screen numpad vs OS keyboard).
  *
+ * NOTE: the DRILL types (DRILL_KEYS — missing divisor, balance, sequence)
+ * are deliberately NOT here. They are Settings-only toggles because this
+ * card is absolutely positioned, does not scroll, and seven 44px rows
+ * already fill it; three more would push the header off the top of a
+ * small phone. They are off by default anyway, and Settings ▸ Drills is
+ * where the matching tips teach them.
+ *
  * Every row is a whole-row Pressable with the Switch inside: the Switch
  * swallows taps that land on it (its own onValueChange), and taps on the
  * label fire the row's onPress — one toggle either way. The row is also

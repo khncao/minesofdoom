@@ -37,6 +37,14 @@ export const DAILY_EQUATION_BONUS = 25_000;
  * Deliberately independent of the player's own equation settings — the
  * day's equation must be identical for everyone, and must stay solvable
  * even with an all-disabled settings record.
+ *
+ * The DRILL and REAL-WORLD types stay off here on purpose: the daily is
+ * the one equation every player gets on the same day, so it is the shape
+ * that has to be readable at a glance and unambiguous about which op the
+ * "?" hides. A next-in-sequence is a puzzle rather than a calculation, the
+ * balance form is three-term (the shape this whole record is documented to
+ * avoid), and the money/time shapes would make the day's bonus depend on a
+ * bill the player never chose.
  */
 export const DAILY_EQUATION_PREFS: EquationSettings = {
   minNumber: 2,
@@ -48,6 +56,15 @@ export const DAILY_EQUATION_PREFS: EquationSettings = {
   percent: true,
   square: false,
   missing: true,
+  missingDivisor: false,
+  balance: false,
+  sequence: false,
+  tip: false,
+  change: false,
+  time: false,
+  moneyAdd: false,
+  unitPrice: false,
+  splitBill: false,
   hardMode: false,
   multiplySymbol: "asterisk",
 };

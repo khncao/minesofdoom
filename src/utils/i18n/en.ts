@@ -249,6 +249,26 @@ export const en = {
   "settings.op.square": "Operator bonus ×4. The answer is a².",
   "settings.op.missing":
     'Operator bonus ×3. Find the number that goes in the "?".',
+  "settings.op.missingDivisor":
+    "Operator bonus ×5. The ? is the divisor — “24 ÷ ? = 6” means “6 × what = 24?”.",
+  "settings.op.balance":
+    "Operator bonus ×4. Make both sides of the equation match.",
+  "settings.op.sequence":
+    "Operator bonus ×4. Find the next number in the pattern.",
+  "settings.op.tip":
+    "Operator bonus ×3. The answer is the bill plus the tip — the amount " +
+    "you hand over.",
+  "settings.op.change":
+    "Operator bonus ×2. Change from a note is always note minus cost.",
+  "settings.op.time":
+    "Operator bonus ×4. The answer is the whole minutes between the two " +
+    "times.",
+  "settings.op.moneyAdd":
+    "Operator bonus ×2 or ×3. Adding and taking away money to the cent.",
+  "settings.op.unitPrice":
+    "Operator bonus ×4. A price per item, times how many you want.",
+  "settings.op.splitBill":
+    "Operator bonus ×4. The bill divides evenly every time.",
   "settings.opName.multiply": "multiplication",
   "settings.opName.add": "addition",
   "settings.opName.subtract": "subtraction",
@@ -256,7 +276,22 @@ export const en = {
   "settings.opName.percent": "percent",
   "settings.opName.square": "square",
   "settings.opName.missing": "missing number",
+  "settings.opName.missingDivisor": "missing divisor",
+  "settings.opName.balance": "balance the equation",
+  "settings.opName.sequence": "sequence",
+  "settings.opName.tip": "tip",
+  "settings.opName.change": "change",
+  "settings.opName.time": "elapsed time",
+  "settings.opName.moneyAdd": "money sums",
+  "settings.opName.unitPrice": "unit price",
+  "settings.opName.splitBill": "split the bill",
   "settings.multiplySymbol": "Symbol display: ",
+  "settings.drills": "Drills (off by default, soft mode only):",
+  "settings.realWorld":
+    "Real-world math (off by default, soft mode only):",
+  "settings.moneyNote":
+    "The money drills answer in dollars and cents — use the . key on the " +
+    "on-screen keypad, or the decimal pad on the system one.",
   "settings.hardMode": "Hard mode (3-term ×2): ",
   "settings.hardModeLocked": "🔒 Hard mode (Motherlode): ",
   "settings.hardModeHelp":
@@ -299,6 +334,55 @@ export const en = {
   "settings.tip.division.body":
     "Read a ÷ b as “b × what = a?”: 48 ÷ 6 → 6 × 8 = 48, so 8. If it " +
     "doesn't ring a bell, walk the multiples of b up from 1.",
+  "settings.tip.missingDivisor.title": "Missing divisor: multiply instead",
+  "settings.tip.missingDivisor.body":
+    "When the ? is under the ÷ sign, division stops being the answer. " +
+    "24 ÷ ? = 6 becomes “6 × what = 24?”, which is the same fact you " +
+    "already drill forwards — just read the row from the bottom up.",
+  "settings.tip.balance.title": "Balance: equal totals, not equal numbers",
+  "settings.tip.balance.body":
+    "6 + ? = 4 + 9 wants a match of TOTALS, so add the right side first " +
+    "(4 + 9 = 13), then subtract what's already on the left (13 − 6 = 7). " +
+    "You can check by working the other way: 6 + 7 = 13.",
+  "settings.tip.sequence.title": "Sequences: hunt the gap, not the numbers",
+  "settings.tip.sequence.body":
+    "Look at the gaps between terms, not the terms themselves: 3, 6, 9, " +
+    "12 is +3 each time. If the gaps change, the pattern is ×: 2, 4, 8. " +
+    "Squares (1, 4, 9, 16) and add-the-last-two (1, 1, 2, 3, 5) are the " +
+    "other two worth recognising on sight.",
+  "settings.tip.realTip.title": "Tipping: think in fives and tens",
+  "settings.tip.realTip.body":
+    "10% is move the point one left, so 10% of 45 is 4.50. From there the " +
+    "rest follows: 20% is double it, 5% is half, and 15% is 10% + 5%. A " +
+    "quicker route to the total is “multiply by 1.2” — the price times " +
+    "itself, plus a fifth.",
+  "settings.tip.change.title": "Change: subtract from the note, not the price",
+  "settings.tip.change.body":
+    "Counting up to the note is the slow way. Take the round number and " +
+    "take the price OFF it: 20 − 13 = 7. For an awkward price like 17, " +
+    "round it down first — 20 − 17 is 3 (20 − 20 = 0, plus the 3 back).",
+  "settings.tip.time.title": "Elapsed time: borrow from the hour",
+  "settings.tip.time.body":
+    "9:40 → 10:25 does not fit in one minute-count, so split it: 20 " +
+    "minutes to 10:00, then 25 more. Any span crossing an hour works the " +
+    "same way — take the minutes to the next hour first, then add what is " +
+    "left over.",
+  "settings.tip.moneyAdd.title": "Money sums: line up the columns",
+  "settings.tip.moneyAdd.body":
+    "Do the cents and the dollars in separate passes: 12.40 + 7.60 is 0.60 " +
+    "in cents plus 20 in dollars, so 20.60. When the cents overflow (0.80 " +
+    "+ 0.50) that carry is another whole dollar, not a problem.",
+  "settings.tip.unitPrice.title": "Unit price: multiply the cents once",
+  "settings.tip.unitPrice.body":
+    "3.20 × 7 is 3.20 × 5 plus 3.20 × 2 — double the money terms first. Or " +
+    "go through the cents: 320 × 7 = 2240, which is 22.40. Never round the " +
+    "price to a whole dollar first; the error is still in there at the end.",
+  "settings.tip.splitBill.title": "Splitting a bill: the round trick",
+  "settings.tip.splitBill.body":
+    "Dividing in your head is hard, so aim for an even split and hand the " +
+    "remainder around: 94.50 ÷ 3 is 30 each with 4.50 left over, and 4.50 " +
+    "÷ 3 is 1.50 — so 31.50 apiece. Split the awkward part second, never " +
+    "first.",
   "settings.tooltipIdleReminder": "Idle reminder",
   "settings.idleReminder": "Idle reminder: ",
   "settings.idleReminderHelp":
@@ -615,6 +699,9 @@ export const en = {
   "a11y.holdToMine": "Hold to mine",
   "a11y.gemPocket": "Mineral pocket: tap to collect +{bonus} minerals",
   "a11y.digit": "Digit {d}",
+  "a11y.decimalPoint": "Decimal point",
+  "a11y.decimalPointHint":
+    "Only one decimal point, for money answers like 22.40",
   "a11y.holdToClear": "Hold to clear the whole answer",
   "a11y.closeSettings": "Close settings",
   "a11y.settings": "Settings",

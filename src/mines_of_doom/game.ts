@@ -13,7 +13,12 @@ import {
   isSkinId,
 } from "./cosmetics";
 import { localDayKeyDaysAgo } from "./dailyBonus";
-import { Equation, Ops } from "src/utils/math/equations";
+import {
+  Equation,
+  Ops,
+  isHardMode,
+  isMissingDivisor,
+} from "src/utils/math/equations";
 import type { NumberNotation } from "src/utils/format";
 
 /**
@@ -1705,6 +1710,40 @@ export function getComboResistCost(level: number): number {
 }
 
 /**
+ * The whole-equation premium for the non-operator DRILL shapes (todo:
+ * "More types of simple mental arithmetics for all ages"). A plain
+ * missing-number equation pays MISSING_PAYOUT; the missing-DIVISOR form
+ * pays more because "24 ÷ ? = 6" is the hardest of the three (the "?"
+ * hides a multiplication, not a subtraction), and balancing a two-sided
+ * equation pays BALANCE_PAYOUT for the same reason.
+ */
+export const MISSING_PAYOUT = 3;
+export const MISSING_DIVISOR_PAYOUT = 5;
+export const BALANCE_PAYOUT = 4;
+/** Next-in-sequence: spotting the rule, then adding to it. */
+export const SEQUENCE_PAYOUT = 4;
+/**
+ * Real-world premiums (todo: "More types of simple mental arithmetics for
+ * all ages"). Tipping sits at the percentage tier (it IS percent work);
+ * change sits at the subtraction tier; elapsed time gets the square
+ * premium because "how long did that take" is a fresh skill rather than a
+ * new fact table.
+ */
+export const TIP_PAYOUT = 3;
+export const CHANGE_PAYOUT = 2;
+export const TIME_PAYOUT = 4;
+/**
+ * Decimal money premiums. Both sit above their plain-arithmetic
+ * equivalents (money add ×2 vs + ×1, money sub ×3 vs − ×2) because
+ * carrying cents is a different and much less automatic skill.
+ */
+export const MONEY_ADD_PAYOUT = 2;
+export const MONEY_SUB_PAYOUT = 3;
+/** Unit price and splitting: a decimal ×/÷ by an integer count. */
+export const UNIT_PRICE_PAYOUT = 4;
+export const SPLIT_BILL_PAYOUT = 4;
+
+/**
  * Operator premium, per op symbol. Division stays the top scorer (×10);
  * the soft-mode-only extras (todo: "More types of simple mental
  * arithmetics for all ages") sit in between: squares ×4 (a whole new
@@ -1720,32 +1759,58 @@ export function getOpPayoutMultiplier(op: string): number {
       return 3;
     case Ops.sub:
       return 2;
+    case Ops.seq:
+      return SEQUENCE_PAYOUT;
+    case Ops.tip:
+      return TIP_PAYOUT;
+    case Ops.change:
+      return CHANGE_PAYOUT;
+    case Ops.time:
+      return TIME_PAYOUT;
+    case Ops.moneyAdd:
+      return MONEY_ADD_PAYOUT;
+    case Ops.moneySub:
+      return MONEY_SUB_PAYOUT;
+    case Ops.unitPrice:
+      return UNIT_PRICE_PAYOUT;
+    case Ops.splitBill:
+      return SPLIT_BILL_PAYOUT;
     default:
       return 1;
   }
 }
 
 /**
- * The operator-side premium for a WHOLE equation: missing-number
- * equations ("a + ? = b" / "a * ? = b") pay a flat ×3 — the underlying
+ * The shape-side premium for a WHOLE equation: the missing-number,
+ * missing-divisor and balance drills pay a flat premium — the underlying
  * op is always + or × (no bonus on its own), the premium is for working
- * the op backwards.
+ * the shape backwards. The missing-DIVISOR form is the one drill that
+ * *does* carry a division op, so it is matched first: without this it
+ * would inherit the forward-division ×10 and pay ten times the missing
+ * drill for the same one-tap answer.
  */
 export function getEquationOpBonus(equation: Equation): number {
-  return equation.missing ? 3 : getOpPayoutMultiplier(equation.op);
+  if (isMissingDivisor(equation)) return MISSING_DIVISOR_PAYOUT;
+  if (equation.balance === true) return BALANCE_PAYOUT;
+  if (equation.missing === true) return MISSING_PAYOUT;
+  return getOpPayoutMultiplier(equation.op);
 }
 
 /**
  * Payout multiplier for a correct answer, folded onto the raw answer value
- * before it reaches applyAnswerReward. Operator bonus (÷ ×10, ² ×4, % ×3,
- * missing ×3, − ×2) × the hard-mode premium when the equation has a second
- * term. useEquations applies this; EquationDisplay folds the same number
- * into its answer-independent multiplier hint so the UI and the reward
- * agree.
+ * before it reaches applyAnswerReward. Shape premium (÷ ×10, ² ×4, % ×3,
+ * missing ×3, missing-divisor ×5, balance/sequence ×4, − ×2) × the
+ * hard-mode premium when the equation has a second term. useEquations
+ * applies this; EquationDisplay folds the same number into its
+ * answer-independent multiplier hint so the UI and the reward agree.
+ *
+ * Hard mode is read through isHardMode() rather than a bare
+ * `op2 !== undefined`, because the balance drill reuses op2/c for its
+ * right-hand side and must not collect the hard-mode ×2.
  */
 export function getAnswerPayoutMultiplier(equation: Equation): number {
   const opBonus = getEquationOpBonus(equation);
-  return opBonus * (equation.op2 !== undefined ? HARD_MODE_PAYOUT : 1);
+  return opBonus * (isHardMode(equation) ? HARD_MODE_PAYOUT : 1);
 }
 
 /**

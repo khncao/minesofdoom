@@ -246,6 +246,27 @@ export const es: Record<TranslationKey, string> = {
   "settings.op.square": "Bonus de operador ×4. La respuesta es a².",
   "settings.op.missing":
     "Bonus de operador ×3. Encuentra el número que va en la «?».",
+  "settings.op.missingDivisor":
+    "Bonus de operador ×5. La «?» es el divisor: «24 ÷ ? = 6» quiere " +
+    "decir «6 × cuánto = 24?».",
+  "settings.op.balance":
+    "Bonus de operador ×4. Iguala los dos lados de la ecuación.",
+  "settings.op.sequence":
+    "Bonus de operador ×4. Encuentra el siguiente número de la secuencia.",
+  "settings.op.tip":
+    "Bonus de operador ×3. La respuesta es la cuenta más la propina: lo " +
+    "que entregas.",
+  "settings.op.change":
+    "Bonus de operador ×2. La vuelta siempre es el billete menos el precio.",
+  "settings.op.time":
+    "Bonus de operador ×4. La respuesta son los minutos enteros entre las " +
+    "dos horas.",
+  "settings.op.moneyAdd":
+    "Bonus de operador ×2 o ×3. Sumar y restar dinero hasta el céntimo.",
+  "settings.op.unitPrice":
+    "Bonus de operador ×4. Un precio por unidad, por cuántas quieres.",
+  "settings.op.splitBill":
+    "Bonus de operador ×4. La cuenta siempre sale exacta.",
   "settings.opName.multiply": "multiplicación",
   "settings.opName.add": "suma",
   "settings.opName.subtract": "resta",
@@ -253,7 +274,22 @@ export const es: Record<TranslationKey, string> = {
   "settings.opName.percent": "porcentaje",
   "settings.opName.square": "cuadrado",
   "settings.opName.missing": "número que falta",
+  "settings.opName.missingDivisor": "divisor que falta",
+  "settings.opName.balance": "igualar la ecuación",
+  "settings.opName.sequence": "secuencia",
+  "settings.opName.tip": "propina",
+  "settings.opName.change": "vuelta",
+  "settings.opName.time": "tiempo transcurrido",
+  "settings.opName.moneyAdd": "sumas de dinero",
+  "settings.opName.unitPrice": "precio por unidad",
+  "settings.opName.splitBill": "repartir la cuenta",
   "settings.multiplySymbol": "Símbolos: ",
+  "settings.drills": "Ejercicios (desactivados por defecto, solo modo fácil):",
+  "settings.realWorld":
+    "Cálculo de la vida real (desactivado por defecto, solo modo fácil):",
+  "settings.moneyNote":
+    "Los ejercicios de dinero se responden en dólares y céntimos: usa la " +
+    "tecla . del teclado en pantalla, o el teclado decimal del sistema.",
   "settings.hardMode": "Modo difícil (3 términos ×2): ",
   "settings.hardModeLocked": "🔒 Modo difícil (Motherlode): ",
   "settings.hardModeHelp":
@@ -297,6 +333,57 @@ export const es: Record<TranslationKey, string> = {
   "settings.tip.division.body":
     "Lee a ÷ b como «b × cuánto = a?»: 48 ÷ 6 → 6 × 8 = 48, luego 8. Si no " +
     "te suena, recorre los múltiplos de b desde 1.",
+  "settings.tip.missingDivisor.title": "Divisor que falta: multiplica",
+  "settings.tip.missingDivisor.body":
+    "Cuando la «?» está debajo del ÷, la división deja de ser la respuesta. " +
+    "24 ÷ ? = 6 se convierte en «6 × cuánto = 24?», el mismo dato que ya " +
+    "practicas hacia delante, solo que leído al revés.",
+  "settings.tip.balance.title": "Igualar: totales iguales, no números iguales",
+  "settings.tip.balance.body":
+    "6 + ? = 4 + 9 pide que coincidan los TOTALES: suma primero la derecha " +
+    "(4 + 9 = 13) y luego resta lo que ya hay a la izquierda (13 − 6 = 7). " +
+    "Compruébalo por el otro lado: 6 + 7 = 13.",
+  "settings.tip.sequence.title": "Secuencias: busca el salto, no los números",
+  "settings.tip.sequence.body":
+    "Mira las diferencias entre términos, no los términos: 3, 6, 9, 12 " +
+    "suma 3 cada vez. Si las diferencias cambian, el patrón es ×: 2, 4, 8. " +
+    "Los cuadrados (1, 4, 9, 16) y sumar los dos anteriores (1, 1, 2, 3, " +
+    "5) son los otros dos que conviene reconocer al instante.",
+  "settings.tip.realTip.title": "Propinas: piensa en cincos y dieces",
+  "settings.tip.realTip.body":
+    "El 10% es mover la coma un lugar a la izquierda, así que el 10% de " +
+    "45 son 4,50. De ahí sale el resto: el 20% es el doble, el 5% es la " +
+    "mitad, y el 15% es 10% + 5%. Para llegar al total más rápido, «multiplica " +
+    "por 1,2»: el precio por sí mismo, más una quinta parte.",
+  "settings.tip.change.title": "La vuelta: resta del billete, no del precio",
+  "settings.tip.change.body":
+    "Contar hacia arriba hasta el billete es la forma lenta. Toma el número " +
+    "redondo y quítale el precio: 20 − 13 = 7. Para un precio tonto como " +
+    "17, redondea abajo primero: 20 − 17 son 3 (20 − 20 = 0, más los 3 de " +
+    "vuelta).",
+  "settings.tip.time.title": "Tiempo transcurrido: pide borrow a la hora",
+  "settings.tip.time.body":
+    "9:40 → 10:25 no cabe en una cuenta de minutos, así que divídelo: 20 " +
+    "minutos hasta las 10:00, y luego 25 más. Cualquier tramo que cruce " +
+    "una hora funciona igual: primero los minutos hasta la hora " +
+    "siguiente, y después sumo lo que falte.",
+  "settings.tip.moneyAdd.title": "Sumas de dinero: alinea las columnas",
+  "settings.tip.moneyAdd.body":
+    "Haz los céntimos y los dólares en dos pasadas: 12,40 + 7,60 son 0,60 " +
+    "de céntimos más 20 de dólares, luego 20,60. Cuando los céntimos se " +
+    "pasan (0,80 + 0,50) eseesso es un dólar entero, no un problema.",
+  "settings.tip.unitPrice.title": "Precio por unidad: multiplica los céntimos",
+  "settings.tip.unitPrice.body":
+    "3,20 × 7 es 3,20 × 5 más 3,20 × 2: duplica primero los términos con " +
+    "dinero. O pasa por los céntimos: 320 × 7 = 2240, o sea 22,40. Nunca " +
+    "redondees el precio a un dólar entero antes de empezar; el error se te " +
+    "queda dentro.",
+  "settings.tip.splitBill.title": "Repartir la cuenta: la del redondo",
+  "settings.tip.splitBill.body":
+    "Dividir mentalmente es difícil, así que busca un reparto redondo y " +
+    "reparte la cola: 94,50 ÷ 3 son 30 cada uno y sobran 4,50, y 4,50 ÷ 3 " +
+    "son 1,50, luego 31,50 cada uno. Reparte la parte incómoda la segunda, " +
+    "nunca la primera.",
   "settings.haptics": "Retroalimentación háptica: ",
   "settings.hapticsHelp":
     "Activado (por defecto): el dispositivo vibra con los eventos de la " +
@@ -630,6 +717,9 @@ export const es: Record<TranslationKey, string> = {
   "a11y.gemPocket":
     "Bolsillo de minerales: toca para recoger +{bonus} minerales",
   "a11y.digit": "Dígito {d}",
+  "a11y.decimalPoint": "Punto decimal",
+  "a11y.decimalPointHint":
+    "Solo un punto decimal, para respuestas con dinero como 22.40",
   "a11y.holdToClear": "Mantén pulsado para borrar toda la respuesta",
   "a11y.closeSettings": "Cerrar ajustes",
   "a11y.settings": "Ajustes",

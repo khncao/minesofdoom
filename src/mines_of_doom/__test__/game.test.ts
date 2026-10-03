@@ -993,6 +993,103 @@ describe("operator bonuses (iteration 11: new equation types)", () => {
     expect(getEquationOpBonus(mkMissing(Ops.mult))).toBe(3);
     expect(getAnswerPayoutMultiplier(mkMissing(Ops.add))).toBe(3);
   });
+
+  test("the missing-DIVISOR drill does not inherit the forward-division ×10", () => {
+    // "24 / ? = 6" carries the division op but its "?" hides a
+    // multiplication — it must pay the drill premium, not the top rate.
+    const eq: Equation = { ...mkEq(Ops.div), missing: true, answer: 4 };
+    expect(getOpPayoutMultiplier(eq.op)).toBe(10);
+    expect(getEquationOpBonus(eq)).toBe(5);
+    expect(getAnswerPayoutMultiplier(eq)).toBe(5);
+  });
+
+  test("balance and sequence drills pay their own premiums", () => {
+    const balance: Equation = {
+      op: Ops.add,
+      a: 6,
+      b: 4,
+      op2: Ops.add,
+      c: 9,
+      answer: 7,
+      balance: true,
+    };
+    const sequence: Equation = {
+      op: Ops.seq,
+      a: 1,
+      b: 4,
+      answer: 25,
+      sequence: [1, 4, 9, 16],
+    };
+    expect(getEquationOpBonus(balance)).toBe(4);
+    expect(getAnswerPayoutMultiplier(balance)).toBe(4);
+    expect(getOpPayoutMultiplier(Ops.seq)).toBe(4);
+    expect(getEquationOpBonus(sequence)).toBe(4);
+    expect(getAnswerPayoutMultiplier(sequence)).toBe(4);
+  });
+
+  test("the real-world types pay their own premiums", () => {
+    const tip: Equation = { op: Ops.tip, a: 45, b: 20, answer: 54 };
+    const change: Equation = { op: Ops.change, a: 20, b: 13, answer: 7 };
+    const time: Equation = { op: Ops.time, a: 580, b: 45, answer: 45 };
+    // Tipping sits at the percentage tier (it IS percent work), change at
+    // the subtraction tier, elapsed time with the square premium (a fresh
+    // skill rather than a new fact table).
+    expect(getEquationOpBonus(tip)).toBe(3);
+    expect(getEquationOpBonus(change)).toBe(2);
+    expect(getEquationOpBonus(time)).toBe(4);
+    expect(getOpPayoutMultiplier(Ops.tip)).toBe(3);
+    expect(getOpPayoutMultiplier(Ops.change)).toBe(2);
+    expect(getOpPayoutMultiplier(Ops.time)).toBe(4);
+    // None of them is a "?" shape, so none collects a drill premium.
+    for (const eq of [tip, change, time]) {
+      expect(getAnswerPayoutMultiplier(eq)).toBe(getEquationOpBonus(eq));
+    }
+  });
+
+  test("the decimal money types pay their own premiums", () => {
+    const add: Equation = { op: Ops.moneyAdd, a: 12.4, b: 7.6, answer: 20 };
+    const sub: Equation = { op: Ops.moneySub, a: 20, b: 7.6, answer: 12.4 };
+    const unit: Equation = { op: Ops.unitPrice, a: 3.2, b: 7, answer: 22.4 };
+    const split: Equation = { op: Ops.splitBill, a: 94.5, b: 3, answer: 31.5 };
+    // Both money directions sit ABOVE their plain-arithmetic equivalents
+    // (+ is ×1 and − is ×2) because carrying cents is a different skill.
+    expect(getOpPayoutMultiplier(Ops.moneyAdd)).toBe(2);
+    expect(getOpPayoutMultiplier(Ops.moneySub)).toBe(3);
+    expect(getOpPayoutMultiplier(Ops.unitPrice)).toBe(4);
+    expect(getOpPayoutMultiplier(Ops.splitBill)).toBe(4);
+    for (const eq of [add, sub, unit, split]) {
+      expect(getEquationOpBonus(eq)).toBe(getOpPayoutMultiplier(eq.op));
+      expect(getAnswerPayoutMultiplier(eq)).toBe(getOpPayoutMultiplier(eq.op));
+    }
+  });
+
+  test("a DECIMAL answer survives the reward path's BigInt conversion", () => {
+    // BigInt() THROWS a RangeError on a non-integer, and applyAnswerReward
+    // does BigInt(Math.max(1, value)) inside a state updater — an un-rounded
+    // money answer would crash the game, not just mis-pay. Pinned here so
+    // the rounding contract cannot be quietly removed.
+    const decimalAnswer = 22.4 * 4; // unit price × unit-price premium
+    expect(decimalAnswer).not.toBe(Math.trunc(decimalAnswer));
+    expect(() => BigInt(decimalAnswer)).toThrow(RangeError);
+    expect(BigInt(Math.max(1, Math.round(decimalAnswer)))).toBe(90n);
+  });
+
+  test("a balance equation carries op2/c but never collects the hard-mode ×2", () => {
+    const balance: Equation = {
+      op: Ops.add,
+      a: 6,
+      b: 4,
+      op2: Ops.add,
+      c: 9,
+      answer: 7,
+      balance: true,
+    };
+    expect(balance.op2).toBeDefined();
+    expect(getAnswerPayoutMultiplier(balance)).toBe(4);
+    expect(getAnswerPayoutMultiplier(balance)).not.toBe(
+      4 * HARD_MODE_PAYOUT,
+    );
+  });
 });
 
 describe("getAnswerPayoutMultiplier (hard mode, tier-5)", () => {

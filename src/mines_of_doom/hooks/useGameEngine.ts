@@ -515,8 +515,16 @@ export function useGameEngine(
         // Integer factors first (exact), then the float multipliers through
         // mulFloats (see game.ts): value × click power × combo × boost ×
         // depth bonus × prestige.
+        //
+        // Math.round at this boundary is what makes a DECIMAL answer legal:
+        // BigInt() THROWS a RangeError on a non-integer, so a money answer
+        // of 22.40 reaching here un-rounded would crash the state updater.
+        // Rounding half-up matches mulFloats' own rule one line below —
+        // minerals are an idle counter, never a currency ledger, so half a
+        // mineral is worth the determinism. (useEquations already rounds,
+        // so this is the backstop for any future caller.)
         const gained = mulFloats(
-          BigInt(Math.max(1, value)) *
+          BigInt(Math.max(1, Math.round(value))) *
             BigInt(n.clickPower) *
             BigInt(comboMultiplier) *
             BigInt(clickBoost),

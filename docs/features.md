@@ -16,22 +16,42 @@ multipliers, combo and prestige (`components/MiningCanvas.tsx: MINE_HOLD_MS`,
 `hooks/useMineTaps.ts` — the web canvas uses a plain-View responder instead
 of Pressable so rapid tapping doesn't double-render).
 - **Equations** — the main active loop: solve arithmetic to earn minerals ×
-  click power × combo multiplier. Seven toggleable types (multiply, add,
-  subtract, division, percent, square, "missing"-operand), configurable
-  number range (multiplicative operands floor at 1 even when the player-
-  set minimum is 0, so the default range never rolls trivial 0·n / 0²
-  equations — `utils/math/equations.ts: generateTermsEquation`),
+  click power × combo multiplier. **Sixteen toggleable types** in three
+  settings groups, all soft-mode-only except the classic four:
+  - *Operators* (7) — multiply, add, subtract, division, percent, square,
+    "missing"-operand.
+  - *Drills* (3) — missing divisor (`24 ÷ ? = 6`), balance the equation
+    (`6 + ? = 4 + 9`), next-in-sequence (`3, 6, 9, 12, ?`, four families).
+  - *Real-world math* (6) — tip (`45 + 20% tip` → the total you hand over),
+    change from a note, elapsed time (`9:40 → 10:25` → minutes), and three
+    decimal money drills: money sums (`12.40 + 7.60`), unit price
+    (`3.20 × 7`), split the bill (`94.50 ÷ 3`, always exact).
+
+  The nine added types stay out of the first-run tour's row list on purpose
+  — that card is absolutely positioned and does not scroll — so they get a
+  labelled group in Settings plus matching mental-math tips instead.
+  Configurable number range (multiplicative operands floor at 1 even when
+  the player-set minimum is 0, so the default range never rolls trivial
+  0·n / 0² equations — `utils/math/equations.ts: generateTermsEquation`;
+  the money drills scale that range into a dollar window rather than
+  bounding it, because a 0–12 dial has no $0.60 in it),
   **hard mode** (3-term equations, 2× payout), and a display-symbol
-  preference (`*`/`×`, `/`/`÷`). The display shows the **exact pending
+  preference (`*`/`×`, `/`/`÷`). Every answer is a whole number, and the
+  money drills are whole **cents** — generated in integer cents and
+  compared in integer cents (`utils/math/money.ts`), replacing an epsilon
+  comparator that accepted answers wrong by a cent. The paid value is
+  rounded half-up at the reward boundary because `BigInt()` throws on a
+  fraction (`hooks/useEquations.ts`). The display shows the **exact pending
   gain**, answer value included (`components/EquationDisplay.tsx` —
   `getPendingAnswerGain`, mirroring the engine's integer core so it
   agrees with the floating "+N" on solve). Answer via the **on-screen
   keypad** (default on native — a 3-column digit strip beside the
   upgrades list: 56 px keys that flex-shrink to a 44 px floor on short
   screens so a bottom row is never clipped off the edge, ⌫ held clears
-  the answer, 12-digit cap, every keypress fires the light cave-tap
-  haptic tick, and the two input boundaries — `=` with nothing typed
-  and a digit past the cap — shake the answer box visually only (no
+  the answer, 12-character cap, every keypress fires the light cave-tap
+  haptic tick, and the input boundaries — `=` with nothing typed, and a
+  key that cannot apply (a second `.`, or a character past the cap) —
+  shake the answer box visually only (no
   sound, haptic, or penalty); the input is deliberately un-focusable while
   the onboarding overlay is up, an e2e-discovered fix) or the OS
   keyboard (default on web — autofocused numeric field, Enter submits,

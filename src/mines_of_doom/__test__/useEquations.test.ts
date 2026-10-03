@@ -236,3 +236,61 @@ describe("useEquations — soft-incorrect mode (equation of the day)", () => {
     expect(result.current.equation.answer).toBe(12);
   });
 });
+
+describe("useEquations — decimal money answers", () => {
+  /** A unit-price equation: 3.20 × 7 = 22.40, paying ×4. */
+  const unitPrice = (): Equation => ({
+    op: "×",
+    a: 3.2,
+    b: 7,
+    answer: 22.4,
+  });
+
+  it("accepts the answer in any notation and pays a whole number of minerals", async () => {
+    // 22.40 × ×4 = 89.6 minerals. The paid value MUST be an integer: the
+    // reward path does BigInt(value), which throws a RangeError on a
+    // fraction and would crash the state updater rather than mis-pay.
+    for (const typed of ["22.4", "22.40", "22.400", "022.40"]) {
+      // The scripted queue is only reset in beforeEach, so refill it here.
+      eqQueue.length = 0;
+      eqQueue.push(unitPrice(), eq(3));
+      const result = renderEquationsTest(settings());
+      await submit(result, typed);
+      expect(result.onCorrect).toHaveBeenCalledTimes(1);
+      const paid = result.onCorrect.mock.calls[0][0] as number;
+      expect(Number.isInteger(paid)).toBe(true);
+      expect(paid).toBe(90); // Math.round(22.4 × 4)
+      expect(result.onIncorrect).not.toHaveBeenCalled();
+    }
+  });
+
+  it("still rejects an answer that is wrong by a single cent", async () => {
+    // The reason the old epsilon comparator had to go: |22.41 − 22.40| is
+    // 0.01, inside approxeq's tolerance, so it used to be accepted.
+    eqQueue.push(unitPrice(), eq(3));
+    const result = renderEquationsTest(settings());
+    await submit(result, "22.41");
+    expect(result.onCorrect).not.toHaveBeenCalled();
+    expect(result.onIncorrect).toHaveBeenCalledTimes(1);
+  });
+
+  it("a whole-dollar money answer pays its exact premium", async () => {
+    // 20.00 + 7.60 = 27.60 at the money-add ×2 premium: 55.2 → 55.
+    eqQueue.push(
+      { op: "+$", a: 20, b: 7.6, answer: 27.6 },
+      eq(3),
+    );
+    const result = renderEquationsTest(settings());
+    await submit(result, "27.60");
+    expect(result.onCorrect).toHaveBeenCalledWith(55);
+  });
+
+  it("never pays less than one mineral, however small the answer", async () => {
+    eqQueue.push({ op: "$", a: 0.2, b: 0.1, answer: 0.3 }, eq(3));
+    const result = renderEquationsTest(settings());
+    await submit(result, "0.30");
+    const paid = result.onCorrect.mock.calls[0][0] as number;
+    expect(Number.isInteger(paid)).toBe(true);
+    expect(paid).toBeGreaterThanOrEqual(1);
+  });
+});

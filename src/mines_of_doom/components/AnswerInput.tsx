@@ -33,11 +33,49 @@ const AvoidingView: ComponentType<AvoidingViewProps> =
     ? (View as unknown as ComponentType<AvoidingViewProps>)
     : (KeyboardAvoidingView as unknown as ComponentType<AvoidingViewProps>);
 
-// Answers are small integers; 12 digits is far beyond any equation, so
-// this just stops the display box from overflowing. Exported: the
-// on-screen keypad (MinesOfDoom's purchase-section tab) applies the same
-// cap when appending digits.
+// Answers are small whole numbers, or a money amount with up to two
+// decimal places ("22.40"); 12 characters is far beyond either, so this
+// just stops the display box from overflowing. Exported: the on-screen
+// keypad (MinesOfDoom's purchase-section tab) applies the same cap when
+// appending keys.
 export const MAX_ANSWER_LENGTH = 12;
+
+/**
+ * Keep only the characters a numeric answer can contain, with at most one
+ * decimal point. The OS-keyboard path runs every change through this, so a
+ * paste, an autofill or a stray keypress can't put "1a.2.3" into the box
+ * — Number.parseFloat would silently read 1 and the player would be marked
+ * wrong for text they never typed. Leading zeros are preserved ("0.50" is
+ * how money is written).
+ */
+export function sanitizeAnswerText(text: string): string {
+  const cleaned = text.replace(/[^0-9.]/g, "");
+  const firstDot = cleaned.indexOf(".");
+  if (firstDot === -1) return cleaned.slice(0, MAX_ANSWER_LENGTH);
+  // Everything from the second dot on is junk.
+  const head = cleaned.slice(0, firstDot + 1);
+  const tail = cleaned.slice(firstDot + 1).replace(/\./g, "");
+  return `${head}${tail}`.slice(0, MAX_ANSWER_LENGTH);
+}
+
+/**
+ * Append one keypad press to the answer text.
+ *
+ * The "." key exists for the money drills, so it needs the two rules a
+ * numeric field actually has: only one separator, and a leading "0" so a
+ * bare "." is never left in the box (Number.parseFloat(".") is NaN, which
+ * would read as a wrong answer). Returns the text UNCHANGED when the press
+ * cannot apply — the caller compares and shakes, so the input rules stay
+ * here and testable rather than inside the gesture handler.
+ */
+export function appendAnswerKey(current: string, key: string): string {
+  if (current.length >= MAX_ANSWER_LENGTH) return current;
+  if (key === ".") {
+    if (current.includes(".")) return current;
+    return current === "" ? "0." : `${current}.`;
+  }
+  return sanitizeAnswerText(`${current}${key}`);
+}
 
 // memo: the parent re-renders every tick and on every tap flush; without
 // this the (focused) TextInput re-rendered with it. Safe now that onSubmit
@@ -99,8 +137,11 @@ const AnswerInput = memo(function AnswerInput({
             <TextInput
               ref={textInputRef}
               value={value}
-              onChangeText={(text) => setTextInput(text)}
-              inputMode="numeric"
+              onChangeText={(text) => setTextInput(sanitizeAnswerText(text))}
+              // "decimal", not "numeric": iOS shows a digits-only pad for
+              // "numeric", with no way to type the cents a money answer
+              // needs. Android's inputType is derived from this the same way.
+              inputMode="decimal"
               focusable={focusable}
               autoFocus={focusable}
               clearButtonMode="always"
