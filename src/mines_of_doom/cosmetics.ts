@@ -21,11 +21,12 @@ import { hashSeed, mulberry32 } from "src/utils/graphics/pixelArt";
 /**
  * An outfit's authored SILHOUETTE — the axes a paid outfit owns, so buying it
  * buys a character and not a palette. `Omit` of the skin line's shape: the
- * crown/mote axes stay with the crew cast (its premium mark-making, and
- * putting them on a purchasable outfit would blur that language), and the
- * tool is never part of a body.
+ * tool is never part of a body, and `motes` (the aura) stays with the crew's
+ * gem tiers. `crown` IS allowed — the mark over the headwear is how a namesake
+ * announces itself (horns for the oni, a plume for the knight, a hood for the
+ * night shift), and the player's own slot is exactly where that belongs.
  */
-export type OutfitShape = Omit<SkinShape, "tool" | "crown" | "motes">;
+export type OutfitShape = Omit<SkinShape, "tool" | "motes">;
 
 export type OutfitCosmetic = {
   id: string;
@@ -160,7 +161,7 @@ export const OUTFITS: OutfitCosmetic[] = [
     name: "Night Shift",
     cashTier: 1,
     costGems: 15,
-    shape: { hatStyle: "beanie", beard: true, build: "sturdy" },
+    shape: { hatStyle: "beanie", beard: true, build: "sturdy", crown: "hood" },
     shirts: ["#3a4a7a", "#4a3a7a", "#2b3a5c", "#5a4a8a"],
     pants: ["#22283a", "#2a2f45"],
     boots: ["#1a1a24", "#333344"],
@@ -184,7 +185,7 @@ export const OUTFITS: OutfitCosmetic[] = [
     name: "Crystal Miner",
     cashTier: 2,
     costGems: 40,
-    shape: { hatStyle: "beanie", build: "slim", cute: true },
+    shape: { hatStyle: "beanie", build: "slim", cute: true, crown: "crystal" },
     shirts: ["#3ac0c0", "#2a90d9", "#7fe0d0", "#40b0e0"],
     pants: ["#2a4a5a", "#1f3a4a"],
     boots: ["#1a2f3a", "#2a3f4a"],
@@ -200,7 +201,7 @@ export const OUTFITS: OutfitCosmetic[] = [
     shirts: ["#d94f30", "#e07020", "#b03020", "#f09030"],
     pants: ["#4a2a1a", "#3a2015"],
     boots: ["#2a1a10", "#3a251a"],
-    hats: ["#f09030", "#e8e8e8", "#d94f30"],
+    hats: ["#f09030", "#d94f30", "#b03020"],
     hatStyles: ["bandana"],
   },
   // Homage line (plan §4.5 / art todo): original palettes that evoke famous
@@ -212,7 +213,7 @@ export const OUTFITS: OutfitCosmetic[] = [
     cashTier: 1,
     costGems: 30,
     blurb: "a voxel-sandbox tribute",
-    shape: { hatStyle: "cap", build: "sturdy" },
+    shape: { hatStyle: "cap", build: "sturdy", crown: "goggles" },
     shirts: ["#2f88c4", "#35a0cc", "#2a6a98"],
     pants: ["#3a5aa8", "#2a4a8a"],
     boots: ["#565b6e", "#3a3f4e"],
@@ -238,11 +239,11 @@ export const OUTFITS: OutfitCosmetic[] = [
     cashTier: 2,
     costGems: 50,
     blurb: "a dark-fantasy soulslike tribute",
-    shape: { hatStyle: "helmet", beard: true, build: "slim" },
+    shape: { hatStyle: "helmet", beard: true, build: "sturdy", crown: "plume" },
     shirts: ["#8a9099", "#6a707a", "#5a606a"],
     pants: ["#4a4e58", "#3a3e48"],
     boots: ["#33363e", "#262932"],
-    hats: ["#7a808a", "#9aa0aa", "#b8703a"],
+    hats: ["#7a808a", "#9aa0aa", "#5a606a"],
     hatStyles: ["helmet"],
   },
   {
@@ -264,11 +265,11 @@ export const OUTFITS: OutfitCosmetic[] = [
     cashTier: 3,
     costGems: 75,
     blurb: "a samurai-era vengeance tribute",
-    shape: { hatStyle: "bandana", build: "sturdy" },
-    shirts: ["#b03030", "#8a2020", "#c04040"],
-    pants: ["#2a2a33", "#1f1f28"],
-    boots: ["#1a1a22", "#12121a"],
-    hats: ["#d8d0c0", "#b03030", "#4a4a5a"],
+    shape: { hatStyle: "bandana", build: "sturdy", crown: "horns" },
+    shirts: ["#b03030", "#c04040", "#8a2020"],
+    pants: ["#2a1a20", "#241a1c"],
+    boots: ["#1a1014", "#140c10"],
+    hats: ["#b03030", "#8a2020", "#2a1a20"],
     hatStyles: ["bandana"],
   },
   // Critter line (plan §4.5 / art todo): full animal bodies
@@ -564,6 +565,7 @@ export function rollMinerLook(seed: number, outfitId: string): MinerLook {
     look.gown = shape.gown ?? false;
     look.pretty = shape.pretty ?? false;
     look.prop = shape.prop;
+    look.crown = shape.crown;
     return look;
   }
   // Hair only ROLLS on a bare head: authored hair does draw under a hat now

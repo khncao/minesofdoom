@@ -350,7 +350,39 @@ export interface MinerShape {
   gown?: boolean;
   pretty?: boolean;
   prop?: "none" | "basket" | "satchel";
+  /** The mark over the headwear (a namesake's signature: horns, plume…). */
+  crown?: CrownStyle;
 }
+
+/**
+ * The mark worn over the headwear, worn on top of a hat. Each crew character
+ * gets a different one, so their silhouette reads at a glance even in a 24px
+ * crew row — a shared body in a different palette is not a different
+ * character. The first block is the legendary line's (grand marks: a circlet,
+ * a halo, a hood…), the second the fast line's (working marks: goggles, a
+ * tied kerchief, a crest, a pair of wings), so the two gem tiers never share a
+ * silhouette.
+ *
+ * A crew HIRE wears a mark because its line is premium; the PLAYER's paid
+ * outfits wear one because the namesake needs it — an Oni has to have horns, a
+ * knight a plume, a night shift a hood. Same geometry, different reason, and
+ * the two never share a body (a hire is drawn from its own cast; an outfit is
+ * authored). Lives here, not in characterArt, for the same reason `MinerHair`
+ * does: it rides on the LOOK, so both layers need the type.
+ */
+export type CrownStyle =
+  | "none"
+  | "crown"
+  | "halo"
+  | "hood"
+  | "horns"
+  | "antlers"
+  | "crystal"
+  | "plume"
+  | "goggles"
+  | "kerchief"
+  | "crest"
+  | "wings";
 
 /**
  * Body type of a miner (cosmetic line): "human" is the classic silhouette;

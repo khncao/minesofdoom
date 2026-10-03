@@ -44,6 +44,7 @@
 import { createGrid, hashSeed, hexToRgb, mulberry32 } from "./pixelArt";
 import { darkenHex, lightenHex, mixHex } from "./detailPass";
 import type {
+  CrownStyle,
   HatStyle,
   MinerHair,
   MinerLook,
@@ -318,26 +319,8 @@ export interface SkinShape {
  motes?: MoteStyle;
 }
 
-/**
- * The mark worn over the headwear. Each crew character gets a different one,
- * so their silhouette reads at a glance even in a 24px crew row — a shared
- * body in a different palette is not a different character. The first block
- * is the legendary line's (grand marks: a circlet, a halo, a hood…), the
- * second the fast line's (working marks: goggles, a tied kerchief, a crest,
- * a pair of wings), so the two gem tiers never share a silhouette.
- */
-export type CrownStyle =
-  | "none"
-  | "crown"
-  | "halo"
-  | "hood"
-  | "antlers"
-  | "crystal"
-  | "plume"
-  | "goggles"
-  | "kerchief"
-  | "crest"
-  | "wings";
+/** Re-exported: the mark axis lives in pixelArt (it rides on the look). */
+export type { CrownStyle };
 
 /**
  * Aura mote patterns. The positions are FIXED offsets in the empty space
@@ -423,6 +406,9 @@ export function shapeForLook(look: MinerLook): SkinShape {
   gown: look.gown,
   pretty: look.pretty,
   prop: look.prop,
+  // The mark over the headwear — a crew character's crown, or an outfit's
+  // namesake (horns for the oni, a plume for the knight).
+  crown: look.crown,
   tool: false,
  };
 }
@@ -571,6 +557,30 @@ function drawCrown(g: LabelGrid, style: CrownStyle): void {
    ] as const) {
     put(g, x, y, "aura");
     put(g, 27 - x, y, "aura");
+   }
+   break;
+  case "horns":
+   // Two oni horns out of the temples, mirrored about x=13.5. Drawn in the
+   // DARKER `brim` tone for the same reason the hood is: in the `aura`
+   // accent a horn is a pale nub against pale skin and it vanishes at
+   // player size (which is exactly what it looked like). A horn is part of
+   // the skull, not an accessory — so it takes the hat tone, two shades down.
+   // Thick at the root, tapering to a point, and swept BACK: a forward horn
+   // reads as a unicorn, and 1px branches read as a deer's antlers.
+   for (const [bx, by, mx, my, tx, ty] of [
+    [8, 8, 5, 5, 2, 3],
+    [19, 8, 22, 5, 25, 3],
+   ] as const) {
+    for (let i = 0; i <= 4; i++) {
+      const t = i / 4;
+      const x = Math.round(bx + (mx - bx) * t);
+      const y = Math.round(by + (my - by) * t);
+      // 5px wide at the root, 1px at the tip.
+      const half = Math.round(2.5 * (1 - t));
+      for (let dx = -half; dx <= half; dx++) put(g, x + dx, y, "brim");
+    }
+    put(g, tx, ty, "brim");
+    put(g, tx + (tx < 13.5 ? -1 : 1), ty + 1, "brim");
    }
    break;
   case "plume":

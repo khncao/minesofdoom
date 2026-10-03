@@ -25,7 +25,8 @@ Re-render with `node scripts/generate-outfit-line-samples.mjs`.
 and `cosmetics.test.ts` pins all three:
 
 - **every paid outfit ships a `shape`** (`OutfitCosmetic.shape`, the skin line's
-  `SkinShape` minus `tool`/`crown`/`motes`);
+  `SkinShape` minus `tool`/`motes` — the crown mark is allowed here, see
+  below);
 - **no two paid outfits draw the same body**, and **no paid outfit is the
   default miner** — asserted on the drawn label map, because a silhouette is
   not a color question;
@@ -37,29 +38,54 @@ The hat-style pool collapsed to one entry per outfit for the same reason: the
 authored `hatStyle` wins, so leaving two other styles in the pool would leave
 dead entries in the catalog (the palette still rolls four hat colors).
 
+## The second rule: it has to look like its NAME
+
+A namesake the sprite does not evoke is a mislabeled recolor. The bug that
+produced this section was the **Crimson Oni**: a guy in a headband, who could
+roll a **bone-white hat**. Two fixes, both pinned by tests:
+
+- **the mark over the headwear** (`shape.crown`) is part of the outfit's
+  silhouette — horns for the oni, a plume for the knight, a hood for the night
+  shift, a crystal shard for the crystal miner, goggles for the blocky
+  adventurer. That axis was previously reserved for the crew's premium tiers,
+  and the split is deliberate: a crew *hire* wears a mark because its line is
+  premium, the player's own slot wears one because the namesake needs it. The
+  `motes` aura stays with the crew.
+- **a themed item's palette is on-theme.** The Oni's four pools are all
+  red-dominant and the headband is vivid crimson — the test asserts both, so a
+  white hat cannot come back. Work outfits (Night Shift, Gold Rush) keep their
+  small pools, because there the roll is the point.
+
+Two kinds of mark exist and the tests know the difference: **horns, a hood, a
+crystal and wings reach out past the head** (they change the silhouette, so the
+character reads at player size), while **a plume, goggles and a circlet sit
+inside it** — a plume over a helmet must not make the miner look like it is
+wearing a halo. The second kind is still asserted to repaint the head: it is a
+mark, not just another color.
+
 ## What the shapes are
 
 | outfit | shape | who they are |
 | --- | --- | --- |
 | **Classic Crew** | *(none)* | the free starter: the plain default miner |
-| **Night Shift** | beanie + beard, broad | the grizzled old-timer |
+| **Night Shift** | **hood** over a beanie, beard, broad | the grizzled old-timer, working in the dark |
 | **Gold Rush** | hard hat, broad, **satchel** | the prospector and his sample bag |
-| **Crystal Miner** | beanie, slim, cute | the bright-eyed young one |
+| **Crystal Miner** | **crystal shard**, beanie, slim, cute | the bright-eyed young one |
 | **Lava Worker** | bandana + beard, broad | the heat-burnt driller |
-| **Blocky Adventurer** | cap, broad | the cheerful sandbox kid |
+| **Blocky Adventurer** | **goggles** on the cap, broad | the cheerful sandbox kid |
 | **Frontier Explorer** | cap + beard, slim | the lean scout |
-| **Ashen Knight** | hard hat + beard, slim | the armoured one |
+| **Ashen Knight** | **plumed helm**, beard, broad | the armoured one |
 | **Wandering Hunter** | bandana, slim, **satchel** | the tracker, bag on the hip |
-| **Crimson Oni** | bandana, broad | the vengeance tribute |
+| **Crimson Oni** | **HORNS**, bandana, broad, all-red palette | the vengeance tribute — the namesake, at last |
 | **Burrow Marmot** | **critter**, beanie, cute, **basket** | the hoarder with a full basket |
 | **Fox of the Vein** | **critter**, bandana, **satchel** | the resident gambler and the loot bag |
 | **Otter of the River** | **critter**, cap, cute | the cheerful river critter |
 | **Damsel of the Deep** | **gown**, pretty face, slim, long hair | **the damsel** — a floor-length hem with no boots under it |
 
 The axes are the skin line's (`docs/skin-line.md`): `build` / `gown` / `pretty`
-/ `prop` / `hair`, plus the headwear and the critter `form`. The **crown and
-aura axes stay with the crew cast** — that mark-making is the premium language
-for a hired legend, and putting it on a purchasable outfit would blur it.
+/ `prop` / `hair` / `crown`, plus the headwear and the critter `form`. The
+**aura (`motes`) axis stays with the crew cast** — that is the gem-tier
+language, and a purchasable outfit should not spend it.
 
 ## The damsel
 

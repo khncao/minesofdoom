@@ -282,6 +282,7 @@ export function minerSpriteUri(
   look.gown === true ? 1 : 0,
   look.pretty === true ? 1 : 0,
   look.prop ?? "",
+  look.crown ?? "",
   opts?.crewId ?? "",
   opts?.crewWearsOutfit === true ? "w" : "",
  ]);

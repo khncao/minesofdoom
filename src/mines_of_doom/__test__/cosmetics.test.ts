@@ -8,6 +8,7 @@ import {
   pickaxeLabels,
   shapeForLook,
 } from "src/utils/graphics/characterArt";
+import type { MaterialId } from "src/utils/graphics/characterArt";
 import {
   CAVE_THEMES,
   DEFAULT_OWNED,
@@ -35,6 +36,10 @@ import {
 } from "../cosmetics";
 
 const HEX6 = /^#[0-9a-f]{6}$/i;
+
+/** Materials a label map actually used (nulls dropped). */
+const labelsUsed = (g: (string | null)[][]): Set<MaterialId> =>
+  new Set(g.flat().filter((m): m is MaterialId => m != null));
 
 describe("catalog", () => {
   test("ids are unique across outfits and pickaxes", () => {
@@ -360,8 +365,7 @@ describe("every PAID outfit is a character, not a recolor", () => {
     }
   });
 
-  test("the critter outfits stay critters and the damsel reads as one", () => {
-    for (const o of paid) {
+  test("the critter outfits stay critters and the damsel reads as one", () => {    for (const o of paid) {
       const labels = minerLabels(shapeForLook(rollMinerLook(3, o.id)));
       const used = new Set(labels.flat().filter((m) => m != null));
       // A critter outfit has no skin-coloured cheeks: its muzzle and ears are
@@ -380,6 +384,92 @@ describe("every PAID outfit is a character, not a recolor", () => {
     expect(used.has("shirt")).toBe(true);
     // …and her silhouette is her own.
     expect(outline(damsel!.id)).not.toBe(outline(DEFAULT_OUTFIT));
+  });
+});
+
+describe("an outfit has to look like its NAME", () => {
+  // The complaint that produced this block: the Crimson Oni was a guy in a
+  // bone-white headband. A namesake that the sprite does not evoke is a
+  // mislabeled recolor, so the mark and the palette are part of the contract,
+  // not decoration.
+  const paid = OUTFITS.filter((o) => o.costGems > 0);
+  const get = (id: string) => getOutfit(id);
+  const MARKS = ["horns", "plume", "hood", "crystal", "goggles"] as const;
+  const NO_MARK = "none" as const;
+
+  test("the crimson oni is crimson and has horns", () => {
+    const oni = get("oni");
+    expect(oni.shape?.crown).toBe("horns");
+    // Every colour in every pool is RED-dominant: an oni in teal is as wrong
+    // as an oni in white, and dark desaturated shadows are fine, so the test
+    // is "red wins" rather than "is saturated".
+    const red = (hex: string): boolean => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      return r > g && r > b;
+    };
+    for (const pool of [oni.hats, oni.shirts, oni.pants, oni.boots]) {
+      for (const hex of pool) expect(`${hex} ${red(hex)}`).toBe(`${hex} true`);
+    }
+    // The headband specifically has to be VIVID crimson — the bone-white hat
+    // this replaces was the visible bug.
+    const vivid = oni.hats.some((hex) => {
+      const [r, g] = [1, 3].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      return r - g > 80;
+    });
+    expect(vivid).toBe(true);
+  });
+
+  test("the themed tributes wear a mark, so the name reads at player size", () => {
+    // Each of these names a THING (a creature, a fantasy, a job) — a mark
+    // over the headwear is what makes it that thing instead of a palette.
+    const expected: Record<string, string> = {
+      oni: "horns",
+      knight: "plume",
+      night: "hood",
+      crystal: "crystal",
+      blocky: "goggles",
+    };
+    for (const [id, crown] of Object.entries(expected)) {
+      expect(get(id).shape?.crown).toBe(crown);
+    }
+    // Every mark is a real mark (a typo would silently draw nothing).
+    const marks = new Set(paid.map((o) => o.shape?.crown).filter(Boolean));
+    for (const crown of marks) {
+      const used = labelsUsed(minerLabels({ ...get("oni").shape, crown: crown as never }));
+      expect(used.has("aura") || used.has("brim")).toBe(true);
+    }
+  });
+
+  test("a mark that claims the silhouette extends it", () => {
+    // Two kinds of mark, and the test has to know which is which: horns, a
+    // hood and wings reach OUT past the head, so they change the outline and
+    // the character reads at player size.
+    const silhouette = (g: ReturnType<typeof minerLabels>): string =>
+      g
+        .map((row) => row.map((c) => (c == null ? "." : "x")).join(""))
+        .join("\n");
+    const base = { hatStyle: "beanie", build: "sturdy" } as const;
+    const plain = silhouette(minerLabels(base));
+    for (const crown of ["horns", "hood", "crystal", "wings", "antlers"] as const) {
+      expect(`${crown}:${silhouette(minerLabels({ ...base, crown })) === plain}`)
+        .toBe(`${crown}:false`);
+    }
+  });
+
+  test("a mark that lives on the head still repaints it", () => {
+    // Plume, goggles and a circlet sit INSIDE the head outline on purpose (a
+    // plume over a helmet must not make the miner look like it is wearing a
+    // hat-and-a-halo), so they cannot change the silhouette — but they must
+    // still put a different mark on the head, not the same pixels in another
+    // color.
+    const painted = (crown: (typeof MARKS)[number] | typeof NO_MARK): string =>
+      minerLabels({ hatStyle: "beanie", crown })
+        .map((row) => row.map((c) => (c == null ? "." : c)).join(""))
+        .join("\n");
+    const plain = painted(NO_MARK);
+    for (const crown of MARKS) {
+      expect(`${crown}:${painted(crown) === plain}`).toBe(`${crown}:false`);
+    }
   });
 });
 

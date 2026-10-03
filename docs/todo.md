@@ -163,6 +163,19 @@ in rough priority order:
       `node scripts/generate-outfit-line-samples.mjs`. PICKAXES were
       already one tool shape each (8 tools / 8 items); the nine CAVE
       THEMES are a tint by definition and stay one.
+- [x] **an outfit has to look like its NAME** (2026-10-03). The Crimson
+      Oni was a guy in a headband who could roll a bone-white hat —
+      a namesake the sprite does not evoke is a mislabeled recolor. Two
+      fixes: the **crown mark** axis is now allowed on an outfit (a crew
+      HIRE wears a mark because its line is premium; the player's own
+      slot wears one because the namesake needs it — horns for the oni,
+      a plume for the knight, a hood for the night shift, a crystal
+      shard for the crystal miner, goggles for the blocky adventurer),
+      with a NEW `horns` mark drawn in the dark hat tone because an aura-
+      tone horn is a pale nub that vanishes at player size; and a themed
+      item's palette is now on-theme (the oni's four pools are all
+      red-dominant, its headband vivid crimson). `motes` (the aura)
+      stays crew-only. Both pinned by `cosmetics.test.ts`.
 - [ ] **art-style setting (optional).** The seam already supports it
       (`setActiveArtPack` + a `defaultArtPackId` in the save); only a
       settings row + i18n is missing. Not promised — papercut is the

@@ -171,13 +171,17 @@ and the old art is still there. Under the seam:
 - **A paid cosmetic is a CHARACTER, not a palette** — the rule every paid line
   is measured against, and the one both catalogs' tests pin. Skins carry a
   `SkinShape`; outfits carry `OutfitCosmetic.shape` (the same axes minus
-  tool/crown/motes), AUTHORED rather than rolled, so the player's miner keeps
-  one body per outfit while the colors still reroll per seed. `crown`/`motes`
-  stay with the crew cast (its premium language). `shapeForLook` carries the
-  axes from the look, `minerSpriteUri`'s cache key includes them, and
-  `rollMinerLook` copies them AFTER the color picks (never an extra `pick` —
-  that would reshuffle every existing save's miner). See docs/outfit-line.md
-  and docs/skin-line.md.
+  tool/motes), AUTHORED rather than rolled, so the player's miner keeps one
+  body per outfit while the colors still reroll per seed. `crown` (the mark
+  over the headwear) rides on both a crew hire's cast and an outfit — a hire
+  wears one because its line is premium, an outfit because the NAMESAKE needs
+  it (horns for the oni, a plume for the knight), so a themed item that does
+  not look like its name is a bug, and `cosmetics.test.ts` pins both the mark
+  and the on-theme palette. `motes` (the aura) stays crew-only.
+  `shapeForLook` carries the axes from the look, `minerSpriteUri`'s cache key
+  includes them, and `rollMinerLook` copies them AFTER the color picks (never an
+  extra `pick` — that would reshuffle every existing save's miner). See
+  docs/outfit-line.md and docs/skin-line.md.
 
 ## Module Resolution (important — easy to get wrong)
 
