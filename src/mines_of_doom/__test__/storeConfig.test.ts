@@ -57,9 +57,12 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
     expect(storeConfig.unityAds.childDirectedTreatment).toBe(true);
     expect(storeConfig.unityAds.stripAdvertisingId).toBe(true);
     // The Pocketbase deployment is live (docs/pocketbase-plan.md) — pin the
-    // URL so a stray edit can't point the client at the wrong backend.
+    // URL so a stray edit can't point the client at the wrong backend. The
+    // API has its own host (the web app is the Cloudflare Pages custom
+    // domain above it); PB itself answers `access-control-allow-origin: *`,
+    // so the cross-origin preflight is fine as-is.
     expect(storeConfig.pocketbaseUrl).toBe(
-      "https://minesofdoom.minus4kelvin.com",
+      "https://api.minesofdoom.minus4kelvin.com",
     );
   });
 

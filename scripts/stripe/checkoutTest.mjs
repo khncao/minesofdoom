@@ -61,10 +61,10 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 
 const API_BASE = "https://api.stripe.com/v1";
-const PB_BASE = "https://minesofdoom.minus4kelvin.com";
+const PB_BASE = "https://api.minesofdoom.minus4kelvin.com";
 // The deployed web app origin (Cloudflare Pages, root path) — where the
 // player's return navigation must land. NOT PB_BASE: the success/cancel
-// URLs are app routes, and pointing them at the Pocketbase public domain
+// URLs are app routes, and pointing them at the Pocketbase API host
 // made the probe's return leg navigate to PB's JSON 404s instead of the
 // app (a pre-migration leftover; the sidecar's own URLs come from its
 // MDOOM_WEB_BASE_URL env, which this constant mirrors).

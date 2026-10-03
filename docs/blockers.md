@@ -145,17 +145,21 @@ just no longer addressed by the hostname.
    FedCM `NetworkError`, no popup). Note the old probe target was
    pages.dev-only; the script now takes the origin as argv[1].
 2. **API hostname** (fixes the CORS/preflight death, the deeper break):
-   - Option A (recommended, least churn): give Pocketbase its own
-     hostname — CF DNS `pb.minesofdoom.minus4kelvin.com` → VPS IP (or
+   - **Option A — CHOSEN (least churn):** give Pocketbase its own
+     hostname — CF DNS `api.minesofdoom.minus4kelvin.com` → VPS IP (or
      proxied) + Caddy host on the VPS fronting Pocketbase — then flip
      `storeConfig.pocketbaseUrl` to it. PB already answers
      `access-control-allow-origin: *`, so CORS from both game origins is
      fine as-is. Update `pb_hooks/README.md` deployment notes + the
-     pinned-URL tests when it lands.
-   - Option B: drop the Pages custom domain and have the VPS Caddy serve
-     BOTH the exported `dist/` (static + SPA fallback) and PB at `/api`
-     — single origin again, `storeConfig` unchanged, but the Pages
-     custom-domain setup (the clean account-deletion URL) is lost.
+     pinned-URL tests when it lands. (Landed — see "RESOLVED (API/origin
+     half) — FINAL TOPOLOGY" below.)
+   - **Option B — tried and reverted:** drop the Pages custom domain and
+     have the VPS Caddy serve BOTH the exported `dist/` (static + SPA
+     fallback) and PB at `/api` — single origin again, `storeConfig`
+     unchanged, but the Pages custom-domain setup (the clean
+     account-deletion URL) is lost. This is what shipped 2026-09-17 and
+     was reverted the same day: the `pb_public` static deployment is
+     deleted and Pages owns the web origin again.
 
 **In-repo state:** `scripts/gsiOriginProbe.mjs` retargeted to the
 production origin (argv-overridable) + the NOT-AUTHORIZED verdict now
@@ -164,28 +168,87 @@ the 400 and the preflight are pure origin/config issues.
 
 **Verify when done:** probe exits 0 (popup reaches
 accounts.google.com) on the origin(s) the game runs from, and
-`curl -X OPTIONS <pb>/api/app/auth/me` with `Origin:
-https://minesofdoom.pages.dev` → 2xx + `access-control-allow-*` (and
-`/api/health` returns Pocketbase JSON, not the game HTML). Then a manual
+`curl -X OPTIONS https://api.minesofdoom.minus4kelvin.com/api/app/auth/me
+-H 'Origin: https://minesofdoom.minus4kelvin.com'` → 2xx +
+`access-control-allow-*` (and `/api/health` returns Pocketbase JSON, not
+the game HTML — the game HTML is Cloudflare Pages'). Then a manual
 web sign-in round-trip (or `E2E_LIVE_GSI=1 npx playwright test
 signin`), since the hermetic stub can't see either of these failures.
 
-**RESOLVED (API/origin half) 2026-09-17** — the user removed the Cloudflare
-Pages custom-domain CNAME on `minesofdoom` and added an A record pointing
-at the servarica VPS, restoring the Caddy→Pocketbase front. The whole
-exported web build now ships from Pocketbase's `pb_public/` static dir
-(sibling of `pb_data`, mounted `./pb_public:/pb/pb_public` in the VPS
-compose) — single origin: `/` serves the game SPA, `/api/*` the API,
-`/privacy-policy.html` etc. the legal pages (verified live: SPA 200,
-`/api/health` JSON, `OPTIONS` preflight 204, legal pages 200). In-repo:
-`PROD_WEB_DOMAIN` → `minesofdoom.minus4kelvin.com` (environment.ts),
-`+html.tsx` canonical/OG → the new origin, robots/sitemap retargeted,
-pb_hooks README "Static pages" section documents the deploy. **Deploy
-implication:** `pnpm run deploy` (CF Pages) no longer controls the
-production origin — after `expo export -p web`, push `dist/` into the
-VPS `pb_public/`. **STILL OPEN:** item #1 (Google Cloud Console — add
-the origins to the GSI client's Authorized JavaScript origins; the
-`origin_mismatch` 400 persists until that console change lands).
+**RESOLVED (API/origin half) — FINAL TOPOLOGY (2026-09-17):** the
+Cloudflare Pages custom domain on `minesofdoom` is **back** —
+`minesofdoom.minus4kelvin.com` is a Pages custom domain again, so the
+static export is served by Pages and the custom-domain URL stays clean
+for the Play-listing account-deletion page. The single-origin
+experiment is **reverted**: the VPS `pb_public/` static deployment
+(mounted `./pb_public:/pb/pb_public`, which served the SPA, the legal
+pages and `robots.txt`/`sitemap.xml`/`ads.txt`/`og-image.png`) is
+**deleted** — Pocketbase serves no static files at all now, and
+`pnpm run deploy` (CF Pages) is once again the production web deploy
+target. Instead of moving the web host, the API moved: **Option A with
+a dedicated `api.` subdomain** — CF DNS
+`api.minesofdoom.minus4kelvin.com` → VPS IP + a Caddy host fronting
+Pocketbase there. Two origins, no shared-host shadowing:
+
+| Origin | Serves |
+|---|---|
+| `minesofdoom.minus4kelvin.com` (+ `minesofdoom.pages.dev`) | Cloudflare Pages — the exported SPA, legal pages, `robots.txt`, `sitemap.xml` |
+| `api.minesofdoom.minus4kelvin.com` | Caddy → Pocketbase `/api/*`, sidecar `/stripe/checkout` + `/stripe/webhook` |
+
+In-repo: `storeConfig.pocketbaseUrl` → `https://api.minesofdoom.minus4kelvin.com`
+(pinned by `storeConfig.test.ts`; e2e `PB_BASE` + the live-GSI route
+abort follow it), `PROD_WEB_DOMAIN` **unchanged** at
+`minesofdoom.minus4kelvin.com` (it is the WEB-origin signal only, and
+`+html.tsx` canonical/OG + robots/sitemap stay on it), Stripe webhook URL
+→ the `api.` host, `pb_hooks/README.md` "Static pages" section rewritten
+to "NOT here anymore", `pocketbase-plan.md`/`store-integration.md`
+retargeted. CORS is now load-bearing but PB already answers
+`access-control-allow-origin: *`, so `/api/*` preflights pass from both
+game origins; the one exception is the sidecar's browser-facing
+`/stripe/checkout`, which answers CORS for exactly `MDOOM_WEB_BASE_URL`
+— that env must stay on the **web** origin, not the `api.` host.
+**DONE on the VPS (2026-10-03, over Tailscale `servarica1-debian`):**
+Caddy host `api.minesofdoom.minus4kelvin.com` added (LE cert issued, admin
+403, `/stripe/*` → sidecar, 1 MB body cap, catch-all → pocketbase:8090)
+and the old `minesofdoom.minus4kelvin.com` block DELETED, so the VPS no
+longer answers for the web host at all; `pb_public` bind-mount removed from
+compose + the dir deleted (tarball
+`~/backups/pb_public-20261003-093836.tar.gz`); `MDOOM_WEB_BASE_URL` flipped
+to the web origin; Stripe endpoint `we_1UEbw0DBoBUcNBmBQagdGPTk`
+repointed IN PLACE at `api.…/stripe/webhook` (a URL change does not
+re-issue the signing secret, so `STRIPE_WEBHOOK_SECRET` stayed valid — no
+mint gap). Verified live: health 200, restore 200, preflight 204 + ACAO
+`*`, admin 403, checkout preflight 204 + ACAO web origin, unsigned webhook
+400. **DONE at Cloudflare (user, 2026-10-03):** the custom domain serves the
+Pages build again (200, `id="site-info"`).
+
+**LEGACY SHIM (added 2026-10-03, TEMPORARY):** the split broke every
+shipped build — Play **production is live on 1.0.9** (vc 9) with the OLD
+host as `pocketbaseUrl`, and that host is now static Pages (405 on POST),
+so 1.0.9 users would lose cloud save, leaderboard, sign-in and receipt
+verify. Two Cloudflare Pages Functions pipe the backend prefixes from the
+web origin back to the API host until those installs update:
+`functions/api/[[path]].ts` + `functions/stripe/[[path]].ts`, shared logic
+in `functions-lib/api-proxy.ts` (tests in `api-proxy.test.ts`), scoped to
+those two prefixes by `public/_routes.json` so static requests keep the
+free unlimited tier. **Delete `functions/`, `functions-lib/` and
+`public/_routes.json` once the 1.0.12 rollout covers the last 1.0.9
+install.**
+
+**STILL OPEN:**
+1. Google Cloud Console — add BOTH origins to the GSI client's Authorized
+   JavaScript origins. Probed live 2026-10-03: `minesofdoom.minus4kelvin.com`
+   AND `minesofdoom.pages.dev` both still NOT AUTHORIZED (no popup; FedCM
+   `NetworkError`) — web Google sign-in is dead on both hosts. Re-run
+   `node scripts/gsiOriginProbe.mjs <origin>` after the console change.
+2. **Deploy the web build** — the live Pages bundle still carries the OLD
+   `pocketbaseUrl` (scanned: it calls `minesofdoom.minus4kelvin.com`, not
+   `api.…`). Push to `main` (Pages CI) or
+   `npx wrangler login && pnpm run deploy`.
+3. **Play 1.0.12 (vc 12)** carrying the new URL, rolled out on production.
+4. Post-deploy proof: `node scripts/stripe/checkoutTest.mjs` (real checkout →
+   webhook lands on the `api.` host → entitlement minted), plus one manual
+   web sign-in + cloud-save round-trip.
 
 ## IAP (on-device purchase leg) — `todo.md` "IAP — on-device purchase leg (license tester)"
 
@@ -224,7 +287,7 @@ sidecar `/healthz` → `configured.web: true` +
 AdSense client is in `storeConfig.ts` (`ca-pub-…`) — the banner slot
 shipped as the rewarded "Ad Placement API" instead of a banner (the
 `checkout.session.completed` webhook at
-`https://minesofdoom.minus4kelvin.com/stripe/webhook` is routed live to
+`https://api.minesofdoom.minus4kelvin.com/stripe/webhook` is routed live to
 the sidecar since 2026-09-06, Caddy `@stripe_webhook` matcher). The §4
 purchase leg is **no longer blocked** (license tester registered
 2026-09-06, purchase confirmed on the dev build). The 26 Play products are live and
@@ -277,7 +340,9 @@ before editing that folder.
 
 **Deployment status (done):** live Pocketbase v0.40.2 on the servarica
 VPS (`~/docker/pocketbase`), Caddy TLS on
-`https://minesofdoom.minus4kelvin.com`; `pb_hooks/` mounted read-only,
+`https://api.minesofdoom.minus4kelvin.com` (API-only host — the static
+build is served by Cloudflare Pages at `minesofdoom.minus4kelvin.com`, no
+`pb_public` mount); `pb_hooks/` mounted read-only,
 the sidecar container on the internal compose network, `MDOOM_SIDECAR_URL`
 set, no fake-token flag (a public endpoint must never mint on fake
 tokens). Smoke-tested live: restore/leaderboard/cloud serve; a fake

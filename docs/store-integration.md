@@ -1045,7 +1045,7 @@ asking Stripe, so a client can never self-grant):
    a session id can't be replayed from another device).
 2. **Webhook (backup).** Stripe delivers
    `checkout.session.completed` to the sidecar's `/stripe/webhook`
-   (Caddy fronts the public Pocketbase URL at that path). The sidecar is
+   (Caddy fronts the public API host at that path). The sidecar is
    the one place that still has the **raw** body, so it verifies
    `Stripe-Signature` there (HMAC-SHA256, ±5-minute tolerance) and only
    then forwards the untouched event to Pocketbase's
@@ -1117,8 +1117,8 @@ started") from ever being mistaken for a confirmed payment.
    of the §2.1 table (same display names, same tiers). Note each
    `price_…` id. (No subscriptions — the catalog is one-time packs.)
 2. **Webhook:** add an endpoint at
-   `https://minesofdoom.minus4kelvin.com/stripe/webhook` (the sidecar
-   port, fronted by Caddy at the public Pocketbase URL — **this route is
+   `https://api.minesofdoom.minus4kelvin.com/stripe/webhook` (the sidecar
+   port, fronted by Caddy on the dedicated API host — **this route is
    live since 2026-09-06**, fail-closed until step 3's env lands — see
    `docs/pocketbase-plan.md`) and subscribe it to
    `checkout.session.completed` only. Copy its `whsec_…` signing secret.

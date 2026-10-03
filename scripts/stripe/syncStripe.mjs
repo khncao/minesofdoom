@@ -53,7 +53,7 @@ import { fileURLToPath } from "url";
 import readline from "readline";
 
 const API_BASE = process.env.STRIPE_API_BASE || "https://api.stripe.com/v1";
-const WEBHOOK_URL = "https://minesofdoom.minus4kelvin.com/stripe/webhook";
+const WEBHOOK_URL = "https://api.minesofdoom.minus4kelvin.com/stripe/webhook";
 const WEBHOOK_EVENTS = ["checkout.session.completed"];
 const APP_DIR = path.dirname(fileURLToPath(import.meta.url));
 // Test seam (like STRIPE_API_BASE): point at a scratch storeConfig.ts so a

@@ -2,7 +2,10 @@
 
 The Pocketbase JS hooks for the app's single Pocketbase deployment
 (`docs/pocketbase-plan.md` + `docs/store-integration.md`). Deploy = push
-this folder; nothing is clicked in a console.
+this folder; nothing is clicked in a console. **API-only host:**
+`https://api.minesofdoom.minus4kelvin.com` (the web app is Cloudflare
+Pages at `minesofdoom.minus4kelvin.com` — this deployment serves no
+static files at all, see "Static pages" below).
 
 Target runtime: **Pocketbase v0.40.x** (the v0.40 hooks API is a major
 rewrite from v0.2x — everything in this folder is written for it).
@@ -174,7 +177,7 @@ inside a handler**, and not shared between pooled VMs. Rules this code follows:
   **never in the app bundle** (web carries only the public `pk_` key).
 - Web (Stripe) is mint-gated the same way: Stripe delivers
   `checkout.session.completed` to the sidecar's `/stripe/webhook` (Caddy
-  fronts the public Pocketbase URL), the sidecar verifies the
+  fronts the public API host), the sidecar verifies the
   `Stripe-Signature` HMAC over the raw body (the one place that still has
   the raw bytes — goja can't re-read them) and only then forwards the
   untouched event to `/api/app/stripe/webhook` with the `x-mdoom-key`
@@ -216,7 +219,7 @@ inside a handler**, and not shared between pooled VMs. Rules this code follows:
   idempotent paths: the client's return-visit verify (`/api/app/verify`,
   primary) and the webhook backup — Stripe's `checkout.session.completed`
   delivery lands on the **sidecar's** `/stripe/webhook` (Caddy fronts the
-  public Pocketbase URL there), the sidecar verifies `Stripe-Signature`
+  public API host there), the sidecar verifies `Stripe-Signature`
   over the raw body (HMAC-SHA256, ±5-minute tolerance), and only then
   forwards the untouched event to `/api/app/stripe/webhook`, which requires
   the `x-mdoom-key` shared key — the mint gate is still the sidecar
@@ -278,7 +281,7 @@ Pocketbase):
 | `GOOGLE_CLIENT_ID` | The Web/OAuth client id for Google sign-in (the `aud` for Google ID tokens). Absent → Google sign-in refuses (fail closed). |
 | `STRIPE_SECRET_KEY` | The Stripe `sk_…` secret key (web IAP). Used for the Checkout session lookup (`/v1/checkout/sessions/{id}`). Absent → web verifies nothing (fail closed), other platforms unaffected. Never in the repo — the app bundle carries only the public `pk_…` key. |
 | `STRIPE_API_VERSION` | Optional; pins the Stripe API version header. Empty/unset → the account's default version (nothing is pinned in the repo). |
-| `STRIPE_WEBHOOK_SECRET` | The `whsec_…` of the Stripe webhook endpoint that delivers `checkout.session.completed` to THIS sidecar's `/stripe/webhook` (Caddy fronts the public Pocketbase URL at that path). Empty → `/stripe/webhook` refuses everything (fail closed — a webhook that can't verify can't mint). |
+| `STRIPE_WEBHOOK_SECRET` | The `whsec_…` of the Stripe webhook endpoint that delivers `checkout.session.completed` to THIS sidecar's `/stripe/webhook` (Caddy fronts the public API host — `https://api.minesofdoom.minus4kelvin.com/stripe/webhook` — at that path). Empty → `/stripe/webhook` refuses everything (fail closed — a webhook that can't verify can't mint). |
 | `MDOOM_PB_URL` | The internal Pocketbase base URL. After a valid signature the sidecar forwards the untouched event to `<MDOOM_PB_URL>/api/app/stripe/webhook` with the `x-mdoom-key` shared key. Empty → `/stripe/webhook` refuses everything (fail closed). |
 
 ```
@@ -364,40 +367,58 @@ Ops: one volume (`/pb_data`) is the whole state — nightly copy is the
 backup; the dataset is rows-per-device, i.e. tiny. The superuser credentials
 printed on first boot are for the admin UI only; the app never uses them.
 
-## Static pages (`pb_public`)
+## Static pages: NOT here anymore
 
-Pocketbase serves the ops/legal static pages from `pb_public/` — a
-sibling of `pb_data` at the app ROOT (not inside `pb_data`): the VPS
-compose mounts `./pb_public:/pb/pb_public`, and Caddy fronts everything
-else on `minesofdoom.minus4kelvin.com` to Pocketbase, so
-`/privacy-policy.html`, `/terms-of-use.html`, `/account-deletion.html`,
-`robots.txt`, `sitemap.xml`, `ads.txt` and `og-image.png` all resolve
-on the production domain. In fact the WHOLE exported web build lives
-there: after `npx expo export -p web`, push `dist/` into the VPS
-`pb_public/` (Pocketbase reads it per request — no restart, and the
-SPA/API split works because PB routes `/api/*` to the API first and
-serves `index.html` as the fallback for the game at `/`). So the VPS
-`pb_public/` dir is the production web deploy target — `pnpm run deploy`
-(CF Pages) no longer controls the production origin. The repo's
-`public/` dir is the source of truth for the small static files (the
-three legal pages are GENERATED from `src/mines_of_doom/legal.ts` —
-edit there, run the tests to regenerate, re-export, push dist).
+Pocketbase used to serve the ops/legal static pages from `pb_public/` —
+and briefly the WHOLE exported web build, mounted `./pb_public:/pb/pb_public`
+on the VPS. **That deployment is deleted.** Nothing static lives on this
+host anymore: the production web origin is Cloudflare Pages
+(`minesofdoom.minus4kelvin.com` custom domain + `minesofdoom.pages.dev`),
+and this VPS answers only the API on the dedicated
+`api.minesofdoom.minus4kelvin.com` host — `/api/*` plus the sidecar's
+`/stripe/checkout` and `/stripe/webhook` at the Caddy front.
 
-**Deploying (the VPS has no rsync binary, and a directory swap breaks the
-mount):** copy the build INTO the existing directory; never `mv`/replace
-`pb_public` yourself. The compose bind-mount resolves the host directory
-at container start, so replacing the directory leaves the container
-serving an orphaned (empty) inode until a `docker compose restart
-pocketbase` — and deleting the old dir after the swap destroys the live
-copy. The safe, restart-free procedure:
+Consequences, so nobody re-adds it:
 
-```sh
-npx expo export -p web
-tar czf - -C dist . | ssh <vps> 'tar xzf - -C ~/docker/pocketbase/pb_public'
-# optional: drop stale hashed bundles from an older export
-ssh <vps> 'find ~/docker/pocketbase/pb_public/_expo -type f -mtime +30 -delete'
-```
+- **The web deploy target is `pnpm run deploy`** (CF Pages, `wrangler pages
+  deploy dist`; pushes to `main` also trigger the Pages CI). After
+  `npx expo export -p web`, the build goes to Pages — never to this VPS.
+- **The repo's `public/` dir is the source of truth for the static files**
+  (the three legal pages are GENERATED from `src/mines_of_doom/legal.ts` —
+  edit there, run the tests to regenerate, re-export, deploy).
+- **CORS is now load-bearing.** The API is a different origin from the app.
+  Pocketbase answers `access-control-allow-origin: *`, so `/api/*` preflights
+  pass from both game origins. The sidecar's browser-facing
+  `/stripe/checkout` is NOT that permissive: it answers CORS for exactly the
+  origin in `MDOOM_WEB_BASE_URL` — keep that env on the **web** origin
+  (`https://minesofdoom.minus4kelvin.com`), never the `api.` host, or the
+  checkout POST is refused from the browser.
+- Verify live: `curl -X OPTIONS https://api.minesofdoom.minus4kelvin.com/api/app/auth/me -H 'Origin: https://minesofdoom.minus4kelvin.com'` → 2xx with
+  `access-control-allow-*`; `GET .../api/health` → Pocketbase JSON; and the
+  SPA is served from Pages (`minesofdoom.minus4kelvin.com/` contains
+  `id="site-info"`, `/how-to-play.html` 200), NOT from this host.
 
-(Overwrites in place: `index.html` + `_expo/**` are replaced, `public/`
-files are refreshed. Verify live: `/` contains `id="site-info"`,
-`/how-to-play.html` and `/api/health` both 200.)
+## The legacy shim (TEMPORARY — delete it)
+
+Splitting the origin broke every build that predates it: Android **1.0.9 is
+live on the Play production track** with `pocketbaseUrl =
+https://minesofdoom.minus4kelvin.com` baked into the bundle, and that host
+now serves static Pages files (`POST /api/app/restore` → 405). So the web
+origin carries two Cloudflare Pages Functions that pipe the backend prefixes
+back to this VPS:
+
+- `functions/api/[[path]].ts` → `/api/*` → `https://api.minesofdoom.minus4kelvin.com/api/*`
+- `functions/stripe/[[path]].ts` → `/stripe/*` → the same host
+
+Shared logic + rationale in `functions-lib/api-proxy.ts`, pinned by
+`functions-lib/api-proxy.test.ts` (statuses pass through, hop-by-hop headers
+stripped, unreachable upstream = 502). `public/_routes.json` limits
+invocations to those two prefixes so static requests stay on the free
+unlimited tier (and keep Pages' SPA fallback).
+
+The shim is a dumb byte-for-byte pipe: no auth, no rate limit, no logging —
+the same posture the single-origin setup had, since everything behind it was
+already public. **It comes out once the 1.0.12 rollout has reached the last
+1.0.9 install** (then delete `functions/`, `functions-lib/` and
+`public/_routes.json`). Stripe's webhook delivery never used this path — the
+endpoint points straight at `api.…/stripe/webhook`.

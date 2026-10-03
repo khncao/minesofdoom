@@ -116,15 +116,20 @@ export const storeConfig = {
  // Self-hosted Pocketbase base URL — ONE deployment serves receipt
  // validation + entitlements (docs/pocketbase-plan.md) AND the store
  // integrations: cloud saves + leaderboard (docs/store-integration.md).
+ // API-ONLY origin — the web app lives on its own host
+ // (minesofdoom.minus4kelvin.com, the Cloudflare Pages custom domain), so
+ // this is the dedicated `api.` subdomain Caddy fronts on the VPS. Splitting
+ // the hosts is what lets the static build stay on Pages: nothing but `/api/*`
+ // and the sidecar's browser-facing `/stripe/checkout` is reachable here.
  // Read by the IAP / cloud-save providers at call time. Empty = unset
  // (same rule as the ad ids): the real providers stay no-ops until it
  // lands. Server-side verification is fail closed (the sidecar carries no
  // store credentials yet — real purchases are refused, never faked);
  // cloud saves / leaderboard work as-is.
  // Deployed: ~/docker/pocketbase on the servarica VPS (Caddy TLS on the
- // public domain; hooks in pb_hooks/; sidecar on the internal network).
- // https://minesofdoom.minus4kelvin.com
- pocketbaseUrl: "https://minesofdoom.minus4kelvin.com",
+ // api subdomain; hooks in pb_hooks/; sidecar on the internal network).
+ // https://api.minesofdoom.minus4kelvin.com
+ pocketbaseUrl: "https://api.minesofdoom.minus4kelvin.com",
  /**
   * Stripe (web IAP, docs/todo.md #1) — `publishableKey` is the account's
   * PUBLIC key (pk_…; safe in the bundle; the sk_ secret lives only in the

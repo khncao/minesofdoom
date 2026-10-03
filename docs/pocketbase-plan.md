@@ -1,8 +1,10 @@
 # Pocketbase Self-Host Plan (RevenueCat replacement)
 
 Status: **deployed** (2026-09-03) — Pocketbase v0.40.2 + `pb_hooks/` + sidecar
-run on the servarica VPS at `https://minesofdoom.minus4kelvin.com` (Caddy TLS;
-`~/docker/pocketbase` compose on the box). The client points at it
+run on the servarica VPS at `https://api.minesofdoom.minus4kelvin.com` (Caddy TLS;
+`~/docker/pocketbase` compose on the box; **API-only host** — the web app is
+Cloudflare Pages at `minesofdoom.minus4kelvin.com`, and this deployment serves
+no static files). The client points at it
 (`storeConfig.pocketbaseUrl`, pinned by tests). Store verification fails closed
 per platform until the sidecar's env carries the real credentials (`PLAY_*` /
 `APPLE_*` — env table in `pb_hooks/README.md`); the fake-token sandbox mode was

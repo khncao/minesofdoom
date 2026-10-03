@@ -45,7 +45,7 @@ import { expect } from "playwright/test";
 import type { BrowserContext, Request } from "playwright";
 
 /** The committed Pocketbase sidecar origin (storeConfig.ts). */
-export const PB_BASE = "https://minesofdoom.minus4kelvin.com";
+export const PB_BASE = "https://api.minesofdoom.minus4kelvin.com";
 
 /**
  * Any domain that would mean a LIVE ad request — always blocked in e2e.

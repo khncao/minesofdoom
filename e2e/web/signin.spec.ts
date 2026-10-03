@@ -154,7 +154,7 @@ test.describe("web Google sign-in — LIVE GSI (E2E_LIVE_GSI=1 only)", () => {
     );
     // The point of THIS test is the consent leg, not the credential:
     // abort every sidecar call so the run can never touch production auth.
-    await context.route("https://minesofdoom.minus4kelvin.com/**", (route) =>
+    await context.route("https://api.minesofdoom.minus4kelvin.com/**", (route) =>
       route.abort(),
     );
     // Let ONLY the GSI script through on accounts.google.com, abort the
