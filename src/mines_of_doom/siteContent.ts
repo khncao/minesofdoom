@@ -23,6 +23,23 @@ import { LEGAL_CONTACT_EMAIL } from "./legal";
 
 export type SiteNavLink = { label: string; href: string };
 
+/**
+ * The publisher of this game, shown in the footer of every published page.
+ *
+ * Deliberately NOT part of `SITE_NAV_LINKS`: the unit test pins every nav href
+ * to a file that actually ships in `public/` and to an entry in
+ * `public/sitemap.xml` under this site's own origin. An off-site link belongs
+ * in the footer as publisher attribution instead — which is what Apple's
+ * enrollment review wants anyway: evidence that the domain
+ * `minus4kelvin.com` and the app that lives on this subdomain are the same
+ * organization, stated in both directions.
+ */
+export const SITE_PUBLISHER = {
+  name: "−4 Kelvin LLC",
+  url: "https://minus4kelvin.com/",
+  label: "Published by −4 Kelvin LLC",
+} as const;
+
 export type WebContentSection = {
   heading: string;
   paragraphs?: string[];

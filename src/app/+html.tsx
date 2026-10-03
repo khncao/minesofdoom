@@ -7,6 +7,7 @@ import {
 import {
     SITE_CONTACT_EMAIL,
     SITE_NAV_LINKS,
+    SITE_PUBLISHER,
     WEB_CONTENT_SECTIONS,
     WEB_FAQ,
     WEB_LANDING_HEADING,
@@ -248,6 +249,11 @@ function SiteInfo() {
                     Mines of Idle Doomath ·{" "}
                     <a href={`mailto:${SITE_CONTACT_EMAIL}`}>
                         {SITE_CONTACT_EMAIL}
+                    </a>
+                </p>
+                <p>
+                    <a href={SITE_PUBLISHER.url} rel="noopener">
+                        {SITE_PUBLISHER.label}
                     </a>
                 </p>
             </footer>

@@ -20,6 +20,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { LEGAL_DOCS, LEGAL_CONTACT_EMAIL, type LegalDoc } from "../legal";
+import { SITE_PUBLISHER } from "../siteContent";
 
 function escapeHtml(text: string): string {
   return text
@@ -72,6 +73,7 @@ ${sections}
       <a href="/terms-of-use.html">Terms of Use</a> ·
       <a href="/account-deletion.html">Account Deletion</a>
     </footer>
+    <p class="meta"><a href="${SITE_PUBLISHER.url}" rel="noopener">${SITE_PUBLISHER.label}</a></p>
   </body>
 </html>
 `;
