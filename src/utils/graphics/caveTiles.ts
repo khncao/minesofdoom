@@ -10,6 +10,16 @@
  * Colors are baked from the per-tier tint (which already reflects the
  * selected cave theme, `cosmetics.ts`), so themes keep working without any
  * image-side recoloring.
+ *
+ * The ROCK BODY is the only thing a direction gets to change
+ * (`caveArt.ts`, the art-pack seam's rock side): the silhouette, the row /
+ * band addressing and every object in the mine are the same in both
+ * directions, so `setActiveArtPack("pixel")` brings the classic dithered
+ * ramp back with the classic characters. `CAVE_ROCK_STYLES` below is the
+ * registry; `rockPlaneValue` + `rockPlaneIndex` are the paper-cut
+ * direction's own field, and they are geometry, not mark-making — they stay
+ * here, next to the other fields, because they are sampled at global
+ * pixels for exactly the same reason the silhouette is.
  */
 
 import {
@@ -23,6 +33,18 @@ import {
   stripSizeForWidth,
 } from "./pixelArt";
 import type { Pixel, PixelGrid } from "./pixelArt";
+import { activeCaveArt } from "./artPack";
+import {
+  CAVE_ART_IDS,
+  CAVE_ART_LABELS,
+  PAPER_SHADOW_OFFSET,
+  paintPaperRock,
+  paperRockInk,
+} from "./caveArt";
+import type { CaveArtId, PaperInk } from "./caveArt";
+
+export { CAVE_ART_IDS };
+export type { CaveArtId };
 
 /**
  * Minimum depth of each cave band. Mirrors `DEPTH_TIERS` in `game.ts` (a unit
@@ -124,6 +146,12 @@ const ORE_COLORS = ["#ffd24a", "#e08040", "#6ab8ff", "#50d080"];
  * banding every row.
  */
 const SHADE_SEEDS = CAVE_TIER_ATS.map((_, t) => hashSeed(t * 7919, 0x5eed));
+/**
+ * Plane-field seed per tier (the paper-cut direction's own field). One per
+ * tier for the same reason as the shade seeds: a depth band is cut from
+ * its own sheet, while every row within the band shares the cut.
+ */
+const PLANE_SEEDS = CAVE_TIER_ATS.map((_, t) => hashSeed(t * 7919, 0x9a9e));
 /**
  * Share of the two path (shaft) tiles that carry a loose rubble chunk. The
  * shaft is no longer a fully empty column — a few blocks sit under the
@@ -321,9 +349,130 @@ export function rockShadeRamp(tint: string): string[] {
   return ramp;
 }
 
+// ---------------------------------------------------------------------------
+// The rock directions (caveArt.ts holds the paper-cut one). The strip
+// pipeline below is identical in both: it asks the direction for a color
+// per pixel and paints it. `classic` is the dithered ramp above, byte for
+// byte; the paper-cut sheets take their color from `paintPaperRock`.
+// ---------------------------------------------------------------------------
+
+/**
+ * The inks one rock direction paints with, for one tier tint. Both sets are
+ * built (a dozen cheap mixes, once per strip) so the pipeline has one shape
+ * to pass around; each direction reads only its own, except `rubble` which
+ * both read — the loose chunks in the dug shaft are cut from the same stock
+ * as the wall they sit against, so the shaft doesn't read as a hole in a
+ * different material.
+ */
+export interface CaveRockInk {
+  /** The classic 10-step dithered ramp, dark → light. */
+  ramp: string[];
+  /** The paper-cut stock: flat planes, lit cut core, cast shadow. */
+  paper: PaperInk;
+  /** Flat chunk colors for the shaft rubble (light / mid / dark). */
+  rubble: readonly [string, string, string];
+}
+
+export function buildCaveRockInk(
+  tint: string,
+  art: CaveArtId,
+): CaveRockInk {
+  const paper = paperRockInk(tint);
+  return {
+    ramp: rockShadeRamp(tint),
+    paper,
+    rubble: art === "papercut" ? paper.planes : rockShades(tint),
+  };
+}
+
+/**
+ * The per-tier fields a direction samples, plus the silhouette reader the
+ * paper-cut renderer needs for its cut edges and cast shadow.
+ */
+export interface CaveRockCtx {
+  /** This tier's rock-shade seed (the classic field). */
+  shadeSeed: number;
+  /** This tier's plane seed (the paper-cut field). */
+  planeSeed: number;
+  /** Painted rock at a global pixel — silhouette minus the dug shaft. */
+  rockAt: (x: number, y: number) => boolean;
+}
+
+/** One rock direction, wired into the strip pipeline. */
+export interface CaveRockStyle {
+  id: CaveArtId;
+  label: string;
+  /**
+   * Paint one pixel of the rock body. `rock` is the silhouette at this
+   * pixel, and `null` means leave the grid alone (an open gap).
+   */
+  paint(
+    ink: CaveRockInk,
+    x: number,
+    y: number,
+    rock: boolean,
+    ctx: CaveRockCtx,
+  ): string | null;
+}
+
+/**
+ * The plane field: the value the paper-cut rock is CUT into sheets by.
+ * Deliberately low frequency (≈86/44/17px features, wider than tall so the
+ * sheets read as strata) through a domain warp — cut paper needs big flat
+ * plates, and a fine field quantized into three planes is just mush. It
+ * shares the load-bearing property of every other field in this file:
+ * sampled at GLOBAL pixel coords with a per-tier seed, so a plate continues
+ * across tile boundaries, row strips and wall bands with no seam.
+ */
+export function rockPlaneValue(px: number, py: number, seed: number): number {
+  const wx = px + 20 * (valueNoise(px / 79, py / 57, seed + 7) - 0.5);
+  const wy = py + 20 * (valueNoise(px / 67, py / 83, seed + 29) - 0.5);
+  return (
+    valueNoise(wx / 86, wy / 44, seed) * 0.5 +
+    valueNoise(wx / 33, wy / 22, seed + 61) * 0.32 +
+    valueNoise(wx / 17, wy / 15, seed + 137) * 0.18
+  );
+}
+
+/**
+ * Plane boundaries, calibrated for roughly a quarter / a half / a quarter of
+ * the rock: the mid plane carries the wall and the two ends are the accents,
+ * which is the balance a cut-paper stack wants. Pinned by the plane-area test
+ * in caveTiles.test.ts.
+ */
+export const PLANE_EDGES = [0.4, 0.6] as const;
+
+/** Plane index (0 lightest → 2 darkest) for a field value. */
+export function rockPlaneIndex(value: number): number {
+  return value < PLANE_EDGES[0] ? 0 : value < PLANE_EDGES[1] ? 1 : 2;
+}
+
+export const CAVE_ROCK_STYLES: Record<CaveArtId, CaveRockStyle> = {
+  classic: {
+    id: "classic",
+    label: CAVE_ART_LABELS.classic,
+    paint: (ink, x, y, rock, ctx) =>
+      rock ? ink.ramp[rockShadeIndex(x, y, ctx.shadeSeed)] : null,
+  },
+  papercut: {
+    id: "papercut",
+    label: CAVE_ART_LABELS.papercut,
+    paint: (ink, x, y, rock, ctx) =>
+      paintPaperRock(ink.paper, x, y, {
+        plane: rockPlaneIndex(rockPlaneValue(x, y, ctx.planeSeed)),
+        // The row above, at the global pixel the world actually has there:
+        // rows are addressed absolutely, so this never reads across a strip
+        // boundary — that is what would print a lit line at every row seam.
+        above: rockPlaneIndex(rockPlaneValue(x, y - 1, ctx.planeSeed)),
+        rock,
+        rockAt: ctx.rockAt,
+      }),
+  },
+};
+
 /**
  * Paint one row strip's rock at PIXEL resolution: every pixel whose layout
- * field clears GAP_LEVEL gets the coherent shade ramp, sampled at GLOBAL
+ * field clears GAP_LEVEL gets its direction's color, sampled at GLOBAL
  * pixel coords so the body continues seamlessly across tile boundaries,
  * row strips and the adaptive-width widening.
  *
@@ -332,25 +481,62 @@ export function rockShadeRamp(tint: string): string[] {
  * every rock mass a staircase of tile-sized steps ("regular blocks").
  * Returns the per-tile opaque-pixel counts so the caller can gate objects
  * (crystals, eggs) on there actually being rock under them.
+ *
+ * The silhouette is resolved ONCE into a small boolean window (two rows and
+ * two columns of slack) rather than being re-sampled per question: the
+ * paper-cut direction asks about neighbouring pixels (the lit cut edge) and
+ * up to four more about the cast shadow, and a noise sample per question per
+ * pixel is the kind of cost that shows up as a scroll hitch. The window is
+ * what makes `ctx.rockAt` an array read.
  */
 function drawRockStrip(
   grid: PixelGrid,
   rowStartY: number,
   tier: number,
-  seed: number,
-  ramp: string[],
+  style: CaveRockStyle,
+  ink: CaveRockInk,
   pathTiles: ReadonlySet<number>,
 ): number[] {
-  const counts = new Array(grid[0].length / CAVE_TILE_PX).fill(0);
+  const w = grid[0].length;
+  const counts = new Array(w / CAVE_TILE_PX).fill(0);
+  // Slack: 2px left/down for the shadow, 2px up for the lit edge's "the row
+  // above" read (and the direction's own above-plane read).
+  const maskW = w + PAPER_SHADOW_OFFSET;
+  const maskH = CAVE_TILE_PX + PAPER_SHADOW_OFFSET;
+  const maskTop = rowStartY - PAPER_SHADOW_OFFSET;
+  const mask = new Uint8Array(maskW * maskH);
+  for (let py = 0; py < maskH; py++) {
+    const gy = maskTop + py;
+    for (let px = 0; px < maskW; px++) {
+      // The mined shaft stays open — the layout field runs through it, but
+      // rock never does (the player digs this column), and neither does a
+      // cast shadow: the shaft is a hole, not a sheet.
+      if (pathTiles.has(Math.floor(px / CAVE_TILE_PX))) continue;
+      if (isRockPixel(px, gy, tier)) mask[py * maskW + px] = 1;
+    }
+  }
+  const ctx: CaveRockCtx = {
+    shadeSeed: SHADE_SEEDS[tier],
+    planeSeed: PLANE_SEEDS[tier],
+    rockAt: (px, gy) =>
+      px < 0 || px >= w || gy < maskTop || gy >= maskTop + maskH
+        ? false
+        : mask[(gy - maskTop) * maskW + px] === 1,
+  };
   for (let py = 0; py < CAVE_TILE_PX; py++) {
     const gy = rowStartY + py;
-    for (let px = 0; px < grid[0].length; px++) {
-      const tile = Math.floor(px / CAVE_TILE_PX);
-      // The mined shaft stays open — the layout field runs through it, but
-      // rock never does (the player digs this column).
-      if (pathTiles.has(tile) || !isRockPixel(px, gy, tier)) continue;
-      grid[py][px] = ramp[rockShadeIndex(px, gy, seed)];
-      counts[tile]++;
+    for (let px = 0; px < w; px++) {
+      const rock = ctx.rockAt(px, gy);
+      // The shaft is a hole, not a sheet: a path tile gets rubble (below)
+      // and nothing else — no rock, and no cast shadow either. A shadow
+      // thrown by the wall into the shaft would read as the shaft being
+      // narrower than it is, and the path-edge stripe already draws the
+      // separation there.
+      if (!rock && pathTiles.has(Math.floor(px / CAVE_TILE_PX))) continue;
+      const color = style.paint(ink, px, gy, rock, ctx);
+      if (color == null) continue;
+      grid[py][px] = color;
+      if (rock) counts[Math.floor(px / CAVE_TILE_PX)]++;
     }
   }
   return counts;
@@ -496,7 +682,7 @@ function drawRubble(
   grid: PixelGrid,
   x0: number,
   rng: () => number,
-  shades: [string, string, string],
+  shades: readonly [string, string, string],
 ): void {
   const [, base, dark] = shades;
   const chunks = 1 + Math.floor(rng() * 3);
@@ -588,13 +774,19 @@ function drawEgg(grid: PixelGrid, x0: number, kind: CaveEggKind): void {
  * mined path stays centered at any width. `row` is the ABSOLUTE cave-row
  * index (deeper = larger), so every row is its own unique texture and
  * adjacent rows continue one rock body vertically. Deterministic in
- * (tier, row, tint, widthPx).
+ * (tier, row, tint, widthPx, art).
+ *
+ * `art` defaults to the ACTIVE art pack's rock direction (caveArt.ts), which
+ * is what makes `setActiveArtPack("pixel")` bring the classic cave back with
+ * the classic characters; pass it explicitly to render either one (tests,
+ * the contact-sheet generator).
  */
 export function buildCaveRow(
   tier: number,
   row: number,
   tint: string,
   widthPx?: number,
+  art: CaveArtId = activeCaveArt(),
 ): PixelGrid {
   const t = Math.max(0, Math.min(tier, GEM_CHANCE.length - 1));
   const count =
@@ -605,8 +797,8 @@ export function buildCaveRow(
           Math.round(stripSizeForWidth(widthPx, CAVE_TILE_PX) / CAVE_TILE_PX),
         );
   const grid = createGrid(count * CAVE_TILE_PX, CAVE_TILE_PX);
-  const shades = rockShades(tint);
-  const ramp = rockShadeRamp(tint);
+  const style = CAVE_ROCK_STYLES[art] ?? CAVE_ROCK_STYLES.classic;
+  const ink = buildCaveRockInk(tint, style.id);
   const gem = gemColor(tint);
   const [pa, pb] = cavePathTiles(count);
   const egg = eggForStrip(t, row, count);
@@ -617,8 +809,8 @@ export function buildCaveRow(
     grid,
     row * CAVE_TILE_PX,
     t,
-    SHADE_SEEDS[t],
-    ramp,
+    style,
+    ink,
     new Set([pa, pb]),
   );
   /** A tile with real rock under it — objects never float in a gap. */
@@ -658,7 +850,7 @@ export function buildCaveRow(
       // stands on blocks instead of floating in an empty column.
       const seed = hashSeed(t * 7919 + row * 104729, 0x5eed + tile * 131);
       if (mulberry32(hashSeed(seed, 7))() < PATH_RUBBLE_CHANCE) {
-        drawRubble(grid, x0, mulberry32(hashSeed(seed, 8)), shades);
+        drawRubble(grid, x0, mulberry32(hashSeed(seed, 8)), ink.rubble);
       }
     }
     // Path wall edges: a dark 3px stripe on the inner side of the tiles
@@ -711,13 +903,19 @@ export function caveWallWidthPx(width: number): number {
  * vertical repeat). Both the rock field and the edge profile are sampled at
  * GLOBAL y = band * CAVE_WALL_TILE_H + py, so consecutive bands continue one
  * rock body and one edge line with no seam between them. Deterministic in
- * (side, tint, widthPx, band).
+ * (side, tint, widthPx, band, art).
+ *
+ * The wall is the nearest rock, so it gets the direction's planes and the
+ * cut edge keeps its dark accent in both: the cut faces the shaft (into the
+ * light well), so it is the frame of the diorama and reads best dark, and a
+ * cast shadow cannot be thrown into a hole that has to stay transparent.
  */
 export function buildCaveWall(
   side: "left" | "right",
   tint: string,
   widthPx: number,
   band = 0,
+  art: CaveArtId = activeCaveArt(),
 ): PixelGrid {
   const w = Math.max(CAVE_TILE_PX, Math.round(widthPx));
   const h = CAVE_WALL_TILE_H;
@@ -736,10 +934,22 @@ export function buildCaveWall(
   // and sampled at global y so consecutive bands continue it.
   // No per-strip fade: a fade would print a dark line at every band seam.
   const wallSeed = hashSeed(w * 7919 + (side === "left" ? 31 : 97), 0x5eed + 1);
-  const ramp = rockShadeRamp(tint);
+  const style = CAVE_ROCK_STYLES[art] ?? CAVE_ROCK_STYLES.classic;
+  const ink = buildCaveRockInk(tint, style.id);
+  // The wall is solid before the cut, so its silhouette reads as "always
+  // rock": the direction paints planes and lips, and the cut is applied
+  // below (which is also why no cut edge can be lit inside this loop).
+  const ctx: CaveRockCtx = {
+    shadeSeed: wallSeed,
+    planeSeed: wallSeed,
+    rockAt: () => true,
+  };
   for (let py = 0; py < h; py++) {
     for (let px = 0; px < w; px++) {
-      setPixel(grid, px, py, ramp[rockShadeIndex(px, bandY + py, wallSeed)]);
+      // The wall is solid here, so every direction returns a plane — the
+      // `?? edge` is only the type guard, never a color you can see.
+      const c = style.paint(ink, px, bandY + py, true, ctx);
+      setPixel(grid, px, py, c ?? edge);
     }
   }
   // A few ore flecks anywhere (the cut below may clip some — that reads
@@ -799,9 +1009,10 @@ const cache = new Map<string, string>();
 /**
  * Rolling-cache span for the wall bands: the wall layer shows ~4 bands per
  * screen, so a span of ~24 covers the window plus slack. Wall keys are
- * `wall|side|width|tint|band`; the band is after the last pipe, and ROW keys
- * are `<width>|<tint>|<tier>|<row>` — the two evictions share one Map but
- * each only touches its own prefix, so they can't delete each other's rows.
+ * `wall|side|width|tint|art|band`; the band is after the last pipe, and ROW
+ * keys are `<width>|<tint>|<tier>|<art>|<row>` — the two evictions share one
+ * Map but each only touches its own prefix, so they can't delete each other's
+ * rows.
  */
 const WALL_CACHE_SPAN = 24;
 /** Deepest absolute wall band requested so far (the wall descends monotonically). */
@@ -834,29 +1045,38 @@ export function clearCaveTileCache(): void {
  * evicted, so memory stays bounded while the window + far layer scroll.
  * A shaft-sinking reset (depth → 0) leaves the deep rows cached until the
  * new run descends past the span again — bounded, self-healing.
+ *
+ * `art` is in the key (before the row, which stays last for the rolling
+ * eviction), so a live pack swap can never serve the other direction's
+ * rock out of the cache.
  */
 export function caveRowUri(opts: {
   depth: number;
   tint: string;
   /** Container width in px; widens the strip adaptively (see buildCaveRow). */
   widthPx?: number;
+  /** Rock direction; defaults to the active art pack's (see caveArt.ts). */
+  art?: CaveArtId;
 }): string {
   const depth = Math.floor(opts.depth);
   const tier = caveTierForDepth(depth);
   const row = caveRowStartForDepth(depth);
   const width = opts.widthPx ?? 0;
-  const key = `${width}|${opts.tint}|${tier}|${row}`;
+  const art = opts.art ?? activeCaveArt();
+  const key = `${width}|${opts.tint}|${tier}|${art}|${row}`;
   let uri = cache.get(key);
   if (uri == null) {
-    uri = gridToPngDataUri(buildCaveRow(tier, row, opts.tint, opts.widthPx));
+    uri = gridToPngDataUri(
+      buildCaveRow(tier, row, opts.tint, opts.widthPx, art),
+    );
     if (row > rowHighWater) rowHighWater = row;
     cache.set(key, uri);
     const floor = rowHighWater - ROW_CACHE_SPAN;
     if (Number.isFinite(floor)) {
       for (const k of cache.keys()) {
         if (k.startsWith("wall|")) continue; // wall bands roll separately
-        // Keys are `${width}|${tint}|${tier}|${row}`; the row is the part
-        // after the last pipe (tint is a hex color, never contains '|').
+        // Keys are `${width}|${tint}|${tier}|${art}|${row}`; the row is the
+        // part after the last pipe (tint is a hex color, never has a '|').
         const lastPipe = k.lastIndexOf("|");
         const r = Number(k.slice(lastPipe + 1));
         if (Number.isFinite(r) && r < floor) cache.delete(k);
@@ -882,13 +1102,16 @@ export function caveWallUri(opts: {
   widthPx?: number;
   /** Absolute band index (floor of the wall's world px / CAVE_WALL_TILE_H). */
   band?: number;
+  /** Rock direction; defaults to the active art pack's (see caveArt.ts). */
+  art?: CaveArtId;
 }): string {
   const w = caveWallWidthPx(opts.widthPx ?? 0);
   const band = Math.floor(opts.band ?? 0);
-  const key = `wall|${opts.side}|${w}|${opts.tint}|${band}`;
+  const art = opts.art ?? activeCaveArt();
+  const key = `wall|${opts.side}|${w}|${opts.tint}|${art}|${band}`;
   let uri = cache.get(key);
   if (uri == null) {
-    uri = gridToPngDataUri(buildCaveWall(opts.side, opts.tint, w, band));
+    uri = gridToPngDataUri(buildCaveWall(opts.side, opts.tint, w, band, art));
     cache.set(key, uri);
     if (band > wallHighWater) wallHighWater = band;
     const floor = wallHighWater - WALL_CACHE_SPAN;

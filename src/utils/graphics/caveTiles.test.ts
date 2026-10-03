@@ -1,11 +1,13 @@
 import { DEPTH_TIERS } from "src/mines_of_doom/game";
 import {
+  buildCaveRockInk,
   buildCaveRow,
   buildCaveWall,
   CAVE_EGG_KINDS,
   CAVE_METERS_PER_ROW,
   CAVE_PATH_TILES,
   CAVE_PX_PER_METER,
+  CAVE_ROCK_STYLES,
   CAVE_WALL_TILE_H,
   CAVE_STRIPS_PER_TIER,
   CAVE_STRIP_WIDTH,
@@ -21,17 +23,28 @@ import {
   clearCaveTileCache,
   eggForStrip,
   gemColor,
+  isRockPixel,
   mixHex,
   pathEdgeColor,
   rockField,
+  rockPlaneIndex,
+  rockPlaneValue,
   rockShades,
+  rockShadeRamp,
   ROCK_CHANCE,
   valueNoise,
 } from "./caveTiles";
-import type { PixelGrid } from "./caveTiles";
+import type { CaveArtId, PixelGrid } from "./caveTiles";
+import { activeCaveArt, DEFAULT_ART_PACK_ID, setActiveArtPack } from "./artPack";
+import { paperRockInk, PAPER_SHADOW_OFFSET } from "./caveArt";
+import { hashSeed } from "./pixelArt";
 import { STRIP_MAX_BLOCK_PX } from "./pixelArt";
 
 const PREFIX = "data:image/png;base64,";
+
+// The rock direction follows the active art pack, so any test that swaps
+// the pack has to put it back (the shipped default).
+afterEach(() => setActiveArtPack(DEFAULT_ART_PACK_ID));
 
 describe("tier mapping", () => {
   test("CAVE_TIER_ATS mirrors DEPTH_TIERS in game.ts", () => {
@@ -154,10 +167,14 @@ describe("coherent rock field (value-noise background blocks)", () => {
     // block, so every 2×2 cell was a single color — a visible block grid
     // (the "patterns in blocks" complaint). Per-pixel sampling + dithering
     // leaves only a handful of uniform cells per tile by chance.
+    //
+    // Pinned on the CLASSIC direction only: flat regions are the whole point
+    // of the paper-cut sheets (their own no-lattice property is asserted in
+    // the rock-directions suite below).
     let uniform = 0;
     let cells = 0;
     for (let tier = 0; tier < 5; tier++) {
-      const grid = buildCaveRow(tier, tier % 4, "#7a6a8a");
+      const grid = buildCaveRow(tier, tier % 4, "#7a6a8a", undefined, "classic");
       for (let y = 0; y + 2 <= grid.length; y += 2) {
         for (let x = 0; x + 2 <= grid[0].length; x += 2) {
           const a = grid[y][x];
@@ -175,6 +192,307 @@ describe("coherent rock field (value-noise background blocks)", () => {
     }
     expect(cells).toBeGreaterThan(1000);
     expect(uniform / cells).toBeLessThan(0.25);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The rock directions (caveArt.ts). One geometry — the per-pixel silhouette
+// and the object layout, untouched — and two ways of marking it: the classic
+// dithered shade ramp, and the shipped paper-cut planes.
+// ---------------------------------------------------------------------------
+describe("rock directions", () => {
+  const TINT = "#7a6a8a";
+
+  /** Every color the rock body itself is painted in, per direction — the
+   *  style in isolation, with none of the objects (crystals, ore, eggs)
+   *  that a built strip composites on top of it. `open` asks for the gap
+   *  palette instead: rock on the left half of the window, air on the
+   *  right, so the cast shadow has something to fall on. */
+  const rockPalette = (
+    art: CaveArtId,
+    open = false,
+    n = 512,
+  ): Set<string> => {
+    const ink = buildCaveRockInk(TINT, art);
+    const ctx = {
+      shadeSeed: 0x5eed,
+      planeSeed: 0x9a9e,
+      rockAt: (x: number) => (open ? x < n / 2 : true),
+    };
+    const out = new Set<string>();
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const c = CAVE_ROCK_STYLES[art].paint(ink, x, y, !open, ctx);
+        if (c != null) out.add(c);
+      }
+    }
+    return out;
+  };
+
+  test("each direction paints only its own palette", () => {
+    // The classic rock is the 10-step ramp and nothing else. The paper-cut
+    // rock is three flat planes plus the lit cut core on the rock side and
+    // the cast shadow on the gap side — five colors, and none of the ramp.
+    const ramp = rockShadeRamp(TINT);
+    expect([...rockPalette("classic")].sort()).toEqual([...ramp].sort());
+    expect([...rockPalette("classic", true)]).toEqual([]);
+    const paper = paperRockInk(TINT);
+    expect([...rockPalette("papercut")].sort()).toEqual(
+      [...paper.planes, paper.core].sort(),
+    );
+    expect([...rockPalette("papercut", true)].sort()).toEqual(
+      [paper.shadow].sort(),
+    );
+    // The two directions are not the same art, and neither leaks the
+    // other's rock colors (the rule every other draft here follows).
+    for (const color of rockPalette("papercut")) {
+      expect(ramp).not.toContain(color);
+    }
+    expect(JSON.stringify(buildCaveRow(2, 3, TINT, undefined, "classic"))).not.toBe(
+      JSON.stringify(buildCaveRow(2, 3, TINT, undefined, "papercut")),
+    );
+  });
+
+  test("the paper-cut planes are all used, in the calibrated shares", () => {
+    // PLANE_EDGES is calibrated for roughly a quarter / a half / a quarter.
+    // Census the plane colors over a wide sample of rock pixels (the
+    // silhouette, not the whole grid) so the ratio is about the planes and
+    // not about how much of each strip happens to be open.
+    const paper = paperRockInk(TINT);
+    const plane = new Map<string, number>();
+    for (let tier = 0; tier < 5; tier++) {
+      const seed = hashSeed(tier * 7919, 0x9a9e);
+      for (let y = 0; y < 400; y++) {
+        for (let x = 0; x < 400; x += 2) {
+          if (!isRockPixel(x, y, tier)) continue;
+          const i = rockPlaneIndex(rockPlaneValue(x, y, seed));
+          plane.set(paper.planes[i], (plane.get(paper.planes[i]) ?? 0) + 1);
+        }
+      }
+    }
+    let total = 0;
+    const shares: number[] = [];
+    for (let i = 0; i < paper.planes.length; i++) {
+      const n = plane.get(paper.planes[i]) ?? 0;
+      total += n;
+      shares.push(n);
+    }
+    expect(total).toBeGreaterThan(1000);
+    // No dead plane, no plane that takes the wall over.
+    for (const n of shares) {
+      expect(n / total).toBeGreaterThan(0.1);
+      expect(n / total).toBeLessThan(0.6);
+    }
+    // The mid plane carries the wall: the darkest and lightest are accents.
+    expect(shares[1]).toBeGreaterThan(shares[0]);
+    expect(shares[1]).toBeGreaterThan(shares[2]);
+  });
+
+  test("papercut is flat, but its planes do NOT sit on a lattice", () => {
+    // The classic direction's job is to avoid flat cells; the paper-cut
+    // direction's job is to be flat. What it must NOT do is reproduce the
+    // block pattern the classic ramp was fixed for: a quantized field pins
+    // every cut edge to a pixel lattice, and THAT is what reads as a
+    // pattern. So assert both halves — genuinely flat, genuinely wandering.
+    let uniform = 0;
+    let cells = 0;
+    // Cut-edge positions by pixel parity: [odd, even]. A field quantized on
+    // a 2px lattice puts essentially every edge on one of the two.
+    const xParity = [0, 0];
+    const yParity = [0, 0];
+    for (let tier = 0; tier < 5; tier++) {
+      const grid = buildCaveRow(tier, tier % 4, TINT, undefined, "papercut");
+      for (let y = 0; y + 2 <= grid.length; y += 2) {
+        for (let x = 0; x + 2 <= grid[0].length; x += 2) {
+          const a = grid[y][x];
+          if (a == null) continue;
+          cells++;
+          if (
+            a === grid[y + 1][x] &&
+            a === grid[y][x + 1] &&
+            a === grid[y + 1][x + 1]
+          ) {
+            uniform++;
+          }
+        }
+      }
+      for (let y = 0; y < grid.length; y++) {
+        for (let x = 0; x < grid[0].length - 1; x++) {
+          if (grid[y][x] != null && grid[y][x] !== grid[y][x + 1]) {
+            xParity[x % 2]++;
+          }
+        }
+      }
+      for (let y = 0; y < grid.length - 1; y++) {
+        for (let x = 0; x < grid[0].length; x++) {
+          if (grid[y][x] != null && grid[y][x] !== grid[y + 1][x]) {
+            yParity[y % 2]++;
+          }
+        }
+      }
+      // Cut edges down one column, in the open rock of the strip.
+    }
+    // The sheets are big (that is the style), so the spacing between two cut
+    // edges is measured on the FIELD down a long column rather than inside a
+    // 24px strip, which is often entirely within one sheet: a metronome
+    // would still show up here, as a spread of ~0.
+    const gaps: number[] = [];
+    for (let tier = 0; tier < 5; tier++) {
+      const seed = hashSeed(tier * 7919, 0x9a9e);
+      for (const x of [24, 96, 168, 240, 312]) {
+        let last = -1;
+        for (let y = 0; y < 600; y++) {
+          const i = rockPlaneIndex(rockPlaneValue(x, y, seed));
+          if (last >= 0 && i !== last) gaps.push(y - last);
+          last = i;
+        }
+      }
+    }
+    expect(gaps.length).toBeGreaterThan(20);
+    // Flat: the sheets really are flat (that is the style).
+    expect(cells).toBeGreaterThan(1000);
+    expect(uniform / cells).toBeGreaterThan(0.5);
+    // Wandering: hundreds of cut edges, split roughly evenly across the two
+    // parities — a lattice would put them all on one.
+    const xEdges = xParity[0] + xParity[1];
+    const yEdges = yParity[0] + yParity[1];
+    expect(xEdges).toBeGreaterThan(200);
+    expect(yEdges).toBeGreaterThan(200);
+    for (const share of [xParity[0] / xEdges, xParity[1] / xEdges,
+      yParity[0] / yEdges, yParity[1] / yEdges]) {
+      expect(share).toBeGreaterThan(0.3);
+      expect(share).toBeLessThan(0.7);
+    }
+    // …and at no fixed pitch: real spread, not a metronome.
+    const mean = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+    const sd = Math.sqrt(
+      gaps.reduce((s, g) => s + (g - mean) ** 2, 0) / gaps.length,
+    );
+    expect(sd / mean).toBeGreaterThan(0.2);
+  });
+
+  test("the paper-cut sheets continue across row strips and tile boundaries", () => {
+    // The load-bearing cave property (see the classic banding test): a cut
+    // edge never lands on a strip seam, because the plane field is sampled
+    // at the global pixel the world has there. This is even sharper than the
+    // ramp's test — the planes are FLAT, so a reseed or a per-row decision
+    // would show up as a hard 100% mismatch here rather than a soft one.
+    for (const tier of [0, 2, 4]) {
+      let both = 0;
+      let same = 0;
+      for (let row = 0; row < 8; row++) {
+        const a = buildCaveRow(tier, row, TINT, undefined, "papercut");
+        const b = buildCaveRow(tier, row + 1, TINT, undefined, "papercut");
+        for (let x = 0; x < a[0].length; x++) {
+          const pa = a[CAVE_TILE_PX - 1][x];
+          const pb = b[0][x];
+          if (pa == null || pb == null) continue;
+          both++;
+          if (pa === pb) same++;
+        }
+      }
+      expect(both).toBeGreaterThan(400);
+      expect(same / both).toBeGreaterThan(0.9);
+    }
+  });
+
+  test("the lit cut edge and the cast shadow both appear, only where they should", () => {
+    // The two marks that make a sheet read as a sheet. The core is painted on
+    // a cut edge (the first row of rock against open air) and on a sheet's
+    // own lip (the row that tucks under a lighter sheet), so it is always
+    // rock — never a gap, never the shaft; the shadow is always a gap, and
+    // always within PAPER_SHADOW_OFFSET of the rock that threw it (light
+    // comes from the top-left, as in the character sheets).
+    const paper = paperRockInk(TINT);
+    let core = 0;
+    let coreOnACutEdge = 0;
+    let shadow = 0;
+    for (let tier = 0; tier < 5; tier++) {
+      for (let row = 0; row < 3; row++) {
+        const grid = buildCaveRow(tier, row * 5 + 2, TINT, undefined, "papercut");
+        for (let y = 0; y < CAVE_TILE_PX; y++) {
+          for (let x = 0; x < grid[0].length; x++) {
+            const c = grid[y][x];
+            if (c === paper.core) {
+              core++;
+              expect(c).not.toBe(paper.shadow);
+              const onCutEdge =
+                (y > 0 && grid[y - 1][x] == null) ||
+                (x > 0 && grid[y][x - 1] == null);
+              if (onCutEdge) coreOnACutEdge++;
+            } else if (c === paper.shadow) {
+              shadow++;
+              // A shadow in the first two rows was thrown by rock in the
+              // strip ABOVE (the offset reads the global pixel, which is the
+              // whole point), so this grid has nothing to show for it.
+              if (y < PAPER_SHADOW_OFFSET) continue;
+              let near = false;
+              for (let dy = 1; dy <= PAPER_SHADOW_OFFSET && !near; dy++) {
+                for (let dx = 1; dx <= PAPER_SHADOW_OFFSET && !near; dx++) {
+                  const sx = x - dx;
+                  const sy = y - dy;
+                  if (sx < 0) continue;
+                  const p = grid[sy][sx];
+                  if (p != null && p !== paper.shadow) near = true;
+                }
+              }
+              expect(near).toBe(true);
+            }
+          }
+        }
+      }
+    }
+    // Both marks really are on screen (a renderer that quietly painted
+    // neither would still pass the property assertions above).
+    expect(core).toBeGreaterThan(500);
+    expect(coreOnACutEdge).toBeGreaterThan(200);
+    expect(shadow).toBeGreaterThan(200);
+  });
+
+  test("the direction follows the art pack, and the caches stay apart", () => {
+    // One setActiveArtPack brings back the classic cave with the classic
+    // characters; and because the direction is in the cache key, a live swap
+    // can never serve the other one's rock.
+    setActiveArtPack("pixel");
+    expect(activeCaveArt()).toBe("classic");
+    const classicRow = buildCaveRow(2, 5, TINT);
+    const classicUri = caveRowUri({ depth: 20, tint: TINT });
+    const classicWall = buildCaveWall("left", TINT, 48, 2);
+    setActiveArtPack("papercut");
+    expect(activeCaveArt()).toBe("papercut");
+    expect(JSON.stringify(buildCaveRow(2, 5, TINT))).toBe(
+      JSON.stringify(buildCaveRow(2, 5, TINT, undefined, "papercut")),
+    );
+    expect(JSON.stringify(buildCaveWall("left", TINT, 48, 2))).toBe(
+      JSON.stringify(buildCaveWall("left", TINT, 48, 2, "papercut")),
+    );
+    // Different art → different rock, in both cache layers.
+    expect(caveRowUri({ depth: 20, tint: TINT })).not.toBe(classicUri);
+    expect(
+      caveWallUri({ tint: TINT, side: "left", widthPx: 48, band: 2 }),
+    ).not.toBe(
+      caveWallUri({ tint: TINT, side: "left", widthPx: 48, band: 2, art: "classic" }),
+    );
+    // …and the explicit art argument wins over the active pack, so the
+    // contact sheet can render either one.
+    expect(caveRowUri({ depth: 20, tint: TINT, art: "classic" })).toBe(
+      classicUri,
+    );
+    expect(JSON.stringify(buildCaveRow(2, 5, TINT))).not.toBe(
+      JSON.stringify(classicRow),
+    );
+    expect(JSON.stringify(buildCaveWall("left", TINT, 48, 2))).not.toBe(
+      JSON.stringify(classicWall),
+    );
+  });
+
+  test("an unknown direction falls back to the classic rock", () => {
+    // The packs are the only source of a direction, so this is a guard, not
+    // a feature: it keeps a bad id from painting `undefined` into a strip.
+    const bogus = buildCaveRow(1, 0, TINT, undefined, "nope" as CaveArtId);
+    expect(JSON.stringify(bogus)).toBe(
+      JSON.stringify(buildCaveRow(1, 0, TINT, undefined, "classic")),
+    );
   });
 });
 

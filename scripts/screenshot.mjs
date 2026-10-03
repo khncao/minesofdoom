@@ -18,10 +18,14 @@
  */
 import { existsSync, mkdirSync } from "node:fs";
 import { spawn } from "node:child_process";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
-const ROOT = resolve(new URL("..", import.meta.url).pathname);
+// `fileURLToPath`, not `new URL("..", …).pathname`: on Windows the URL
+// pathname is `/C:/projects/…`, and resolving that prepends the drive a
+// second time (`C:\C:\projects\…`), so the script could never find dist/.
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const DIST = join(ROOT, "dist");
 const OUT = join(ROOT, "screenshots");
 const PORT = Number(process.env.SCREENSHOT_PORT || 4411);

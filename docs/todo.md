@@ -106,13 +106,26 @@ Direction decided + shipped behind the art-pack seam
 (`src/utils/graphics/artPack.ts`; see docs/art-directions.md). Left open,
 in rough priority order:
 
-- [ ] **cave art in the new style.** `caveTiles.ts` is a separate 336×24
-      strip pipeline and still uses the classic rock art. A paper-cut cave
-      (flat layered rock planes per tier, the same value-plane treatment as
-      the characters) is its own draft, not a renderer change.
+- [x] **cave art in the new style.** DONE 2026-10-03: the paper-cut cave
+      ships — see **docs/cave-art.md**. `caveTiles.ts` (the 336×24 strip
+      pipeline) keeps its per-pixel silhouette and its absolute row / band
+      addressing EXACTLY as they were; only the rock's marking changed.
+      New `src/utils/graphics/caveArt.ts` holds the direction (the paper
+      stock + the renderer), the paper-cut plane field lives in
+      `caveTiles.ts` next to the other fields (`rockPlaneValue` /
+      `rockPlaneIndex`, `PLANE_EDGES`), and each art pack now names its
+      rock via `ArtPack.caveArt`, so `setActiveArtPack("pixel")` brings
+      back the classic dithered ramp with the classic characters. The read
+      is three flat planes per tier, a lit paper core on every cut edge
+      (the rock/gap contour — the one mark a cave needs that a character
+      never does) and the silhouette's 2px cast shadow down-right. The
+      gems / ore / eggs / rubble stay the classic flat objects on purpose.
+      Contact sheet: `node scripts/generate-cave-art-samples.mjs`.
 - [ ] **paper-cut debris shard.** The papercut pack delegates the 12px
       debris particles to the classic shards (a 32px rock crushed into 12px
-      is mush). A small paper-cut shard subject would close the pack.
+      is mush). A small paper-cut shard subject would close the pack. NOTE:
+      now doubly blocked — it is a paper-cut SUBJECT at 12px, so it wants a
+      purpose-built shape, not the direction dropped into the pixel shard.
 - [ ] **custom-skin samples in the new style.** The custom-skin slot and
       its baked 16×16 sample sprites (`skinSamples.ts`) are still classic
       art next to paper-cut bodies; the upload path itself is untouched

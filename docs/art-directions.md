@@ -74,10 +74,18 @@ image. Consequences worth knowing:
 - **The tool is not baked in.** `shapeForLook` passes `tool: false`, because
   `Miner` draws the pickaxe as its own rotating sprite — a baked-in one would
   double up under the swing. The contact sheets keep the tool (portraits).
-- **What did NOT move.** The cave (`caveTiles.ts`) is its own strip pipeline
-  and still uses the classic rock art; debris shards stay 16×16 (a 32px rock
-  crushed into a 12px particle is mush); the custom-skin slot and its samples
-  are still the 16×16 player-upload pipeline.
+- **What did NOT move.** The gems / ore veins / easter eggs / rubble stay the
+  classic flat pixel objects (they are already flat and they read on paper);
+  debris shards stay 16×16 (a 32px rock crushed into a 12px particle is
+  mush); the custom-skin slot and its samples are still the 16×16
+  player-upload pipeline. The **cave DID move** — it came in last, as its own
+  strip-pipeline draft: [cave-art.md](cave-art.md).
+- **The cave came in through the seam too.** The rock is a *direction*, not a
+  builder: a pack names its rock with `ArtPack.caveArt`, the strip pipeline
+  (`caveTiles.ts`) asks for a color per pixel, and the direction itself is
+  [`caveArt.ts`](../src/utils/graphics/caveArt.ts). So one
+  `setActiveArtPack("pixel")` restores the classic dithered rock *and* the
+  classic characters, and the direction is in both cache keys.
 - **Sizes are unchanged.** The 32px grid renders *sharper* at the same
   footprint (44px player / 24px roster); nothing is resized.
 
@@ -208,14 +216,17 @@ new geometry: a new skin is a `MinerLook` + a `SkinShape`, no drawing code.
 
 ## Deliberately out of scope
 
-- **The cave.** `caveTiles.ts` has its own row pipeline (336×24 strips, its
-  own rock-noise work). These directions cover characters and cosmetics only
-  — same boundary the anime draft drew. A cave direction is its own draft.
+- **The cave — DONE, 2026-10-03.** It was on this list as "a cave direction is
+  its own draft" (below); it shipped as one: see [cave-art.md](cave-art.md)
+  for the paper-cut rock and its own contact sheet.
 - **Per-look headwear.** DONE for papercut — the shared geometry now takes a
   `SkinShape` (hat / hair / outfit / beard / critter), see the skin line above.
   The anime draft's own `hairStyle` remains the older, narrower version.
 - **Critters.** Same: papercut has a `critter` form (ears, muzzle, vest,
   tail). The other four directions draw the human body only.
+- **The mine's contents.** The crystals, ore veins and easter eggs in the cave
+  strips are still the classic hand-authored pixel objects. They are flat, and
+  flat is what paper is — re-cutting them is a job nobody has asked for.
 
 ## If a direction is picked — adoption notes
 

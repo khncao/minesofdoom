@@ -41,6 +41,7 @@ Use **pnpm** (not npm) — see `pnpm-lock.yaml` and `.npmrc`.
 - [docs/art-directions.md](docs/art-directions.md) — five art directions (papercut picked) + the papercut skin line (contact sheets)
 - [docs/art-detail.md](docs/art-detail.md) — detail pass drafts (more detailed generated pixel art)
 - [docs/art-anime.md](docs/art-anime.md) — high-resolution anime chibi character drafts (contact sheet)
+- [docs/cave-art.md](docs/cave-art.md) — the paper-cut cave: the rock's art direction, how it hangs off the art-pack seam, and what stayed classic (contact sheets)
 - [docs/crew-characters.md](docs/crew-characters.md) — every purchasable miner is a named character: the ordinary hires, the fast crew and the legendary line, each dressed to its tier (contact sheets)
 - [docs/skin-line.md](docs/skin-line.md) — the skin line: twelve named characters for the player's own slot, each with its own colorway and silhouette (contact sheets)
 - [docs/tool-line.md](docs/tool-line.md) — the pickaxe line: eight distinct tools, each with its own shape, swing feel and strike sound (contact sheets)

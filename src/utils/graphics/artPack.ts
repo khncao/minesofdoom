@@ -21,10 +21,14 @@
  *             so every purchasable miner is a character with a face, a mark
  *             and an aura instead of a recolour of the player.
  *
+ * A pack also names its ROCK DIRECTION (`caveArt`): the cave keeps its own
+ * strip pipeline (caveTiles.ts — 336×24 row strips, addressable wall bands,
+ * one shared silhouette), and the pack only says which way that rock is cut.
+ * So one `setActiveArtPack("pixel")` brings back the classic cave with the
+ * classic characters, which is the whole promise of the seam.
+ *
  * Packs are pure: builders take data in and return a cached PNG data URI,
- * so nothing above this layer knows (or cares) how a sprite was made. The
- * cave (`caveTiles.ts`) is deliberately NOT part of the seam — it is a
- * separate strip pipeline with its own rock work.
+ * so nothing above this layer knows (or cares) how a sprite was made.
  */
 import {
   debrisSpriteUri as pixelDebrisSpriteUri,
@@ -47,6 +51,7 @@ import {
   crewCharById,
   crewLookFor,
 } from "./crewChars";
+import type { CaveArtId } from "./caveArt";
 import type { SkinShape } from "./characterArt";
 import type { MinerLook, PickaxeThemeDef, PixelGrid } from "./pixelArt";
 import type { SkinCosmetic as SkinDef } from "../../mines_of_doom/cosmetics";
@@ -79,6 +84,12 @@ export interface ArtPack {
   label: string;
   /** Grid size the pack builds its sprites at (16 classic / 32 papercut). */
   gridSize: number;
+  /**
+   * How this pack cuts the CAVE's rock (caveArt.ts). The cave is its own
+   * strip pipeline, so this is a style name and not a builder: the
+   * pipeline asks the active pack's direction for a color per pixel.
+   */
+  caveArt: CaveArtId;
   /**
    * `opts.crewId` asks for a CREW CHARACTER by id (every purchasable miner
    * type has one — see crewChars.ts). A pack that has no cast ignores the id
@@ -136,6 +147,7 @@ const papercutPack: ArtPack = {
  id: "papercut",
  label: "Paper cut",
  gridSize: 32,
+ caveArt: "papercut",
  minerSprite: (look, opts) => {
   const char =
    opts?.crewId == null ? undefined : crewCharById(opts.crewId);
@@ -164,6 +176,7 @@ const pixelPack: ArtPack = {
  id: "pixel",
  label: "Classic pixels",
  gridSize: 16,
+ caveArt: "classic",
  // No cast: a crew row falls back to the classic miner.
  minerSprite: (look) => pixelMinerSpriteUri(look),
  // No tool axes in the classic art: every tool is the crescent colorway.
@@ -195,6 +208,16 @@ export function activeArtPack(): ArtPack {
 
 export function activeArtPackId(): ArtPackId {
  return activeId;
+}
+
+/**
+ * The rock direction the active pack cuts the cave in — what
+ * `buildCaveRow` / `buildCaveWall` default to. The one place the cave
+ * pipeline reads the seam: it imports this, never a pack, so the
+ * dependency runs one way (artPack ⇸ caveArt, caveTiles ⇸ artPack).
+ */
+export function activeCaveArt(): CaveArtId {
+ return ART_PACKS[activeId].caveArt;
 }
 
 /**

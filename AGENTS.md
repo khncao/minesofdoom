@@ -109,13 +109,18 @@ and the old art is still there. Under the seam:
   shape per character, drawn by `artPack.skinSpriteUri`, sold as shop cards
   and gated on `SaveData.selectedSkin` (saveVersion 14). It is GEM-ONLY until
   the store SKUs exist; see `docs/skin-line.md` and the note in `iaps.ts`.
-- `caveTiles.ts` — the cave background, deliberately OUTSIDE the pack seam (it is
-  its own strip pipeline, and a paper-cut cave is still an open todo item). Its
-  rock/gap silhouette and rock body are sampled at GLOBAL pixels through
-  domain-warped value noise — per pixel, not per 24px tile — and the foreground
-  walls are addressed by absolute band like the rows. Both are load-bearing for
-  "no visible patterns": don't reintroduce a per-tile or per-row decision, and
-  don't give the wall a single repeating strip.
+- `caveTiles.ts` — the cave background: a strip pipeline (336×24 row strips
+  plus addressable foreground wall bands), with the rock/gap silhouette and
+  rock body sampled at GLOBAL pixels through domain-warped value noise — per
+  pixel, not per 24px tile — and the foreground walls addressed by absolute
+  band like the rows. Both are load-bearing for "no visible patterns": don't
+  reintroduce a per-tile or per-row decision, and don't give the wall a single
+  repeating strip. The ROCK is the one part a direction changes, and it goes
+  through the seam as a style name: `CAVE_ROCK_STYLES[art]` (classic = the
+  10-step dithered ramp; papercut = `caveArt.paintPaperRock`, whose plane
+  field is `rockPlaneValue` / `rockPlaneIndex` here). `buildCaveRow` /
+  `buildCaveWall` default to `activeCaveArt()`, and the direction is in both
+  cache keys. See docs/cave-art.md.
 - `crewChars.ts` — EVERY purchasable miner is a named character, in three
   lines: `normal` (4 names, faces only, no aura — and `crewLookFor` lets an
   assigned outfit replace their clothes while they keep their own face),
