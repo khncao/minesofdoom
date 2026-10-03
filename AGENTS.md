@@ -104,11 +104,20 @@ and the old art is still there. Under the seam:
   art-direction renderers. The PICKAXE line has a shape axis too:
   `PickaxeCosmetic.tool` picks one of eight geometries (`characterArt.TOOLS`
   / `pickaxeLabels(tool)`) and the sprite cache is keyed on theme AND tool —
-  don't collapse the tools back into one crescent. The SKIN line (the player's own slot) is the
-  `SKINS` catalog in `mines_of_doom/cosmetics.ts` — a fixed look + a fixed
-  shape per character, drawn by `artPack.skinSpriteUri`, sold as shop cards
-  and gated on `SaveData.selectedSkin` (saveVersion 14). It is GEM-ONLY until
-  the store SKUs exist; see `docs/skin-line.md` and the note in `iaps.ts`.
+  don't collapse the tools back into one crescent. The SKIN line (the player's
+  own slot) is the `SKINS` catalog in `mines_of_doom/cosmetics.ts` — a
+  character is `MinerLook` (colorway) + `SkinShape` (silhouette: form /
+  hatStyle / hair / build / outfit / gown / pretty / cute / beard / prop) —
+  sold as shop cards and gated on `SaveData.selectedSkin` (saveVersion 14). It
+  is GEM-ONLY until the store SKUs exist; see `docs/skin-line.md` and the note
+  in `iaps.ts`. **A paid character is a CHARACTER**: the line's own test pins
+  that no two skins share a drawn outline and none is drawn as the default
+  miner, so a new skin needs a new SILHOUETTE, not a new palette. Two
+  geometry rules worth knowing: `pretty: true` is the one-word "heroine"
+  preset (slim build + long flicked lashes + brows + heavier blush), and
+  authored hair is drawn even under a hat (a beanie no longer eats it) while
+  an unauthored shape gets the default field (so the plain miner never grows
+  a mane).
 - `caveTiles.ts` — the cave background: a strip pipeline (336×24 row strips
   plus addressable foreground wall bands), with the rock/gap silhouette and
   rock body sampled at GLOBAL pixels through domain-warped value noise — per

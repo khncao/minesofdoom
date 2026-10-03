@@ -118,21 +118,29 @@ describe("the line", () => {
       .toBeGreaterThanOrEqual(4);
   });
 
-  it("splits into a crew half and a cute/pretty half", () => {
+  it("splits into a crew half and a pretty half", () => {
     const groups = new Set(SKINS.map(skinGroup));
     expect(groups).toEqual(new Set(["crew", "pretty"]));
     const pretty = SKINS.filter((s) => skinGroup(s) === "pretty");
     const crew = SKINS.filter((s) => skinGroup(s) === "crew");
     expect(pretty.length).toBeGreaterThanOrEqual(4);
     expect(crew.length).toBeGreaterThanOrEqual(3);
-    // The cute half is where the dresses and the big eyes live.
+    // The pretty half is the one that reads as a heroine: a gown, or the
+    // pretty / cute face. Not the dress and not the build — Deep Survey is a
+    // wiry surveyor in trousers and he is crew, not a heroine.
     for (const skin of pretty) {
-      expect(skin.shape.outfit === "dress" || skin.shape.cute === true).toBe(true);
+      const s = skin.shape;
+      expect(s.gown === true || s.pretty === true || s.cute === true).toBe(
+        true,
+      );
     }
     // The crew half keeps the plain face and the trousers.
     for (const skin of crew) {
-      expect(skin.shape.cute ?? false).toBe(false);
-      expect(skin.shape.outfit ?? "trousers").toBe("trousers");
+      const s = skin.shape;
+      expect(s.cute ?? false).toBe(false);
+      expect(s.pretty ?? false).toBe(false);
+      expect(s.gown ?? false).toBe(false);
+      expect(s.outfit ?? "trousers").toBe("trousers");
     }
   });
 
@@ -207,5 +215,88 @@ describe("a skin's sprite", () => {
       return n;
     };
     expect(hem(skinGrid(pretty))).toBeGreaterThan(hem(skinGrid(crew)));
+  });
+
+  // --- the rule the line is built on: a paid character is a CHARACTER -----
+  // These three are the regression for the line's original flaw — six pretty
+  // skins that were one silhouette in six palettes, so the shop sold
+  // recolors. They are asserted on the LABEL MAP (the drawn geometry, before
+  // any color), because a silhouette is not a color question.
+  describe("every skin is its own character", () => {
+    /** The drawn shape, one char per pixel, materials collapsed. */
+    const outline = (shape: Parameters<typeof minerLabels>[0]): string =>
+      minerLabels(shape)
+        .map((row) => row.map((c) => (c == null ? "." : c[0])).join(""))
+        .join("\n");
+
+    it("gives no two skins the same silhouette", () => {
+      const byShape = new Map<string, string[]>();
+      for (const skin of SKINS) {
+        const key = outline({ ...skin.shape, tool: false });
+        byShape.set(key, [...(byShape.get(key) ?? []), skin.id]);
+      }
+      // A copy-paste silhouette is the thing this replaces; the failure
+      // names the skins that collided.
+      expect([...byShape.values()].filter((ids) => ids.length > 1)).toEqual([]);
+      expect(byShape.size).toBe(SKINS.length);
+    });
+
+    it("draws no skin as the default miner", () => {
+      // The player's default look is the plain hard-hat miner the direction
+      // sheets render: every paid skin must be a DIFFERENT character from
+      // it, not the same body in a nicer palette.
+      const plain = outline({ tool: false });
+      const sameAsDefault = SKINS.filter(
+        (skin) => outline({ ...skin.shape, tool: false }) === plain,
+      ).map((skin) => skin.id);
+      expect(sameAsDefault).toEqual([]);
+    });
+
+    it("has exactly one damsel, and she reads as one", () => {
+      const gowns = SKINS.filter((s) => s.shape.gown === true);
+      expect(gowns).toHaveLength(1);
+      const damsel = gowns[0];
+      // The full pretty treatment on top of the gown.
+      expect(damsel.shape.pretty).toBe(true);
+      expect(damsel.shape.prop).toBe("basket");
+      expect(skinGroup(damsel)).toBe("pretty");
+
+      const labels = minerLabels({ ...damsel.shape, tool: false });
+      const sprites = labels.map((row) => [...row]);
+      // A gown reaches the floor and shows no boots: the one read that
+      // separates her from a crew member at a glance.
+      const used = new Set(sprites.flat().filter((m) => m != null));
+      expect(used.has("boots")).toBe(false);
+      let hem = 0;
+      for (let x = 0; x < GRID; x++) {
+        if (sprites[30][x] === "shirt" || sprites[30][x] === "belt") hem++;
+      }
+      // …and that hem is the widest thing on her, at the floor.
+      let widest = 0;
+      for (let y = 18; y < GRID; y++) {
+        let n = 0;
+        for (let x = 0; x < GRID; x++) if (sprites[y][x] != null) n++;
+        widest = Math.max(widest, n);
+      }
+      expect(hem).toBeGreaterThan(14);
+      expect(hem).toBeGreaterThanOrEqual(widest - 2);
+
+      // And she is slim, against a sturdy crew member's shoulders. Row 19 is
+      // the read, counted by CLOTH material only: hair falls past the arms on
+      // both sides and would flatten the comparison.
+      const bodice = (shape: Parameters<typeof minerLabels>[0]): number => {
+        const g = minerLabels(shape);
+        let n = 0;
+        for (let x = 0; x < GRID; x++) {
+          const m = g[19][x];
+          if (m === "shirt" || m === "belt") n++;
+        }
+        return n;
+      };
+      const sturdy = SKINS.find((s) => s.shape.build === "sturdy")!;
+      expect(bodice({ ...damsel.shape, tool: false })).toBeLessThan(
+        bodice({ ...sturdy.shape, tool: false }),
+      );
+    });
   });
 });

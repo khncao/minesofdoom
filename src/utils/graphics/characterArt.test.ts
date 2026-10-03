@@ -86,6 +86,13 @@ function labelsUsed(grid: LabelGrid): Set<MaterialId> {
   return out;
 }
 
+/** The drawn shape as one string: what a silhouette IS, before any color. */
+function silhouetteKey(grid: LabelGrid): string {
+  return grid
+    .map((row) => row.map((c) => (c == null ? "." : c[0])).join(""))
+    .join("\n");
+}
+
 describe("subject geometry", () => {
   it("is 32×32 for every subject", () => {
     for (const subject of SUBJECT_IDS) {
@@ -133,8 +140,6 @@ describe("subject geometry", () => {
 
   it("draws a different silhouette per shape (a skin line is not one recolor)", () => {
     const seen = new Set<string>();
-    const silhouette = (g: LabelGrid): string =>
-      g.map((row) => row.map((c) => (c == null ? "." : c[0])).join("")).join("\n");
     const variants: SkinShape[] = [
       {},
       { beard: true },
@@ -146,14 +151,153 @@ describe("subject geometry", () => {
       { hatStyle: "longhair", hair: "ponytail" },
       { hatStyle: "longhair", hair: "twin" },
       { hatStyle: "longhair", hair: "bun" },
+      { hatStyle: "longhair", hair: "braid" },
+      { hatStyle: "longhair", hair: "waves" },
       { hatStyle: "longhair", outfit: "dress" },
+      { hatStyle: "longhair", build: "slim", pretty: true },
+      { hatStyle: "longhair", build: "slim", pretty: true, gown: true },
+      {
+        hatStyle: "longhair",
+        build: "slim",
+        pretty: true,
+        gown: true,
+        prop: "basket",
+      },
+      { prop: "satchel" },
       { form: "critter", hatStyle: "beanie" },
     ];
     for (const shape of variants) {
-      const key = silhouette(minerLabels(shape));
+      const key = silhouetteKey(minerLabels(shape));
       expect(seen.has(key)).toBe(false);
       seen.add(key);
     }
+  });
+
+  describe("the pretty axes", () => {
+    /** Non-null pixels on one row. */
+    const rowWidth = (g: LabelGrid, y: number): number =>
+      g[y].filter((c) => c != null).length;
+    /** Pixels of one material on one row. */
+    const rowCount = (g: LabelGrid, y: number, m: string): number =>
+      g[y].filter((c) => c === m).length;
+
+    it("narrowed the build by a real step, not a rounding wobble", () => {
+      // The whole torso block (rows 18-24), counted by cloth: a single row
+      // is a bad ruler here, because the suspender straps cover a bigger
+      // share of a narrow chest than of a broad one.
+      const torso = (shape: Parameters<typeof minerLabels>[0]): number => {
+        const g = minerLabels(shape);
+        let n = 0;
+        for (let y = 18; y <= 24; y++) n += rowCount(g, y, "shirt");
+        return n;
+      };
+      expect(torso({ build: "slim" })).toBeLessThan(torso({ build: "sturdy" }));
+      // `pretty` is the catalog's one-word version of the same thing.
+      expect(torso({ pretty: true })).toBe(torso({ build: "slim" }));
+    });
+
+    it("gives the gown a hem to the floor and no boots", () => {
+      const gown = minerLabels({ gown: true });
+      const dress = minerLabels({ outfit: "dress" });
+      // A gown is the only outfit that hides the feet…
+      const used = new Set(
+        gown.flat().filter((m): m is NonNullable<typeof m> => m != null),
+      );
+      expect(used.has("boots")).toBe(false);
+      expect(
+        new Set(
+          dress
+            .flat()
+            .filter((m): m is NonNullable<typeof m> => m != null),
+        ).has("boots"),
+      ).toBe(true);
+      // …and its cloth is WIDEST at the floor — the flare, measured on the
+      // cloth alone so the arms and the hair can't flatter it.
+      const cloth = (y: number): number =>
+        rowCount(gown, y, "shirt") + rowCount(gown, y, "belt");
+      expect(cloth(30)).toBeGreaterThan(cloth(24));
+      expect(cloth(30)).toBeGreaterThan(14);
+      // The hem still leaves the grid's bottom margin clear.
+      expect(gown[DIRECTION_GRID_SIZE - 1].every((c) => c == null)).toBe(true);
+    });
+
+    it("bare shoulders read on the gown", () => {
+      // The decolletage: skin where a work shirt would be. Compared against
+      // the plain miner, whose only skin down there is the head's edge.
+      expect(rowCount(minerLabels({ gown: true }), 19, "skin")).toBeGreaterThan(
+        rowCount(minerLabels({}), 19, "skin"),
+      );
+    });
+
+    it("the pretty face has longer, flicked lashes and brows than the cute one", () => {
+      // A bare head: a helmet's brim would put its own pixels where the
+      // brows go, and the test would be measuring the hat.
+      const cute = minerLabels({ cute: true, hatStyle: "longhair" });
+      const pretty = minerLabels({ pretty: true, hatStyle: "longhair" });
+      // The flick is one specific pixel: the lash runs up a row past the
+      // outer corner of the eye, over the fringe. The cute lash stops at the
+      // eye's own line.
+      expect(cute[13][9]).toBe("eye");
+      expect(cute[12][9]).not.toBe("eye");
+      expect(pretty[13][9]).toBe("eye");
+      expect(pretty[12][9]).toBe("eye");
+      // Brows are new material at y=12, above every eye.
+      expect(rowCount(pretty, 12, "eye")).toBeGreaterThan(
+        rowCount(cute, 12, "eye"),
+      );
+      // And more blush, so the face reads at 32px and at the 24px crew size.
+      // Counted over both rows: the pretty blush is 2×2 and the cute one a
+      // 2×1 hint (and the falling hair clips one pixel of the left cheek).
+      const blush = (g: LabelGrid): number => {
+        let n = 0;
+        for (const y of [16, 17]) {
+          n += g[y].filter((c, x) => c === "mouth" && (x < 11 || x > 16)).length;
+        }
+        return n;
+      };
+      expect(blush(pretty)).toBeGreaterThan(blush(cute));
+      expect(blush(cute)).toBeGreaterThan(0);
+    });
+
+    it("hangs the prop off the hip, not across the chest", () => {
+      for (const prop of ["basket", "satchel"] as const) {
+        // Compared against the SAME character without the prop: `belt` is
+        // also the suspender and waist material, so an absolute "no belt up
+        // here" would be measuring the trousers.
+        const withProp = minerLabels({ prop, hatStyle: "longhair" });
+        const without = minerLabels({ hatStyle: "longhair" });
+        const belt = (g: LabelGrid, rows: number[]): number =>
+          rows.reduce((s, y) => s + rowCount(g, y, "belt"), 0);
+        const chest = [16, 17, 18, 19];
+        const hip = [23, 24, 25, 26, 27, 28, 29, 30];
+        expect(belt(withProp, chest)).toBe(belt(without, chest));
+        expect(belt(withProp, hip)).toBeGreaterThan(belt(without, hip));
+        // The basket carries a lit lamp. (A helmet has one too, so the
+        // comparison is against the same character without the prop.)
+        const lamps = (shape: SkinShape): number =>
+          minerLabels(shape).flat().filter((c) => c === "lamp").length;
+        expect(lamps({ prop: "basket", hatStyle: "longhair" })).toBeGreaterThan(
+          lamps({ hatStyle: "longhair" }),
+        );
+      }
+    });
+
+    it("plaited and waved hair are not long hair with a kink in it", () => {
+      const braid = minerLabels({ hatStyle: "longhair", hair: "braid" });
+      const waves = minerLabels({ hatStyle: "longhair", hair: "waves" });
+      const long = minerLabels({ hatStyle: "longhair", hair: "long" });
+      // Both hang past the waist; neither is the plain fall.
+      expect(rowWidth(braid, 25)).toBeGreaterThan(0);
+      expect(rowWidth(waves, 24)).toBeGreaterThan(0);
+      expect(silhouetteKey(braid)).not.toBe(silhouetteKey(long));
+      expect(silhouetteKey(waves)).not.toBe(silhouetteKey(long));
+      // The braid is on ONE side (asymmetric), the waves are not a mirror.
+      const hairOn = (g: LabelGrid, y: number, xs: number[]): number =>
+        xs.filter((x) => g[y][x] === "hat").length;
+      expect(hairOn(braid, 20, [0, 1, 2, 3, 4, 5, 6, 7])).toBeGreaterThan(
+        hairOn(braid, 20, [24, 25, 26, 27, 28, 29, 30, 31]),
+      );
+    });
   });
 
   it("gives the cute face bigger eyes and blush than the plain face", () => {

@@ -137,6 +137,18 @@ in rough priority order:
       are sold in the stores too (prices synced 2026-09-14: 42/42 in both
       Stripe accounts, 43/43 Play products). Per-crew skin assignment was
       deliberately NOT done — a skin is the player's own slot.
+- [x] **every skin a distinct CHARACTER, not a recolor** (2026-10-03).
+      The pretty half had collapsed into six recolors of one silhouette
+      (Rose Lantern and Ember Sunrise shared it outright). New silhouette
+      axes in `characterArt.ts` — `build` (sturdy/slim), `gown`, `pretty`
+      (slim + flicked lashes + brows + heavier blush), `prop`
+      (basket/satchel), plus `braid`/`waves` hair and hair that finally
+      draws UNDER a hat (Sky Bob's bob was dead art) — and the whole cast
+      re-authored so each row is its own outline. **Rose Lantern is the
+      damsel**: slim build, pretty face, a floor-length gown with no boots
+      and the lamp basket in her hand. Pinned by `skins.test.ts`: no two
+      skins share a drawn outline and none is drawn as the default miner.
+      Sheets: `node scripts/generate-skin-line-samples.mjs`.
 - [ ] **art-style setting (optional).** The seam already supports it
       (`setActiveArtPack` + a `defaultArtPackId` in the save); only a
       settings row + i18n is missing. Not promised — papercut is the

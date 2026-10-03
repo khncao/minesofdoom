@@ -248,14 +248,14 @@
     "id": "packRoseLantern",
     "storeId": "pack_rose_lantern",
     "name": "Mines of Doom: Rose Lantern Skin",
-    "blurb": "One-time purchase. Unlocks the Rose Lantern skin — long pink hair, lilac dress — carries the lamp basket. Purely cosmetic.",
+    "blurb": "One-time purchase. Unlocks the Rose Lantern skin — long pink hair, a floor-length gown, and the lamp basket. Purely cosmetic.",
     "amountUsd": 299
   },
   {
     "id": "packMintComet",
     "storeId": "pack_mint_comet",
     "name": "Mines of Doom: Mint Comet Skin",
-    "blurb": "One-time purchase. Unlocks the Mint Comet skin — mint ponytail; names every equation before it lands. Purely cosmetic.",
+    "blurb": "One-time purchase. Unlocks the Mint Comet skin — mint braid and a short dress; names every equation before it lands. Purely cosmetic.",
     "amountUsd": 299
   },
   {
@@ -276,14 +276,14 @@
     "id": "packBlossomBun",
     "storeId": "pack_blossom_bun",
     "name": "Mines of Doom: Blossom Bun Skin",
-    "blurb": "One-time purchase. Unlocks the Blossom Bun skin — top knot, rose dress; runs the gem counters. Purely cosmetic.",
+    "blurb": "One-time purchase. Unlocks the Blossom Bun skin — top knot, rose blouse and trousers; runs the gem counters. Purely cosmetic.",
     "amountUsd": 399
   },
   {
     "id": "packEmberSunrise",
     "storeId": "pack_ember_sunrise",
     "name": "Mines of Doom: Ember Sunrise Skin",
-    "blurb": "One-time purchase. Unlocks the Ember Sunrise skin — ginger hair to the waist, amber dress, first up the ladder. Purely cosmetic.",
+    "blurb": "One-time purchase. Unlocks the Ember Sunrise skin — ginger waves to the waist, amber dress; first up the ladder. Purely cosmetic.",
     "amountUsd": 399
   },
   {

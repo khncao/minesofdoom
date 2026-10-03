@@ -31,23 +31,64 @@ Where each skin shows up:
 
 ## The cast (shop order: crew half, then pretty half)
 
+Every row is its own **silhouette**, not a recolor: the rule the line is
+built on, and the one `skins.test.ts` pins (no two skins share a drawn
+outline, and no skin is drawn as the default miner).
+
 | # | skin | gems | silhouette | blurb |
 | --- | --- | --- | --- | --- |
-| 1 | **Lantern Crew** | 25 | helmet, lamp on the brim | the shift's hard-hat standard |
-| 2 | **Frost Bit** | 25 | beanie | red beanie, green wool, still swinging the pick |
-| 3 | **Deep Survey** | 40 | cap + beard | has mapped every gallery twice |
-| 4 | **Shift Foreman** | 40 | helmet + beard | white hard hat, red shirt, runs the whole seam |
+| 1 | **Lantern Crew** | 25 | wiry, hard hat | the shift's hard-hat standard |
+| 2 | **Frost Bit** | 25 | broad, red beanie | red beanie, green wool, still swinging the pick |
+| 3 | **Deep Survey** | 40 | slim, visor cap + beard + **satchel** | has mapped every gallery twice |
+| 4 | **Shift Foreman** | 40 | broad, hard hat + beard | white hard hat, red shirt, runs the whole seam |
 | 5 | **Fox Crew** | 60 | **critter**, bandana | red bandana, always the first down the ladder |
 | 6 | **Marmot Crew** | 60 | **critter**, beanie | green beanie, permanently unbothered |
-| 7 | **Rose Lantern** | 75 | long pink hair, dress | carries the lamp basket |
-| 8 | **Mint Comet** | 75 | ponytail, dress | names every equation before it lands |
-| 9 | **Sky Bob** | 85 | bob, beanie, dress | a little orange beanie over a sky-blue bob |
-| 10 | **Twin Bells** | 85 | twin tails, dress | loudest lamp on the crew |
-| 11 | **Blossom Bun** | 100 | top knot, dress | runs the gem counters |
-| 12 | **Ember Sunrise** | 100 | waist-length hair, dress | first up the ladder |
+| 7 | **Rose Lantern** | 75 | slim, long hair, **floor-length gown**, **lamp basket** | carries the lamp basket — the line's damsel |
+| 8 | **Mint Comet** | 75 | slim, **braid**, short dress | names every equation before it lands |
+| 9 | **Sky Bob** | 85 | slim, **bob under a beanie**, dress | a little orange beanie over a sky-blue bob |
+| 10 | **Twin Bells** | 85 | **broad** shoulders, twin tails, dress | loudest lamp on the crew |
+| 11 | **Blossom Bun** | 100 | slim, top knot, **trousers** | runs the gem counters |
+| 12 | **Ember Sunrise** | 100 | **broad**, big **waves**, dress | first up the ladder |
 
-`skinGroup(skin)` splits them: a dress or a cute face puts a skin in the
-**pretty** group, everything else is **crew**.
+`skinGroup(skin)` splits them: a gown, or the pretty / cute face, puts a skin
+in the **pretty** group; everything else is **crew**. It is deliberately not
+"wears a dress" and not "is slim" — Deep Survey is a wiry surveyor in
+trousers, and he is crew, not a heroine.
+
+### The damsel
+
+**Rose Lantern** is the archetype the rest of the line is measured against,
+and she is the only character that spends three axes at once: a slim build,
+the pretty face (flicked lashes, brows, 2×2 blush) and a **gown** — the one
+outfit that reaches the floor and hides the boots, so she is unmistakably not
+a miner in a costume. The lamp basket in her other hand is the prop that
+says what she is doing down here.
+
+### The silhouette axes (`characterArt.ts`)
+
+| axis | values | what it moves |
+| --- | --- | --- |
+| `form` | `human`, `critter` | the whole body plan |
+| `hatStyle` | `helmet`, `beanie`, `cap`, `bandana`, `longhair` | headwear |
+| `hair` | `bob`, `long`, `ponytail`, `twin`, `bun`, `braid`, `waves` | the fall, and the volume under a hat |
+| `build` | `sturdy`, `slim` | shoulders, torso, arms — the clearest gender read at 32px |
+| `outfit` | `trousers`, `dress` | legs vs. skirt |
+| `gown` | — | floor-length hem, bare shoulders, **no boots** |
+| `pretty` | — | slim build + long flicked lashes + brows + heavier blush, in one switch |
+| `cute` | — | the softer face (bigger eyes, lash ticks, blush) |
+| `beard` | — | beard / moustache |
+| `prop` | `basket`, `satchel` | what the character carries |
+
+`pretty` is the catalog's one-word "this one is a heroine", so the rule lives
+in the geometry instead of being re-drawn per skin; `build` and `cute` can
+still be set on their own to override either half.
+
+None of these are game-data fields. They are authored per skin (and per crew
+character), so the player's rolled look, the `MinerLook` type and the save
+format are untouched — and a crew character's hair, which does travel back
+through a `MinerLook`, is narrowed to the styles the classic 16×16 pipeline
+knows.
+
 
 ## Precedence on the player's slot
 
@@ -92,6 +133,15 @@ character is rather than what it costs in gems:
 The two critter skins sit at tier 3 because a round animal body is a new
 shape, not a palette; the top three are the most hand-drawn characters in
 the line (twin tails, top knot, waist-length hair).
+
+> **Owner (2026-10-03):** re-authoring the cast changed four skin blurbs
+> (Rose Lantern, Mint Comet, Blossom Bun, Ember Sunrise) because the old
+> ones described silhouettes that no longer exist ("lilac dress" for the
+> gown). `scripts/stripe/catalog.json` is updated and the drift test passes,
+> but `syncStripe.mjs products` only sets a product description at CREATE —
+> so the live listing text is edited by hand: the Stripe product description
+> and the Play one-time product description for those four (prices and ids
+> are untouched, and neither store lets a price object be edited anyway).
 
 ## Notes
 

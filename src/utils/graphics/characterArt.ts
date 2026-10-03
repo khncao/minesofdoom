@@ -260,6 +260,14 @@ function fillArc(
  * colors come from the `MinerLook` (see `buildPalette`); this is the
  * silhouette. All fields are optional; the defaults reproduce the plain
  * hard-hat miner the direction sheets render.
+ *
+ * The point of the axes is that a paid character is a CHARACTER: two skins
+ * that differ only in color are the same person in different clothes. The
+ * build / gown / pretty / prop axes exist because hair and a dress were not
+ * enough to tell twelve characters apart (the pretty half was six recolors
+ * of one silhouette). None of these are game-data fields: they are authored
+ * per skin (and per crew character), so the player's rolled look and the
+ * save format are untouched.
  */
 export interface SkinShape {
  /** A human miner, or one of the round little critters. */
@@ -274,6 +282,30 @@ export interface SkinShape {
  outfit?: "trousers" | "dress";
  /** Cute face: bigger eyes with lash ticks, plus blush. */
  cute?: boolean;
+ /**
+  * Body build. "sturdy" is the miner's default (broad shoulders); "slim"
+  * narrows the shoulders, the torso and the arms — the clearest read of a
+  * feminine character at 32px, where a face alone is only three pixels.
+  */
+ build?: "sturdy" | "slim";
+ /**
+  * A floor-length gown: a bare-shouldered bodice, a cinched waist and a
+  * hem that reaches the floor — no legs, no boots. THE damsel silhouette,
+  * and deliberately the only outfit that hides the feet: it is the read
+  * that separates the line's pretty half from its crew half at a glance.
+  * Implies a dress (`outfit` is ignored while this is set).
+  */
+ gown?: boolean;
+ /**
+  * The full pretty treatment, in one switch: long lashes with an upward
+  * flick, brows, a smaller mouth and heavier blush, on a slim build. Set
+  * `build` or `cute` explicitly to override either half of it. This is the
+  * flag the catalog uses to say "this one is a pretty character", so the
+  * rule lives in the geometry instead of being re-drawn per skin.
+  */
+ pretty?: boolean;
+ /** A carried prop, drawn beside the body (the last silhouette axis). */
+ prop?: "none" | "basket" | "satchel";
  /**
   * Draw the raised pickaxe as part of the body. TRUE for portraits (the
   * contact sheets); FALSE in-game, where `Miner` draws the tool as its own
@@ -330,8 +362,13 @@ export type MoteStyle =
   | "sparks"
   | "swirl";
 
-/** Re-exported so a skin line never has to import two modules. */
-export type HairStyle = MinerHair;
+/**
+ * Re-exported so a skin line never has to import two modules. The two extra
+ * styles are cut-paper-only (a braid and big waved volume are silhouette
+ * work, not something the live 16×16 pipeline needs to know about), so this
+ * is a WIDENING of `MinerHair`, not a change to it.
+ */
+export type HairStyle = MinerHair | "braid" | "waves";
 
 const DEFAULT_SHAPE: Required<SkinShape> = {
  form: "human",
@@ -340,6 +377,10 @@ const DEFAULT_SHAPE: Required<SkinShape> = {
  beard: false,
  outfit: "trousers",
  cute: false,
+ build: "sturdy",
+ gown: false,
+ pretty: false,
+ prop: "none",
  tool: true,
  crown: "none",
  motes: "none",
@@ -382,6 +423,21 @@ export function shapeForLook(look: MinerLook): SkinShape {
 export function minerLabels(shape: SkinShape = {}): LabelGrid {
  const g = newLabels();
  const s: Required<SkinShape> = { ...DEFAULT_SHAPE, ...shape };
+ // `pretty` is the catalog's one-word version of "a feminine character":
+ // it sets the slim build and the pretty face, and either can still be set
+ // on its own. `gown` is its own switch (so a slim character can wear a
+ // short dress) and implies a dress — the outfit axis is ignored under it.
+ const slim = s.pretty || s.build === "slim";
+ const gown = s.gown;
+ const outfit = gown ? "dress" : s.outfit;
+ // A bare head (`longhair`) draws its hair as the headwear. Under a HAT the
+ // hair was never drawn at all, which quietly killed every "bob under a
+ // beanie" (the skin line's Sky Bob) and every crew character's ponytail.
+ // It is drawn only when the shape AUTHORS a hair: an unauthored shape gets
+ // the default field, and putting that under a helmet would give the plain
+ // miner a mane.
+ const bareHead = s.hatStyle === "longhair";
+ const hair = bareHead || shape.hair != null;
 
  // --- pickaxe (behind the body; its near tip tucks behind the helmet) ----
  if (s.tool) {
@@ -393,24 +449,27 @@ export function minerLabels(shape: SkinShape = {}): LabelGrid {
  if (s.form === "critter") {
   critterHead(g);
   headgear(g, s.hatStyle);
-  critterFace(g, s.cute);
+  critterFace(g, s.cute || s.pretty);
   critterBody(g);
+  drawProp(g, s.prop);
  } else {
   // --- head, headgear, crown, face ---------------------------------------
   fillEllipse(g, 13.5, 10.5, 7.5, 7.5, "skin");
   headgear(g, s.hatStyle);
-  if (s.hatStyle === "longhair") hairMass(g, s.hair);
+  if (hair) hairMass(g, s.hair);
   drawCrown(g, s.crown);
   // The beard goes on BEFORE the face, so the eyes and mouth stay readable
   // on top of it.
   if (s.beard) fillEllipse(g, 13.5, 16.6, 4.4, 2.2, "hat");
-  humanFace(g, s.cute);
+  humanFace(g, s.cute, s.pretty);
   // --- body --------------------------------------------------------------
-  humanBody(g, s.outfit);
+  humanBody(g, outfit, slim ? "slim" : "sturdy", gown);
+  // A carried prop hangs off the body, so it goes on after it.
+  drawProp(g, s.prop);
  }
 
  // --- hair that falls OVER the shoulders (must come last) -----------------
- if (s.form === "human" && s.hatStyle === "longhair") {
+ if (s.form === "human" && hair) {
   hairFall(g, s.hair);
  }
  // Aura motes sit in the empty space AROUND the body, so they go last and
@@ -765,7 +824,13 @@ function hairMass(g: LabelGrid, style: HairStyle): void {
   // the hair cap (same material), so it sits back-right, clear of it.
   fillEllipse(g, 22.4, 5, 3.2, 2.9, "hat");
  }
- fillEllipse(g, 13.5, 5.8, 7.9, 5.6, "hat"); // hair cap
+ if (style === "braid") {
+  fillEllipse(g, 13.5, 5.2, 8.4, 5.9, "hat"); // volume off a centre part
+ } else if (style === "waves") {
+  fillEllipse(g, 13.5, 5.4, 8.8, 6.4, "hat"); // the biggest crown in the line
+ } else {
+  fillEllipse(g, 13.5, 5.8, 7.9, 5.6, "hat"); // hair cap
+ }
  fillRect(g, 7.5, 9, 19.5, 11, "hat"); // fringe over the forehead
  fillRect(g, 8, 12, 9, 12, "hat"); // fringe tips
  fillRect(g, 12, 12, 13, 12, "hat");
@@ -787,15 +852,52 @@ function hairFall(g: LabelGrid, style: HairStyle): void {
    fillRoundRect(g, 3.4, 10, 5.6, 17, 1.4, "hat"); // tapered tails
    fillRoundRect(g, 21.4, 10, 23.6, 17, 1.4, "hat");
    break;
- case "bun":
+  case "bun":
    fillRoundRect(g, 20.5, 9, 22.5, 15, 1.4, "hat"); // loose strand
+   break;
+  case "braid":
+   // A braid over the LEFT shoulder only: three tapering links and a tie,
+   // so it reads as plaited rather than as long hair with a kink in it.
+   fillRoundRect(g, 5.2, 9, 7.6, 16, 1.5, "hat");
+   fillRoundRect(g, 4.6, 15, 7, 21, 1.4, "hat");
+   fillRoundRect(g, 4.2, 20, 6.4, 25, 1.3, "hat");
+   fillEllipse(g, 5.3, 26, 1.4, 1.4, "hat"); // the tie
+   break;
+  case "waves":
+   // Big waved volume: a wide fall to the waist with a swell at the bottom,
+   // and the right side longer than the left so it is not symmetrical.
+   fillRoundRect(g, 4.4, 9, 7.8, 23, 1.7, "hat");
+   fillRoundRect(g, 19.2, 9, 22.8, 25, 1.7, "hat");
+   fillEllipse(g, 6, 21, 2.6, 3.4, "hat"); // the swell
+   fillEllipse(g, 21, 23, 2.6, 3.4, "hat");
    break;
   default:
    break; // ponytail and bun are drawn behind/above the head
  }
 }
 
-function humanFace(g: LabelGrid, cute: boolean): void {
+function humanFace(g: LabelGrid, cute: boolean, pretty = false): void {
+ if (pretty) {
+  // The pretty face: 3×3 eyes with a two-pixel lash that FLICKS UP at the
+  // outer corner, brows above them, a small mouth and 2×2 blush. The flick
+  // is the whole point — a lash that only got longer reads as a smudge at
+  // 32px, an upward one reads as a made-up eye.
+  fillRect(g, 10, 13, 12, 15, "eye");
+  fillRect(g, 15, 13, 17, 15, "eye");
+  // The lash, flicked UP. (y0 above y1 is an inverted box and paints
+  // nothing at all — which is exactly what this looked like for a while.)
+  fillRect(g, 9, 12, 9, 13, "eye"); // lash, outer corners, flicked up
+  fillRect(g, 18, 12, 18, 13, "eye");
+  fillRect(g, 10, 12, 11, 12, "eye"); // brows
+  fillRect(g, 16, 12, 17, 12, "eye");
+  fillRect(g, 10, 14, 10, 14, "eyeShine"); // catch-light
+  fillRect(g, 15, 14, 15, 14, "eyeShine");
+  fillRect(g, 8, 16, 9, 17, "mouth"); // blush, 2×2
+  fillRect(g, 18, 16, 19, 17, "mouth");
+  fillRect(g, 13, 17, 14, 17, "mouth"); // small parted smile
+  fillRect(g, 13, 18, 14, 18, "mouth");
+  return;
+ }
  if (cute) {
   fillRect(g, 10, 13, 12, 15, "eye"); // bigger, rounder eyes
   fillRect(g, 15, 13, 17, 15, "eye");
@@ -818,9 +920,39 @@ function humanFace(g: LabelGrid, cute: boolean): void {
  fillRect(g, 16, 17, 16, 17, "mouth");
 }
 
-function humanBody(g: LabelGrid, outfit: "trousers" | "dress"): void {
- fillRoundRect(g, 6.5, 18, 20.5, 24, 2, "shirt");
- if (outfit === "dress") {
+function humanBody(
+ g: LabelGrid,
+ outfit: "trousers" | "dress",
+ build: "sturdy" | "slim",
+ gown: boolean,
+): void {
+ // The build is a 1px move on each side: at 32px that is a whole shoulder
+ // line, and it is the difference between a miner and a heroine.
+ const l = build === "slim" ? 7.5 : 6.5;
+ const r = build === "slim" ? 19.5 : 20.5;
+ fillRoundRect(g, l, 18, r, 24, 2, "shirt");
+ if (gown) {
+  // A gown: bare shoulders, a cinched waist, and a hem that reaches the
+  // floor. No legs and no boots — the silhouette that says "this character
+  // is not here to dig" at a glance, and the reason the line has a damsel
+  // rather than another recolored dress.
+  fillRect(g, 11, 18, 16, 19, "skin"); // decolletage
+  fillPolygon(
+   g,
+   [
+    [8.5, 22],
+    [18.5, 22],
+    // Corners at y=31 (not 30) so the hem FILLS row 30 — `fillPolygon`'s
+    // scanline test is half-open, so a corner at 30 stops at row 29 — and
+    // still leaves the grid's bottom margin row (31) clear.
+    [24, 31],
+    [3, 31],
+   ],
+   "shirt",
+  );
+  fillRect(g, 8, 22, 19, 22, "belt"); // waist band
+  fillRect(g, 3, 28, 24, 28, "belt"); // hem line
+ } else if (outfit === "dress") {
   fillPolygon(
    g,
    [
@@ -833,16 +965,50 @@ function humanBody(g: LabelGrid, outfit: "trousers" | "dress"): void {
   ); // flared skirt
   fillRect(g, 8, 22, 19, 22, "belt"); // waist band
  } else {
-  fillRect(g, 9, 18, 10, 24, "belt"); // suspender straps
-  fillRect(g, 17, 18, 18, 24, "belt");
-  fillRect(g, 6.5, 23, 20.5, 24, "belt"); // waist belt
-  fillRect(g, 8, 25, 10, 28, "pants");
-  fillRect(g, 16, 25, 18, 28, "pants");
+  // Suspenders and legs follow the BUILD, so a slim character does not get
+  // the broad set's wide-set straps on a narrower chest.
+  const sl = l + 2.5;
+  const sr = r - 3.5;
+  fillRect(g, sl, 18, sl + 1, 24, "belt"); // suspender straps
+  fillRect(g, sr, 18, sr + 1, 24, "belt");
+  fillRect(g, l, 23, r, 24, "belt"); // waist belt
+  fillRect(g, sl - 1, 25, sl, 28, "pants");
+  fillRect(g, sr, 25, sr + 1, 28, "pants");
  }
- fillCapsule(g, 7.5, 20, 6, 24, 1.5, "skin"); // left arm
- fillCapsule(g, 19.5, 20, 24, 25, 1.5, "skin"); // right arm → the handle
- fillRoundRect(g, 7, 29, 11, 30, 1, "boots"); // feet (under a dress too)
- fillRoundRect(g, 16, 29, 20, 30, 1, "boots");
+ fillCapsule(g, l + 1, 20, l - 0.5, 24, build === "slim" ? 1.2 : 1.5, "skin"); // left arm
+ fillCapsule(g, r - 1, 20, 24, 25, build === "slim" ? 1.2 : 1.5, "skin"); // right arm → the handle
+ if (!gown) {
+  fillRoundRect(g, 7, 29, 11, 30, 1, "boots"); // feet (under a dress too)
+  fillRoundRect(g, 16, 29, 20, 30, 1, "boots");
+ }
+}
+
+/**
+ * A carried prop, drawn after the body so it hangs off the hip. The two are
+ * the same silhouette idea seen from the other side: a prop says what a
+ * character DOES, which is the one thing a recolored miner never says.
+ */
+function drawProp(g: LabelGrid, style: "none" | "basket" | "satchel"): void {
+ switch (style) {
+  case "basket":
+   // The lamp basket she carries down the shaft: wicker body, arched
+   // handle, and the lamp still burning inside it.
+   fillRoundRect(g, 21, 24, 25, 28, 1, "belt");
+   fillRect(g, 22, 23, 24, 23, "belt"); // handle
+   fillEllipse(g, 23, 26, 1, 1, "lamp");
+   break;
+  case "satchel":
+   // A survey satchel: strap down the back, bag on the far hip. The strap
+   // starts at the shoulder line (row 20) and not above it — `belt` is also
+   // the suspender material up there, and a strap across the chest would
+   // read as clothing.
+   fillRect(g, 19, 20, 20, 27, "belt");
+   fillRoundRect(g, 3, 22, 7, 27, 1, "belt");
+   fillRect(g, 4, 24, 6, 24, "lamp"); // a rolled chart sticking out
+   break;
+  case "none":
+   break;
+ }
 }
 
 /** Critter: pointy ears, a round fur head, a muzzle and a catch-light nose. */

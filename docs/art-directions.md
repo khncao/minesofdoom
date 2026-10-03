@@ -166,10 +166,20 @@ switches `characterArt.minerLabels(shape)` grew for exactly this:
 | --- | --- |
 | `form` | `human`, `critter` (round fur head, ears, muzzle, vest, tail) |
 | `hatStyle` | `helmet` (lamp on the brim), `beanie`, `cap` (visor), `bandana` (knot + tail), `longhair` = bare head |
-| `hair` | `bob`, `long`, `ponytail`, `twin`, `bun` |
+| `hair` | `bob`, `long`, `ponytail`, `twin`, `bun`, `braid`, `waves` — and a hat no longer eats it: authored hair is drawn under a beanie or a cap too |
+| `build` | `sturdy` (the miner's shoulders) or `slim` — the clearest read of a feminine character at 32px |
 | `outfit` | `trousers` + boots, or a flared `dress` with a waist band |
-| `beard` | beard/moustache, drawn in the `hat` color (the in-game longhair trick) |
+| `gown` | floor-length hem, bare shoulders, no boots — the line's damsel |
+| `pretty` | slim build + long lashes that FLICK UP + brows + 2×2 blush, in one switch |
 | `cute` | bigger rounder eyes, lash ticks, a 1px catch-light, 2px blush |
+| `beard` | beard/moustache, drawn in the `hat` color (the in-game longhair trick) |
+| `prop` | `basket` (the lamp basket) or `satchel` (the survey case) |
+
+The last four axes exist because hair and a dress were not enough to tell
+twelve characters apart: the pretty half was six recolors of ONE silhouette,
+which made the shop sell recolors instead of characters. `skins.test.ts` pins
+the fix — no two skins share a drawn outline, and no skin is drawn as the
+default miner. See [skin-line.md](skin-line.md).
 
 This started as a draft line and is now SHIPPED: the 12 skins are the
 `SKINS` catalog in `src/mines_of_doom/cosmetics.ts`, drawn by
@@ -192,18 +202,18 @@ so the roster reads as characters rather than palette swaps.
 
 | skin | shape | blurb |
 | --- | --- | --- |
-| Lantern Crew | helmet | the shift's hard-hat standard, lamp on the brim |
-| Frost Bit | beanie | red beanie, green wool, still swinging the pick |
-| Deep Survey | cap + beard | visor cap; has mapped every gallery twice |
-| Shift Foreman | helmet + beard | white hard hat, red shirt, runs the whole seam |
+| Lantern Crew | slim helmet | the shift's hard-hat standard, lamp on the brim |
+| Frost Bit | beanie, broad | red beanie, green wool, still swinging the pick |
+| Deep Survey | cap + beard + satchel | visor cap; has mapped every gallery twice |
+| Shift Foreman | helmet + beard, broad | white hard hat, red shirt, runs the whole seam |
 | Fox Crew | critter + bandana | always the first down the ladder |
 | Marmot Crew | critter + beanie | permanently unbothered |
-| Rose Lantern | long hair + dress | lilac dress; carries the lamp basket |
-| Mint Comet | ponytail + dress | names every equation before it lands |
-| Sky Bob | bob + beanie + dress | sky-blue bob under a little orange beanie |
-| Twin Bells | twin tails + dress | loudest lamp on the crew |
-| Blossom Bun | bun + dress | runs the gem counters |
-| Ember Sunrise | long hair + dress | first up the ladder |
+| Rose Lantern | gown + basket + pretty | the damsel: floor-length lilac, carries the lamp basket |
+| Mint Comet | braid + short dress | names every equation before it lands |
+| Sky Bob | bob under a beanie | sky-blue bob under a little orange beanie |
+| Twin Bells | twin tails, broad | loudest lamp on the crew |
+| Blossom Bun | bun + trousers | runs the gem counters |
+| Ember Sunrise | big waves, broad | first up the ladder |
 
 Re-render with `node scripts/generate-papercut-skin-samples.mjs`.
 

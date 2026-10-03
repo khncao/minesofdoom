@@ -460,9 +460,17 @@ export function isSkinId(id: string): boolean {
   return SKINS.some((s) => s.id === id);
 }
 
-/** Which half of the line a skin belongs to (dress + cute face = pretty). */
+/**
+ * Which half of the line a skin belongs to. The pretty half is the group of
+ * characters that read as heroines: a gown, or the pretty / cute face. It is
+ * deliberately NOT "wears a dress" and NOT "is slim" — a crew member may wear
+ * one (Blossom Bun's counterpart Frost Bit runs the ladders in a beanie and
+ * trousers), and Deep Survey is a wiry surveyor, not a heroine: the build is
+ * a silhouette axis, not a gender test.
+ */
 export function skinGroup(skin: SkinCosmetic): SkinGroup {
-  return skin.shape.outfit === "dress" || skin.shape.cute === true
+  const s = skin.shape;
+  return s.gown === true || s.pretty === true || s.cute === true
     ? "pretty"
     : "crew";
 }
@@ -508,8 +516,9 @@ export function rollMinerLook(seed: number, outfitId: string): MinerLook {
     species,
   };
   // --- papercut silhouette personality (see artPack.shapeForLook) ----------
-  // Hair only shows on a bare head; the rest give the crew some variety, so a
-  // column of miners doesn't read as one body in different colors.
+  // Hair only ROLLS on a bare head: authored hair does draw under a hat now
+  // (a beanie no longer eats it — the skin line's Sky Bob), and letting the
+  // roll do it here would quietly give every saved miner a new silhouette.
   look.hair = look.hatStyle === "longhair" ? pick(MINER_HAIR_STYLES) : undefined;
   look.beard = rng() < 0.3;
   look.outfit = rng() < 0.3 ? "dress" : "trousers";
@@ -682,7 +691,10 @@ export const SKINS: readonly SkinCosmetic[] = [
       hat: "#e8c33d",
       hatStyle: "helmet",
     },
-    shape: { form: "human", hatStyle: "helmet" },
+    // Wiry where the Foreman is broad: the shift's standard is the lean one,
+    // and it is the second thing that tells the two hard-hat men apart
+    // (the first is the beard).
+    shape: { form: "human", hatStyle: "helmet", build: "slim" },
   },
   {
     id: "frost-bit",
@@ -698,7 +710,7 @@ export const SKINS: readonly SkinCosmetic[] = [
       hat: "#e8443a",
       hatStyle: "beanie",
     },
-    shape: { form: "human", hatStyle: "beanie" },
+    shape: { form: "human", hatStyle: "beanie", build: "sturdy" },
   },
   {
     id: "deep-survey",
@@ -714,7 +726,15 @@ export const SKINS: readonly SkinCosmetic[] = [
       hat: "#3f8fd0",
       hatStyle: "cap",
     },
-    shape: { form: "human", hatStyle: "cap", beard: true },
+    // The survey satchel is the whole point of him: the only crew member
+    // who carries anything, so he is the only one with a bag in his outline.
+    shape: {
+      form: "human",
+      hatStyle: "cap",
+      beard: true,
+      build: "slim",
+      prop: "satchel",
+    },
   },
   {
     id: "shift-foreman",
@@ -730,7 +750,13 @@ export const SKINS: readonly SkinCosmetic[] = [
       hat: "#e8e8e8",
       hatStyle: "helmet",
     },
-    shape: { form: "human", hatStyle: "helmet", beard: true },
+    // Broad on purpose: the foreman is the one who could lift the crate.
+    shape: {
+      form: "human",
+      hatStyle: "helmet",
+      beard: true,
+      build: "sturdy",
+    },
   },
   {
     id: "fox-crew",
@@ -762,15 +788,19 @@ export const SKINS: readonly SkinCosmetic[] = [
       hat: "#57a94f",
       hatStyle: "beanie",
     },
-    shape: { form: "critter", hatStyle: "beanie" },
+    shape: { form: "critter", hatStyle: "beanie", prop: "none" },
   },
   // --- the pretty half -------------------------------------------------
+  // Every one of the six is its own silhouette: a gown, a braid, a bob, twin
+  // tails, trousers and a waved fall, across two builds and two faces. The
+  // line's rule is that a pretty character is a CHARACTER — the dress was
+  // never going to carry six of them on its own.
   {
     id: "rose-lantern",
     name: "Rose Lantern",
     cashTier: 3,
     costGems: 75,
-    blurb: "long pink hair, lilac dress — carries the lamp basket",
+    blurb: "long pink hair, a floor-length gown, and the lamp basket",
     look: {
       skin: "#ffe3c8",
       shirt: "#b48cff",
@@ -779,12 +809,16 @@ export const SKINS: readonly SkinCosmetic[] = [
       hat: "#ff9ecd",
       hatStyle: "longhair",
     },
+    // THE DAMSEL. A slim build, the pretty face, a bare-shouldered gown with
+    // no boots under it, and the lamp basket she was carrying when the crew
+    // found her. Three axes nobody else in the line uses at once.
     shape: {
       form: "human",
       hatStyle: "longhair",
       hair: "long",
-      outfit: "dress",
-      cute: true,
+      gown: true,
+      pretty: true,
+      prop: "basket",
     },
   },
   {
@@ -792,7 +826,7 @@ export const SKINS: readonly SkinCosmetic[] = [
     name: "Mint Comet",
     cashTier: 3,
     costGems: 75,
-    blurb: "mint ponytail; names every equation before it lands",
+    blurb: "mint braid and a short dress; names every equation before it lands",
     look: {
       skin: "#f2c9a0",
       shirt: "#8fe3c0",
@@ -801,12 +835,14 @@ export const SKINS: readonly SkinCosmetic[] = [
       hat: "#7ad0e8",
       hatStyle: "longhair",
     },
+    // Slim and pretty, but in a SHORT dress with a braid over one shoulder —
+    // the runner of the line, next to the damsel's floor-length gown.
     shape: {
       form: "human",
       hatStyle: "longhair",
-      hair: "ponytail",
+      hair: "braid",
       outfit: "dress",
-      cute: true,
+      pretty: true,
     },
   },
   {
@@ -823,11 +859,14 @@ export const SKINS: readonly SkinCosmetic[] = [
       hat: "#f2913a",
       hatStyle: "beanie",
     },
+    // The one pretty character who keeps a hat on: a bob under a beanie is a
+    // different outline from every bare head in the line.
     shape: {
       form: "human",
       hatStyle: "beanie",
       hair: "bob",
       outfit: "dress",
+      build: "slim",
       cute: true,
     },
   },
@@ -845,11 +884,14 @@ export const SKINS: readonly SkinCosmetic[] = [
       hat: "#ef476f",
       hatStyle: "longhair",
     },
+    // Broad shoulders with twin tails: the one pretty character who is
+    // built like a crew member, which is what makes the pair of them read.
     shape: {
       form: "human",
       hatStyle: "longhair",
       hair: "twin",
       outfit: "dress",
+      build: "sturdy",
       cute: true,
     },
   },
@@ -858,7 +900,7 @@ export const SKINS: readonly SkinCosmetic[] = [
     name: "Blossom Bun",
     cashTier: 4,
     costGems: 100,
-    blurb: "top knot, rose dress; runs the gem counters",
+    blurb: "top knot, rose blouse and trousers; runs the gem counters",
     look: {
       skin: "#ffe3c8",
       shirt: "#ff9ecd",
@@ -867,11 +909,14 @@ export const SKINS: readonly SkinCosmetic[] = [
       hat: "#e8443a",
       hatStyle: "longhair",
     },
+    // Trousers, not a dress: she is the one who runs the numbers, and the
+    // legs are the read. The only pretty-group character in pants.
     shape: {
       form: "human",
       hatStyle: "longhair",
       hair: "bun",
-      outfit: "dress",
+      outfit: "trousers",
+      build: "slim",
       cute: true,
     },
   },
@@ -880,7 +925,7 @@ export const SKINS: readonly SkinCosmetic[] = [
     name: "Ember Sunrise",
     cashTier: 4,
     costGems: 100,
-    blurb: "ginger hair to the waist, amber dress, first up the ladder",
+    blurb: "ginger waves to the waist, amber dress; first up the ladder",
     look: {
       skin: "#f7d9c0",
       shirt: "#e8703a",
@@ -889,12 +934,16 @@ export const SKINS: readonly SkinCosmetic[] = [
       hat: "#e07020",
       hatStyle: "longhair",
     },
+    // The big waved fall and the broad shoulders: she used to share a
+    // silhouette with Rose Lantern, which made the pair one character in
+    // two palettes. Waves + sturdy + pretty face is hers alone now.
     shape: {
       form: "human",
       hatStyle: "longhair",
-      hair: "long",
+      hair: "waves",
       outfit: "dress",
-      cute: true,
+      build: "sturdy",
+      pretty: true,
     },
   },
 ];
