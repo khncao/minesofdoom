@@ -39,6 +39,22 @@ import {
 
 /** 5-minute submit cadence (plan §Leaderboard: same as the cloud push). */
 export const LEADERBOARD_SUBMIT_INTERVAL_MS = 5 * 60 * 1000;
+/**
+ * Device-local opt-in for score submission. **Default OFF.**
+ *
+ * Submitting a score uploads this device's persistent id + display name to
+ * the developer's server. That is fine for an adult who chooses it and is
+ * NOT fine as an automatic background upload for a child, so the app asks
+ * first. This is the Play Families "appropriately collect" side of the
+ * ad-compliance story (docs/store-integration.md §0): the app declares an
+ * all-ages audience, and nothing leaves the device until the player turns
+ * this on.
+ *
+ * Device-local (useLocalStorage) on purpose, like the display name — it is
+ * NOT in the save blob, so a shared/imported save can never carry someone
+ * else's consent with it.
+ */
+export const LEADERBOARD_SUBMIT_ENABLED_KEY = "leaderboardSubmitEnabled";
 /** 60s in-memory cache on the board data (plan §Leaderboard "Display"). */
 export const LEADERBOARD_CACHE_TTL_MS = 60 * 1000;
 /** 5s tap throttle on manual refresh (plan §Leaderboard "Display"). */
@@ -76,7 +92,16 @@ export interface LeaderboardHandle {
   /** The player's display name (persisted, ≤16 chars after sanitize). */
   displayName: string;
   setDisplayName: (name: string) => void;
-  /** Request a submit (cadence enforced here). Fire-and-forget. */
+  /**
+   * Whether the player has opted in to submitting scores. **Default false**
+   * — see LEADERBOARD_SUBMIT_ENABLED_KEY. While false, no score (and no
+   * device id) is ever sent: submits are dropped at the gate and the
+   * "your rank" lookup is skipped too. Reading the public top-N is a plain
+   * anonymous GET and stays available either way.
+   */
+  submitEnabled: boolean;
+  setSubmitEnabled: (enabled: boolean) => void;
+  /** Request a submit (opt-in + cadence enforced here). Fire-and-forget. */
   requestSubmit: () => void;
   /** Top-N rows; null = not fetched yet OR the last fetch failed. */
   rows: LeaderboardRow[] | null;
@@ -93,6 +118,12 @@ export function useLeaderboard(opts: LeaderboardOptions): LeaderboardHandle {
   const [displayName, setDisplayName] = useLocalStorage<string>(
     "leaderboardDisplayName",
     DEFAULT_DISPLAY_NAME,
+  );
+  // Opt-in, default OFF. Nothing identifying leaves the device until the
+  // player turns this on.
+  const [submitEnabled, setSubmitEnabled] = useLocalStorage<boolean>(
+    LEADERBOARD_SUBMIT_ENABLED_KEY,
+    false,
   );
 
   const [rows, setRows] = useState<LeaderboardRow[] | null>(null);
@@ -112,11 +143,19 @@ export function useLeaderboard(opts: LeaderboardOptions): LeaderboardHandle {
   const token = (): string | null => getSessionTokenRef.current?.() ?? null;
   const displayNameRef = useRef(displayName);
   displayNameRef.current = displayName;
+  // Read at CALL time through a ref so enabling the toggle takes effect on
+  // the very next autosave, without re-creating requestSubmit (the
+  // autosave effect calls it on every save).
+  const submitEnabledRef = useRef(submitEnabled);
+  submitEnabledRef.current = submitEnabled;
 
   const submittingRef = useRef(false);
   const lastSubmitAtRef = useRef(0);
 
   const requestSubmit = useCallback(() => {
+    // THE OPT-IN GATE. Submitting sends this device's persistent id and
+    // display name to the server; until the player opts in, drop it here.
+    if (!submitEnabledRef.current) return;
     const prov = providerRef.current;
     if (!prov.isAvailable() || submittingRef.current) return;
     const now = Date.now();
@@ -163,9 +202,13 @@ export function useLeaderboard(opts: LeaderboardOptions): LeaderboardHandle {
     // Keep "loaded" while a refetch is in flight (a stale board is
     // better than a flashing empty one); everything else shows loading.
     setStatus((prev) => (prev === "loaded" ? "loaded" : "loading"));
+    // The top-N is a public anonymous read, so it is fetched either way.
+    // The "your rank" lookup carries this device's persistent id — skip it
+    // while the player has not opted in, so a non-opted-in session sends
+    // no identifier at all.
     void Promise.all([
       prov.top(LEADERBOARD_TOP_LIMIT),
-      prov.rank(token()),
+      submitEnabledRef.current ? prov.rank(token()) : Promise.resolve(null),
     ])
       .then(([top, rank]) => {
         if (top == null) {
@@ -195,6 +238,8 @@ export function useLeaderboard(opts: LeaderboardOptions): LeaderboardHandle {
     available,
     displayName,
     setDisplayName,
+    submitEnabled,
+    setSubmitEnabled,
     requestSubmit,
     rows,
     yourRank,

@@ -26,8 +26,25 @@
  * Play's Families rules require (docs/store-integration.md §0/§1). Every
  * ad request is now tagged child-directed/non-personalized and the Android
  * advertising-id permissions are removed from the app entirely, so the
- * "Children" section and the advertising-id sentences changed with it
- * (v2.2,
+ * "Children" section and the advertising-id sentences changed with it;
+ * v2.5, 2026-10-03: mobile ads OFF — PROVEN, not theoretical. Unity's
+ * rewarded ad was tested on the internal track against real production
+ * demand and offered **no skip control and no way to close it** at all,
+ * i.e. exactly the thing Play rejects. The fix the runbook depended on
+ * ("Allow skip after 5 seconds") does not exist in the redesigned Unity
+ * dashboard (bidding placements only — ad units "can no longer be
+ * created"), Unity's ad-format-settings reference lists no skip control,
+ * and unity-ads exposes none either (checked 4.20.1 AND 4.21.0). So the
+ * ids were emptied and the policy said so in "Short version", "What we
+ * store", "Advertising" and "Children"; **v2.6, same day: mobile ads are
+ * BACK, with the ad FORMAT changed** to Unity's non-rewarded INTERSTITIAL,
+ * which carries a skip control by design ("Non-rewarded Placements allow
+ * players to skip the ad after a specified period of time"), so the ad is
+ * closeable in the first few seconds and the 5-second rule holds. The app
+ * grants the reward itself off COMPLETED. The wording deliberately says
+ * "close an ad within the first few seconds" rather than the old "finish
+ * the video", because finishing is no longer what earns the reward — and
+ * the web AdSense line is unchanged (v2.2,
  * 2026-09-17, added the in-app account-deletion flow (Account tab →
  * "Delete account", the same GDPR erasure the Save tab's "delete my
  * data" runs when signed in) and the published account-deletion.html
@@ -39,8 +56,8 @@
  *    (debug)" show + clear them);
  *  - accounts + cloud: auth.ts, cloudSave.ts, leaderboard.ts (single
  *    developer server, Pocketbase — see pb_hooks/README.md);
- *  - ads: ads.ts, unityAdProvider*.ts + adSenseProvider*.ts (native: Unity
- *    Ads rewarded only, child-directed/non-personalized; web: AdSense Ad
+ *  - ads: ads.ts, adMobAdProvider*.ts + adSenseProvider*.ts (native: AdMob
+ *    rewarded-INTERSTITIAL only, child-directed/non-personalized; web: AdSense Ad
  *    Placement API rewarded ads — update the ad paragraph if that changes);
  *  - purchases: iaps.ts + iapProvider*.ts (native: store IAP; web:
  *    Stripe Checkout — card data never reaches this app);
@@ -66,20 +83,20 @@ export type LegalDoc = {
 const PRIVACY_POLICY: LegalDoc = {
   id: "privacy",
   title: "Privacy Policy",
-  version: "2.4",
-  effectiveDate: "2026-10-01",
+  version: "2.8",
+  effectiveDate: "2026-10-03",
   sections: [
     {
       heading: "Short version",
-      body: "Mines of Idle Doomath is a free idle game. By default, your progress lives only on your device — no account is required. If you choose to create an account, your progress is backed up to the developer's server so you can restore it on another device, and you can (optionally, under a display name you choose) post scores to the leaderboard. Advertising is minimal by design: the mobile app shows only full-screen ads that you start yourself (rewarded) — you tap “watch”, you finish the ad, you get the in-game reward — and the web version works the same way. We do not build advertising profiles from your game data, we do not share your data with anyone, and we do not sell it. Mobile ads are shown without personalisation and without any device advertising identifier.",
+      body: "Mines of Idle Doomath is a free idle game. By default, your progress lives only on your device — no account is required. If you choose to create an account, your progress is backed up to the developer's server so you can restore it on another device, and you can (optionally, under a display name you choose) post scores to the leaderboard. Advertising is minimal by design: the mobile app shows only full-screen ads that you start yourself — you tap “watch”, and you can always close one within the first few seconds (closing early simply means no reward, and nothing is taken away) — and the web version works the same way. We do not build advertising profiles from your game data, we do not share your data with anyone, and we do not sell it. Mobile ads are shown without personalisation and without any device advertising identifier.",
     },
     {
       heading: "What we store on your device",
-      body: "Everything the game keeps locally lives in private storage on your device (Android/iOS: the app's private storage via AsyncStorage; web: your browser's local storage for this site). It includes:\n\n• Your save data (minerals, upgrades, cosmetics, goals, achievements, settings).\n• A small local stats record (when you first opened the app, active days, first ad view, purchase count, prestige count). It is used only for our own development decisions, is readable on-device in Settings → “Local stats (debug)”, and can be deleted there at any time.\n• A short crash log (recent error messages only, never your save data or anything personal), shown and clearable in Settings → “Recent errors (debug)”.\n• If you have an account: a local session token for that account (your password itself is never stored on the device).\n• If you use the web version: the ad network (Google AdSense) may use your browser's standard ad identifiers (cookies) for its own purposes described in its policy — and only when you tap “watch” on a rewarded ad. The mobile app requests ads without personalisation and without a device advertising identifier: the Android advertising-id permission is not present in the app at all, so no ad code can read one.\n\nYou can delete any of it individually (the debug sections above, or Save → Reset for the game save), or delete ALL of it at once with Save → “Erase all data” — that erases everything the app stores on the device (save, settings, stats, error log, account session) and cannot be undone; your cloud save, if you have one, is kept and can still be restored.",
+      body: "Everything the game keeps locally lives in private storage on your device (Android/iOS: the app's private storage via AsyncStorage; web: your browser's local storage for this site). It includes:\n\n• Your save data (minerals, upgrades, cosmetics, goals, achievements, settings).\n• A small local stats record (when you first opened the app, active days, first ad view, purchase count, prestige count). It is used only for our own development decisions, is readable on-device in Settings → “Local stats (debug)”, and can be deleted there at any time.\n• A short crash log (recent error messages only, never your save data or anything personal), shown and clearable in Settings → “Recent errors (debug)”.\n• If you have an account: a local session token for that account (your password itself is never stored on the device).\n• If you use the web version: the ad network (Google AdSense) may use your browser's standard ad identifiers (cookies) for its own purposes described in its policy — and only when you tap “watch” on an ad. The mobile app requests ads without personalisation and without a device advertising identifier: the Android advertising-id permission is not present in the app at all, so no ad code can read one.\n\nYou can delete any of it individually (the debug sections above, or Save → Reset for the game save), or delete ALL of it at once with Save → “Erase all data” — that erases everything the app stores on the device (save, settings, stats, error log, account session) and cannot be undone; your cloud save, if you have one, is kept and can still be restored.",
     },
     {
       heading: "Accounts and cloud sync (optional)",
-      body: "Creating an account is optional; the game is fully playable without one. If you sign up, the developer's server (minesofdoom.minus4kelvin.com — a single server operated by the developer) stores:\n\n• Your email address. Your password, if you set one, is stored only as a salted hash — we could never read it back, and neither could an attacker who stole the database.\n• If you sign in with Google or Apple: only the identifier that provider gives us. The sign-in token is verified directly by the provider; we never see or store your password or anything else from that account, and no game data is ever shared with the provider.\n• Your cloud save: a snapshot of your progress (the same data you can see in the game), pushed automatically every few minutes while you play, used to restore on a new device or after a factory reset.\n• Your leaderboard entries, if you submit any: your chosen display name (defaulting to a generic one — your email is never shown) and the score itself.\n\nAll of this is on the one server above. It is not processed by, stored on, or visible to, any third party.",
+      body: "Creating an account is optional; the game is fully playable without one. If you sign up, the developer's server (minesofdoom.minus4kelvin.com — a single server operated by the developer) stores:\n\n• Your email address. Your password, if you set one, is stored only as a salted hash — we could never read it back, and neither could an attacker who stole the database.\n• If you sign in with Google or Apple: only the identifier that provider gives us. The sign-in token is verified directly by the provider; we never see or store your password or anything else from that account, and no game data is ever shared with the provider.\n• Your cloud save: a snapshot of your progress (the same data you can see in the game), pushed automatically every few minutes while you play, used to restore on a new device or after a factory reset.\n• Your leaderboard entries — **only if you turn scores on**, which is off until you do (a switch in the leaderboard panel). Until then nothing is submitted. Once on, each submission sends your chosen display name (defaulting to a generic one — your email is never shown), the score, and a random device-local id so the board can show your rank. Turning it back off stops all of it.\n\nAll of this is on the one server above. It is not processed by, stored on, or visible to, any third party.",
     },
     {
       heading: "What we do NOT collect",
@@ -91,11 +108,11 @@ const PRIVACY_POLICY: LegalDoc = {
     },
     {
       heading: "Advertising",
-      body: "Mobile: strictly optional, player-initiated rewarded video ads from Unity Ads — you tap “watch” yourself, and you only receive the in-game reward if you finish the video. You can always close a mobile ad within the first 5 seconds (closing early simply means no reward, and nothing is taken away). There are no interstitials and no banners, and no ad ever appears unless you asked for it. Mobile ads are requested in a child-directed, non-personalized mode: no ad built around you or your browsing, and no advertising identifier is available to the ad SDK at all.\n\nWeb: strictly optional, player-initiated rewarded ads (Google AdSense) — you tap “watch” yourself, and you only receive the in-game reward if you finish the ad. There are no interstitials and no banners anywhere. A rewarded ad rewards an in-game item (minerals, an offline haul), never a real-world product.\n\nWhere an ad network is active, it may process the data its own privacy policy describes in order to serve those ads; we do not pass it any personal information about you, and no ad ever affects gameplay outside the reward you explicitly asked for. Ad settings and opt-out are handled through the browser/platform ad controls, and simply not tapping “watch” disables the ads entirely. We are an independent developer and are not affiliated with Google, Apple, Unity, or any ad network.",
+      body: "Mobile: strictly optional, player-initiated full-screen ads from AdMob — you tap “watch” yourself, and you only receive the in-game reward if the ad plays through. **You can close a mobile ad within the first few seconds at any time**; closing early (or bailing out) simply means no reward, and nothing is taken away. There are no interstitials shown on their own, no banners, and no ad ever appears unless you asked for it. (Two earlier builds used ad formats that Google Play requires to be closeable within 5 seconds and which could not be — a standard “rewarded” ad, and later an ad network whose placements offered no way to skip or close. The ad format was changed so that it is closeable.) Mobile ads are requested in a child-directed, non-personalized (contextual) mode: no ad built around you or your browsing, and no advertising identifier is available to the ad SDK at all.\n\nWeb: strictly optional, player-initiated ads (Google AdSense) — you tap “watch” yourself, and you only receive the in-game reward if the ad plays through. There are no interstitials and no banners anywhere. An ad rewards an in-game item (minerals, an offline haul), never a real-world product.\n\nWhere an ad network is active, it may process the data its own privacy policy describes in order to serve those ads; we do not pass it any personal information about you, and no ad ever affects gameplay outside the reward you explicitly asked for. Ad settings and opt-out are handled through the browser/platform ad controls, and simply not tapping “watch” disables the ads entirely. We are an independent developer and are not affiliated with Google, Apple, or any ad network.",
     },
     {
       heading: "Children",
-      body: "The game is intended for a broad audience, including teens and adults. It contains no chat, no external links, and no user-generated content. Because anyone can play it, its ads are treated as child-directed: mobile ads are requested in a non-personalized (contextual) mode suitable for children, the app does not use an advertising identifier, and the optional, player-initiated rewarded ads reward only in-game items — never real-world goods. We do not knowingly collect personal information from anyone under 13. If you believe a child under 13 has created an account, email us at the address below and we will delete it.",
+      body: "The game is intended for a broad audience. It contains no chat, no external links, and no user-generated content. Because anyone can play it, its ads are treated as child-directed: they are requested in a non-personalized (contextual) mode suitable for children, and the optional, player-initiated ads reward only in-game items — never real-world goods. The mobile app does not use an advertising identifier: the Android advertising-id permission is not present in the app at all, so no ad code can read one. Nothing is sent off your device unless you choose it: scores to the leaderboard are off until you turn them on, and an account is optional. We do not knowingly collect personal information from anyone under 13. If you believe a child under 13 has created an account, email us at the address below and we will delete it.",
     },
     {
       heading: "Deletion",

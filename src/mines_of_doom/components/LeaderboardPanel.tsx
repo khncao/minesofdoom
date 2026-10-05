@@ -1,8 +1,9 @@
 import { memo } from "react";
-import { TextInput, View } from "react-native";
+import { Switch, TextInput, View } from "react-native";
 import { T as Text } from "../textScale";
-import BottomModal from "src/components/BottomModal";
+import BottomModal, { NAV_ICON_SIZE } from "src/components/BottomModal";
 import Button from "src/components/Button";
+import Tooltip from "src/components/Tooltip";
 import { useT } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
 import {
@@ -40,11 +41,19 @@ const LeaderboardPanel = memo(function LeaderboardPanel({
   onOpen?: () => void;
 }) {
   const t = useT();
-  const { rows, yourRank, status, refresh, displayName, setDisplayName } =
-    handle;
+  const {
+    rows,
+    yourRank,
+    status,
+    refresh,
+    displayName,
+    setDisplayName,
+    submitEnabled,
+    setSubmitEnabled,
+  } = handle;
   return (
     <BottomModal
-      pressable={<Text style={{ fontSize: 30 }}>🏆</Text>}
+      pressable={<Text style={{ fontSize: NAV_ICON_SIZE }}>🏆</Text>}
       accessibilityLabel={t("main.a11yLeaderboard")}
       scrollable
       testID="leaderboard-button"
@@ -63,6 +72,28 @@ const LeaderboardPanel = memo(function LeaderboardPanel({
           {t("leaderboard.title", { limit: LEADERBOARD_TOP_LIMIT })}
           {isDevSim ? t("settings.cloudSim") : ""}
         </Text>
+        <Tooltip
+          label={t("leaderboard.submitToggle")}
+          content={t("leaderboard.submitToggleHelp")}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <Text style={{ ...styles.text, fontSize: 11, flexShrink: 1 }}>
+              {t("leaderboard.submitToggle")}
+            </Text>
+            <Switch
+              value={submitEnabled}
+              onValueChange={setSubmitEnabled}
+              testID="leaderboard-submit-toggle"
+              accessibilityLabel={t("leaderboard.submitToggle")}
+            />
+          </View>
+        </Tooltip>
         <View style={{ gap: 2 }}>
           <Text style={{ ...styles.text, fontSize: 11, color: "#bbb" }}>
             {t("leaderboard.name")}

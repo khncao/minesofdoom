@@ -5,14 +5,22 @@ import { useT } from "src/hooks/useI18n";
 
 /**
  * Save affordance (plan §2.1 "settings modal discoverability"): saving is
- * no longer buried in the menu — this top-row button saves immediately, and
- * its status dot pulses amber while state has changed since the last
- * successful write (saveDirty from useGameEngine), green when clean. Icon
- * only (todo: "main screen save button icon only") so the row stays a
- * compact strip of icon buttons. Autosave still runs in the background;
- * the button just makes saving a first-class, visible action.
- * The pulse is a 600ms opacity loop (native driver) and is suppressed
- * entirely under the OS reduce-motion preference.
+ * no longer buried in the menu — this button saves immediately, and its
+ * status dot pulses amber while state has changed since the last
+ * successful write (saveDirty from useGameEngine), green when clean.
+ *
+ * It lives on the **menu sheet's close row, far left** opposite the ✕
+ * (todo: "Move save button inside menu (same row as close but on far
+ * left)"). It started in the top icon row — a third wider than an icon
+ * button, which pushed that row over its 360px budget — and then beside
+ * the upgrades button in a floating dock over the cave's bottom-right
+ * corner, which went away when the upgrades button moved up into the
+ * depth bar. The sheet's close row is the one place that costs no cave
+ * space and is already a "dismiss / commit" line.
+ *
+ * Autosave still runs in the background; the button just makes saving a
+ * first-class, visible action. The pulse is a 600ms opacity loop (native
+ * driver) and is suppressed entirely under the OS reduce-motion preference.
  */
 const SavePill = memo(function SavePill({
   dirty,
@@ -57,17 +65,17 @@ const SavePill = memo(function SavePill({
         dirty ? t("a11y.saveDirty") : t("a11y.save")
       }
       onPress={onSave}
-      // Same margin/padding as the BottomModal icon buttons (☰, trophy…)
-      // so the top row stays a uniform strip of icon buttons.
+      // Icon + status dot, sized to the other pill controls in the app (36px
+      // tall, 8px radius).
       style={({ pressed }) => ({
-        margin: 4,
         flexDirection: "row",
         alignItems: "center",
         gap: 5,
-        paddingVertical: 8,
-        paddingHorizontal: 8,
-        borderRadius: 14,
-        backgroundColor: pressed ? "#3a3a3a" : "#333",
+        height: 36,
+        paddingHorizontal: 10,
+        borderRadius: 8,
+        opacity: 0.9,
+        backgroundColor: pressed ? "#2c2c2c" : "#3a3a3a",
       })}
     >
       <Text style={{ fontSize: 16, userSelect: "none" }}>💾</Text>

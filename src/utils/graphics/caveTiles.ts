@@ -1050,6 +1050,39 @@ export function clearCaveTileCache(): void {
  * eviction), so a live pack swap can never serve the other direction's
  * rock out of the cache.
  */
+/**
+ * The WIDTH the cave strips are actually generated at (2026-10-04).
+ *
+ * `caveRowUri`'s cache key includes the generation width, so a container
+ * whose width changed generates a whole new set of strips — and generating
+ * one is not cheap (build the grid, then PNG-encode it). Rotating a phone
+ * changed the width from ~416 to ~920, missed every row in the cache, and
+ * rebuilt the whole cave synchronously on the JS thread: the UI froze for
+ * several seconds before the rotated layout could paint.
+ *
+ * Snapping to powers of two (min 512) means a phone's portrait and
+ * landscape both land on ONE of a handful of buckets, so the second time
+ * you rotate it is a cache hit and the layout comes back instantly. The
+ * strips are drawn with `resizeMode="stretch"` to the real container width
+ * anyway, so generating WIDER than asked (a downscale, which stays sharp)
+ * is free visually — the only cost is that the rock grain reads a little
+ * finer than a native-resolution strip.
+ *
+ * This does not change `stripSizeForWidth` (which stays the fine,
+ * cell-multiple quantiser its callers and tests rely on) — this is the
+ * coarser ladder the cave asks it to round UP to.
+ */
+export const CAVE_GEN_WIDTH_MIN = 512;
+
+export function caveStripWidthFor(widthPx: number): number {
+  const w = Math.max(CAVE_GEN_WIDTH_MIN, Math.ceil(widthPx));
+  // Next power of two, so a handful of buckets cover every device.
+  const bucket = 2 ** Math.ceil(Math.log2(w));
+  // Keep the cell multiple so buildCaveRow's cell maths is unchanged.
+  const cells = Math.ceil(bucket / CAVE_TILE_PX);
+  return cells * CAVE_TILE_PX;
+}
+
 export function caveRowUri(opts: {
   depth: number;
   tint: string;

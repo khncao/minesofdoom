@@ -18,6 +18,7 @@ import {
   DEFAULT_OWNED_CAVE_THEMES,
   OUTFITS,
   PICKAXES,
+  REROLL_COST_GEMS,
   getCaveTheme,
   getCaveThemeCost,
   getCostGems,
@@ -34,12 +35,33 @@ import {
   ROSTER_MAX_PER_TYPE,
   ROSTER_ASSIGNABLE_SLOTS,
 } from "../cosmetics";
+import { DAILY_QUEST_GEMS } from "../dailyQuests";
+import { WEEKLY_GEM_BONUS } from "../weeklyChallenge";
 
 const HEX6 = /^#[0-9a-f]{6}$/i;
 
 /** Materials a label map actually used (nulls dropped). */
 const labelsUsed = (g: (string | null)[][]): Set<MaterialId> =>
   new Set(g.flat().filter((m): m is MaterialId => m != null));
+
+describe("reroll price (todo: \"add a 1 gem cost for rerolling outfit\")", () => {
+  test("is one gem — a rounding error, not a wall", () => {
+    expect(REROLL_COST_GEMS).toBe(1);
+  });
+
+  test("is far below the cheapest paid cosmetic, and covers itself free", () => {
+    const cheapestPaid = Math.min(
+      ...OUTFITS.filter((o) => o.costGems > 0).map((o) => o.costGems),
+      ...PICKAXES.filter((p) => p.costGems > 0).map((p) => p.costGems),
+    );
+    expect(REROLL_COST_GEMS).toBeLessThan(cheapestPaid);
+    // Free-path viability (guardrail 1): the daily quests alone pay ~31
+    // gems a month, so a player never has to buy one.
+    expect(DAILY_QUEST_GEMS * 30 + WEEKLY_GEM_BONUS * 4).toBeGreaterThan(
+      REROLL_COST_GEMS * 30,
+    );
+  });
+});
 
 describe("catalog", () => {
   test("ids are unique across outfits and pickaxes", () => {

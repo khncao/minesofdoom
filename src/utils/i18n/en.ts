@@ -94,7 +94,9 @@ export const en = {
   "toast.dailyEquation": "Equation of the Day solved: +{bonus} minerals!",
   "toast.dailyEquationStart":
     "Equation of the Day: solve it for +{bonus} minerals — wrong answers are free",
-  "toast.weeklyContract": "Weekly contract complete: +{bonus} minerals",
+  "toast.weeklyContract":
+    "Weekly contract complete: +{bonus} minerals and +{gems} gems",
+  "toast.questClaimed": "Quest complete: +{gems} 💎",
   "toast.iapPackUnlocked": "Unlocked {name} — find it in Cosmetics!",
   "toast.adFinishedGems": "Ad finished: +{count} 💎",
   "toast.adFinishedDouble": "Ad finished: offline haul doubled (+{count} 🪨)",
@@ -119,6 +121,9 @@ export const en = {
   // operands would hand over the arithmetic (and for several shapes the
   // answer), turning a hint into a solve button.
   "hint.open": "Hint for this question",
+  // The modal chrome (todo: "Equation hint/tips should show up as a modal").
+  "hint.modalTitle": "HOW TO WORK IT OUT",
+  "hint.modalClose": "GOT IT",
   "hint.multiply": "Break it apart: 7 × 8 is 7 × 5 + 7 × 3, and round numbers are quicker than exact ones.",
   "hint.add": "Round one side to a ten and correct afterwards: 47 + 28 is 47 + 30 − 2.",
   "hint.subtract": "Take from the round number, then add back: 52 − 18 is 52 − 20 + 2.",
@@ -185,16 +190,54 @@ export const en = {
   "a11y.dailyEquationPending":
     "Equation of the Day: unsolved (+{bonus} minerals)",
   "a11y.dailyEquationSolved": "Equation of the Day: solved today",
-  "a11y.weeklyClaimable": "Open weekly contract — claim +{bonus} minerals",
+  "a11y.weeklyClaimable":
+    "Open quests — claim +{bonus} minerals and +{gems} gems",
   "a11y.weeklyProgress":
-    "Open weekly contract — {done} of {total} goals complete",
-  "a11y.weeklyClaimed": "Open weekly contract — claimed for this week",
+    "Open quests — {done} of {total} weekly goals complete",
+  "a11y.weeklyClaimed": "Open quests — weekly contract claimed for this week",
   "weekly.title": "WEEKLY CONTRACT",
   "weekly.statusInProgress": "{done} of {total} tasks done this week",
   "weekly.statusClaimable": "All tasks complete — claim your bonus",
   "weekly.statusClaimed": "Claimed this week — the new contract opens Monday",
   "weekly.resetNote": "Tasks and the bonus reset every Monday",
-  "weekly.claim": "CLAIM +{bonus} MINERALS",
+  // The reward is stated UP FRONT, not only on the claim button: a single
+  // contract pays out once for all three tasks, so three rows each quoting a
+  // payout would read as three times the reward. One section-level note is
+  // the honest place for it (todo: "Add notes showing rewards for
+  // daily/weekly tasks").
+  "weekly.rewardNote":
+    "Finish all {total} tasks to claim +{bonus} minerals +{gems} 💎",
+  "weekly.claim": "CLAIM +{bonus} MINERALS +{gems} 💎",
+  // Weekly goal rows (weeklyChallenge.ts holds the ids/targets).
+  "weekly.answer75": "Answer 75 equations correctly",
+  "weekly.mine500k": "Mine 500k minerals",
+  "weekly.own2Miners": "Own 2 more miners",
+
+  // --- Quest log (daily quests + the weekly contract above) ---------------
+  // The 📜 button is the quest log: a day's three quests on top, the
+  // weekly contract below. Both reward gems (todo: "daily quests and
+  // weekly quests should reward gems — 1 gem for daily quests, 10 for
+  // weekly"), which is why the daily half needs no navbar slot of its own
+  // — the row was already at its 360px budget (BottomModal.NAV_ICON_SIZE).
+  "quest.logTitle": "QUEST LOG",
+  "quest.dailyTitle": "TODAY'S QUESTS",
+  "quest.dailyStatus": "{done} of {total} done — {claimable} to claim",
+  "quest.dailyDone": "All done for today — new quests at midnight",
+  "quest.dailyResetNote": "Quests reset at midnight",
+  // Each daily quest is claimed (and paid) on its own, so the payout
+  // belongs on the row — quoted from the first second, not revealed as a
+  // surprise on the claim button (todo: "Add notes showing rewards for
+  // daily/weekly tasks").
+  "quest.rewardNote": "Pays +{gems} 💎",
+  "quest.claim": "CLAIM +{gems} 💎",
+  "quest.claimed": "CLAIMED",
+  "quest.answerTen": "Answer 10 equations correctly",
+  "quest.answerTwentyFive": "Answer 25 equations correctly",
+  "quest.mineSmall": "Mine 2,000 minerals",
+  "quest.mineMid": "Mine 25,000 minerals",
+  "quest.mineBig": "Mine 150,000 minerals",
+  "quest.hireMiner": "Hire a miner",
+  "a11y.questClaim": "Claim the gem for: {label}",
 
   // --- Save button ---------------------------------------------------------
   "a11y.save": "Save game",
@@ -246,7 +289,7 @@ export const en = {
   "settings.language": "🌐 Language:",
   "lang.auto": "Auto",
   "settings.autosave": "Autosave interval (seconds): ",
-  "settings.maxNumber": "Max constant value in equations: ",
+  "settings.maxNumber": "Max constant value in equations (3–99): ",
   "settings.operatorHelp": "Long-press an operator to see how it pays",
   "settings.operatorEquations": "{name} equations",
   "settings.tooltipHard": "Hard mode equations",
@@ -505,6 +548,13 @@ export const en = {
     "uncluttered as the shop grows. The three core buttons (upgrade " +
     "power, buy a miner, buy a gem) are always visible. On: every upgrade " +
     "button is shown at all times, locked or not.",
+  "settings.secondKeypad": "Second keypad: ",
+  "settings.secondKeypadHelp":
+    "Off (default): one numpad. On: a second numpad floats over the cave so " +
+    "both thumbs can answer without re-gripping — in portrait or in " +
+    "landscape. Both keypads can be dragged anywhere on screen and " +
+    "remember where you left them. Needs the on-screen keypad above to be " +
+    "on.",
   "settings.onScreenKeypad": "On-screen keypad: ",
   "settings.onScreenKeypadHelp":
     "On: the answer box never opens the OS keyboard — a numpad-style " +
@@ -578,6 +628,8 @@ export const en = {
     "Removes your account and ALL data linked to it on every device — " +
     "saves, purchases and leaderboard — from the server. You'll be " +
     "signed out everywhere. This can't be undone.",
+  "leaderboard.submitToggle": "Submit my scores to the leaderboard",
+  "leaderboard.submitToggleHelp": "OFF by default. Turning this on sends your display name and a random device id to the developer's server so you can appear on the board. Nothing is sent until you turn this on, and you can turn it off again at any time.",
   "leaderboard.title": "🏆 Top {limit} — deepest shaft",
   "leaderboard.name": "Display name (shown on the leaderboard)",
   "leaderboard.refresh": "Refresh",
@@ -607,6 +659,7 @@ export const en = {
 
   // --- Cosmetics (the unified shop — see the iap.* block) --------------
   "cosmetics.reroll": "🎲 Reroll look",
+  "cosmetics.rerollCost": "🎲 Reroll look (-{cost} 💎)",
   "cosmetics.themesLocked": "🔒 Cave themes (Crystal Kingdom)",
   "cosmetics.themesUnlockedAt": "Unlocks at Crystal Kingdom",
 
@@ -720,7 +773,6 @@ export const en = {
   "ui.areYouSure": "Are you sure?",
   "ui.confirm": "Confirm",
   "ui.cancel": "Cancel",
-  "ui.holdToMineHint": "hold to mine",
   "a11y.backspace": "Backspace",
   "a11y.clearAnswer": "Clear the whole answer",
   "a11y.submitAnswer": "Submit answer",
@@ -732,6 +784,7 @@ export const en = {
     "Only one decimal point, for money answers like 22.40",
   "a11y.holdToClear": "Hold to clear the whole answer",
   "a11y.closeSettings": "Close settings",
+  "a11y.closeHint": "Close the hint",
   "a11y.settings": "Settings",
 
   // --- Footer misc -------------------------------------------------------------------

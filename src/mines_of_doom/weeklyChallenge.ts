@@ -21,6 +21,7 @@
  */
 import { SaveData } from "./game";
 import { getLocalDayKey } from "./dailyBonus";
+import type { TranslationKey } from "src/utils/i18n/i18n";
 
 /** The monotonic lifetime metrics the weekly contract measures deltas of.
  *  All of them only ever increase (or reset only via prestige, which also
@@ -35,7 +36,12 @@ export type WeeklyGoal = {
   metric: WeeklyMetric;
   /** Delta target on the metric within the week. */
   target: number;
-  label: string;
+  /**
+   * i18n KEY, not a literal: this text is player-facing, and a hard-coded
+   * English label here is the one thing the daily quests (see
+   * dailyQuests.ts) were written to avoid copying.
+   */
+  label: TranslationKey;
 };
 
 export type WeeklyChallengeState = {
@@ -53,6 +59,18 @@ export type WeeklyChallengeState = {
 export const WEEKLY_BONUS = 150_000;
 
 /**
+ * One-time GEM grant alongside the minerals when the contract completes
+ * (todo: "daily quests and weekly quests should reward gems … 10 for
+ * weekly"). Gems are the premium currency (cosmetics 15–250, gem upgrades
+ * 10/25 a level), so ten a week is roughly one cheap cosmetic per month
+ * for a player who completes the contract — an earnable, free-path bonus
+ * (guardrail 1), not a paywall. `WEEKLY_BONUS` stays: the minerals are what
+ * the contract was always worth, and re-pricing it down would make
+ * completing it feel like a loss.
+ */
+export const WEEKLY_GEM_BONUS = 10;
+
+/**
  * The weekly contract (fixed set — rotating sets are future work). Targets
  * are tuned for the free-path benchmark persona (freePath.ts): a casual
  * player with a 2h evening session answers far more than 75 equations a
@@ -65,19 +83,19 @@ export const WEEKLY_GOALS: WeeklyGoal[] = [
     id: "wk-answers",
     metric: "lifetimeCorrect",
     target: 75,
-    label: "Answer 75 equations correctly",
+    label: "weekly.answer75",
   },
   {
     id: "wk-minerals",
     metric: "lifetimeMinerals",
     target: 500_000,
-    label: "Mine 500k minerals",
+    label: "weekly.mine500k",
   },
   {
     id: "wk-miners",
     metric: "minersOwnedEver",
     target: 2,
-    label: "Own 2 more miners",
+    label: "weekly.own2Miners",
   },
 ];
 
@@ -138,6 +156,8 @@ export type WeeklyChallengeInfo = {
   /** allDone AND not yet claimed this week. */
   claimable: boolean;
   bonus: number;
+  /** Gems paid alongside `bonus` on the same claim. */
+  gemBonus: number;
 };
 
 /**
@@ -173,6 +193,7 @@ export function computeWeeklyChallenge(
     allDone,
     claimable: allDone && !rolled && (state?.claimed ?? false) === false,
     bonus: WEEKLY_BONUS,
+    gemBonus: WEEKLY_GEM_BONUS,
   };
 }
 

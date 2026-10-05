@@ -14,7 +14,7 @@ import {
   selectAdProvider,
 } from "../ads";
 import { getLocalDayKey } from "../dailyBonus";
-import { unityAdProvider, hasUnityAdsConfig } from "../unityAdProvider";
+import { adMobAdProvider, hasAdMobConfig } from "../adMobAdProvider";
 import { adSenseAdProvider } from "../adSenseProvider";
 
 /** Local noon on a calendar day — same convention as the daily-bonus
@@ -201,7 +201,7 @@ describe("provider selection (the swap point)", () => {
       pickAdProvider({
         dev: true,
         web: false,
-        unityConfigured: false,
+        adMobConfigured: false,
         adSenseConfigured: false,
       }),
     ).toBe(devSimAdProvider);
@@ -209,7 +209,7 @@ describe("provider selection (the swap point)", () => {
       pickAdProvider({
         dev: true,
         web: true,
-        unityConfigured: true,
+        adMobConfigured: true,
         adSenseConfigured: true,
       }),
     ).toBe(devSimAdProvider);
@@ -220,7 +220,7 @@ describe("provider selection (the swap point)", () => {
       pickAdProvider({
         dev: false,
         web: true,
-        unityConfigured: true,
+        adMobConfigured: true,
         adSenseConfigured: false,
       }),
     ).toBe(noopAdProvider);
@@ -231,7 +231,7 @@ describe("provider selection (the swap point)", () => {
       pickAdProvider({
         dev: false,
         web: true,
-        unityConfigured: false,
+        adMobConfigured: false,
         adSenseConfigured: true,
       }),
     ).toBe(adSenseAdProvider);
@@ -239,7 +239,7 @@ describe("provider selection (the swap point)", () => {
       pickAdProvider({
         dev: false,
         web: true,
-        unityConfigured: true,
+        adMobConfigured: true,
         adSenseConfigured: true,
       }),
     ).toBe(adSenseAdProvider);
@@ -250,7 +250,7 @@ describe("provider selection (the swap point)", () => {
       pickAdProvider({
         dev: false,
         web: false,
-        unityConfigured: false,
+        adMobConfigured: false,
         adSenseConfigured: true,
       }),
     ).toBe(noopAdProvider);
@@ -261,17 +261,17 @@ describe("provider selection (the swap point)", () => {
       pickAdProvider({
         dev: false,
         web: false,
-        unityConfigured: true,
+        adMobConfigured: true,
         adSenseConfigured: false,
       }),
-    ).toBe(unityAdProvider);
+    ).toBe(adMobAdProvider);
   });
 
   // The live selector — pins the shipped state of storeConfig: the Unity
   // Game ID / placement ids are not filled in yet (docs/store-integration.md
   // §1), so a production build must still hide the entry points.
   it("live selector: production with the current (empty) config selects the no-op", () => {
-    expect(hasUnityAdsConfig()).toBe(false);
+    expect(hasAdMobConfig()).toBe(false);
     expect(selectAdProvider(false)).toBe(noopAdProvider);
   });
 

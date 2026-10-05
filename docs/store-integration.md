@@ -386,26 +386,76 @@ Exact clicks: §1.1 steps 3 and 4.
    → Rewarded). All four `AdKind`s point at it. Verify step 3 on it.
 3. **THE COMPLIANCE STEP — the 5-second skip. There is no "Ad Units"
    page: ad units are rows ON the Placements page, and the setting is in
-   the AD UNIT row's menu, not the placement's.** Path: **Monetization →
-   Placements** → expand the **Rewarded / Android** ad-unit row (the
-   placement `BP_Rewarded_Android` is nested inside it) → **⋯** on the
-   **ad unit row itself** → **ad format settings** → **“Allow skip
-   after \_\_\_”** = **5**. Two traps: the ⋮ menu lives on the *Placements*
-   page (there is no separate Ad Units page to look for), and the ⋮ on
-   the nested *placement* row does not carry the setting — you need the
-   parent ad unit row, so expand the row rather than clicking the
-   placement directly. This is what
-   makes the format satisfy Play's Families ad-format rule ("rewarded or
-   opt-in ads … must be closeable after 5 seconds"); rewarded units are
-   **not skippable by default** (ad-unit wiki: *"select Allow skip
-   after \_\_\_ … Five seconds is the minimum value for app store
-   compliance"*). A skipped ad resolves "closed" — no reward, nothing
-   taken away. **The app cannot do this one**: `unity-ads` 4.20.1 has no
-   skip-delay API (verified by disassembling the AAR — `UnityAdsShowOptions`
-   exposes only `showConfiguration`, and `ShowConfiguration` carries just
-   `customRewardString` + `extras`; `javap com.unity3d.ads.UnityAds` shows
-   `setNonBehavioral`/`setUserConsent`/`setUserOptOut` and nothing about
-   skipping), so the dashboard is the only lever. Hence blocking.
+   the AD UNIT row's menu, not the placement's.**
+
+   > ## ✅ SETTLED 2026-10-03 — USE ADMOB REWARDED *INTERSTITIAL*. THREE
+   > > FORMATS WERE TESTED ON DEVICE; ONLY THE THIRD PASSES.
+   > >
+   > > | build | provider / format | skip within 5s? |
+   > > |---|---|---|
+   > > | 1.0.12 / vc 12 | Unity **rewarded** (`BP_Rewarded_Android`) | ❌ no skip, no close at all |
+   > > | 1.0.14 / vc 14 | Unity **interstitial** (`rewarded_inter`) | ❌ no skip, no close at all |
+   > > | **1.0.15 / vc 15** | **AdMob rewarded interstitial** | ✅ **skippable** |
+   > >
+   > > The Unity attempts are dead for good, and the reasons are now
+   > > established rather than assumed:
+   > > 1. **Dashboard** — the redesign is bidding-placements only; ad units
+   > >    "can no longer be created", so the ad-unit ⋮ / ad-format-settings
+   > >    menu does not exist. Unity's *ad format settings reference* lists
+   > >    only name / format / status / ad types / muting — no skip control.
+   > > 2. **Docs** — Unity's *Families compliance* page lists only the age
+   > >    designation + Designed for Families flag, never a skip setting.
+   > >    Where skip IS documented it belongs to **non-rewarded** formats.
+   > > 3. **SDK** — disassembling every class of `unity-ads` 4.20.1 *and*
+   > >    4.21.0: the only `skip` symbols in all of `com.unity3d.ads` are the
+   > >    two enum values that *report* a skip. No configuration lever.
+   > >
+   > > **AdMob rewarded INTERSTITIAL works because the guarantee is
+   > > platform-side, not configuration-side**: Google only ever serves
+   > > skippable ads in that format, so there is nothing to toggle and
+   > > nothing that can regress. The old AdMob *rewarded* unit is still
+   > > unusable — its close button is Google's creative UI on a
+   > > per-creative 5-30 s countdown with no dismiss API, which is what got
+   > > v1.0.10 rejected. Same SDK, different FORMAT.
+   > >
+   > > The format is not opt-in by design (it targets app transitions); we
+   > > only ever show it from a player-tapped "watch" button, so guardrail 2
+   > > holds, and Google's own guide asks for reward messaging + a skip
+   > > option before showing one — which is exactly the watch button.
+
+   **⚠ 2026-10-03 — CHECK WHICH DASHBOARD YOU ARE IN FIRST. The owner
+   went looking for this setting in the *redesigned* Monetization
+   dashboard and it is genuinely not there. That is not a hunting
+   failure — the new dashboard does not have ad units at all:**
+   - The redesigned dashboard is **bidding-placements only**: "Waterfall
+     placements and ad units **can no longer be created**" (Monetization →
+     Placements). No ad units exist in it, so there is no ad-unit ⋮ menu
+     and no format settings to open.
+   - The **ad-unit "ad format settings"** this step points at is
+     **LEGACY-dashboard UI**, documented under the older Ads docs
+     (`/en-us/grow/dashboard/ad-units/manage`: "select the ellipses (…) **in
+     the ad unit row** … or update the ad format settings"). If the
+     project has been moved to the new dashboard, the legacy Ad-units view
+     is where this lives — or may be gone entirely.
+   - **The setting may no longer exist at all.** Unity's own *Ad format
+     settings reference* now lists only ad unit name, ad format, status, ad
+     types and muting — **no skip control**. Their *Families compliance*
+     page lists only the age designation + Designed for Families flag,
+     never a skip setting. And wherever skip IS documented it is a property
+     of **non-rewarded** formats ("Non-rewarded Placements allow players
+     to skip the ad after a specified period"; the Interstitial format's
+     description carries the skip, the **Rewarded** one does not). Other
+     publishers report the same wall: "I remember there were settings for …
+     'Allow skip' timeout … But I can not find them in the current UI … the
+     'Advanced settings' section is empty." **So treat this step as
+     UNVERIFIED until §1.3 empirically confirms a skip control appears.**
+
+   **Historical path (legacy Unity dashboard — gone; kept for the record):**
+   Monetization → Placements → expand the Rewarded/Android ad-unit row → ⋮
+   on the **ad unit row itself** → ad format settings → "Allow skip after
+   **5**". Do not go looking for it: the new dashboard has no ad units, and
+   the setting is not in Unity's current format reference either.
+
 4. **Child-directed ad network settings — i.e. "don't show ads rated
    13+ to this 9+ audience".** Path: the project's **Settings** page
    (Unity's wording: "select **CURRENT PROJECT > Settings**") →
@@ -472,16 +522,32 @@ Both checks need a **release** build on a device/emulator — a
 module (`pnpm exec expo run:android --variant release`, or install the
 release APK; §2.5 covers the release build and its signing).
 
-- First on a **test-mode** release build (host the build somewhere other
-  than `PROD_WEB_DOMAIN` so `isProdEnvNow()` is false → `testMode: true`):
-  the "watch" entry points appear, an ad loads, a **skip within 5
-  seconds grants nothing**, and a completed ad grants the reward exactly
-  once. Nothing is billed and no live demand is touched.
-- Then on the **production** release build (test mode off, real demand):
-  time the first 5 seconds of a rewarded ad and confirm the close/skip
-  control is visible and functional. If Unity's skip setting is off for
-  any placement, the creative holds the player for the full length and
-  Play rejects the update for the same reason as v1.0.10.
+- First, a **bridge** check (does an ad load, does a skip grant nothing,
+  does a completed ad grant the reward exactly once):
+  **⚠ 2026-10-03 — the documented way to get test mode does NOT work on
+  Android.** The old advice was "host the release build somewhere other
+  than `PROD_WEB_DOMAIN` so `isProdEnvNow()` is false → `testMode:
+  true`". That is **web-only reasoning**: `isProdEnvNow()` reads a *web
+  hostname* first and falls back to `!__DEV__` when there is none, and on
+  native there is never a hostname — `environment.test.ts` pins
+  `isProdEnv({ isDev: false }) === true` ("native (no hostname): prod only
+  for non-dev builds"). So **a release APK is ALWAYS prod → `testMode:
+  false`**, and the provider passes `testMode = !isProdEnvNow()`. A debug
+  build does get `testMode: true`, but `pickAdProvider` gives dev builds to
+  the labeled `devSimAdProvider` **first**, so the Unity module never runs.
+  **Net: there is currently no way to run the Unity bridge against Unity's
+  test inventory on Android — a release APK always talks to production
+  demand.** For a safe pre-flight, hand-patch `testMode` to `true` in
+  `unityAdProvider.ts`, build, test, then revert it (never commit); or skip
+  straight to the production check below and keep the tap count low.
+- Then the check that actually **matters**, on the **production** release
+  build (real demand): time the first 5 seconds of a rewarded ad and confirm
+  the close/skip control is visible and functional. **Only this can prove
+  the skip behaviour** — skip timing is a serving-side property of the
+  placement's creatives, so Unity's test inventory would not reproduce it in
+  either direction. If no skip control appears and the creative holds the
+  player for its full length, **stop: that is the v1.0.10 rejection**, and
+  §1.1 step 3's fallback (AdMob rewarded interstitial) is the move.
 - Console answers must then match the build: target audience may include
   children; **IARC “Advertising” = Yes**; Data safety declares the ad SDK
   and states that no advertising ID is collected (the permission is not

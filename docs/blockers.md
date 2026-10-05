@@ -103,9 +103,22 @@ bridge, so the iOS surface stays empty.)
 
 **What is blocked:** only the stance decision itself — the ad-free
 v1.0.11 resubmission (todo.md "Play Families rejection") is NOT blocked
-on it, and is the correct move under any option (it is also the state
-the repo is in right now: the Unity Ads switch is implemented but the
-Game ID / placement ids are still empty, so nothing shows). When the
+on it, and was the correct move under any option. **STALE AS OF
+2026-10-01, corrected:** this section used to continue "it is also the
+state the repo is in right now: the Unity Ads switch is implemented but
+the Game ID / placement ids are still empty, so nothing shows". That is
+no longer true. The owner pasted the Android ids (Game ID `800386304`,
+placement `BP_Rewarded_Android`), so `hasUnityAdsConfig()` is TRUE and
+**a production Android build ships live rewarded ads today** (vc 12 /
+1.0.12). The gap is no longer in the code — it is entirely on the Unity
+dashboard (skip-after-5s on the AD UNIT + the child-directed
+designation, store-integration.md §1.1 steps 3–4) plus the Play Console
+answers, and the app can enforce neither. **So do not submit the
+ads-on build until step 3 is done on the dashboard:** an unclosable
+rewarded ad is the exact v1.0.10 rejection, and the privacy policy
+(legal.ts v2.4) already promises "you can always close a mobile ad
+within the first 5 seconds", so shipping without the setting would also
+make that disclosure inaccurate. When the
 decision lands: set the console target audience, decide whether the
 listing needs de-juvenilizing, keep or flip `childDirectedTreatment` +
 `stripAdvertisingId` **together with** `app.config.ts`'s

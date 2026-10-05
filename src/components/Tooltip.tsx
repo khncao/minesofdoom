@@ -6,14 +6,21 @@ import { T as Text } from "src/mines_of_doom/textScale";
  * above it while pressed. Works with touch (long-press) and mouse (hold).
  * Also exposes the content as an `accessibilityHint` for screen readers,
  * so the info is available without a pointer.
+ *
+ * `onPress` (optional, 2026-10-04): forwarding the row's own action to the
+ * wrapper Pressable makes the WHOLE row a target instead of only the control
+ * inside it. It also makes the press reliable — see `delayLongPress` below.
  */
 const Tooltip = memo(function Tooltip({
   content,
   label,
+  onPress,
   children,
 }: {
   content: string;
   label?: string;
+  /** Optional action for a short tap. Omit for purely decorative labels. */
+  onPress?: () => void;
   children: React.ReactNode;
 }) {
   const [visible, setVisible] = useState(false);
@@ -24,7 +31,12 @@ const Tooltip = memo(function Tooltip({
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityHint={content}
-        delayLongPress={150}
+        // 150ms was short enough that an ordinary tap (~80-120ms) could land
+        // past it and be swallowed as a long-press — which is why the keypad
+        // switches in Settings felt like they "sometimes" ignored a tap. A
+        // real long press is 400ms+; a normal one never reaches it.
+        delayLongPress={400}
+        onPress={onPress}
         onLongPress={() => setVisible(true)}
         onPressOut={() => setVisible(false)}
       >
@@ -45,6 +57,7 @@ const styles = StyleSheet.create({
   anchor: {
     position: "relative",
     alignItems: "center",
+    alignSelf: "stretch",
   },
   bubble: {
     position: "absolute",

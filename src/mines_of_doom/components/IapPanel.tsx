@@ -1,7 +1,7 @@
 import { memo, useMemo, useState } from "react";
 import { Image, Pressable, View } from "react-native";
 import { T as Text } from "../textScale";
-import BottomModal from "src/components/BottomModal";
+import BottomModal, { NAV_ICON_SIZE } from "src/components/BottomModal";
 import Button from "src/components/Button";
 import { useContent, useI18n } from "src/hooks/useI18n";
 import {
@@ -17,6 +17,7 @@ import {
   isIapProductOwned,
 } from "../iaps";
 import {
+  REROLL_COST_GEMS,
   ROSTER_ASSIGNABLE_SLOTS,
   getPickaxe,
   rollMinerLook,
@@ -743,7 +744,7 @@ function IapPanel({
 
   return (
     <BottomModal
-      pressable={<Text style={{ fontSize: 30 }}>🛍️</Text>}
+      pressable={<Text style={{ fontSize: NAV_ICON_SIZE }}>🛍️</Text>}
       accessibilityLabel={t("iap.a11y")}
       scrollable
     >
@@ -775,8 +776,11 @@ function IapPanel({
           </Pressable>
         )}
 
-        {/* Look preview + reroll (moved from the menu sheet's Shop view):
-            the actual sprites, generated at runtime. */}
+        {/* Look preview + reroll (moved from the menu sheet's Shop view): the
+            actual sprites, generated at runtime. The reroll costs one gem
+            (todo: "add a 1 gem cost for rerolling outfit"), so the button
+            states the price and goes disabled while the player is short —
+            never a silent no-op, and never a free reroll. */}
         <View
           style={{ ...styles.flexCenteredRow, gap: 8, alignItems: "center" }}
         >
@@ -791,7 +795,13 @@ function IapPanel({
               style={{ width: 24, height: 24, marginLeft: 4, marginBottom: -2 }}
             />
           </View>
-          <Button title={t("cosmetics.reroll")} onPress={onReroll} />
+          <Button
+            title={t("cosmetics.rerollCost", { cost: REROLL_COST_GEMS })}
+            onPress={onReroll}
+            disabled={gems < REROLL_COST_GEMS}
+            tone="gem"
+            testId="reroll-look"
+          />
         </View>
 
         {GROUP_ORDER.map((line) => (

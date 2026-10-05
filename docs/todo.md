@@ -1,183 +1,23 @@
 # Mines of Idle Doomath — UX, Improvements & New Features Plan
 
-Legend: [ ] not started, [o] in progress, [-] blocked
-Completed items are removed from this file (see git history); only remaining work is tracked here.
+Legend: [ ] not started, [o] in progress, [-] blocked [x] completed
+
 Only work on continuous tasks after other tasks are completed
 
-- [o] refine the on-screen keypad (pass 1 done: keypress haptic ticks +
-      visual-only boundary shakes for empty submit / full box — feels
-      right on device? then close)
-- [o] fix: Play Families rejection → ad-free resubmission (v1.0.11)
-      Google Play rejected the update 2026-09-30: *Families Ad Format
-      Requirements* — "Unclosable ads: Ads interfere with app use and
-      can't be closed after 5 seconds" (citing **version code 9** =
-      1.0.9, the live build with the AdMob rewarded ads) + "Play
-      Console answers that do not accurately reflect the app and its
-      ads". The reviewer classified the app as targeting children
-      despite the S6 teen+ stance (it reserves the right to make its
-      own determination). Full runbook: **docs/store-integration.md
-      §0**; the target-audience stance decision: **docs/blockers.md
-      (2026-09-30)**. Code side DONE (2026-09-30): `storeConfig.adMob`
-      + the `app.config.ts` mirror emptied (the "empty = hidden" rule
-      hides every "watch" entry point and keeps the AdMob App ID out
-      of the manifest, so the GMA SDK never initializes — no ad
-      requests, no advertising-id use), privacy policy v2.3 says the
-      mobile build has no ads (web AdSense untouched), version bumped
-      to 1.0.11. Native side DONE (2026-09-30): `expo prebuild
-      --clean --platform android` regenerated `android/` — the
-      manifest no longer carries the AdMob App ID (the two GMA
-      `OPTIMIZE_*` flag lines and the `AD_ID` permission remain; the
-      RN-GMA plugin injects those unconditionally and they're inert
-      because nothing initializes the SDK), and `build.gradle` is
-      now 11/1.0.11 (line endings normalized CRLF→LF in the same
-      pass). ALL OF THE ABOVE COMMITTED as bcb2a1b (11 files,
-      2026-09-30). What remains, split by who can do it:
-      - **Owner (Play Console UI — the API cannot set these, and the
-        submission captures these answers, so do them BEFORE the
-        upload):** 1) Target audience and content: "13 and up" only
-        (no children age groups, do NOT opt into "Designed for
-        Families" / Teacher Approved). 2) IARC questionnaire:
-        advertising = **No advertising** (the previous "ads" answer
-        IS the rejected "inaccurate answers" bullet — the critical
-        one); answer the rest honestly (cartoon/fantasy violence,
-        in-app purchases; no chat/external links/UGC) and let the
-        rating fall out of the descriptors. 3) Data safety (Android):
-        no third-party ad SDK, no advertising-id use; keep the
-        account/cloud/purchase disclosures.
-      - **Agent (ready when owner says go):** the release AAB is
-        BUILT and verified (2026-09-30, `app-release.aab` in
-        `android/app/build/outputs/bundle/release/`, 77MB, vc 11,
-        signed with the Play upload key): no real AdMob App ID
-        anywhere in the bundle — the merged manifest's
-        APPLICATION_ID is the GMA SDK's zero placeholder and the
-        only other `ca-app-pub` strings are the SDK's test-id
-        constant + validation regex. Build note: the machine's
-        system JDK is headless — a full Temurin 21 was installed to
-        `~/.jdks` and pinned in `~/.gradle/gradle.properties` (any
-        gradle invocation works now). Submission is the untracked
-        `.play-submit-v1.0.11.mjs` in the repo root (ONE Play edit:
-        en-US listing bullet → "No ads, no pop-ups — nothing to
-        watch or skip" + AAB upload + production and internal
-        tracks, release notes "No ads in this version. Same game:
-        solve equations, dig deeper, build your crew."; it aborts
-        uncommitted if the uploaded versionCode ≠ 11).
-      - **After submit:** watch the review; if it is classified
-        Families again, the app stays ad-free on native (see
-        blockers.md).
-- [o] re-enable native rewarded ads on **Unity Ads** (code DONE 2026-10-01;
-      blocked on owner input — the Unity project + ids)
-      Code: AdMob is GONE (`react-native-google-mobile-ads` removed, its
-      config plugin + App IDs deleted, AD_ID stripped by
-      `plugins/withUnityAds.js`) and replaced by the local Expo module
-      `modules/unity-ads` (`unity-ads` 4.20.1, Families self-certified)
-      + `src/mines_of_doom/unityAdProvider.ts`. Why: Play's Families rule
-      bans rewarded ads that aren't closeable in 5 seconds, and the AdMob
-      rewarded unit can't be — Unity's rewarded ad units have a documented
-      "Allow skip after 5 seconds" setting, so ONE player-tapped
-      rewarded surface is compliant for all ages (a skip resolves
-      "closed": no reward). Every request is child-treated
-      (`childDirectedTreatment: true` → `setNonBehavioral(true)`, i.e.
-      contextual-only demand) and the ad-id permissions are removed from
-      the APK, so **no neutral age screen is needed**. Tests/lint/
-      typecheck green; a release AAB with the module compiles.
-      **Owner (see store-integration.md §1):** 1) create the Unity
-      Android project (Game ID) + the rewarded placement ~~2) set
-      "Allow skip after 5 seconds" on the rewarded AD UNIT (Monetization →
-      Placements → expand the ad unit row → ⋮; there is no Ad Units page,
-      and the nested placement's own menu does not carry it), 3) set the
-      project's Game-level age designation to "directed to children"
-      (project Settings → Privacy controls) and App store compliance →
-      Google Designed for Families, 4) paste the ids
-      into `storeConfig.unityAds`, 5) verify on a release build that a
-      5-second skip really is available, 6) then set the console
-      answers to match the build (target audience may include children,
-      IARC advertising = **Yes**, data safety: ad SDK declared + no
-      advertising id) and re-submit. Until step 4 the config is empty
-      and the app is still ad-free (correct interim state).
-      Versioning: keep 1.0.11/vc 11 for the ad-free build (it is already
-      built and signed); **bump to 1.0.12 / vc 12 when the Unity ids
-      land**, since the ad-bearing APK is a different bundle.
-- [ ] pick the Play target-audience stance (owner decision, see
-      blockers.md 2026-09-30)
-
-## Art follow-ups (papercut shipped 2026-10-02)
-
-Direction decided + shipped behind the art-pack seam
-(`src/utils/graphics/artPack.ts`; see docs/art-directions.md). Left open,
-in rough priority order:
-
-- [x] **cave art in the new style.** DONE 2026-10-03: the paper-cut cave
-      ships — see **docs/cave-art.md**. `caveTiles.ts` (the 336×24 strip
-      pipeline) keeps its per-pixel silhouette and its absolute row / band
-      addressing EXACTLY as they were; only the rock's marking changed.
-      New `src/utils/graphics/caveArt.ts` holds the direction (the paper
-      stock + the renderer), the paper-cut plane field lives in
-      `caveTiles.ts` next to the other fields (`rockPlaneValue` /
-      `rockPlaneIndex`, `PLANE_EDGES`), and each art pack now names its
-      rock via `ArtPack.caveArt`, so `setActiveArtPack("pixel")` brings
-      back the classic dithered ramp with the classic characters. The read
-      is three flat planes per tier, a lit paper core on every cut edge
-      (the rock/gap contour — the one mark a cave needs that a character
-      never does) and the silhouette's 2px cast shadow down-right. The
-      gems / ore / eggs / rubble stay the classic flat objects on purpose.
-      Contact sheet: `node scripts/generate-cave-art-samples.mjs`.
-- [ ] **paper-cut debris shard.** The papercut pack delegates the 12px
-      debris particles to the classic shards (a 32px rock crushed into 12px
-      is mush). A small paper-cut shard subject would close the pack. NOTE:
-      now doubly blocked — it is a paper-cut SUBJECT at 12px, so it wants a
-      purpose-built shape, not the direction dropped into the pixel shard.
-- [ ] **custom-skin samples in the new style.** The custom-skin slot and
-      its baked 16×16 sample sprites (`skinSamples.ts`) are still classic
-      art next to paper-cut bodies; the upload path itself is untouched
-      player data, so only the SAMPLES need regenerating.
-- [x] **skin line as shop content.** SHIPPED 2026-09-14: the 12 named
-      paper-cut skins are the `SKINS` catalog in `cosmetics.ts` — a real
-      cosmetic line with gem prices, shop cards, a compendium group and
-      `selectedSkin` (saveVersion 14). See `docs/skin-line.md`. All twelve
-      are sold in the stores too (prices synced 2026-09-14: 42/42 in both
-      Stripe accounts, 43/43 Play products). Per-crew skin assignment was
-      deliberately NOT done — a skin is the player's own slot.
-- [x] **every skin a distinct CHARACTER, not a recolor** (2026-10-03).
-      The pretty half had collapsed into six recolors of one silhouette
-      (Rose Lantern and Ember Sunrise shared it outright). New silhouette
-      axes in `characterArt.ts` — `build` (sturdy/slim), `gown`, `pretty`
-      (slim + flicked lashes + brows + heavier blush), `prop`
-      (basket/satchel), plus `braid`/`waves` hair and hair that finally
-      draws UNDER a hat (Sky Bob's bob was dead art) — and the whole cast
-      re-authored so each row is its own outline. **Rose Lantern is the
-      damsel**: slim build, pretty face, a floor-length gown with no boots
-      and the lamp basket in her hand. Pinned by `skins.test.ts`: no two
-      skins share a drawn outline and none is drawn as the default miner.
-      Sheets: `node scripts/generate-skin-line-samples.mjs`.
-- [x] **every paid OUTFIT a distinct CHARACTER too** (2026-10-03). The
-      outfit line was the last palette-only line: each item was five color
-      pools, so buying "Crystal Miner" bought the default miner in
-      turquoise. `OutfitCosmetic.shape` (the skin axes minus tool/crown/
-      motes) is now AUTHORED per paid outfit — 13 bodies, no two alike,
-      none the default miner — and `rollMinerLook` copies it after the
-      color picks so no existing player's miner moves while their
-      colorway still rerolls. The Damsel of the Deep (the item that was
-      "same human body" by its own comment) is now a slim pretty face
-      under a floor-length gown. Pinned by `cosmetics.test.ts`; see
-      **docs/outfit-line.md**, sheet via
-      `node scripts/generate-outfit-line-samples.mjs`. PICKAXES were
-      already one tool shape each (8 tools / 8 items); the nine CAVE
-      THEMES are a tint by definition and stay one.
-- [x] **an outfit has to look like its NAME** (2026-10-03). The Crimson
-      Oni was a guy in a headband who could roll a bone-white hat —
-      a namesake the sprite does not evoke is a mislabeled recolor. Two
-      fixes: the **crown mark** axis is now allowed on an outfit (a crew
-      HIRE wears a mark because its line is premium; the player's own
-      slot wears one because the namesake needs it — horns for the oni,
-      a plume for the knight, a hood for the night shift, a crystal
-      shard for the crystal miner, goggles for the blocky adventurer),
-      with a NEW `horns` mark drawn in the dark hat tone because an aura-
-      tone horn is a pale nub that vanishes at player size; and a themed
-      item's palette is now on-theme (the oni's four pools are all
-      red-dominant, its headband vivid crimson). `motes` (the aura)
-      stays crew-only. Both pinned by `cosmetics.test.ts`.
-- [ ] **art-style setting (optional).** The seam already supports it
-      (`setActiveArtPack` + a `defaultArtPackId` in the save); only a
-      settings row + i18n is missing. Not promised — papercut is the
-      default globally.
-
+- [x] Move resources (minerals, gems, etc.) to same bar as depth
+- [x] Add notes showing rewards for daily/weekly tasks
+- [x] Instead of "?" replace with the input field with "?" placeholder text
+- [x] Remove "hold to mine" text
+- [x] Move upgrades to same bar as depth (far right)
+- [x] Move save button inside menu (same row as close but on far left
+- [x] Upgrades modal should show up above keypad and equations
+- [x] Show equations on top left when in landscape mode
+- [x] Answer field inside the equation box (in-line, smaller, in the '?'s place)
+- [x] Separate hint button from the answer field
+- [x] Remove excess padding/margin from the equation box
+- [x] Landscape: equation must not cover the depth bar
+- [x] Move mineral/gem counts to the top right, right aligned, under upgrades, outside the bar
+- [x] Improve resource (mineral/gem) visibility in the wallet box (brighter bold amounts, backed box)
+- [x] Right padding in the wallet box so the numbers do not crowd the box edge
+- [x] Align the equation plate and the wallet box in landscape (same top edge; plate at the bar's left edge, wallet at the right corner)
+- [x] Cap the "max constant value" setting at a reasonable range (3–99; clamped on input, on load of old saves, and on update)

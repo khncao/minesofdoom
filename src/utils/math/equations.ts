@@ -137,6 +137,46 @@ export const defaultEquationSettings: EquationSettings = {
   multiplySymbol: "asterisk",
 };
 
+/**
+ * Player-facing limits for the operand dial ("Max constant value in
+ * equations"). 12 — the default — is the classic 0–12 dial; 99 is the
+ * ceiling and it is the natural edge of the two-digit band: every
+ * constant stays ≤ 98, so the hardest equation is 98 × 98 = 9,604 —
+ * two-digit × two-digit, the classic limit of mental multiplication
+ * (beyond it you leave mental math entirely). Answers stay ≤ 4 digits
+ * (four keypad taps) and the real-world bills (up to 5× the dial) stay
+ * under 500. Below 3 the range [min, max) holds too few values to form
+ * anything but 0/1 arithmetic, so that is the floor. (todo: "set a
+ * reasonable max constant limit in settings")
+ */
+export const EQUATION_NUMBER_LIMITS = { min: 3, max: 99 } as const;
+
+/** Clamp one stored/typed operand limit back into the dial range. */
+export function clampEquationNumber(value: number): number {
+  if (!Number.isFinite(value)) return defaultEquationSettings.maxNumber;
+  return Math.min(
+    EQUATION_NUMBER_LIMITS.max,
+    Math.max(EQUATION_NUMBER_LIMITS.min, Math.trunc(value)),
+  );
+}
+
+/**
+ * Normalize the two numeric fields of a settings record. This is the
+ * load-time guard: the dial used to be an unbounded text box, so old
+ * saves can hold anything (99 was typeable) and a hand-edited store can
+ * hold more. Also keeps minNumber inside the clamped range.
+ */
+export function clampEquationNumbers(
+  settings: Pick<EquationSettings, "minNumber" | "maxNumber">,
+): Pick<EquationSettings, "minNumber" | "maxNumber"> {
+  const maxNumber = clampEquationNumber(settings.maxNumber);
+  const raw = Number.isFinite(settings.minNumber)
+    ? Math.trunc(settings.minNumber)
+    : 0;
+  const minNumber = Math.min(Math.max(0, raw), maxNumber - 1);
+  return { minNumber, maxNumber };
+}
+
 export const Ops = {
   mult: "*",
   add: "+",
@@ -1192,9 +1232,74 @@ export function formatEquation(
  * unit tests and any future "read it back" caller see just the equation)
  * because the sequence shape needs a comma before its prompt.
  */
+/**
+ * The question as shown to the player.
+ *
+ * Ends in `= ?` rather than a bare `?` (2026-10-04): the prompt now reads
+ * as a complete sentence — "7 - 6 = ?" — instead of a dangling "7 - 6?".
+ * The shape is unchanged for the other forms; only the trailing blank is
+ * filled in, so a "missing operand" question reads "7 + ? = 12 = ?"... which
+ * is why the missing/balance shapes are left WITHOUT the extra "=": they
+ * already carry their own "=" and a second one would be nonsense. Those are
+ * detected by `hasQuestionMark`.
+ */
 export function formatEquationPrompt(
   equation: Equation,
   multiplySymbol: MultiplySymbol,
 ): string {
-  return `${formatEquation(equation, multiplySymbol)}?`;
+  const body = formatEquation(equation, multiplySymbol);
+  // Two shapes must NOT get the extra "=":
+  //  - anything that already contains one (missing operand, missing
+  //    divisor, balance drill) — a second "=" would be nonsense;
+  //  - the sequence drill, whose body ends in a comma ("1, 4, 9, 16, "), so
+  //    "= ?" would read "1, 4, 9, 16,  = ?" — it is a "what comes next"
+  //    question, not an equation.
+  // Everything else becomes a complete sentence: "7 - 6 = ?".
+  if (hasQuestionMark(equation) || equation.op === Ops.seq) {
+    return `${body}?`;
+  }
+  return `${body} = ?`;
+}
+
+/**
+ * The question split AROUND the blank the player fills, so the answer field
+ * can be rendered IN the equation instead of after it.
+ *
+ * `formatEquationPrompt` returns one flat string, which forces the "?" to
+ * be a character at the end of a line. That is wrong for the two shapes
+ * whose blank is in the MIDDLE: the missing-operand and balance drills ask
+ * for the number between the operands, so their prompt reads
+ * "7 + ? = 12?" — a "?" the player must NOT type into (the answer goes in
+ * the other one) and a second, redundant "?" glued to the right-hand side.
+ * Anchoring the field to the blank the player actually fills puts the box
+ * where the question is: "7 + [__] = 12", with nothing left over.
+ *
+ * So: for a shape that already carries a "?" (missing operand, missing
+ * divisor, balance), the split is at THAT "?"; for everything else the
+ * blank is the trailing answer prompt and the split is after the "=" (or
+ * after the sequence's trailing comma, which is why the sequence needs no
+ * separator — see formatEquation).
+ *
+ * Both halves keep their original spacing, so a caller can render
+ * `before`, the field and `after` as adjacent inline runs.
+ */
+export function equationAnswerSlot(
+  equation: Equation,
+  multiplySymbol: MultiplySymbol,
+): { before: string; after: string } {
+  const body = formatEquation(equation, multiplySymbol);
+  if (hasQuestionMark(equation)) {
+    const i = body.indexOf("?");
+    // `hasQuestionMark` and `formatEquation` are driven off the same two
+    // flags, so the "?" is always there; the guard only keeps a malformed
+    // equation from slicing at -1 and inverting the halves.
+    if (i >= 0) {
+      return { before: body.slice(0, i), after: body.slice(i + 1) };
+    }
+  }
+  // The sequence body already ends in ", " (see formatEquation); every
+  // other shape gets the "=" that makes the line a sentence.
+  return equation.op === Ops.seq
+    ? { before: body, after: "" }
+    : { before: `${body} = `, after: "" };
 }

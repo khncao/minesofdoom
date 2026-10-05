@@ -1,4 +1,10 @@
-import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Animated, Image, StyleSheet, View } from "react-native";
 import {
   CAVE_METERS_PER_ROW,
@@ -7,11 +13,11 @@ import {
   CAVE_WALL_TILE_H,
   caveRowStartForDepth,
   caveRowUri,
+  caveStripWidthFor,
   caveWallUri,
   caveWallWidthPx,
   mixHex,
 } from "src/utils/graphics/caveTiles";
-import { stripSizeForWidth } from "src/utils/graphics/pixelArt";
 
 /** Fallback window height (px) before the first onLayout lands. */
 const INITIAL_HEIGHT = 13 * CAVE_TILE_PX;
@@ -133,8 +139,11 @@ function CaveBackground({
   const rowCount = Math.ceil((height || INITIAL_HEIGHT) / CAVE_TILE_PX) + 1;
   const wallStrips =
     Math.ceil((height || INITIAL_HEIGHT) / CAVE_WALL_TILE_H) + 3;
-  const stripWidth =
-    width > 0 ? stripSizeForWidth(width, CAVE_TILE_PX) : undefined;
+  // The COARSE generation ladder, not the fine per-width quantiser: the
+  // cave's cache is keyed on this width, so a fine ladder made every
+  // rotation regenerate and PNG-encode every strip (a multi-second freeze
+  // before the rotated layout painted). See caveStripWidthFor.
+  const stripWidth = width > 0 ? caveStripWidthFor(width) : undefined;
   const wallWidth = caveWallWidthPx(width);
 
   const midRowsUri = useMemo(
@@ -195,6 +204,46 @@ function CaveBackground({
     outputRange: [-1e6, 1e6],
   });
 
+  // The pre-warm effect belongs at the component's top level (a hook
+  // inside a nested helper is a rules-of-hooks violation), so it sits here
+  // rather than inside the wallColumn factory below.
+// Pre-warm the OTHER orientation's strips (2026-10-04).
+  //
+  // The coarse ladder means portrait and landscape land on different
+  // buckets, so the FIRST rotate still misses the cache and rebuilds the
+  // cave — several seconds of blocked JS thread, which is exactly the
+  // "5 second delay before the UI re-lays out" this fixes. Generating the
+  // counterpart bucket once, after first paint and while the player is
+  // idle, means the rotation is a cache hit from then on.
+  //
+  // Only the rows currently on screen are pre-warmed (the cache is keyed by
+  // row, and the wall is generated from its own width), and it runs on a
+  // timer rather than inline so it never competes with first paint.
+  useEffect(() => {
+    if (width <= 0 || emojiArt) return;
+    // The rotated counterpart is roughly "the other axis"; 2.2 is the
+    // phone/tablet aspect ratio, close enough that the bucket lands on the
+    // one the rotation will actually ask for.
+    const otherWidth =
+caveStripWidthFor(width > height ? width / 2.2 : width * 2.2);
+    if (otherWidth === caveStripWidthFor(width)) return;
+    const id = setTimeout(() => {
+for (let i = 0; i < rowCount; i++) {
+  caveRowUri({
+    depth: midRowStart * CAVE_METERS_PER_ROW + i,
+    tint,
+    widthPx: otherWidth,
+  });
+  caveRowUri({
+    depth: farRowStart * CAVE_METERS_PER_ROW + i,
+    tint,
+    widthPx: otherWidth,
+  });
+}
+    }, 700);
+    return () => clearTimeout(id);
+  }, [width, height, emojiArt, tint, rowCount, midRowStart, farRowStart]);
+
   const wallColumn = (
     uris: string[],
     animated: boolean,
@@ -208,20 +257,21 @@ function CaveBackground({
       width: wallWidth,
       ...(side === "left" ? { left: 0 } : { right: 0 }),
     };
+
     if (!animated || uris.length === 0) {
-      return (
-        <View
-          style={[
-            base,
-            {
-              backgroundColor: mixHex(tint, "#000000", 0.35),
-              // Flat columns are invariant to the scroll, so no animation.
-              height: "200%",
-            },
-          ]}
-        />
-      );
-    }
+        return (
+          <View
+            style={[
+              base,
+              {
+                backgroundColor: mixHex(tint, "#000000", 0.35),
+                // Flat columns are invariant to the scroll, so no animation.
+                height: "200%",
+              },
+            ]}
+          />
+        );
+      }
     return (
       <Animated.View
         style={[

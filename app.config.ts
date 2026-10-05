@@ -5,20 +5,24 @@ import { ExpoConfig, ConfigContext } from "expo/config";
 // only the icon/splash prebuild plugin + web favicon generation read it).
 const pickaxePng = "./app-icons/logo.jpg";
 
-// Unity Ads has nothing to bake into the native manifests (the Game ID and
-// placement ids are passed to the SDK from JS — modules/unity-ads), but the
-// AD_ID posture does need a build-time mirror: the Unity AAR declares the ad
-// id permissions and the kid-safe posture (storeConfig.unityAds
-// .stripAdvertisingId) removes them again at prebuild. The runtime's single
-// source of truth is src/mines_of_doom/storeConfig.ts; it is repeated here
-// ONLY because the Expo config loader can't import TS modules (plain node
-// require). A test in src/mines_of_doom/__test__/storeConfig.test.ts pins
-// the two together so they can't drift.
-const unityAdsManifestOptions = {
-  // true (ship posture, 2026-10-01): no advertising ID, at all. Flip to false
-  // ONLY together with storeConfig.unityAds.childDirectedTreatment and the
-  // target-audience stance — they are one decision (docs/blockers.md).
+// AdMob has no config passed from JS (unlike Unity's Game ID): GMA's
+// MobileAds.initialize takes no app-id argument, so the App ID must be baked
+// into the merged manifest — and the ad-id posture needs a build-time mirror
+// so the GMA AAR's AD_ID permissions are stripped again at prebuild. The
+// runtime source of truth is src/mines_of_doom/storeConfig.ts; it is
+// repeated here ONLY because the Expo config loader can't import TS modules
+// (plain node require). A test in
+// src/mines_of_doom/__test__/storeConfig.test.ts pins the two together so
+// they can't drift.
+const adMobManifestOptions = {
+  // true (ship posture, 2026-10-03): no advertising ID, at all. Flip to
+  // false ONLY together with storeConfig.adMob.childDirectedTreatment and
+  // the target-audience stance — they are one decision (docs/blockers.md).
   removeAdvertisingId: true,
+  // The AdMob App ID. EMPTY = unset, and the plugin then writes NO
+  // APPLICATION_ID meta-data at all, so the repo's "empty config = hidden"
+  // rule also keeps the App ID out of the APK.
+  appId: "ca-app-pub-2101316086878618~4973124022",
 };
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
@@ -32,20 +36,34 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: "Mines of Idle Doomath",
   slug: "minesofdoom",
   scheme: "com.minus4kelvin.minesofdoom",
-  version: "1.0.11",
+  // 1.0.15 / vc 15 — native ads on AdMob rewarded INTERSTITIAL. 1.0.12
+  // (vc 12, Unity rewarded) and 1.0.14 (vc 14, Unity interstitial) both
+  // FAILED on device: real ads with no skip and no way to close. 1.0.13
+  // (vc 13) was the ad-free fallback and stays the ship-now option. A plain
+  // AdMob REWARDED unit cannot be closed in 5 s (the v1.0.10 rejection);
+  // the rewarded INTERSTITIAL format only serves skippable ads, which is
+  // what Google's own guidance points at. Privacy policy v2.7 matches.
+  // **MUST be verified on device before production.**
+  version: "1.0.27",
   android: {
-    // NO ad-id permissions: the Unity Ads AAR declares
+    // NO ad-id permissions: the AdMob (GMA) AAR declares
     // com.google.android.gms.permission.AD_ID (+ ACCESS_ADSERVICES_*), and
-    // ./plugins/withUnityAds below strips them from the merged manifest
+    // ./plugins/withAdMobAds below strips them from the merged manifest
     // (kid-safe posture — children must not be sent the advertising ID).
-    versionCode: 11,
+    versionCode: 27,
     adaptiveIcon: {
       foregroundImage: pickaxePng,
       backgroundColor: "#ffffff",
     },
     package: "com.minus4kelvin.minesofdoom",
   },
-  orientation: "portrait",
+  // NO orientation lock. Play's large-screen requirement (raised against
+  // 1.0.16): a fixed `portrait` screenOrientation blocks tablets,
+  // foldables and desktop windows. The layout already handles it —
+  // `styles.contentColumn` is width-capped at 640 and centered (the
+  // "tablet/wide fix"), and edge-to-edge insets are applied via
+  // `useSafeAreaInsets`, so the game centers and the depth banner/footer
+  // stay clear of the system bars in any orientation.
   icon: pickaxePng,
   userInterfaceStyle: "dark",
   assetBundlePatterns: ["**/*"],
@@ -71,9 +89,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // Re-applies the local android/app/build.gradle patches (debuggableVariants = []
     // + Play upload-key signing) that `expo prebuild` wipes. See the plugin's header.
     "./plugins/withDebugSigning",
-    // Rewarded ads run on Unity Ads (modules/unity-ads): nothing to inject
-    // into the manifest except the ad-id removal above.
-    ["./plugins/withUnityAds", unityAdsManifestOptions],
+    // Play release hygiene: turn R8 minify + resource shrinking ON
+    // (obfuscation was 1% with them off) and drop the deprecated
+    // statusBarColor/navigationBarColor items from AppTheme, which Play
+    // flags as "deprecated APIs or parameters for edge-to-edge". Both are
+    // re-applied on every prebuild because it regenerates `android/`.
+    "./plugins/withAndroidReleaseHygiene",
+    // Rewarded ads run on AdMob rewarded INTERSTITIAL (modules/admob-ads):
+    // injects the App ID into the merged manifest and strips the ad-id
+    // permissions the GMA AAR merges in.
+    ["./plugins/withAdMobAds", adMobManifestOptions],
     // SDK 57 dropped the top-level `splash` key from the config schema; the
     // splash screen is now configured through the expo-splash-screen plugin.
     [

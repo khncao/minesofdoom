@@ -1,7 +1,9 @@
 import {
+  Equation,
   EquationSettings,
   Ops,
   defaultEquationSettings,
+  equationAnswerSlot,
   formatClock,
   formatEquation,
   formatEquationPrompt,
@@ -960,10 +962,23 @@ describe("getOpDisplay / formatEquation (iteration 11)", () => {
     expect(formatEquation(hard, "asterisk")).toBe("7 * 2 * 3");
   });
 
-  test("formatEquationPrompt appends the ? (and the sequence's comma keeps it readable)", () => {
+  test("formatEquationPrompt ends in '= ?' — and the shapes that already carry an '=' just get the blank", () => {
+    // Plain shapes: the '=' makes the line read as a question instead of a
+    // dangling "7 * 2?" (2026-10-04).
     expect(
       formatEquationPrompt({ op: Ops.mult, a: 7, b: 2, answer: 14 }, "asterisk"),
-    ).toBe("7 * 2?");
+    ).toBe("7 * 2 = ?");
+    expect(
+      formatEquationPrompt({ op: Ops.sub, a: 7, b: 6, answer: 1 }, "asterisk"),
+    ).toBe("7 - 6 = ?");
+    // The sequence's commas keep it readable.
+    expect(
+      formatEquationPrompt(
+        { op: Ops.seq, a: 1, b: 4, answer: 25, sequence: [1, 4, 9, 16] },
+        "asterisk",
+      ),
+    ).toBe("1, 4, 9, 16, ?");
+    // A shape that ALREADY contains an "=" must not get a second one.
     expect(
       formatEquationPrompt(
         { op: Ops.add, a: 7, b: 12, answer: 5, missing: true },
@@ -972,16 +987,68 @@ describe("getOpDisplay / formatEquation (iteration 11)", () => {
     ).toBe("7 + ? = 12?");
     expect(
       formatEquationPrompt(
-        { op: Ops.seq, a: 1, b: 4, answer: 25, sequence: [1, 4, 9, 16] },
-        "asterisk",
-      ),
-    ).toBe("1, 4, 9, 16, ?");
-    expect(
-      formatEquationPrompt(
         { op: Ops.add, a: 6, b: 4, op2: Ops.add, c: 9, answer: 7, balance: true },
         "asterisk",
       ),
     ).toBe("6 + ? = 4 + 9?");
+  });
+
+  test("equationAnswerSlot splits around the blank the player FILLS", () => {
+    // The answer field is rendered where the "?" was, so the split has to
+    // be at the ANSWER and not blindly at the end of the string.
+    expect(
+      equationAnswerSlot({ op: Ops.mult, a: 7, b: 2, answer: 14 }, "asterisk"),
+    ).toEqual({ before: "7 * 2 = ", after: "" });
+    expect(
+      equationAnswerSlot(
+        { op: Ops.seq, a: 1, b: 4, answer: 25, sequence: [1, 4, 9, 16] },
+        "asterisk",
+      ),
+    ).toEqual({ before: "1, 4, 9, 16, ", after: "" });
+    // ...and for these two the blank is BETWEEN the operands, so `after`
+    // keeps the right-hand side instead of a redundant trailing "?".
+    expect(
+      equationAnswerSlot(
+        { op: Ops.add, a: 7, b: 12, answer: 5, missing: true },
+        "asterisk",
+      ),
+    ).toEqual({ before: "7 + ", after: " = 12" });
+    expect(
+      equationAnswerSlot(
+        { op: Ops.add, a: 6, b: 4, op2: Ops.add, c: 9, answer: 7, balance: true },
+        "asterisk",
+      ),
+    ).toEqual({ before: "6 + ", after: " = 4 + 9" });
+  });
+
+  test("every shape puts the blank back exactly where the slot is", () => {
+    // Whichever the shape, `before` + "?" + `after` has to read as the same
+    // question formatEquationPrompt renders — so the field can never end up
+    // in a spot that changes what the question says.
+    const shapes: Equation[] = [
+      { op: Ops.mult, a: 7, b: 2, answer: 14 },
+      { op: Ops.sub, a: 7, b: 6, answer: 1 },
+      { op: Ops.add, a: 7, b: 12, answer: 5, missing: true },
+      { op: Ops.div, a: 24, b: 6, answer: 4, missing: true },
+      { op: Ops.add, a: 6, b: 4, op2: Ops.add, c: 9, answer: 7, balance: true },
+      { op: Ops.seq, a: 1, b: 4, answer: 25, sequence: [1, 4, 9, 16] },
+      { op: Ops.tip, a: 45, b: 15, answer: 5175 },
+      { op: Ops.mult, a: 7, b: 2, op2: Ops.mult, c: 3, answer: 42 },
+    ];
+    for (const shape of shapes) {
+      const { before, after } = equationAnswerSlot(shape, "asterisk");
+      const rebuilt = `${before}?${after}`.replace(/\s+/g, " ").trim();
+      // The middle-blank shapes are the ones that legitimately differ from
+      // formatEquationPrompt: their prompt carries a SECOND, redundant "?"
+      // glued to the right-hand side, which the slot version drops.
+      const expected = formatEquationPrompt(shape, "asterisk")
+        .replace(/\s+/g, " ")
+        .trim();
+      const expectedEitherWay = hasQuestionMark(shape)
+        ? expected.replace(/\s*\?$/, "")
+        : expected;
+      expect(rebuilt).toBe(expectedEitherWay);
+    }
   });
 });
 

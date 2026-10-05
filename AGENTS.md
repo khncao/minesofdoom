@@ -260,15 +260,39 @@ moduleNameMapper, and Metro resolves it through `app.config.ts`'s
 
 ## Gotchas
 
-- **Unity Ads ids are live on Android (2026-09-14):** `storeConfig.unityAds`
-  holds Game ID `800386304` + one rewarded placement
-  (`BP_Rewarded_Android`) shared by all four `AdKind`s, so
-  `hasUnityAdsConfig()` is true and a PRODUCTION Android build shows the
-  "watch" entry points. iOS stays empty (no native bridge). Two dashboard
-  steps are now blocking rather than pre-launch: "Allow skip after 5
-  seconds" on the placement, and the project's Designed for Families flag
-  (`docs/store-integration.md` §1.1 steps 3–4) — the app can gate on ids but
-  cannot enforce either.
+- **Native ads run on AdMob rewarded INTERSTITIAL (2026-10-03) — the only
+  format that passed Play's 5-second rule.** `storeConfig.admob` holds App
+  ID `ca-app-pub-2101316086878618~4973124022` + one rewarded-interstitial
+  unit shared by all four `AdKind`s, so `hasAdMobConfig()` is true and a
+  PRODUCTION Android build shows the "watch" entry points. iOS stays empty
+  (no native bridge). Three formats were tested on device: Unity rewarded
+  (vc 12) and Unity interstitial (vc 14) both served real ads with **no skip
+  and no way to close** — Unity is retired, the module is deleted, and its
+  config is empty. The reason it cannot be fixed: the redesigned Unity
+  dashboard is bidding-placements only (ad units "can no longer be created",
+  so the ad-unit format-settings menu is gone), Unity's ad-format reference
+  lists no skip control, and `unity-ads` 4.20.1/4.21.0 expose no skip API
+  (only two `SKIPPED` enum values that *report* one). AdMob's rewarded
+  INTERSTITIAL works because Google only ever serves skippable ads in it, so
+  there is no toggle to get wrong — and the old AdMob *rewarded* unit stays
+  banned (per-creative 5-30 s close countdown, no dismiss API = the
+  v1.0.10 rejection). Same SDK, different FORMAT.
+  - **`play-services-ads` is PINNED to 24.6.0. Do not bump to 25.x**: it ships
+    Kotlin 2.3 metadata and this project's Kotlin compiler reads 2.1, so
+    every 25.x build fails with "Module was compiled with an incompatible
+    version of Kotlin". Rewarded interstitial needs 19.2.0+.
+  - **The App ID cannot be a JS argument** — GMA has no
+    `initialize(context, appId)` overload, so `plugins/withAdMobAds.js`
+    writes it into the merged manifest at prebuild and omits it when
+    `storeConfig.admob.appId` is empty (which is also what keeps the App ID
+    out of an unconfigured APK). `expo prebuild` is therefore REQUIRED after
+    changing it — a bare gradle build will not pick the change up.
+  - **Before production, the Play Console answers must match the ads-ON
+    build** (UI-only, and the submission snapshots them): IARC advertising =
+    Yes; Data safety declares the ad SDK and states no advertising id is
+    collected (the permission is never merged); target audience per
+    `docs/blockers.md`. The live listing bullet must not claim "No ads" —
+    docs/store-integration.md §0/§1.1 and docs/todo.md carry the detail.
 - **Cash prices follow DEPTH, not gem cost.** Every cosmetic carries a
   `cashTier` (1–4 → `CASH_PRICE_USD`, $0.99–$3.99) meaning how much new art
   the item is; the store price is that tier, NOT the gem price. Already-sold
@@ -309,6 +333,62 @@ moduleNameMapper, and Metro resolves it through `app.config.ts`'s
   --clean` reproduces the committed `build.gradle` byte-for-byte. Don't edit the
   patched regions by hand or remove the plugin; unit test:
   `plugins/__test__/withDebugSigning.test.js`.
+- **Generated `android/` is NOT editable by hand — patch it with a config
+  plugin.** `expo prebuild` regenerates the whole directory, so any manual
+  edit silently comes back. There are now **three** plugins doing this, all
+  idempotent and all re-applied on every prebuild:
+  1. `./plugins/withDebugSigning` — the two `build.gradle` patches above.
+  2. `./plugins/withAdMobAds` — injects the AdMob App ID meta-data and strips
+     the ad-id permissions. **Changing `storeConfig.admob.appId` requires
+     `expo prebuild`**; a bare `gradlew` build will not pick it up.
+  3. `./plugins/withAndroidReleaseHygiene` — turns R8 minify + resource
+     shrinking ON (`android.enableMinifyInReleaseBuilds` /
+     `…ShrinkResources…` in `gradle.properties`; Play reported 1%
+     obfuscation while they were off) and drops the deprecated
+     `android:statusBarColor` / `android:navigationBarColor` items from
+     `AppTheme` (Play: "deprecated APIs or parameters for edge-to-edge").
+  Two traps that cost real time while writing #3, both of which fail
+  **silently** (no error, the value just reappears):
+  - `withDangerousMod` runs **before** Expo finishes writing the generated
+    `res/` files, so a manual `fs.writeFileSync` there is overwritten.
+    `styles.xml` has to go through **`withAndroidStyles`**, whose second
+    argument is an **action function** (`(cfg) => cfg`), NOT a
+    `{ add, modify }` props object — and its `modResults` nests styles under
+    `modResults.resources.style`, not `modResults.style`.
+  - Property flags read via `findProperty(...)` belong in
+    `android/gradle.properties` (use `withGradleProperties`), never in
+    `app/build.gradle` (that is `withAppBuildGradle`, a different file).
+- **THE WEB BUILD IS NOT A PROXY FOR ANDROID LAYOUT.** Three bugs in the
+  landscape work looked perfect on `expo export -p web` (measured, driven
+  with real touch, screenshotted) and were still broken on a device:
+  1. **A `position: absolute` wrapper with no width shrink-wraps, and
+     `flex: 1` children collapse to 0 on Android.** react-native-web
+     resolved it, so the numpad rendered there; on the emulator the panel
+     was just its 14px drag handle with no keys. An absolutely positioned
+     box needs an explicit width — it has no sibling to size against.
+  2. **The wrapper's PanResponder (`onStartShouldSetPanResponder: () =>
+     true`) claims every touch on native**, so the keys never fired — while
+     react-native-web let the child Pressable's click through anyway.
+     Responder handlers now live on the drag handle only.
+  3. **`useWindowDimensions()`-gated "short viewport" missed tablets.** The
+     condition was `height < 560`, so a rotated tablet (768-800 tall) never
+     entered the landscape layout. Landscape is `width > height`.
+  Verify Android layout on the **`mines-play-35` emulator**, not on web:
+  ```sh
+  adb install -r android/app/build/outputs/apk/release/app-release.apk
+  adb shell pm clear com.minus4kelvin.minesofdoom   # skip onboarding
+  adb shell settings put system accelerometer_rotation 0
+  adb shell settings put system user_rotation 1       # force landscape
+  adb shell monkey -p com.minus4kelvin.minesofdoom -c android.intent.category.LAUNCHER 1
+  adb exec-out screencap -p > /tmp/shot.png
+  ```
+  Note `user_rotation` resets on relaunch, and a fresh install opens the
+  onboarding overlay — clear both or the screenshot shows neither.
+- **`app.config.ts` has no `orientation` key** — deliberately. Play's
+  large-screen requirement (raised against 1.0.16) forbids a fixed
+  `screenOrientation`; the layout already handles it because
+  `styles.contentColumn` is width-capped at 640 and centered and insets come
+  from `useSafeAreaInsets`. Don't re-add a portrait lock.
 - The Play upload keystore and its properties live at the **project root**
   (`my-upload-key.keystore` + `keystore.properties`, both gitignored) — never
   under `android/`, because `expo prebuild` clears that directory (it once

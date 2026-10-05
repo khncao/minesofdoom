@@ -19,6 +19,7 @@ import {
 import {
   LEADERBOARD_CACHE_TTL_MS,
   LEADERBOARD_REFRESH_THROTTLE_MS,
+  LEADERBOARD_SUBMIT_ENABLED_KEY,
   LEADERBOARD_SUBMIT_INTERVAL_MS,
   useLeaderboard,
   type LeaderboardStatsInput,
@@ -133,20 +134,113 @@ function getStatsOf(fx: Fixture) {
 }
 
 /** Render + flush the initial AsyncStorage load. */
-async function render(fx: Fixture) {
+async function render(fx: Fixture, opts: { submitEnabled?: boolean } = {}) {
   const rendered = renderHook(() =>
     useLeaderboard({ provider: fx.provider, getStats: getStatsOf(fx) }),
   );
   await act(async () => {});
+  // Submitting is OPT-IN and defaults OFF, so every test about the submit
+  // path has to turn it on first (the gate itself is tested below).
+  if (opts.submitEnabled) {
+    await act(async () => {
+      rendered.result.current.setSubmitEnabled(true);
+    });
+  }
   return rendered;
 }
+
+// -- the opt-in gate (Play Families: no identifier leaves the device
+//    without consent — docs/store-integration.md §0) --------------------------
+
+describe("score submission is OPT-IN and defaults OFF", () => {
+  it("defaults to OFF — a fresh install submits nothing", async () => {
+    const fx = makeFixture();
+    const { result } = await render(fx);
+    expect(result.current.submitEnabled).toBe(false);
+  });
+
+  it("sends NOTHING on requestSubmit while opted out", async () => {
+    const fx = makeFixture();
+    const { result } = await render(fx); // no opt-in
+    act(() => {
+      result.current.requestSubmit();
+    });
+    await act(async () => {});
+    // No submit call at all: not the payload, not even a no-op.
+    expect(fx.calls).toEqual([]);
+  });
+
+  it("still submits once the player opts in", async () => {
+    const fx = makeFixture();
+    const { result } = await render(fx, { submitEnabled: true });
+    act(() => {
+      result.current.requestSubmit();
+    });
+    await act(async () => {});
+    expect(fx.calls.filter((c) => c.method === "submit")).toHaveLength(1);
+  });
+
+  it("stops submitting again as soon as the player opts back out", async () => {
+    const fx = makeFixture();
+    const { result } = await render(fx, { submitEnabled: true });
+    await act(async () => {
+      result.current.setSubmitEnabled(false);
+    });
+    act(() => {
+      result.current.requestSubmit();
+    });
+    await act(async () => {});
+    expect(fx.calls.filter((c) => c.method === "submit")).toHaveLength(0);
+  });
+
+  it("never asks the server for YOUR rank while opted out (that call carries the device id)", async () => {
+    const fx = makeFixture();
+    const { result } = await render(fx); // no opt-in
+    act(() => {
+      result.current.refresh();
+    });
+    await act(async () => {});
+    expect(fx.calls.filter((c) => c.method === "rank")).toHaveLength(0);
+    // …but the public top-N is a plain anonymous read and still loads.
+    expect(fx.calls.filter((c) => c.method === "top")).toHaveLength(1);
+    expect(result.current.yourRank).toBeNull();
+  });
+
+  it("does ask for your rank once opted in", async () => {
+    const fx = makeFixture();
+    const { result } = await render(fx, { submitEnabled: true });
+    act(() => {
+      result.current.refresh();
+    });
+    await act(async () => {});
+    expect(fx.calls.filter((c) => c.method === "rank")).toHaveLength(1);
+    expect(result.current.yourRank).not.toBeNull();
+  });
+
+  it("keeps the consent OUT of the save blob (device-local, like the display name)", async () => {
+    const fx = makeFixture();
+    const { result } = await render(fx, { submitEnabled: true });
+    // The consent lives under its OWN key, never inside a save blob — a
+    // shared/imported save can never carry someone else's consent with it.
+    const saved = (AsyncStorageMock as unknown as {
+      __store: Map<string, string>;
+    }).__store;
+    expect(saved.get(LEADERBOARD_SUBMIT_ENABLED_KEY)).toBe("true");
+    for (const [key, value] of saved) {
+      if (key !== LEADERBOARD_SUBMIT_ENABLED_KEY) {
+        expect(value).not.toContain(LEADERBOARD_SUBMIT_ENABLED_KEY);
+      }
+    }
+    expect(result.current.submitEnabled).toBe(true);
+  });
+});
 
 // -- submit cadence ------------------------------------------------------------
 
 describe("requestSubmit (cadence + payload)", () => {
   it("submits the current lifetime stats + the default display name on the first request", async () => {
     const fx = makeFixture();
-    const { result } = await render(fx);
+    const { result } = await render(fx, { submitEnabled: true });
     expect(result.current.available).toBe(true);
     expect(result.current.displayName).toBe(DEFAULT_DISPLAY_NAME);
 
@@ -173,7 +267,7 @@ describe("requestSubmit (cadence + payload)", () => {
 
   it("caps the submit cadence at one per 5 minutes", async () => {
     const fx = makeFixture();
-    const { result } = await render(fx);
+    const { result } = await render(fx, { submitEnabled: true });
     act(() => result.current.requestSubmit());
     await act(async () => {});
     // Piggybacked requests in the same minute are no-ops.
@@ -193,7 +287,7 @@ describe("requestSubmit (cadence + payload)", () => {
 
   it("sends the LATEST stats and name at submit time (not a stale capture)", async () => {
     const fx = makeFixture();
-    const { result } = await render(fx);
+    const { result } = await render(fx, { submitEnabled: true });
     act(() => result.current.requestSubmit());
     await act(async () => {});
 
@@ -222,7 +316,7 @@ describe("requestSubmit (cadence + payload)", () => {
 
   it("sanitizes the display name before it leaves the device", async () => {
     const fx = makeFixture();
-    const { result } = await render(fx);
+    const { result } = await render(fx, { submitEnabled: true });
     act(() =>
       result.current.setDisplayName("  " + "x".repeat(LEADERBOARD_NAME_MAX * 2) + " "),
     );
@@ -235,7 +329,7 @@ describe("requestSubmit (cadence + payload)", () => {
 
   it("persists the display name in AsyncStorage — never in the save key", async () => {
     const fx = makeFixture();
-    const { result } = await render(fx);
+    const { result } = await render(fx, { submitEnabled: true });
     act(() => result.current.setDisplayName("Deep"));
     await act(async () => {});
     expect(mockStore.get("leaderboardDisplayName")).toBe(
@@ -267,7 +361,7 @@ describe("requestSubmit (cadence + payload)", () => {
 
   it("never submits before the first save is ready (null stats)", async () => {
     const fx = makeFixture();
-    const { result } = await render(fx);
+    const { result } = await render(fx, { submitEnabled: true });
     fx.stats.current = null;
     act(() => result.current.requestSubmit());
     await act(async () => {});
@@ -280,7 +374,7 @@ describe("requestSubmit (cadence + payload)", () => {
 describe("refresh (top + rank, cache, throttle, errors)", () => {
   it("loads the top-10 + this device's rank", async () => {
     const fx = makeFixture();
-    const { result } = await render(fx);
+    const { result } = await render(fx, { submitEnabled: true });
     expect(result.current.status).toBe("idle");
     expect(result.current.rows).toBeNull();
 
@@ -298,7 +392,7 @@ describe("refresh (top + rank, cache, throttle, errors)", () => {
 
   it("tap throttle: rapid refresh taps fire one fetch", async () => {
     const fx = makeFixture();
-    const { result } = await render(fx);
+    const { result } = await render(fx, { submitEnabled: true });
     act(() => {
       result.current.refresh();
       result.current.refresh();
@@ -310,7 +404,7 @@ describe("refresh (top + rank, cache, throttle, errors)", () => {
 
   it("60s cache: a reopen within the TTL shows the cached board, no refetch", async () => {
     const fx = makeFixture();
-    const { result } = await render(fx);
+    const { result } = await render(fx, { submitEnabled: true });
     act(() => result.current.refresh());
     await act(async () => {});
 
@@ -328,7 +422,7 @@ describe("refresh (top + rank, cache, throttle, errors)", () => {
   it("a failed fetch (null) flips status to 'error' — the UI shows 'unavailable'", async () => {
     const fx = makeFixture();
     fx.setTopResult(null);
-    const { result } = await render(fx);
+    const { result } = await render(fx, { submitEnabled: true });
     act(() => result.current.refresh());
     await act(async () => {});
     expect(result.current.status).toBe("error");
@@ -337,7 +431,7 @@ describe("refresh (top + rank, cache, throttle, errors)", () => {
 
   it("keeps the stale board visible while a refetch is in flight", async () => {
     const fx = makeFixture();
-    const { result } = await render(fx);
+    const { result } = await render(fx, { submitEnabled: true });
     act(() => result.current.refresh());
     await act(async () => {});
     expect(result.current.status).toBe("loaded");

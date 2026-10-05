@@ -1,7 +1,7 @@
 /**
- * Web variant of `./unityAdProvider` — Metro resolves this file (`.web`
- * extension) for the web target, so the local Unity Ads native module
- * (`modules/unity-ads`) is never bundled into the web build (web rewarded
+ * Web variant of `./adMobAdProvider` — Metro resolves this file (`.web`
+ * extension) for the web target, so the local AdMob native module
+ * (`modules/admob-ads`) is never bundled into the web build (web rewarded
  * ads run on the AdSense Ad Placement API in `adSenseProvider.web.ts`, a
  * separate swap; this no-op keeps the native module out of the web bundle).
  * It mirrors the native module's shape exactly, so `ads.ts` and its tests
@@ -10,11 +10,11 @@
  */
 import type { AdProvider, AdResult } from "./ads";
 
-export function hasUnityAdsConfig(): boolean {
+export function hasAdMobConfig(): boolean {
   return false;
 }
 
-export const unityAdProvider: AdProvider = {
+export const adMobAdProvider: AdProvider = {
   id: "noop",
   isAvailable: () => false,
   // Fewer params than the interface is legal (and keeps lint quiet): the

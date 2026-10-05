@@ -29,6 +29,7 @@ import {
 } from "../game";
 import {
   EquationSettings,
+  EQUATION_NUMBER_LIMITS,
   defaultEquationSettings,
 } from "src/utils/math/equations";
 
@@ -111,7 +112,48 @@ describe("useSettings", () => {
     expect(result.current.settingsData).toEqual(defaultSettingsData);
     await flush();
     expect(result.current.settingsData).toEqual(storedSettings);
-    expect(result.current.equationSettings).toEqual(storedEquations);
+    // The dial is clamped on the way in: it used to be an unbounded text
+    // box, so the 99 here (typeable before the limit) must land at the
+    // ceiling, not generate 90s-and-100s equations for the rest of the
+    // save's life (todo: "set a reasonable max constant limit in settings").
+    expect(result.current.equationSettings).toEqual({
+      ...storedEquations,
+      maxNumber: EQUATION_NUMBER_LIMITS.max,
+    });
+  });
+
+  it("keeps the dial inside its limits when updated out of range", async () => {
+    const { result } = renderSettingsTest();
+    await flush();
+    // Above the ceiling and below the floor are both snapped back.
+    act(() => {
+      result.current.updateEquationSettings({
+        ...result.current.equationSettings,
+        maxNumber: 9999,
+      });
+    });
+    expect(result.current.equationSettings.maxNumber).toBe(
+      EQUATION_NUMBER_LIMITS.max,
+    );
+    act(() => {
+      result.current.updateEquationSettings({
+        ...result.current.equationSettings,
+        maxNumber: 1,
+      });
+    });
+    expect(result.current.equationSettings.maxNumber).toBe(
+      EQUATION_NUMBER_LIMITS.min,
+    );
+    // minNumber can never climb out of the clamped range either.
+    act(() => {
+      result.current.updateEquationSettings({
+        ...result.current.equationSettings,
+        minNumber: 9999,
+      });
+    });
+    expect(result.current.equationSettings.minNumber).toBeLessThan(
+      result.current.equationSettings.maxNumber,
+    );
   });
 
   it("merges a partial stored save over defaults (forward-compat)", async () => {

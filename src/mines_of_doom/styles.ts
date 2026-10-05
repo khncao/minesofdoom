@@ -27,6 +27,229 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: 3,
   },
+  // ---- Landscape / short-viewport layout (2026-10-04) ------------------
+  // Play requires the app to stop locking orientation (docs/todo.md), which
+  // exposed that the whole game was ONE vertical flex column: header,
+  // banner, equation, answer, combo, then the play area (cave + keypad).
+  // On a rotated phone (~412px tall) that stack overflows — the keypad's
+  // lower rows fall below the fold and the upgrades drawer, which is
+  // absolutely positioned inside the play area, is dragged down with it.
+  //
+  // Landscape is therefore NOT a narrower version of portrait: the cave
+  // goes full-bleed and slightly zoomed out, and the depth/equation/answer
+  // stack floats CENTRED on top of it, with the numpad(s) floating
+  // alongside. Portrait keeps the original column flow untouched.
+  //
+  // The short-viewport row becomes a plain container (a containing block
+  // for the absolutely positioned children) rather than a flex row, so the
+  // same three children can be "in the flow" in portrait and "overlaid" in
+  // landscape without duplicating the tree.
+  hudRow: {
+    flex: 1,
+    width: "100%",
+    alignItems: "center",
+    gap: 3,
+  },
+  hudRowShort: {
+    // Not a flex row: the children position themselves absolutely, so this
+    // is purely the containing block. `flex: 1` keeps it filling the column
+    // the header sits in, and the stretch alignment gives the absolute
+    // children the full width to position against.
+    alignSelf: "stretch",
+    alignItems: "stretch",
+    justifyContent: "flex-start",
+    gap: 0,
+    position: "relative",
+  },
+  // The equation / answer / combo stack. In portrait this is just the
+  // column's own rhythm; in landscape it becomes a floating panel centred
+  // on the screen, over the cave.
+  hudStack: {
+    width: "100%",
+    alignItems: "center",
+    gap: 3,
+  },
+  hudStackShort: {
+    // Floats over the UPPER part of the cave (todo: "Show equations on top
+    // left when in landscape mode"). The `zIndex: 4` lives on
+    // `hudTopStackShort` now (the strip that carries this), because zIndex
+    // only orders siblings — and the thing that has to beat the full-bleed
+    // canvas is the strip, not this row inside it.
+    //
+    // `pointerEvents: box-none` is on the element in the component so taps
+    // still reach the cave around the panel.
+    // The box spans the full stage width and centres its children with
+    // alignItems. Adding a maxWidth here would NOT cap the content — for an
+    // absolutely-positioned element `left:0; right:0` sizes the box from the
+    // LEFT edge, so the whole HUD ended up anchored in the left third
+    // instead of centred (alignSelf does not reliably centre an absolute
+    // box). The panels inside size themselves, so the row stays tight.
+    gap: 6,
+    // TOP-LEFT corner (todo: "Show equations on top left when in landscape
+    // mode").
+    //
+    // This is NOT absolutely positioned any more: the depth bar, the wallet
+    // and this stack are all children of `hudTopStackShort`, one absolute
+    // strip pinned to the top of the stage. Two separately-positioned
+    // siblings on the same edge meant the stack had to be told how far down
+    // to start (a measured height, or a guessed constant), and it could
+    // land on the depth bar — on the first frame especially, before any
+    // measurement had come back. In a column that cannot happen at any
+    // height.
+    //
+    // LEFT-aligned rather than centred: the left menu rail and the depth bar
+    // own the top strip, so the question hangs off the same left edge.
+    alignItems: "flex-start",
+    marginTop: 0,
+  },
+  // Two-keypad landscape: the numpads own the bottom-LEFT and bottom-right
+  // corners, but the question now lives in the top-left band (todo: "Show
+  // equations on top left when in landscape mode") where neither keypad can
+  // reach — so both keypad counts share the ONE top-left layout and the
+  // re-centring variant is gone with it.
+  // Landscape: the menu becomes a vertical rail on the LEFT edge instead of
+  // a full-width band across the top. A rotated phone has ~410dp of height
+  // and ~910 of width, so a horizontal header row spends the scarce axis to
+  // save nothing; a column spends ~56dp of the plentiful one. It is
+  // absolutely positioned so it floats over the cave, and the depth banner
+  // and the question inset themselves past it (hudTopStackShort's
+  // paddingLeft).
+  headerRowShort: {
+    position: "absolute",
+    left: 6,
+    top: 6,
+    bottom: 6,
+    flexDirection: "column",
+    flexWrap: "nowrap",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "auto",
+    backgroundColor: "rgba(0, 0, 0, 0.32)",
+    borderRadius: 14,
+    marginHorizontal: 0,
+    padding: 4,
+    gap: 4,
+    zIndex: 5,
+  },
+  // ---- The top strip: depth bar, wallet, question ------------------
+  // Portrait: a plain column, so these three rows are just the next things
+  // in the flow (which is what they were before the landscape split).
+  hudTopStack: {
+    width: "100%",
+    gap: 3,
+  },
+  // Landscape: ONE absolute strip pinned to the top of the stage, holding
+  // the depth bar, the wallet and the equation/answer/combo stack in a
+  // normal column. They used to be three separately absolutely-positioned
+  // siblings on the same edge, which is why the question needed a MEASURED
+  // offset to clear the depth bar — and could still land on it on the
+  // first frame, before any measurement came back. As one column the
+  // overlap is structurally impossible at any bar height.
+  //
+  // zIndex 4 beats the full-bleed canvas, which is a later sibling of the
+  // hudRow in the tree and would otherwise paint over the whole strip (and
+  // swallow the taps — the answer input simply stopped being clickable).
+  // paddingLeft clears the left menu rail (see headerRowShort).
+  hudTopStackShort: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    paddingLeft: 68,
+    zIndex: 4,
+    gap: 6,
+  },
+  // The strip's body below the bar: wallet + equation stack. Portrait:
+  // a plain column (exactly as before). Landscape: a ROW — the equation
+  // sits DIRECTLY under the bar (left) and the wallet keeps its
+  // right-aligned corner, so the question no longer waits a wallet-height
+  // below the bar (todo: "in landscape have the equation just below depth
+  // bar").
+  hudBody: {
+    gap: 3,
+  },
+  // row-reverse, not a reordered row: React Native has no flexbox
+  // `order`. The wallet renders FIRST in the tree (portrait wants it on
+  // top); in a row-reverse the first child lands at the RIGHT end — wallet
+  // in its top-right corner, equation on the left, exactly what was asked.
+  hudBodyRow: {
+    flexDirection: "row-reverse",
+    // row-reverse packs from the RIGHT end: the first child (wallet)
+    // sits in the right corner and the second (equation stack) would end
+    // up beside it. space-between pins them to opposite edges — wallet in
+    // its top-right corner, the plate flush under the bar's LEFT edge
+    // (todo: "Show equations on top left when in landscape mode").
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  // In the landscape row the stack must size to its content (not span the
+  // stage and shove the wallet off) and left-align — the plate then sits
+  // flush under the bar's left edge.
+  hudStackRow: {
+    width: "auto",
+    alignItems: "flex-start",
+  },
+  // In the landscape ROW the cross axis is vertical, so the wallet's own
+  // alignSelf: flex-end (portrait: hug the right edge) would bottom it out
+  // under the plate. The wrapper cancels that in landscape only — both
+  // boxes then share the row's top edge (todo: "have equation box and
+  // resources box aligned").
+  walletRowAlign: {
+    alignSelf: "flex-start",
+  },
+  // The depth/tier readout's own row. Plain in portrait (it is just the
+  // next thing in the column flow); in landscape it is pinned to the TOP of
+  // the stage so it stays put while the question/answer stack sits at the
+  // bottom — scenery above, the thing you interact with below.
+  depthRow: {
+    width: "100%",
+  },
+  // The column cap is tuned for a portrait phone; a rotated one is ~900px
+  // wide, and capping the whole game at 640 would waste the space that the
+  // overlay layout exists to use.
+  contentColumnShort: {
+    maxWidth: 1000,
+  },
+  // Landscape: the cave fills the whole stage and is scaled down slightly
+  // so the crew column reads as part of a scene rather than filling the
+  // frame (the HUD floats over it).
+  landscapeCanvas: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    transform: [{ scale: 0.86 }],
+  },
+  // The cave in landscape is the middle column of hudRow: full height, and
+  // it must be allowed to shrink (flexShrink) because the two side columns
+  // have min widths that win the space fight on a narrow landscape phone.
+  playAreaShort: {
+    minWidth: 0,
+    flex: 1,
+    margin: 4,
+  },  // The numpad column. Sized off the viewport rather than hard-coded so the
+  // 4 rows plus the gaps fit the ~412px of height a rotated phone has.
+  keypadShort: {
+    alignSelf: "center",
+    maxHeight: "100%",
+  },
+  // The keypad's own container. It has `alignSelf: "stretch"` and no
+  // intrinsic width (its columns are `flex: 1`), which only worked while it
+  // sat in a COLUMN (play area) — stretched to the parent's width. As a
+  // child of the landscape ROW it collapsed and the right-hand keys were
+  // clipped off the screen edge, so landscape gives it a real width.
+  keypadColumn: {
+    width: "100%",
+    alignSelf: "stretch",
+  },
+  keypadColumnShort: {
+    // Sized to the keys themselves (4 × 56px + gaps + margins); the cap
+    // keeps a 7" tablet's landscape from stretching comically wide keys.
+    width: 300,
+    maxWidth: "36%",
+    alignSelf: "stretch",
+  },
   // Play area (todo: upgrades panel on top of keypad): canvas + keypad
   // strip together, position:relative so the upgrades drawer + backdrop
   // can anchor to the WHOLE area — the drawer overlays the keypad strip
@@ -70,10 +293,11 @@ export const styles = StyleSheet.create({
     // #2f1f1f is gone — the cave wash is the background now.
     overflow: "hidden",
   },
-  // Upgrades drawer header (todo: upgrades menu as a side hidden overlay
-  // on the canvas): the close button row. The drawer itself anchors to
-  // the play area's right edge (canvas + keypad), so it never sits where
-  // the OS keyboard covers the bottom of the screen.
+  // Upgrades panel header (todo: upgrades menu as a side hidden overlay
+  // on the canvas): the close button row. The panel covers the play area
+  // edge to edge and centres its column (see upgradesDrawer /
+  // upgradesPanel), so it never sits where the OS keyboard covers the
+  // bottom of the screen.
   purchasesHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -114,13 +338,23 @@ export const styles = StyleSheet.create({
   textInputBox: {
     textAlign: "center",
     borderColor: "white",
-    borderWidth: 1,
     // Semi-transparent fill (todo: "improve visibility of ui … where
     // buttons/text are"): the answer box sits over the cave art, so a
     // dark translucent fill + rounding keeps the input readable on every
-    // cave theme.
-    backgroundColor: "rgba(10, 10, 10, 0.45)",
+    // cave theme. Bumped 0.45 -> 0.62 with the equation plate (2026-10-04):
+    // in landscape the box sits low, over busier rock and debris, and the
+    // typed digits were the hardest thing on screen to read.
+    backgroundColor: "rgba(10, 10, 10, 0.62)",
     borderRadius: 6,
+    borderWidth: 1.5,
+    shadowColor: "#000",
+    shadowOpacity: 0.4,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+    // A little more room: the digits are the biggest thing the player
+    // reads and 35% more padding costs nothing on a phone.
+    paddingVertical: 6,
   },
   // Save-code fields (plan §4.3): small monospace-ish boxes. The exported
   // code must stay user-selectable (long-press to copy), unlike the rest
@@ -145,11 +379,12 @@ export const styles = StyleSheet.create({
   },
   depthBanner: {
     flexDirection: "row",
-    gap: 16,
+    gap: 8,
     paddingTop: 6,
     paddingHorizontal: 12,
     alignSelf: "stretch",
     justifyContent: "space-between",
+    alignItems: "center",
     // Translucent bar (todo: "improve visibility of ui … where
     // buttons/text are"): the depth/rate readout sits over the cave, so
     // it gets a dark box behind it.
@@ -158,7 +393,79 @@ export const styles = StyleSheet.create({
     marginHorizontal: 8,
     paddingBottom: 4,
   },
+  // The wallet line (todo: "move resource counts mineral and gems to top
+  // right, right aligned under upgrades but outside of the bar").
+  //
+  // A VERTICAL COLUMN of items, right-aligned: minerals on one line, gems
+  // on the next. Side by side they read as one long figure that competes
+  // with the depth bar right above them; stacked, they are a single column
+  // of figures hanging under the upgrades button, and each line stays short
+  // enough to not need wrapping.
+  //
+  // `alignSelf: flex-end` is what puts it in the corner — in portrait the
+  // strip is a 100%-wide column, in landscape an absolute box inset by the
+  // left menu rail, and in both cases this is the last thing to line up
+  // with the bar's right edge.
+  //
+  // It carries the same translucent backing as the depth bar for the same
+  // reason: these two figures sit over the cave art and have to be readable
+  // on every theme. Boxed tight (not full width) so the background reads as
+  // part of the readout rather than a second bar.
+  depthWallet: {
+    flexDirection: "column",
+    alignItems: "flex-end",
+    alignSelf: "flex-end",
+    gap: 3,
+    // The two most-read numbers in the game — the box has to read at a
+    // glance, so it carries a stronger backing than the bar, a hairline
+    // warm border to separate it from the cave art, and more air inside.
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 240, 210, 0.22)",
+    borderRadius: 10,
+    // Extra right padding + a right margin: in landscape the row pins this
+    // box to the screen's right edge, and a number flush against the edge
+    // reads as clipped (todo: "add right padding to the box").
+    paddingLeft: 12,
+    paddingRight: 16,
+    paddingVertical: 6,
+    marginRight: 8,
+  },
+  depthWalletRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  depthIcon: {
+    width: 16,
+    height: 16,
+  },
+  depthIconGlyph: {
+    fontSize: 15,
+    userSelect: "none",
+  },
+  // The "+N/s" rate, dimmer than the totals it qualifies so the eye lands
+  // on the amounts first.
+  depthRateText: {
+    color: "#a89a88",
+    fontSize: 12,
+    userSelect: "none",
+  },
+  // The wallet's own amount text — brighter and heavier than the bar's
+  // muted tier-name text (depthText), because these numbers are the ones
+  // the player is actually reading (todo: "improve resource (mineral, gem)
+  // visibility").
+  walletText: {
+    color: "#f2e8d5",
+    fontSize: 13,
+    fontWeight: "700",
+    userSelect: "none",
+  },
   depthText: {
+    // Shrinkable + wrapping: the tier name is the only unbounded-length
+    // text in the bar (the Spanish names are the longest), so this side is
+    // the one that wraps instead of overflowing the row.
+    flexShrink: 1,
     color: "#b0a090",
     fontSize: 12,
     userSelect: "none",
@@ -266,31 +573,21 @@ export const styles = StyleSheet.create({
     padding: 5,
     gap: 4,
   },
-  // The "hold to mine" hint pill (todo: "improve visibility of ui …"):
-  // the small caption under the crew column gets a translucent backdrop
-  // so it reads on any cave theme.
-  hintPill: {
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginTop: 4,
-  },
-  // The ⚒ UPGRADES button in the top menu row: opens the side drawer
-  // over the canvas (hidden by default — the canvas has the room).
-  // Floating upgrades button (todo: floating over the canvas): the
-  // bottom-right corner of the cave, BELOW the drawer backdrop (z 4) so
-  // an open drawer dims it out rather than the button covering rows.
-  upgradesToggleFloat: {
-    position: "absolute",
-    right: 10,
-    bottom: 10,
-    zIndex: 3,
+  // The ⛏ UPGRADES button, the depth bar's far-right cell (todo: "Move
+  // upgrades to same bar as depth (far right)"). Sized for a 12px bar
+  // rather than the 36px floating pill it replaces: same radius, same
+  // affordance-dot treatment, less vertical and horizontal padding so the
+  // bar still fits a 360px phone beside depth + wallet.
+  depthUpgradesToggle: {
     backgroundColor: "#3a3a3a",
     opacity: 0.9,
     borderRadius: 8,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    flexShrink: 0,
+  },
+  depthUpgradesTogglePressed: {
+    backgroundColor: "#2c2c2c",
   },
   upgradesAffordableDot: {
     position: "absolute",
@@ -309,8 +606,12 @@ export const styles = StyleSheet.create({
     fontWeight: "bold",
     userSelect: "none",
   },
-  // Drawer backdrop: dims the rest of the canvas; a tap closes the
-  // drawer (sibling-of-drawer, both inside the canvas wrapper).
+  // Drawer backdrop: dims the rest of the stage; a tap closes the drawer.
+  //
+  // z 8 / z 9, not the z 4 / z 5 this pair used to carry from inside the
+  // play area: the modal now overlays the WHOLE stage, so it has to clear
+  // the equation/answer stack (z 4) AND the floating numpads (z 6). Only
+  // the onboarding overlay (z 100) is meant to sit above it.
   upgradesBackdrop: {
     position: "absolute",
     top: 0,
@@ -318,23 +619,42 @@ export const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: "rgba(0, 0, 0, 0.45)",
-    zIndex: 4,
+    zIndex: 8,
   },
+  // Upgrades panel (todo: "have upgrade modal take up whole screen and be
+  // centered"). It used to be a 280px drawer hard against the play area's
+  // right edge, which made the purchase list the one surface in the game
+  // that neither used the screen's shape nor its centre: the rows were
+  // squeezed into a phone-width column with a dead margin on a tablet, and
+  // on a 360px phone the sheet's own left edge sat under the edge of the
+  // numpad strip that shares the play area.
+  //
+  // Now it covers the play area edge to edge (the same full-bleed shape
+  // MenuPanel's fullscreen BottomModal uses) and CENTRES its content: the
+  // outer box is the panel, the inner one is width-capped so a purchase row
+  // keeps a readable measure instead of stretching the full width of a
+  // tablet. The backdrop (z 4) still shows through the letterbox either
+  // side of the centred column, and a tap there still closes the panel.
   upgradesDrawer: {
     position: "absolute",
     top: 0,
+    left: 0,
     right: 0,
     bottom: 0,
-    // Wide enough for the purchase-button rows, capped so it never
-    // covers the whole canvas on a phone.
-    width: 280,
-    maxWidth: "82%",
-    backgroundColor: "#303030",
-    borderLeftWidth: 1,
-    borderLeftColor: "#555",
-    zIndex: 5,
+    backgroundColor: "#262626",
+    zIndex: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 12,
+  },
+  // The centred column inside the full-screen panel.
+  upgradesPanel: {
+    width: "100%",
+    maxWidth: 520,
+    // Never taller than the panel itself — the ScrollView below takes the
+    // remainder, so a long purchase list scrolls instead of being clipped.
+    maxHeight: "100%",
     gap: 6,
-    padding: 8,
   },
   upgradesDrawerClose: {
     paddingVertical: 8,

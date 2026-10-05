@@ -7,7 +7,7 @@
  *    provider reports a completed ad ("rewarded"). No interstitials, no
  *    banners, nothing in the equation flow.
  *  - Providers plug in behind one interface: native runs the Unity Ads SDK
- *    (unityAdProvider.ts), web runs the AdSense Ad Placement API
+ *    (adMobAdProvider.ts), web runs the AdSense Ad Placement API
  *    (adSenseProvider.web.ts). Unconfigured builds get `noopAdProvider`,
  *    whose entry points are hidden end to end.
  *  - Fraud caps (plan §5.1 "track impressions/rewards in-app to detect
@@ -18,7 +18,7 @@
 
 import { Platform } from "react-native";
 import { getLocalDayKey } from "./dailyBonus";
-import { unityAdProvider, hasUnityAdsConfig } from "./unityAdProvider";
+import { adMobAdProvider, hasAdMobConfig } from "./adMobAdProvider";
 import { adSenseAdProvider } from "./adSenseProvider";
 import { isAdSenseConfigured } from "./storeConfig";
 
@@ -53,7 +53,7 @@ export const AD_OUTCOME_VALUES: readonly AdResult[] = [
  * interface; the reward rules in this file stay untouched by that swap.
  */
 export interface AdProvider {
-  /** Stable id for logs/toasts ("noop", "dev-sim", "unity", ...). */
+  /** Stable id for logs/toasts ("noop", "dev-sim", "admob", ...). */
   readonly id: string;
   /** Whether a rewarded ad can be shown on this platform right now. */
   isAvailable(): boolean;
@@ -113,9 +113,9 @@ export type AdProviderSelection = {
    *  ads run on the AdSense Ad Placement API instead (that branch of the
    *  rule below). */
   web: boolean;
-  /** Whether this platform's storeConfig.unityAds pair is set (runbook §1).
+  /** Whether this platform's storeConfig.adMob pair is set (runbook §1).
    *  Only read on the non-web branch. */
-  unityConfigured: boolean;
+  adMobConfigured: boolean;
   /** Whether storeConfig.adsense is set (only read on the web branch). */
   adSenseConfigured: boolean;
 };
@@ -133,7 +133,7 @@ export function pickAdProvider(sel: AdProviderSelection): AdProvider {
   if (sel.web) {
     return sel.adSenseConfigured ? adSenseAdProvider : noopAdProvider;
   }
-  return sel.unityConfigured ? unityAdProvider : noopAdProvider;
+  return sel.adMobConfigured ? adMobAdProvider : noopAdProvider;
 }
 
 /** The one call site-facing selector (MinesOfDoom.tsx): reads the live
@@ -142,7 +142,7 @@ export function selectAdProvider(dev: boolean): AdProvider {
   return pickAdProvider({
     dev,
     web: Platform.OS === "web",
-    unityConfigured: hasUnityAdsConfig(),
+    adMobConfigured: hasAdMobConfig(),
     adSenseConfigured: isAdSenseConfigured(),
   });
 }

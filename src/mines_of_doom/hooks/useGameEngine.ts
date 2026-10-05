@@ -46,6 +46,7 @@ import { getTierBonus } from "../goals";
 import { getLocalDayKey } from "../dailyBonus";
 import {
   DEFAULT_SKIN,
+  REROLL_COST_GEMS,
   getCaveThemeCost,
   getCostGems,
   isOutfitId,
@@ -764,9 +765,24 @@ export function useGameEngine(
   // Reroll the player sprite randomizer (roster variants follow, since they
   // derive from the same seed). Seed computed outside the updater so a
   // double-invoked updater can't desync what the UI shows.
+  //
+  // Costs REROLL_COST_GEMS (todo: "add a 1 gem cost for rerolling
+  // outfit"). The spend runs through the same `totalGemsSpent` accounting
+  // as every gem purchase, so the lifetime stat — which the goal tiers and
+  // the records panel read — sees it. A player who cannot afford it gets
+  // NOTHING (no free reroll, no partial roll): the updater returns the
+  // state untouched, and the shop button is disabled while they are short.
   const rerollPlayerSeed = useCallback(() => {
     const seed = Math.floor(Math.random() * 2147483647) || 1;
-    setGameState((n: SaveData) => ({ ...n, playerSeed: seed }));
+    setGameState((n: SaveData) => {
+      if (n.gems < REROLL_COST_GEMS) return n;
+      return {
+        ...n,
+        playerSeed: seed,
+        gems: n.gems - REROLL_COST_GEMS,
+        totalGemsSpent: n.totalGemsSpent + REROLL_COST_GEMS,
+      };
+    });
   }, []);
 
   // Per-crew outfit overrides (todo: "allow visual customization (iap

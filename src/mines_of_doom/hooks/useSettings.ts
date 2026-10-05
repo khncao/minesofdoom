@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "src/hooks/useI18n";
 import {
   EquationSettings,
+  clampEquationNumbers,
   defaultEquationSettings,
 } from "src/utils/math/equations";
 import {
@@ -70,7 +71,13 @@ export function useSettings({
             typeof parsed === "object" &&
             !equationTouchedRef.current
           ) {
-            setEquationSettings({ ...defaultEquationSettings, ...parsed });
+            // The numeric dial is clamped on the way in: it used to be an
+            // unbounded text box, so pre-existing saves can hold anything
+            // (99 was typeable) and must not keep generating 90s-and-100s
+            // equations (todo: "set a reasonable max constant limit in
+            // settings").
+            const merged = { ...defaultEquationSettings, ...parsed };
+            setEquationSettings({ ...merged, ...clampEquationNumbers(merged) });
           }
         } catch (e) {
           console.warn("Corrupt equation settings, using defaults", e);
@@ -112,8 +119,11 @@ export function useSettings({
 
   const updateEquationSettings = useCallback(
     (next: Updater<EquationSettings>) => {
-      const value =
+      const nextValue =
         typeof next === "function" ? next(equationSettingsRef.current) : next;
+      // Keep the dial inside its limits no matter who calls this (the
+      // settings UI clamps too, but the save-code/onboarding paths do not).
+      const value = { ...nextValue, ...clampEquationNumbers(nextValue) };
       equationTouchedRef.current = true;
       equationSettingsRef.current = value;
       setEquationSettings(value);

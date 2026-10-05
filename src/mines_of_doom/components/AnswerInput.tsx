@@ -77,6 +77,31 @@ export function appendAnswerKey(current: string, key: string): string {
   return sanitizeAnswerText(`${current}${key}`);
 }
 
+/** What the answer field shows while it is empty. A plain caret ellipsis,
+ *  NOT a hint control: the technique modal has its own "?" button beside the
+ *  equation (todo: "use a separate button from answer field to show hints"),
+ *  and a "?" here as well would put two "?"s on one line meaning two
+ *  different things. */
+const EMPTY_PLACEHOLDER = "…";
+
+/**
+ * The field's width is CONTENT-SIZED (todo: "smaller initial answer
+ * field size"): it starts at one caret and grows with the digits, because
+ * it is inlined into the equation now and a fixed 150px box there is the
+ * widest thing in the HUD.
+ *
+ * The three numbers are a budget, not a font measurement: the empty box is
+ * the placeholder glyph plus the box's own padding, each digit gets a
+ * slot wide enough for a numeral at the field's 16px text, and the cap
+ * is MAX_ANSWER_LENGTH digits so a pasted answer can't stretch the plate
+ * off a 360px screen. Because it is derived from the value rather than a
+ * font metric it stays right under the app's own text scale too — the
+ * wrapper <T/> scales the glyphs, and the box grows with them.
+ */
+const FIELD_EMPTY_WIDTH = 30;
+const FIELD_CHAR_WIDTH = 11;
+const FIELD_MAX_WIDTH = FIELD_EMPTY_WIDTH + MAX_ANSWER_LENGTH * FIELD_CHAR_WIDTH;
+
 // memo: the parent re-renders every tick and on every tap flush; without
 // this the (focused) TextInput re-rendered with it. Safe now that onSubmit
 // (useEquations.handleSubmit) is a stable callback.
@@ -113,8 +138,30 @@ const AnswerInput = memo(function AnswerInput({
   focusable: boolean;
 }) {
   const textInputRef = useRef<null | TextInput>(null);
+  // The field is sized to its CONTENT (todo: "smaller initial answer
+  // field size"): it is inlined into the equation now, so a box wide
+  // enough for the longest answer would be the widest thing in the HUD
+  // and would push the prompt around as digits arrive. A caret-sized box
+  // that grows with the digits is both smaller and steadier — and it
+  // makes the question visibly fill itself in.
+  //
+  // MEASURED, not guessed from a font metric: a monospace assumption
+  // would be wrong on every platform that is not the one it was taken
+  // on (and wrong again under the app's own text scale), while the
+  // digits are already known here. The result is a plain number the
+  // layout can trust, capped by MAX_ANSWER_LENGTH so a pasted answer
+  // cannot stretch the plate off-screen.
+  const fieldWidth = Math.min(
+    FIELD_MAX_WIDTH,
+    FIELD_EMPTY_WIDTH + value.length * FIELD_CHAR_WIDTH,
+  );
 
   // `behavior` is a native-only KAV prop; the web View must not receive it.
+  // The AvoidingView/Animated.View wrappers are all still here because the
+  // field is a FOCUSED TEXT INPUT: keyboard avoidance moves this subtree,
+  // and the shake is a transform on the field itself (a wrong answer shakes
+  // the box, not the equation). Neither has anything to do with the row it
+  // now sits in.
   return (
     <AvoidingView behavior={Platform.OS === "web" ? undefined : "padding"}>
       <Animated.View
@@ -122,7 +169,9 @@ const AnswerInput = memo(function AnswerInput({
           transform: [{ translateX: shakeAnim }],
         }}
       >
-        <View style={localStyles.inputRow}>
+        {/* The field itself: the box in the equation, sized on every
+            render from the value (see fieldWidth). */}
+        <View style={[localStyles.fieldWrap, { width: fieldWidth }]}>
           {useKeypad ? (
             // Read-only display: the value is driven by the keypad below.
             <View
@@ -130,33 +179,39 @@ const AnswerInput = memo(function AnswerInput({
               style={[localStyles.displayBox, styles.textInputBox]}
             >
               <Text style={localStyles.displayText}>
-                {value.length === 0 ? "…" : value}
+                {value.length === 0 ? EMPTY_PLACEHOLDER : value}
               </Text>
             </View>
           ) : (
-            <TextInput
-              ref={textInputRef}
-              value={value}
-              onChangeText={(text) => setTextInput(sanitizeAnswerText(text))}
-              // "decimal", not "numeric": iOS shows a digits-only pad for
-              // "numeric", with no way to type the cents a money answer
-              // needs. Android's inputType is derived from this the same way.
-              inputMode="decimal"
-              focusable={focusable}
-              autoFocus={focusable}
-              clearButtonMode="always"
-              onSubmitEditing={() => {
-                onSubmit();
-                textInputRef.current?.clear();
-              }}
-              selectTextOnFocus={true}
-              blurOnSubmit={false}
-              clearTextOnFocus={true}
-              style={{
-                ...styles.text,
-                ...styles.textInputBox,
-              }}
-            />
+              <TextInput
+                ref={textInputRef}
+                value={value}
+                onChangeText={(text) => setTextInput(sanitizeAnswerText(text))}
+                // "decimal", not "numeric": iOS shows a digits-only pad for
+                // "numeric", with no way to type the cents a money answer
+                // needs. Android's inputType is derived from this the same way.
+                inputMode="decimal"
+                placeholderTextColor="#7d7466"
+                focusable={focusable}
+                autoFocus={focusable}
+                clearButtonMode="always"
+                onSubmitEditing={() => {
+                  onSubmit();
+                  textInputRef.current?.clear();
+                }}
+                selectTextOnFocus={true}
+                blurOnSubmit={false}
+                clearTextOnFocus={true}
+                style={{
+                  ...styles.text,
+                  ...styles.textInputBox,
+                  // The field is INLINED into the equation now, so it has
+                  // to be one text line tall: textInputBox carries the 6px
+                  // of vertical padding a standalone answer box needed, and
+                  // inside the plate that is a second line of air.
+                  paddingVertical: 1,
+                }}
+              />
           )}
         </View>
       </Animated.View>
@@ -165,17 +220,24 @@ const AnswerInput = memo(function AnswerInput({
 });
 
 const localStyles = StyleSheet.create({
-  inputRow: {
-    flexDirection: "row",
+  // The field's own box. Its width is NOT here: the component sets it
+  // from the value on every render, since the field is content-sized.
+  fieldWrap: {
+    position: "relative",
+    alignSelf: "center",
+  },
+
+  // The keypad-mode read-only box. No minWidth: the wrapper owns the width
+  // and the two modes must be pixel-identical, so this only has to fill it
+  // and centre the digits. The vertical padding is 1 (not the 4 the
+  // standalone box used) so this is one text line tall too — matching the
+  // TextInput's paddingVertical: 1 above.
+  displayBox: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-  },
-  displayBox: {
-    minWidth: 150,
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
   },
   displayText: {
     color: "#fff",

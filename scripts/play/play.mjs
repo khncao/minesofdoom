@@ -216,7 +216,18 @@ async function newEdit(pub) {
 }
 
 async function commitEdit(pub, edit) {
-  const c = await pub.edits.commit({ packageName: app, editId: edit.id });
+  const c = await pub.edits.commit({
+    packageName: app,
+    editId: edit.id,
+    // Stage the edit, do NOT push it at Play's reviewers. Without this the
+    // API rejects any edit carrying review-gated changes with "Changes
+    // cannot be sent for review automatically. Please set the query
+    // parameter changesNotSentForReview to true." — which is what every
+    // command here does, since the human submits from the Console UI
+    // (docs/store-integration.md §2.5 / the v1.0.11 runbook: the API cannot
+    // set the console answers, so the submission itself is always manual).
+    changesNotSentForReview: true,
+  });
   console.error(`edit committed: ${JSON.stringify(c.data?.status ?? c.data)}`);
 }
 

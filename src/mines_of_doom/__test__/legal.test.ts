@@ -42,7 +42,7 @@ describe("legal documents", () => {
   it("the policy's child-directed claim matches the shipped Unity flag (F45.1)", () => {
     // The policy must not assert an ad configuration the shipped code does
     // not have — this is the sibling net that keeps the prose and
-    // storeConfig.unityAds.childDirectedTreatment in sync, so a future flag
+    // storeConfig.admob.childDirectedTreatment in sync, so a future flag
     // flip can't silently falsify the policy again. (That is exactly what
     // the 2026-09-30 Play rejection was: stale "ads" answers.)
     const children = getLegalDoc("privacy").sections.find(
@@ -50,7 +50,7 @@ describe("legal documents", () => {
     );
     expect(children).toBeDefined();
     const body = (children as { body: string }).body;
-    if (storeConfig.unityAds.childDirectedTreatment) {
+    if (storeConfig.admob.childDirectedTreatment) {
       // Ads ARE treated as child-directed: say so, and say the reward is
       // in-game only (Families forbids real-world rewards).
       expect(body).toMatch(/treated as child-directed/i);
@@ -58,7 +58,7 @@ describe("legal documents", () => {
       expect(body).toMatch(/never real-world goods/i);
       // And the child-directed posture is only honest if the advertising
       // id really is unavailable.
-      if (storeConfig.unityAds.stripAdvertisingId) {
+      if (storeConfig.admob.stripAdvertisingId) {
         expect(body).toMatch(/does not use an advertising identifier/i);
       }
     } else {

@@ -2,8 +2,10 @@ import fs from "fs";
 import path from "path";
 import {
   getActiveStripe,
+  getAdMobIds,
   getStripePrice,
   getUnityAdsIds,
+  isAdMobIdsConfigured,
   isUnityAdsConfigured,
   isAdSenseConfigured,
   isStripeConfigured,
@@ -12,71 +14,78 @@ import {
 } from "../storeConfig";
 import { IAP_PRODUCT_IDS, IAP_PRODUCTS } from "../iaps";
 
-// The wired Android set (Unity dashboard → Monetization → Ad units →
-// Rewarded; docs/store-integration.md §1): ONE rewarded placement shared by
-// all four ad kinds. iOS has none — the native bridge is Android-only.
+// The AdMob rewarded-INTERSTITIAL unit all four ad kinds share, and the App
+// ID GMA reads from the merged manifest. ONE unit: a rewarded interstitial is
+// a single format, and one unit means one thing to check on a device.
 const ANDROID_UNITS = {
-  gemRolls: "BP_Rewarded_Android",
-  offlineDouble: "BP_Rewarded_Android",
-  offlineTopUp: "BP_Rewarded_Android",
-  comboSave: "BP_Rewarded_Android",
+  gemRolls: "ca-app-pub-2101316086878618/8110332335",
+  offlineDouble: "ca-app-pub-2101316086878618/8110332335",
+  offlineTopUp: "ca-app-pub-2101316086878618/8110332335",
+  comboSave: "ca-app-pub-2101316086878618/8110332335",
 };
+const ANDROID_APP_ID = "ca-app-pub-2101316086878618~4973124022";
 
-// Unity's PUBLIC TEST placement ids (Unity dashboard test mode) must never
-// appear in a shipped config — they fill instantly on any device.
-const UNITY_TEST_PLACEMENTS = ["1234567", "1234568"];
+// Google publishes test ad-unit ids that always serve test creatives. They
+// must never appear in a shipped config — a test unit in production means no
+// revenue and a silent regression.
+const ADMOB_TEST_UNITS = [
+  "ca-app-pub-3940256099942544/6300978111",
+  "ca-app-pub-3940256099942544/1033173712",
+];
 
 describe("storeConfig (runbook §1 — the single SDK config point)", () => {
-  it("pins the storeConfig values (Android Unity Ads live, iOS empty)", () => {
-    // Native ads moved to Unity Ads (2026-10-01) because Play's Families
-    // rules require a rewarded ad to be closeable within 5 seconds and the
-    // AdMob rewarded unit cannot be. The owner's Unity project now exists
-    // (Game ID 800386304, one rewarded placement shared by all four ad
-    // kinds) so the Android rewarded entry points are LIVE; iOS stays empty
-    // because the native bridge is Android-only.
-    expect(storeConfig.unityAds.androidGameId).toBe("800386304");
-    expect(storeConfig.unityAds.rewardedPlacementAndroid).toEqual(ANDROID_UNITS);
-    // …and the ids really are the wired ones, so a dashboard rename can't
-    // quietly point the app at a placement that does not exist.
-    expect(isUnityAdsConfigured(getUnityAdsIds("android"))).toBe(true);
-    expect(isUnityAdsConfigured(getUnityAdsIds("ios"))).toBe(false);
-    expect(storeConfig.unityAds.rewardedPlacementIos).toEqual({
+  it("pins the storeConfig values (AdMob interstitial live, iOS empty)", () => {
+    // Native ads are on AdMob rewarded INTERSTITIAL (2026-10-03). Play's
+    // Families rules require an ad closeable within 5 seconds; a plain AdMob
+    // REWARDED unit cannot be (per-creative 5-30 s close countdown, no
+    // dismiss API) — that is the v1.0.10 rejection. Unity Ads was tried in
+    // between and failed on device TWICE (vc 12 rewarded, vc 14
+    // interstitial: real ads, no skip, no way to close). A rewarded
+    // INTERSTITIAL only ever serves skippable ads, which is what Google's
+    // own guidance points at.
+    expect(storeConfig.admob.appId).toBe(ANDROID_APP_ID);
+    expect(storeConfig.admob.rewardedUnitAndroid).toEqual(ANDROID_UNITS);
+    expect(isAdMobIdsConfigured(getAdMobIds("android"))).toBe(true);
+    expect(isAdMobIdsConfigured(getAdMobIds("ios"))).toBe(false);
+    expect(storeConfig.admob.rewardedUnitIos).toEqual({
       gemRolls: "",
       offlineDouble: "",
       offlineTopUp: "",
       comboSave: "",
     });
-    // iOS stays EMPTY on purpose — modules/unity-ads is Android only, so an
-    // iOS set could never fill, and a filled-but-unsupported platform is
-    // exactly the kind of thing this assertion catches.
-    expect(storeConfig.unityAds.iosGameId).toBe("");
+    // iOS stays EMPTY on purpose — modules/admob-ads is Android only, so an
+    // iOS set could never fill.
+    expect(storeConfig.admob.iosAppId).toBe("");
+    // Unity is RETIRED and must never silently come back: both its formats
+    // were proven unskippable on a real device.
+    expect(isUnityAdsConfigured(getUnityAdsIds("android"))).toBe(false);
+    expect(storeConfig.unityAds.androidGameId).toBe("");
+    expect(
+      Object.values(storeConfig.unityAds.rewardedPlacementAndroid),
+    ).not.toContain("BP_Rewarded_Android");
+    expect(
+      Object.values(storeConfig.unityAds.rewardedPlacementAndroid),
+    ).not.toContain("rewarded_inter");
     // Guardrail 6 (kid safety): ads are served child-directed /
     // non-personalized for EVERY user, which is what makes one ad surface
     // valid for all ages (docs/store-integration.md §0 "Re-opened"), and it
     // is why the ad-id permissions are stripped at prebuild.
-    expect(storeConfig.unityAds.childDirectedTreatment).toBe(true);
-    expect(storeConfig.unityAds.stripAdvertisingId).toBe(true);
+    expect(storeConfig.admob.childDirectedTreatment).toBe(true);
+    expect(storeConfig.admob.stripAdvertisingId).toBe(true);
     // The Pocketbase deployment is live (docs/pocketbase-plan.md) — pin the
-    // URL so a stray edit can't point the client at the wrong backend. The
-    // API has its own host (the web app is the Cloudflare Pages custom
-    // domain above it); PB itself answers `access-control-allow-origin: *`,
-    // so the cross-origin preflight is fine as-is.
+    // URL so a stray edit can't point the client at the wrong backend.
     expect(storeConfig.pocketbaseUrl).toBe(
       "https://api.minesofdoom.minus4kelvin.com",
     );
   });
 
-  it("never ships a Unity test-mode placement id", () => {
-    // Unity test placements fill instantly on any device, so a leaked one
-    // would silently replace a production placement
-    // (docs/store-integration.md §1).
-    const all = [
-      ...Object.values(storeConfig.unityAds.rewardedPlacementAndroid),
-      ...Object.values(storeConfig.unityAds.rewardedPlacementIos),
-      ...Object.values(ANDROID_UNITS),
-    ];
-    for (const placement of all) {
-      expect(UNITY_TEST_PLACEMENTS).not.toContain(placement);
+  it("never ships a Google test ad-unit id", () => {
+    // Google's published test units serve test creatives on any device, so a
+    // leaked one would silently replace the real unit (no revenue, no bug
+    // report). docs/store-integration.md §1.
+    const all = Object.values(storeConfig.admob.rewardedUnitAndroid);
+    for (const unit of all) {
+      expect(ADMOB_TEST_UNITS).not.toContain(unit);
     }
   });
 
@@ -114,20 +123,26 @@ describe("storeConfig (runbook §1 — the single SDK config point)", () => {
 
   it("the app.config.ts manifest flags never drift from storeConfig", () => {
     // app.config.ts can't import this module (the Expo config loader uses a
-    // plain node require), so the ad-id posture is duplicated in the
-    // `unityAdsManifestOptions` block there for plugins/withUnityAds. Pin
-    // them together: flipping one and not the other would ship an app whose
-    // ad code can read the advertising ID while the policy says it cannot.
+    // plain node require), so BOTH the ad-id posture and the AdMob App ID
+    // are duplicated in the `adMobManifestOptions` block there for
+    // plugins/withAdMobAds. Pin them together: flipping one and not the
+    // other would ship an app whose ad code can read the advertising ID
+    // while the policy says it cannot — or worse, an APK whose manifest
+    // App ID disagrees with the config the provider gates on (the ads would
+    // never load, or the wrong app's ads would).
     const cfg =
       fs
         .readFileSync(path.join(__dirname, "../../../app.config.ts"), "utf8")
-        .match(/^const unityAdsManifestOptions = \{[^}]*\};/m)?.[0] ?? "";
+        .match(/^const adMobManifestOptions = \{[^}]*\};/m)?.[0] ?? "";
     expect(cfg).not.toBe("");
     const valueOf = (name: string) =>
       cfg.match(new RegExp(`${name}: (true|false)`))?.[1] ?? "";
     expect(valueOf("removeAdvertisingId")).toBe(
-      String(storeConfig.unityAds.stripAdvertisingId),
+      String(storeConfig.admob.stripAdvertisingId),
     );
+    // The manifest App ID must be exactly the configured one — GMA reads it
+    // from there, not from JS, so a drift means the ads can never fill.
+    expect(cfg.match(/appId: "([^"]+)"/)?.[1]).toBe(storeConfig.admob.appId);
   });
 
   it("getUnityAdsIds picks the matching pair per platform", () => {

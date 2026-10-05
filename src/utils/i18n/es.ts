@@ -82,7 +82,9 @@ export const es: Record<TranslationKey, string> = {
   "toast.dailyEquation": "¡Ecuación del día resuelta: +{bonus} de minerales!",
   "toast.dailyEquationStart":
     "Ecuación del día: resuélvela para +{bonus} minerales — los errores no cuestan nada",
-  "toast.weeklyContract": "Contrato semanal completado: +{bonus} minerales",
+  "toast.weeklyContract":
+    "Contrato semanal completado: +{bonus} minerales y +{gems} gemas",
+  "toast.questClaimed": "Misión completada: +{gems} 💎",
   "toast.iapPackUnlocked": "Desbloqueaste {name} — ¡búscalo en Cosméticos!",
   "toast.adFinishedGems": "Anuncio terminado: +{count} 💎",
   "toast.adFinishedDouble":
@@ -110,6 +112,8 @@ export const es: Record<TranslationKey, string> = {
   // operandos sería entregar la aritmética (y en varias formas, también la
   // respuesta), convirtiendo la pista en un botón de resolver.
   "hint.open": "Pista para esta pregunta",
+  "hint.modalTitle": "CÓMO HACERLA",
+  "hint.modalClose": "ENTENDIDO",
   "hint.multiply":
     "Descompónlo: 7 × 8 es 7 × 5 + 7 × 3, y los números redondos van más rápido que los exactos.",
   "hint.add":
@@ -199,17 +203,39 @@ export const es: Record<TranslationKey, string> = {
     "Ecuación del día: sin resolver (+{bonus} minerales)",
   "a11y.dailyEquationSolved": "Ecuación del día: resuelta hoy",
   "a11y.weeklyClaimable":
-    "Abrir contrato semanal — reclamar +{bonus} minerales",
+    "Abrir misiones — reclamar +{bonus} minerales y +{gems} gemas",
   "a11y.weeklyProgress":
-    "Abrir contrato semanal — {done} de {total} objetivos completados",
-  "a11y.weeklyClaimed": "Abrir contrato semanal — reclamado esta semana",
+    "Abrir misiones — {done} de {total} objetivos semanales completados",
+  "a11y.weeklyClaimed": "Abrir misiones — contrato semanal reclamado",
   "weekly.title": "CONTRATO SEMANAL",
   "weekly.statusInProgress": "{done} de {total} tareas completadas esta semana",
   "weekly.statusClaimable": "Todas las tareas completadas — reclama tu bonus",
   "weekly.statusClaimed":
     "Reclamado esta semana — el nuevo contrato abre el lunes",
   "weekly.resetNote": "Las tareas y el bonus se reinician cada lunes",
-  "weekly.claim": "RECLAMAR +{bonus} MINERALES",
+  "weekly.claim": "RECLAMAR +{bonus} MINERALES +{gems} 💎",
+  "weekly.rewardNote":
+    "Completa las {total} tareas para reclamar +{bonus} minerales +{gems} 💎",
+  "weekly.answer75": "Responde 75 ecuaciones correctamente",
+  "weekly.mine500k": "Extrae 500k minerales",
+  "weekly.own2Miners": "Contrata 2 mineros más",
+
+  // --- Registro de misiones (misiones diarias + el contrato semanal) -----
+  "quest.logTitle": "REGISTRO DE MISIONES",
+  "quest.dailyTitle": "MISIONES DE HOY",
+  "quest.dailyStatus": "{done} de {total} completadas — {claimable} por reclamar",
+  "quest.dailyDone": "Todo hecho por hoy — nuevas misiones a medianoche",
+  "quest.dailyResetNote": "Las misiones se reinician a medianoche",
+  "quest.rewardNote": "Paga +{gems} 💎",
+  "quest.claim": "RECLAMAR +{gems} 💎",
+  "quest.claimed": "RECLAMADA",
+  "quest.answerTen": "Responde 10 ecuaciones correctamente",
+  "quest.answerTwentyFive": "Responde 25 ecuaciones correctamente",
+  "quest.mineSmall": "Extrae 2.000 minerales",
+  "quest.mineMid": "Extrae 25.000 minerales",
+  "quest.mineBig": "Extrae 150.000 minerales",
+  "quest.hireMiner": "Contrata un minero",
+  "a11y.questClaim": "Reclamar la gema de: {label}",
 
   // --- Save button ---------------------------------------------------------
   "a11y.save": "Guardar partida",
@@ -258,7 +284,7 @@ export const es: Record<TranslationKey, string> = {
   "settings.language": "🌐 Idioma:",
   "lang.auto": "Automático",
   "settings.autosave": "Intervalo de autoguardado (segundos): ",
-  "settings.maxNumber": "Valor máximo de la constante en ecuaciones: ",
+  "settings.maxNumber": "Valor máximo de la constante en ecuaciones (3–99): ",
   "settings.operatorHelp": "Mantén pulsado un operador para ver cuánto paga",
   "settings.operatorEquations": "Ecuaciones de {name}",
   "settings.tooltipHard": "Ecuaciones de modo difícil",
@@ -528,6 +554,13 @@ export const es: Record<TranslationKey, string> = {
     "pantalla no se satura a medida que la tienda crece. Los tres botones " +
     "básicos (mejorar poder, comprar un minero, comprar una gema) siempre se " +
     "ven. Activado: se ven todos los botones siempre, bloqueados o no.",
+  "settings.secondKeypad": "Segundo teclado: ",
+  "settings.secondKeypadHelp":
+    "Desactivado (por defecto): un solo teclado. Activado: aparece un " +
+    "segundo teclado flotando sobre la cueva para que ambos pulgares " +
+    "respondan sin cambiar la sujeción, tanto en vertical como en " +
+    "horizontal. Ambos se pueden arrastrar y recuerdan dónde los " +
+    "dejaste. Necesita el teclado en pantalla de arriba activado.",
   "settings.onScreenKeypad": "Teclado en pantalla: ",
   "settings.onScreenKeypadHelp":
     "Activado: la casilla de respuesta nunca abre el teclado del sistema — " +
@@ -607,6 +640,8 @@ export const es: Record<TranslationKey, string> = {
     "Elimina tu cuenta y TODOS los datos vinculados en todos los " +
     "dispositivos — partidas, compras y clasificación — del servidor. " +
     "Se cerrará la sesión en todas partes. No se puede deshacer.",
+  "leaderboard.submitToggle": "Enviar mis puntuaciones a la clasificación",
+  "leaderboard.submitToggleHelp": "Desactivado por defecto. Al activarlo se envían tu nombre de pantalla y un identificador aleatorio del dispositivo al servidor del desarrollador para que puedas aparecer en la clasificación. No se envía nada hasta que lo actives, y puedes desactivarlo cuando quieras.",
   "leaderboard.title": "🏆 Top {limit} — el pozo más profundo",
   "leaderboard.name": "Nombre de pantalla (se muestra en la clasificación)",
   "leaderboard.refresh": "Actualizar",
@@ -639,6 +674,7 @@ export const es: Record<TranslationKey, string> = {
 
   // --- Cosmetics (la tienda unificada — ver el bloque iap.*) -------------
   "cosmetics.reroll": "🎲 Nuevo aspecto",
+  "cosmetics.rerollCost": "🎲 Nuevo aspecto (-{cost} 💎)",
   "cosmetics.themesLocked": "🔒 Temas de cueva (Crystal Kingdom)",
   "cosmetics.themesUnlockedAt": "Se desbloquea en Crystal Kingdom",
 
@@ -755,7 +791,6 @@ export const es: Record<TranslationKey, string> = {
   "ui.areYouSure": "¿Estás seguro?",
   "ui.confirm": "Confirmar",
   "ui.cancel": "Cancelar",
-  "ui.holdToMineHint": "mantén pulsado para minar",
   "a11y.backspace": "Retroceso",
   "a11y.clearAnswer": "Borrar toda la respuesta",
   "a11y.submitAnswer": "Enviar respuesta",
@@ -768,6 +803,7 @@ export const es: Record<TranslationKey, string> = {
     "Solo un punto decimal, para respuestas con dinero como 22.40",
   "a11y.holdToClear": "Mantén pulsado para borrar toda la respuesta",
   "a11y.closeSettings": "Cerrar ajustes",
+  "a11y.closeHint": "Cerrar la pista",
   "a11y.settings": "Ajustes",
 
   // --- Footer misc -------------------------------------------------------------------

@@ -5,6 +5,7 @@ import { formatNumber } from "src/utils/format";
 import { SaveData } from "../game";
 import {
   WEEKLY_BONUS,
+  WEEKLY_GEM_BONUS,
   WEEKLY_GOALS,
   WeeklyChallengeState,
   applyWeeklyClaim,
@@ -29,10 +30,12 @@ export const weeklyChallengeKey = "weeklyChallenge";
 export function useWeeklyChallenge({
   save,
   grantMinerals,
+  grantGems,
   displayMessage,
 }: {
   save: SaveData;
   grantMinerals: (minerals: bigint) => void;
+  grantGems: (gems: number) => void;
   displayMessage: (message: string, timeout: number) => void;
 }) {
   const { t } = useI18n();
@@ -89,18 +92,25 @@ export function useWeeklyChallenge({
     // WEEKLY_BONUS is a fixed, small number — safe to convert to the
     // engine's bigint currency exactly.
     grantMinerals(BigInt(WEEKLY_BONUS));
+    // Gems go through the same additive path the rewarded-ad roll and the
+    // daily quests use, so `gemsMinted` lifetime accounting stays exact.
+    grantGems(WEEKLY_GEM_BONUS);
     const next = applyWeeklyClaim(saveRef.current, current, now);
     stateRef.current = next;
     setState(next);
     displayMessage(
-      t("toast.weeklyContract", { bonus: formatNumber(WEEKLY_BONUS) }),
+      t("toast.weeklyContract", {
+        bonus: formatNumber(WEEKLY_BONUS),
+        gems: WEEKLY_GEM_BONUS,
+      }),
       4000,
     );
-  }, [grantMinerals, setState, displayMessage, t]);
+  }, [grantMinerals, grantGems, setState, displayMessage, t]);
 
   return {
     claimable: info.claimable,
     bonus: info.bonus,
+    gemBonus: info.gemBonus,
     doneCount: info.doneCount,
     total: WEEKLY_GOALS.length,
     claimed: state?.claimed ?? false,

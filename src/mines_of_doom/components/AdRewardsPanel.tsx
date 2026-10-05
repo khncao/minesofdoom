@@ -1,7 +1,7 @@
 import { memo, useEffect, useState } from "react";
 import { View } from "react-native";
 import { T as Text } from "../textScale";
-import BottomModal from "src/components/BottomModal";
+import BottomModal, { NAV_ICON_SIZE } from "src/components/BottomModal";
 import Button from "src/components/Button";
 import { useI18n } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
@@ -94,7 +94,7 @@ function AdRewardsPanel({
       : 0;
   return (
     <BottomModal
-      pressable={<Text style={{ fontSize: 30 }}>🎬</Text>}
+      pressable={<Text style={{ fontSize: NAV_ICON_SIZE }}>🎬</Text>}
       accessibilityLabel={t("ads.a11y")}
       scrollable
       onToggle={(open) => {

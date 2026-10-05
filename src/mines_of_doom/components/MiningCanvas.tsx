@@ -17,7 +17,6 @@ import BlockBreak, { BlockBreakRef } from "src/components/BlockBreak";
 import FloatingTextLayer, { FloatingTextRef } from "./FloatingTextLayer";
 import { formatNumber } from "src/utils/format";
 import {
-    gemSpriteUri,
     mineralChunkSpriteUri,
 } from "src/utils/graphics/artPack";
 import { emojis } from "src/utils/graphics/emojis";
@@ -26,11 +25,8 @@ import { crewCharForIndex } from "src/utils/graphics/crewChars";
 import { styles } from "../styles";
 import { GemPocket, pocketPosition } from "../gemPocket";
 
-// Pixel-art currency icons (plan §4.5) — replaces the old 🪨/💎 emoji
-// display. Call the (internally cached) getters lazily so emoji mode never
-// even bakes the PNGs.
-const CURRENCY_ICON = { width: 20, height: 20 };
-const CURRENCY_EMOJI = { fontSize: 20 };
+/** The gem-pocket node's own sprite size (plan §4.5). */
+const POCKET_ICON = { width: 28, height: 28 };
 
 /**
  * Minimum press duration for a cave press to count as a mine (plan §2.1
@@ -41,8 +37,6 @@ const CURRENCY_EMOJI = { fontSize: 20 };
 const MINE_HOLD_MS = 300;
 
 const MiningCanvas = memo(function MiningCanvas({
-    minerals,
-    gems,
     miners,
     fastMiners,
     legendaryMiners,
@@ -62,8 +56,6 @@ const MiningCanvas = memo(function MiningCanvas({
     pocket,
     onPocketCollect,
 }: {
-    minerals: bigint;
-    gems: number;
     miners: number;
     /** Tier-2 second miner type: rendered smaller, cheaper/weaker. */
     fastMiners: number;
@@ -236,54 +228,25 @@ const MiningCanvas = memo(function MiningCanvas({
                                         source={{
                                             uri: mineralChunkSpriteUri(),
                                         }}
-                                        style={{ width: 28, height: 28 }}
+                                        style={POCKET_ICON}
                                     />
                                 )}
                             </Animated.View>
                         </Animated.View>
                     );
                 })()}
-            <View style={{ alignItems: "center" }}>
-                <View style={styles.flexCenteredRow}>
-                    {emojiArt ? (
-                        <Text style={{ ...CURRENCY_EMOJI, userSelect: "none" }}>
-                            {emojis.mineral}
-                        </Text>
-                    ) : (
-                        <Image
-                            source={{ uri: mineralChunkSpriteUri() }}
-                            style={CURRENCY_ICON}
-                        />
-                    )}
-                    <Text
-                        testID="mineral-count"
-                        style={{ ...styles.text, alignSelf: "center" }}
-                    >
-                        {formatNumber(minerals)}
-                    </Text>
-                </View>
-                <View style={styles.flexCenteredRow}>
-                    {emojiArt ? (
-                        <Text style={{ ...CURRENCY_EMOJI, userSelect: "none" }}>
-                            {emojis.gem}
-                        </Text>
-                    ) : (
-                        <Image
-                            source={{ uri: gemSpriteUri() }}
-                            style={CURRENCY_ICON}
-                        />
-                    )}
-                    <Text style={{ ...styles.text, alignSelf: "center" }}>
-                        {formatNumber(gems)}
-                    </Text>
-                </View>
-
-                <View style={{ alignItems: "center", marginTop: 2 }}>
-                    {/* Crew column, far-most first: the nearest (normal) hires sit
+            {/* The crew column, far-most first: the nearest (normal) hires sit
               right above the player, the far legendary rows at the top.
               Each row wears its per-miner outfit override when assigned
-              (normal crew only), else the player's selected outfit. */}
-                    {[...rosterItems].reverse().map((item) => (
+              (normal crew only), else the player's selected outfit.
+
+              The minerals/gems counters that used to sit here moved to the
+              depth bar (todo: "Move resources (minerals, gems, etc.) to
+              same bar as depth") — this column is the scene, and two
+              figures drawn on top of the sprites fought them for
+              attention. */}
+            <View style={{ alignItems: "center" }}>
+                {[...rosterItems].reverse().map((item) => (
                         <Miner
                             key={`${item.kind}-${item.index}`}
                             scale={item.scale}
@@ -315,43 +278,39 @@ const MiningCanvas = memo(function MiningCanvas({
                             emojiArt={emojiArt}
                         />
                     ))}
-                    <View
-                        style={{ position: "relative", alignItems: "center" }}
-                    >
-                        <Miner
-                            key={"player"}
-                            animateRef={playerPickaxeAnimRef}
-                            isPlayer={true}
-                            windingUp={holding}
-                            seed={playerSeed}
-                            outfitId={outfitId}
-                            pickaxeId={pickaxeId}
-                            reduceMotion={reduceMotion}
-                            emojiArt={emojiArt}
-                            bodyOverrideUri={playerBodyUri}
-                            pickaxeOverrideUri={playerPickaxeUri}
-                        />
-                        <DebrisParticles
-                            ref={debrisRef}
-                            reduceMotion={reduceMotion}
-                            emojiArt={emojiArt}
-                        />
-                        <BlockBreak ref={blockBreakRef} />
-                    </View>
-                </View>
-                <View style={styles.hintPill}>
-                    <Text
-                        style={{
-                            ...styles.text,
-                            opacity: 0.6,
-                            fontSize: 11,
-                            userSelect: "none",
-                        }}
-                    >
-                        {t("ui.holdToMineHint")}
-                    </Text>
+                <View
+                    style={{ position: "relative", alignItems: "center" }}
+                >
+                    <Miner
+                        key={"player"}
+                        animateRef={playerPickaxeAnimRef}
+                        isPlayer={true}
+                        windingUp={holding}
+                        seed={playerSeed}
+                        outfitId={outfitId}
+                        pickaxeId={pickaxeId}
+                        reduceMotion={reduceMotion}
+                        emojiArt={emojiArt}
+                        bodyOverrideUri={playerBodyUri}
+                        pickaxeOverrideUri={playerPickaxeUri}
+                    />
+                    <DebrisParticles
+                        ref={debrisRef}
+                        reduceMotion={reduceMotion}
+                        emojiArt={emojiArt}
+                    />
+                    <BlockBreak ref={blockBreakRef} />
                 </View>
             </View>
+                {/* The "hold to mine" caption is GONE (todo: "Remove 'hold
+                to mine' text"). It sat under the crew column as a pill and
+                re-read the accessibility label on every cave press; the
+                gesture is the one thing the player learns in the first
+                seconds of play, and the onboarding tutorial still teaches
+                it. The accessible name (a11y.holdToMine) stays — that is
+                what a screen reader announces for the cave, and removing a
+                visible hint must never cost a non-sighted player the
+                instruction. */}
         </View>
     );
 });

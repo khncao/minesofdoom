@@ -10,11 +10,16 @@ ranking + every gap layer; formerly this file's section 7).
 
 - **Tap mining** — hold the cave canvas (300 ms — a quick tap
 deliberately does nothing; the fat-finger filter the a11y label states as
-"Hold to mine" and the canvas carries a persistent caption) to mine; gains
+"Hold to mine") to mine; gains
 scale with click power, depth-tier click bonus, gem-upgrade tap/answer
 multipliers, combo and prestige (`components/MiningCanvas.tsx: MINE_HOLD_MS`,
 `hooks/useMineTaps.ts` — the web canvas uses a plain-View responder instead
-of Pressable so rapid tapping doesn't double-render).
+of Pressable so rapid tapping doesn't double-render). The persistent
+"hold to mine" caption under the crew column is GONE: it re-read the
+accessibility label on every press, and the onboarding tutorial already teaches
+the gesture. The accessible name stays — dropping a visible hint must never
+cost a non-sighted player the instruction (`a11y.holdToMine`,
+`components/MiningCanvas.tsx`).
 - **Equations** — the main active loop: solve arithmetic to earn minerals ×
   click power × combo multiplier. **Sixteen toggleable types** in three
   settings groups, all soft-mode-only except the classic four:
@@ -28,6 +33,23 @@ of Pressable so rapid tapping doesn't double-render).
     per-person share, always exact) and unit price in both directions
     (`4 each × 12` → the total, `30 ÷ 12` → the price of one, always exact).
 
+  The answer field is rendered **inside** the equation plate, in the
+  blank the player fills: `7 * 2 = [__]`, one line, one sentence. It was
+  stacked below the question, so reading a question meant dropping a line
+  to type into it, and its 150px box was the widest thing in the HUD — a
+  field sized for the longest answer, sitting in a column sized for it.
+  It is now **content-sized**: one caret when empty, growing with the
+  digits (capped at MAX_ANSWER_LENGTH so a pasted answer cannot stretch the
+  plate off a 360px screen), which is derived from the value rather than a
+  font metric so it also stays right under the app's own text scale.
+  Putting it IN the blank also fixes where the blank is: for the
+  missing-operand and balance drills the number being asked for is the "?"
+  **between** the operands, so those render `7 + [__] = 12` — the field
+  lands there and the redundant trailing "?" those prompts used to end with
+  (`7 + ? = 12?`) simply stops being drawn (`equationAnswerSlot`,
+  `utils/math/equations.ts`; rendered by `components/EquationDisplay.tsx's
+  `answerSlot`). The row is not `accessible`, so the field stays reachable to
+  a screen reader and the runs read in order.
   The nine added types stay out of the first-run tour's row list on purpose
   — that card is absolutely positioned and does not scroll — so they get a
   labelled group in Settings plus matching mental-math tips instead.
@@ -50,18 +72,28 @@ half on its own is just `multiply` with a story attached),
   answers wrong by a cent. The paid value is rounded half-up at the reward
   boundary because `BigInt()` throws on a fraction
   (`hooks/useEquations.ts`).
-- **Contextual hint** — a "?" button under the equation opens a
-  **temporary** bubble with the technique for whatever shape is on screen
+- **Contextual hint** — a **separate "?" button** at the end of the
+  equation row opens a **modal** with the technique for whatever shape is
+  on screen
   ("read a ÷ b as b × what = a", "15% is 10% + 5%", "split the awkward
-  part second"). It self-dismisses after 6 s, re-tapping closes it, and a
-  new equation retires it — the hint belongs to the question it was opened
-  for. The same text is the button's `accessibilityHint`, so a screen
-  reader gets it without opening anything. Hints are **methods only, never
-  the current operands**: interpolating the numbers would hand over the
-  arithmetic, and for several shapes the answer outright. Free of charge —
-  the same content is already in Settings ▸ tips, just a tap away from the
+  part second"). The player dismisses it deliberately (backdrop, ✕/"GOT
+  IT", or the Android back gesture), and a new equation retires it — the
+  hint belongs to the question it was opened for. It is a modal rather
+  than a bubble because it shares the question's screen: as a bubble the
+  technique re-flowed the equation plate and self-dismissed after 6 s,
+  which is wrong for a reference being actively worked through. The same
+  text is the placeholder's `accessibilityHint`, so a screen reader gets it
+  without opening anything. Hints are **methods only, never the current
+  operands**: interpolating the numbers would hand over the arithmetic,
+  and for several shapes the answer outright. Free of charge — the same
+  content is already in Settings ▸ tips, just a tap away from the
   question that needs it (`components/QuestionHint.tsx: getHintKey`,
-  `components/EquationDisplay.tsx`). The display shows the **exact pending
+  `components/QuestionDisplay`). It is a separate control rather than
+  something the FIELD does: as the field's "?" placeholder it meant
+  aiming at a ~30 px box for help, and it vanished the moment a digit
+  landed — so a half-answered question could not be helped at all. It sits
+  LAST in the row, so it never moves when the field grows.
+  The display shows the **exact pending
   gain**, answer value included (`components/EquationDisplay.tsx` —
   `getPendingAnswerGain`, mirroring the engine's integer core so it
   agrees with the floating "+N" on solve). Answer via the **on-screen
@@ -96,9 +128,44 @@ half on its own is just `multiply` with a story attached),
   (`game.ts: getMineralsPerSec`).
 - **Depth** — depth (meters) is derived from lifetime minerals; five
   **depth tiers** (Surface Caverns → Crystal Kingdom) each tint the cave and
-  add a click bonus; the depth banner announces tier changes
+  add a click bonus; the depth bar announces tier changes
   (`game.ts: DEPTH_TIERS, getDepthTierProgress`,
-  `components/DepthBanner.tsx`).
+  `components/DepthBanner.tsx`). That bar is the game's single status
+  strip, and the **⛏ upgrades button** is its far-right cell. Depth + tier
+  is all it carries: the wallet got its own boxed line under it (see
+  below), because three more figures in here were what forced the tier
+  name to wrap to three lines on a 360px phone.
+  - **The wallet** (`DepthWallet`, `components/DepthBanner.tsx`) — minerals,
+    income rate and gems as a right-aligned **vertical column** directly
+    under the upgrades button, with the same translucent backing as the
+    depth bar so it reads over the cave art on every theme. `mineral-count`
+    keeps its testID and its parse contract (the bare number, nothing else
+    in that node) because the Maestro flows and `e2e/web/helpers.ts` read
+    it. It started as two rows drawn INSIDE the cave canvas above the crew
+    column, which put the two most-read numbers on top of the sprites
+    (`components/MiningCanvas.tsx`).
+  - **Landscape** — the bar, wallet and question all live in ONE
+    absolutely-positioned `hudTopStackShort` strip pinned to the top of
+    the stage. They used to be separate absolute siblings on that edge,
+    which meant the question had to be told how far down to start (a
+    measured bar height, or a guessed constant) and could land ON the bar
+    — on the first frame especially, before any measurement came back. In
+    the strip the overlap is structurally impossible at any height
+    (`styles.hudTopStackShort`). Under the bar, the wallet and the
+    question sit in `hudBody` as a **row** in landscape (`hudBodyRow`):
+    the equation plate hugs the bar's left edge, DIRECTLY under it, and
+    the wallet keeps its top-right corner. The row is `row-reverse` —
+    React Native has no flexbox `order` — so the wallet, which renders
+    FIRST in the tree (portrait wants it on top of the question), lands
+    at the right end; `justifyContent: space-between` pins the equation
+    plate to the bar's LEFT edge (todo: "Show equations on top left when
+    in landscape mode"), and both boxes share the row's top edge — the
+    wallet's own `alignSelf: flex-end` (portrait: hug the right edge)
+    would bottom it out in the row, so landscape wraps it in
+    `walletRowAlign` (todo: "have equation box and resources box
+    aligned"). The question stack sizes to its content there
+    (`hudStackRow`) instead of spanning the stage and shoving the wallet
+    off.
 - **Cave descent** — the cave background descends PROPORTIONAL to absolute
   depth (rework: "feel as if digging deeper"): every meter mined pushes the
   rock strip down 6 px (one full row per 4 m), so the cave keeps sliding
@@ -136,17 +203,34 @@ half on its own is just `multiply` with a story attached),
   grant path, same claim toast, no header icon; turning the setting off
   brings the 🎁 header button back as the manual entry point (todo:
   "remove the icon, pop it up automatically").
-- **Weekly contract** — a recurring contract on a longer cadence than the
-  daily bonus: 3 goals that are DELTAS on the save's monotonic lifetime
-  metrics (answer 75 equations / mine 500k minerals / own 2 more miners
-  this week), with a flat 150k mineral bonus claimable once per week when
-  all three are met. Progress is derived state in the goals.ts pattern:
-  the week's opening metric values are snapshotted as baselines, progress
-  is current − baseline (clamped at 0), so only this week's gains count and
-  nothing is a mutable flag. The real weekly window only (no fake
-  scarcity) and the reward is earnable free, per the guardrails. State
-  lives in its own AsyncStorage key, like the daily bonus (`weeklyChallenge.ts`,
-  `hooks/useWeeklyChallenge.ts`, `components/WeeklyContractButton.tsx`).
+- **Quest log (daily quests + the weekly contract)** — the 📜 header
+  button opens ONE sheet with both cadences. **Today's quests**: three
+  tasks drawn from a six-entry pool, each paying **1 gem**, claimed one row
+  at a time, reset at local midnight. **Weekly contract**: 3 goals that are
+  DELTAS on the save's monotonic lifetime metrics (answer 75 equations /
+  mine 500k minerals / own 2 more miners this week), paying 150k minerals
+  **plus 10 gems**, claimable once per week when all three are met.
+  **Both cadences state their reward up front** — a "Pays +1 💎" note on
+  every daily row, and one section-level line for the weekly contract (which
+  pays ONCE for all three tasks, so three quoted payouts would read as 3×
+  the reward). Previously the amount appeared only on the claim button, i.e.
+  once the task was already finished: a reward the player learns about after
+  earning it.
+  Progress on both is derived state in the goals.ts pattern: the
+  window's opening metric values are snapshotted as baselines, progress is
+  current − baseline (clamped at 0), so only that window's gains count and
+  nothing is a mutable flag. The daily rotation is DETERMINISTIC from the
+  day key (FNV-1a), which is what lets the persisted state be nothing but
+  the baselines and the claimed ids — a per-render draw would reshuffle the
+  rows and break an id-keyed claim list. Real windows only (no fake
+  scarcity) and the rewards are earnable free, per the guardrails: ~31
+  gems a month covers a reroll several times over. State lives in its own
+  AsyncStorage keys, like the daily bonus (`dailyQuests.ts`,
+  `weeklyChallenge.ts`, `hooks/useDailyQuests.ts`,
+  `hooks/useWeeklyChallenge.ts`, `components/QuestLogButton.tsx`). The
+  daily half deliberately did NOT get its own header button: the icon row
+  is padding-bound and already at its 360px budget with seven glyphs
+  (`BottomModal.NAV_ICON_SIZE`).
 - **Equation of the day** — one fixed equation per local day, the SAME
   equation for every player/device (FNV-1a day-key seed → mulberry32 →
   `getSeededEquation`, always-soft classic+percent+missing shape); a 📅
@@ -251,7 +335,35 @@ half on its own is just `multiply` with a story attached),
   keeps row controls. Gem buy always; the one-time cash pack is gated on
   the store provider's availability (`cosmetics.ts`, `iaps.ts`,
   `components/IapPanel.tsx`, `components/Miner.tsx`,
-  `components/CaveBackground.tsx`).
+  `components/CaveBackground.tsx`). The panel's **reroll costs 1 gem**
+  (`REROLL_COST_GEMS`): a reroll reshuffles the palette of a look the
+  player already owns, so one gem is a rounding error against the 15–250 gem
+  line, it is covered several times over by a month of quest rewards, and
+  the button states the price and disables while the player is short —
+  never a silent no-op, never a free reroll. The spend flows through the
+  same `totalGemsSpent` accounting as every gem purchase.
+- **Upgrades panel** — the ⛏ button (the depth bar's far-right cell) opens
+  the purchase list: hidden by default, and when open it covers the WHOLE
+  **stage** — cave, keypad, equation and answer box alike — with its
+  column CENTERED and width-capped, rather than the 280px right-hand
+  drawer it used to be (a dead margin on a tablet, and its left edge
+  tucked under the keypad strip's on a 360px phone). It sits at the
+  `hudRow` level, above every sibling (`styles.upgradesBackdrop` z 8 /
+  `styles.upgradesDrawer` z 9, clearing the HUD's z 4 and the floating
+  keypads' z 6): rendered inside the play area it could only ever cover
+  the cave and the keypad strip, so the equation and the answer box
+  stayed live on top of a modal the player had already opened.
+- **Landscape layout** — a rotated device is NOT a narrower portrait: the
+  cave goes full-bleed and slightly zoomed out and the top strip floats over
+  it (bar, then a row: the question directly under the bar's left edge and
+  the wallet in the top-right corner, all in one
+  column). The menu becomes a vertical rail down the left edge — a
+  rotated phone has ~410 dp of height and ~910 of width, so a horizontal
+  header row spends the scarce axis to save nothing — and the numpad(s)
+  float over the bottom. `app.config.ts` deliberately has no
+  `orientation` key: Play's large-screen requirement forbids a fixed
+  `screenOrientation` (`styles.hudRowShort`, `styles.hudTopStackShort`,
+  `styles.hudStackShort`, `styles.headerRowShort`).
 - **The crew column** — hired miners line up DOWN THE MIDDLE of the shaft
   in one centered vertical column: the player at the front (bottom), the
   roster receding above them, each row smaller (depth perspective). The
@@ -452,14 +564,26 @@ half on its own is just `multiply` with a story attached),
   on-screen keypad, equation types / range / hard mode / symbols
   (`hooks/useSettings.ts`,
   `components/SettingsPanel.tsx`, `components/SaveTab.tsx`,
-  `components/MenuPanel.tsx`).
-- **Save affordance** — the top-row save pill: saves immediately on tap,
-  its status dot pulses amber while state is dirty since the last
-  successful write and goes green when clean; icon-only to keep the row a
-  compact strip, pulse suppressed under reduce-motion; autosave still runs
-  in the background — the pill makes saving a first-class visible action
-  rather than a menu dig (`components/SavePill.tsx`).
-- **Quality** — Jest suites over the pure modules (1151 tests), Maestro
+  `components/MenuPanel.tsx`). The **second keypad** switch is a real
+  preference in both orientations: it was landscape-only, which made it a
+  dead control in the app's default orientation, and MenuPanel's memo for
+  the Settings view omitted it from its dep array — so the value it
+  rendered was frozen and the switch sprang back on every tap. Both are
+  fixed; the AsyncStorage key keeps its original `secondKeypadLandscape`
+  name so nobody's stored preference resets (`components/DraggableKeypad.tsx`).
+- **Save affordance** — the save pill on the **menu sheet's close row**,
+  far LEFT opposite the ✕: saves immediately on tap, its status dot pulses
+  amber while state is dirty since the last successful write and goes green
+  when clean; autosave still runs in the background — the pill makes saving
+  a first-class visible action rather than a menu dig. It has moved twice:
+  out of the top icon row (a third wider than an icon button, which pushed
+  the row over its 360px budget) and out of the floating bottom-right
+  cave dock (which went away with the upgrades button moving into the
+  depth bar). `BottomModal` grew a `headerLeft` slot for it, which is what
+  turned the lone right-aligned ✕ into a two-slot row
+  (`components/SavePill.tsx`, `components/MenuPanel.tsx`,
+  `src/components/BottomModal.tsx`).
+- **Quality** — Jest suites over the pure modules (1722 tests), Maestro
   e2e flows, **hermetic Playwright web e2e** (`pnpm run test:e2e:web`:
   boot / rewarded-ads / IAP / Google-sign-in specs against stubbed ad +
   Stripe/Pocketbase backends from `e2e/web/` — the boot spec doubles as the zero-backend

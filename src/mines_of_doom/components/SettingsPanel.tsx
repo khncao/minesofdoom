@@ -6,6 +6,7 @@ import Tooltip from "src/components/Tooltip";
 import { useI18n } from "src/hooks/useI18n";
 import { type TranslationKey } from "src/utils/i18n/i18n";
 import {
+  EQUATION_NUMBER_LIMITS,
   EquationSettings,
   DRILL_KEYS,
   OPERATOR_KEYS,
@@ -157,6 +158,8 @@ const SettingsContent = memo(function SettingsContent({
   onChangeEquationSettings,
   onScreenKeypad,
   onKeypadChange,
+  secondKeypad,
+  onSecondKeypadChange,
   hardModeUnlocked,
   textScale,
   onTextScaleChange,
@@ -170,6 +173,12 @@ const SettingsContent = memo(function SettingsContent({
    *  switch applies immediately (no Save tap), like the mute toggle. */
   onScreenKeypad: boolean;
   onKeypadChange: (newVal: boolean) => void;
+  /** A SECOND numpad (2026-10-04) — off by default, draggable, and
+   *  available in BOTH orientations (see the note on `secondKeypad` in
+   *  MinesOfDoom: it was landscape-only, which made this switch a no-op in
+   *  portrait). */
+  secondKeypad: boolean;
+  onSecondKeypadChange: (newVal: boolean) => void;
   /** Tier-5 (Motherlode) complete → the switch is live, otherwise it
    *  renders locked (visible-but-locked, plan §4.6). */
   hardModeUnlocked: boolean;
@@ -183,6 +192,8 @@ const SettingsContent = memo(function SettingsContent({
       <IntegerInput
         label={t("settings.maxNumber")}
         defaultValue={equationSettings.maxNumber}
+        min={EQUATION_NUMBER_LIMITS.min}
+        max={EQUATION_NUMBER_LIMITS.max}
         onChangeValue={(newVal) =>
           onChangeEquationSettings({
             ...equationSettings,
@@ -790,6 +801,7 @@ const SettingsContent = memo(function SettingsContent({
       <Tooltip
         label={t("settings.onScreenKeypad")}
         content={t("settings.onScreenKeypadHelp")}
+        onPress={() => onKeypadChange(!onScreenKeypad)}
       >
         <View
           style={{
@@ -801,7 +813,39 @@ const SettingsContent = memo(function SettingsContent({
           <Text style={{ ...styles.text, fontSize: 11 }}>
             {t("settings.onScreenKeypad")}
           </Text>
-          <Switch value={onScreenKeypad} onValueChange={onKeypadChange} />
+          {/* The row (Tooltip onPress) owns the action; letting the Switch
+              fire too would toggle twice and look like nothing happened. */}
+          <Switch
+            value={onScreenKeypad}
+            onValueChange={() => undefined}
+            pointerEvents="none"
+          />
+        </View>
+      </Tooltip>
+      {/* The second numpad — off by default; see the note on
+          `secondKeypad` in MinesOfDoom. */}
+      <Tooltip
+        label={t("settings.secondKeypad")}
+        content={t("settings.secondKeypadHelp")}
+        onPress={() => onSecondKeypadChange(!secondKeypad)}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Text style={{ ...styles.text, fontSize: 11, flexShrink: 1 }}>
+            {t("settings.secondKeypad")}
+          </Text>
+          <Switch
+            value={secondKeypad}
+            onValueChange={() => undefined}
+            pointerEvents="none"
+            testID="second-keypad-toggle"
+            accessibilityLabel={t("settings.secondKeypad")}
+          />
         </View>
       </Tooltip>
     </View>

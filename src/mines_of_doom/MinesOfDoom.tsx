@@ -8,7 +8,13 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { Platform, Pressable, ScrollView, View } from "react-native";
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { T as Text } from "./textScale";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useContent, useI18n } from "src/hooks/useI18n";
@@ -24,10 +30,12 @@ import {
 } from "./cosmetics";
 import { skinSpriteUri } from "src/utils/graphics/artPack";
 import { styles } from "./styles";
-import DepthBanner from "./components/DepthBanner";
+import DepthBanner, { DepthWallet } from "./components/DepthBanner";
 import EquationDisplay from "./components/EquationDisplay";
+import QuestionHint from "./components/QuestionHint";
 import AnswerInput, { appendAnswerKey } from "./components/AnswerInput";
 import NumericKeypad from "src/components/NumericKeypad";
+import DraggableKeypad from "./components/DraggableKeypad";
 import ComboIndicator from "./components/ComboIndicator";
 import ComboSaveIndicator from "./components/ComboSaveIndicator";
 import PurchaseButtons from "./components/PurchaseButtons";
@@ -35,11 +43,10 @@ import MiningCanvas from "./components/MiningCanvas";
 import CaveBackground from "src/components/CaveBackground";
 import MenuPanel from "./components/MenuPanel";
 import type { AccountSettingsProps } from "./components/AccountTab";
-import SavePill from "./components/SavePill";
 import OnboardingOverlay from "./components/OnboardingOverlay";
 import DailyBonusButton from "./components/DailyBonusButton";
 import DailyEquationButton from "./components/DailyEquationButton";
-import WeeklyContractButton from "./components/WeeklyContractButton";
+import QuestLogButton from "./components/QuestLogButton";
 import {
   ALL_PURCHASE_IDS,
   defaultSettingsData,
@@ -118,6 +125,7 @@ import { useEquations } from "./hooks/useEquations";
 import { noteCrashEvent, setCrashContextState } from "./crashContext";
 import { useDailyBonus } from "./hooks/useDailyBonus";
 import { useWeeklyChallenge } from "./hooks/useWeeklyChallenge";
+import { useDailyQuests } from "./hooks/useDailyQuests";
 import { useDailyEquation } from "./hooks/useDailyEquation";
 import { DAILY_EQUATION_BONUS } from "./dailyEquation";
 import { useAnalytics } from "./hooks/useAnalytics";
@@ -176,6 +184,25 @@ export default function MinesOfDoom() {
     Platform.OS !== "web",
   );
 
+  // A SECOND on-screen numpad (2026-10-04), off by default. Two
+  // independently draggable keypads let both thumbs answer without
+  // re-gripping — which matters most when the player is holding the phone
+  // in either hand, or on a tablet.
+  //
+  // It was LANDSCAPE-ONLY, and that made the settings switch a dead
+  // control in the app's default orientation (todo: "second keypad toggle
+  // setting doesn't work"): flipping it in portrait changed the stored
+  // preference and nothing else, because the render branch was behind
+  // `shortViewport`. It now renders in portrait too, floating over the
+  // cave, so the switch does what it says in every orientation.
+  //
+  // The AsyncStorage key keeps its original "secondKeypadLandscape" name
+  // on purpose: renaming it would silently reset the preference of every
+  // player who already turned it on. The React-side name no longer claims
+  // a limitation the key no longer has.
+  const [secondKeypad, setSecondKeypad] =
+    useLocalStorage<boolean>("secondKeypadLandscape", false);
+
   // UI text size (gap-ranking.md Tier 1 #2): a GLOBAL scale for the whole
   // game UI (4 steps, 85%–130%, see TEXT_SCALE_STEPS in textScale.tsx),
   // NOT an OS font-accessibility proxy — the native OS font setting is a
@@ -197,9 +224,16 @@ export default function MinesOfDoom() {
   // reachable), when off the OS keyboard handles answers and there is
   // no on-screen keypad at all.
   // The drawer is hidden by default: the cave canvas keeps the whole
-  // mid-screen, and the ⛏ upgrades button floating over the cave opens
-  // it.
+  // mid-screen, and the ⛏ upgrades button in the depth bar (todo: "Move
+  // upgrades to same bar as depth (far right)") opens it.
   const [upgradesOpen, setUpgradesOpen] = useState(false);
+  // Stable so the memoized DepthBanner (which owns the button now) is not
+  // re-rendered by a fresh closure on every tick.
+  const toggleUpgrades = useCallback(
+    () => setUpgradesOpen((open) => !open),
+    [],
+  );
+  const closeUpgrades = useCallback(() => setUpgradesOpen(false), []);
 
   // First-run onboarding (plan §2.1): shown until dismissed; the flag
   // persists in AsyncStorage so a skip/finish never resurfaces. The
@@ -1372,12 +1406,19 @@ export default function MinesOfDoom() {
     dailyClaim,
   ]);
 
-  // Weekly contract (todo: "weekly challenges"): the same additive grant
-  // path as the daily bonus; progress is a derived delta on the live save
-  // (see weeklyChallenge.ts for the design rules).
+  // Quest log (todo: "Add daily quests"): the daily board and the weekly
+  // contract are the same machine at two cadences, both paid in gems
+  // through the engine's additive grantGems (so `gemsMinted` lifetime
+  // accounting stays exact).
   const weeklyContract = useWeeklyChallenge({
     save: gameState,
     grantMinerals: addTapGain,
+    grantGems,
+    displayMessage,
+  });
+  const dailyQuests = useDailyQuests({
+    save: gameState,
+    grantGems,
     displayMessage,
   });
   const weeklyClaim = weeklyContract.claim;
@@ -1386,6 +1427,14 @@ export default function MinesOfDoom() {
     onFeatureFirstUse("weekly-claim");
     weeklyClaim();
   }, [weeklyClaim, onFeatureFirstUse]);
+  const handleQuestClaim = useCallback(
+    (questId: string) => {
+      noteCrashEvent("daily quest claimed");
+      onFeatureFirstUse("weekly-claim");
+      dailyQuests.claim(questId);
+    },
+    [dailyQuests, onFeatureFirstUse],
+  );
 
   // Rewarded ads (plan §5.1): the provider is picked in ads.ts behind the
   // documented swap point (selectAdProvider — see its docs): dev builds run
@@ -1800,6 +1849,45 @@ export default function MinesOfDoom() {
   // Cold start (plan §4.4): hold the screen on a loading state until the
   // stored save is loaded, instead of flashing the zeroed state first.
   // All hooks above have already run, so an early return is safe here.
+  // Landscape / short viewport (2026-10-04). Play requires large-screen
+  // support, so the portrait lock is gone and the layout has to cope with a
+  // rotated phone (~412px tall): the game is one vertical stack, and the
+  // keypad's lower rows fell below the fold. Below the play area, the HUD
+  // and the cave+keypad go side by side instead of stacked.
+  //
+  // ABOVE the `if (!isLoaded)` early return on purpose — every hook has to
+  // run on every render, and that early return is exactly the case this
+  // broke first (React error #310, "rendered more hooks than during the
+  // previous render"). The test-device-width note is only for the harness;
+  // in the app these come straight from the real viewport.
+  const { height: viewportHeight, width: viewportWidth } =
+    useWindowDimensions();
+  // Landscape = ORIENTATION, not a height threshold (2026-10-04). The old
+  // test was `height < 560 && width > height`, so a tablet rotated —
+  // 1024x768 or 1280x800 — never entered the landscape layout at all and
+  // fell back to the portrait column, which is exactly the layout that
+  // overflows and hides the numpad. A device is in landscape whenever it is
+  // wider than it is tall, whatever the absolute size, and the overlay
+  // layout is the right one at every landscape size (the caveat is the
+  // height, not the width: the clamp keeps the floating panels on screen).
+  const shortViewport = viewportWidth > viewportHeight;
+  // The floating numpad's own height (4 rows × 56px keys + 3 × 6px gaps,
+  // plus the 16px drag handle). Used only to place its DEFAULT position
+  // before it has measured itself; after that the component clamps itself
+  // against the real layout, so this can be slightly out and still land
+  // fully on screen.
+  const KEYPAD_DEFAULT_H = 258;
+  // The landscape stage's measured size — the containing block the floating
+  // keypads position against (it starts BELOW the header row, so it is
+  // shorter than the window; clamping to the window is off by the header's
+  // height and pushes the numpad off the bottom).
+  const [stageSize, setStageSize] = useState({ w: 0, h: 0 });
+  // The PORTRAIT play area's measured size — the containing block for the
+  // portrait second numpad (see the note on `secondKeypad`). Kept apart
+  // from stageSize because the two measure DIFFERENT boxes (the landscape
+  // stage vs the play area), and only one of them is ever mounted.
+  const [playAreaSize, setPlayAreaSize] = useState({ w: 0, h: 0 });
+
   if (!isLoaded) {
     return <LoadingScreen reduceMotion={reduceMotion} />;
   }
@@ -1832,12 +1920,26 @@ export default function MinesOfDoom() {
             centered (styles.contentColumn); the full-bleed overlays
             (toasts, onboarding) deliberately stay OUTSIDE it so their
             absolute inset: 0 backdrops still cover the whole screen. */}
-          <View style={styles.contentColumn}>
+          <View
+            style={[
+              styles.contentColumn,
+              // Landscape / short-viewport: drop the portrait width cap so
+              // the two-column split below has room to work.
+              shortViewport && styles.contentColumnShort,
+            ]}
+          >
             {/* Top menu row (todo: "move menu buttons to top of screen"): the
             old footer moved up so no entry point sits behind the OS
             keyboard. It wraps on narrow screens; the canvas floor below
             it keeps the cave visible even with every button showing. */}
-            <View style={styles.headerRow}>
+            {/* Landscape: the menu becomes a VERTICAL rail down the left
+                edge (2026-10-04). Laid out as a horizontal row it burned a
+                full-width band across the top of a screen that only has
+                ~410dp of height to give; as a column it costs ~56dp of
+                width instead, which is the axis landscape has to spare. */}
+            <View
+              style={[styles.headerRow, shortViewport && styles.headerRowShort]}
+            >
               {/* Menu is the first button (todo: "move menu button to top
               left of main screen") — the entry point to every other
               top-row button's settings and to save/account/goals. */}
@@ -1848,6 +1950,9 @@ export default function MinesOfDoom() {
                 onChangeEquationSettings={updateEquationSettings}
                 showMessage={showMessage}
                 onSave={handleSaveSettings}
+                saveDirty={saveDirty}
+                reduceMotion={reduceMotion}
+                onSaveNow={handleSaveNow}
                 onReset={handleReset}
                 onEraseAllData={handleEraseAllData}
                 onExportSaveCode={handleExportSaveCode}
@@ -1856,6 +1961,8 @@ export default function MinesOfDoom() {
                 mute={mute}
                 onMuteChange={handleMuteChange}
                 onScreenKeypad={onScreenKeypad}
+                secondKeypad={secondKeypad}
+                onSecondKeypadChange={setSecondKeypad}
                 onKeypadChange={handleKeypadSettingChange}
                 textScale={textScale}
                 onTextScaleChange={handleTextScaleChange}
@@ -1869,11 +1976,6 @@ export default function MinesOfDoom() {
                 onFirstUse={onFeatureFirstUse}
                 cloudSave={cloudSaveSettings}
                 account={accountSettings}
-              />
-              <SavePill
-                dirty={saveDirty}
-                reduceMotion={reduceMotion}
-                onSave={handleSaveNow}
               />
               {/* The upgrades button floats over the cave instead (todo:
               "move upgrades button floating over the canvas") — see the
@@ -1890,12 +1992,19 @@ export default function MinesOfDoom() {
                   onClaim={handleDailyClaim}
                 />
               )}
-              <WeeklyContractButton
-                progress={weeklyContract.progress}
-                claimable={weeklyContract.claimable}
-                claimed={weeklyContract.claimed}
-                bonus={weeklyContract.bonus}
-                onClaim={handleWeeklyClaim}
+              <QuestLogButton
+                dailyQuests={dailyQuests.quests}
+                dailyDoneCount={dailyQuests.doneCount}
+                dailyTotal={dailyQuests.total}
+                dailyClaimable={dailyQuests.claimableCount}
+                dailyGems={dailyQuests.gems}
+                onClaimQuest={handleQuestClaim}
+                weeklyProgress={weeklyContract.progress}
+                weeklyClaimable={weeklyContract.claimable}
+                weeklyClaimed={weeklyContract.claimed}
+                weeklyBonus={weeklyContract.bonus}
+                weeklyGemBonus={weeklyContract.gemBonus}
+                onClaimWeekly={handleWeeklyClaim}
               />
               {/* The daily question's 📅 icon renders ONLY while the auto
               toggle is off (todo: remove the icon, pop it up instead): on
@@ -1983,31 +2092,126 @@ export default function MinesOfDoom() {
                 onReroll={rerollPlayerSeed}
               />
             </View>
-            <DepthBanner
-              depth={depth}
-              mineralsPerSec={mineralsPerSec}
-              tierName={
-                content("depthTier", String(depthTier.id), {
-                  title: depthTier.name,
-                }).title
+            {/* Landscape / short-viewport split: in portrait this is an
+                invisible wrapper that reproduces the old vertical stack; in
+                landscape it becomes a row, so the equation/answer/combo
+                column sits BESIDE the cave+keypad instead of above it
+                (the vertical stack overflows a rotated phone's ~412px). */}
+            <View
+              onLayout={
+                shortViewport
+                  ? (e) => {
+                      const { width: w, height: h } = e.nativeEvent.layout;
+                      setStageSize((prev) =>
+                        prev.w === w && prev.h === h ? prev : { w, h },
+                      );
+                    }
+                  : undefined
               }
-              clickBonus={depthTier.clickBonus}
-            />
+              style={[styles.hudRow, shortViewport && styles.hudRowShort]}
+            >
+            {/* The TOP STRIP: the depth bar, the wallet and the
+                question/answer/combo stack, in ONE column.
+
+                In portrait it is just a plain wrapper — these were already
+                consecutive rows in that flow, and the only change is the
+                wallet line between the bar and the question.
+
+                In landscape it is ONE absolutely-positioned strip pinned to
+                the top of the stage. They used to be separate absolute
+                siblings sharing that edge, so the question had to be told
+                how far down to start — a measured bar height, or a guessed
+                constant — and it could land ON the depth bar (todo: "in
+                landscape mode, equation shouldn't cover anything like depth
+                bar"): on the first frame especially, before any measurement
+                had come back, the offset was zero and the question sat on
+                top of the bar. In one column that overlap is structurally
+                impossible at any bar height.
+
+                pointerEvents box-none so the cave still gets every tap that
+                lands on the strip's transparent areas. */}
+            <View
+              pointerEvents="box-none"
+              style={[
+                styles.hudTopStack,
+                shortViewport && styles.hudTopStackShort,
+              ]}
+            >
+            <View style={styles.depthRow}>
+              <DepthBanner
+                depth={depth}
+                tierName={
+                  content("depthTier", String(depthTier.id), {
+                    title: depthTier.name,
+                  }).title
+                }
+                clickBonus={depthTier.clickBonus}
+                upgradesOpen={upgradesOpen}
+                onToggleUpgrades={toggleUpgrades}
+                anyPurchaseAffordable={anyPurchaseAffordable}
+              />
+            </View>
+            {/* The wallet: minerals, income rate and gems, on their own
+                right-aligned line DIRECTLY UNDER the bar rather than inside
+                it (todo: "move resource counts mineral and gems to top
+                right, right aligned under upgrades but outside of the bar").
+                Inside the bar it was the reason the tier name wrapped to
+                three lines on a 360px phone. */}
+            <View style={[styles.hudBody, shortViewport && styles.hudBodyRow]}>
+            <View style={shortViewport && styles.walletRowAlign}>
+              <DepthWallet
+                minerals={gameState.minerals}
+                gems={gameState.gems}
+                mineralsPerSec={mineralsPerSec}
+                emojiArt={settingsData.emojiArt}
+              />
+            </View>
+            <View
+              // box-none in landscape: the panel's own contents stay
+              // tappable, but the transparent area around them falls
+              // through to the cave so tapping it still mines.
+              pointerEvents={shortViewport ? "box-none" : "auto"}
+              style={[
+                styles.hudStack,
+                shortViewport && styles.hudStackShort,
+                shortViewport && styles.hudStackRow,
+              ]}
+            >
+            {/* The answer field is rendered INSIDE the equation plate, in
+            the blank the player fills (todo: "smaller initial answer field
+            size, move it to inside the equation box, replacing the ?"): the
+            plate used to stack above a separate 150px-wide box, so reading
+            a question meant dropping a line to type into it, and the widest
+            thing in the HUD was the field rather than the question. It is
+            now a small box that grows with the digits, sitting where the
+            "?" was — and for the missing-operand / balance drills that "?"
+            is the one between the operands, so those questions get their
+            blank in the right place too (equationAnswerSlot). */}
             <EquationDisplay
               equation={equation}
               multiplySymbol={equationSettings.multiplySymbol}
-            />
-            <AnswerInput
-              value={textInput}
-              setTextInput={setTextInput}
-              onSubmit={handleSubmitActivity}
-              shakeAnim={shakeAnim}
-              useKeypad={onScreenKeypad}
-              // The tutorial is a non-blocking tooltip, so the input stays
-              // focusable under it (the player can answer while the tips are
-              // up). The value is irrelevant during the initial load (the
-              // game view isn't mounted yet).
-              focusable={!onboardingLoading}
+              answerSlot={
+                <AnswerInput
+                  value={textInput}
+                  setTextInput={setTextInput}
+                  onSubmit={handleSubmitActivity}
+                  shakeAnim={shakeAnim}
+                  useKeypad={onScreenKeypad}
+                  // The tutorial is a non-blocking tooltip, so the input
+                  // stays focusable under it (the player can answer while
+                  // the tips are up). The value is irrelevant during the
+                  // initial load (the game view isn't mounted yet).
+                  focusable={!onboardingLoading}
+                />
+              }
+              // The hint is its OWN "?" button at the END of the row, not
+              // the field's placeholder (todo: "use a separate button from
+              // answer field to show hints"). As the field's placeholder it
+              // meant aiming at a ~30px box for help, and it vanished the
+              // moment a digit landed — so a half-answered question could
+              // not be helped at all. Last in the row also means it never
+              // moves when the field grows.
+              hintSlot={<QuestionHint equation={equation} />}
             />
             <ComboIndicator
               combo={combo}
@@ -2032,11 +2236,30 @@ export default function MinesOfDoom() {
                   onPrime={() => adRewards.prime("comboSave")}
                 />
               )}
+            </View>
+            </View>
+            </View>
             {/* The cave keeps the whole mid-screen: the upgrades drawer
             overlays it (hidden by default) instead of pushing it around,
             and the keypad strip below renders only while the on-screen
-            keypad setting is on. */}
-            <View style={styles.playArea}>
+            keypad setting is on. In landscape this is the RIGHT column of
+            hudRow, taking whatever width the HUD stack does not. */}
+            <View
+              onLayout={
+                shortViewport
+                  ? undefined
+                  : (e) => {
+                      const { width: w, height: h } = e.nativeEvent.layout;
+                      setPlayAreaSize((prev) =>
+                        prev.w === w && prev.h === h ? prev : { w, h },
+                      );
+                    }
+              }
+              style={[
+                styles.playArea,
+                shortViewport && styles.playAreaShort,
+              ]}
+            >
               {/* The cave play area breaks out of the width-capped column
               on wide web screens (styles.canvasFullBleed) — full-bleed
               play area, capped content. (The cave itself now lives at
@@ -2044,12 +2267,15 @@ export default function MinesOfDoom() {
               <View
                 style={[
                   styles.canvasWrap,
-                  Platform.OS === "web" && styles.canvasFullBleed,
+                  // Landscape: the cave is the backdrop for the floating
+                  // HUD, so it goes edge to edge and scales down a little
+                  // (the crew reads as a scene instead of filling the frame).
+                  shortViewport
+                    ? styles.landscapeCanvas
+                    : Platform.OS === "web" && styles.canvasFullBleed,
                 ]}
               >
                 <MiningCanvas
-                  minerals={gameState.minerals}
-                  gems={gameState.gems}
                   miners={gameState.miners}
                   fastMiners={gameState.fastMiners}
                   legendaryMiners={gameState.legendaryMiners}
@@ -2069,71 +2295,150 @@ export default function MinesOfDoom() {
                   reduceMotion={reduceMotion}
                   emojiArt={settingsData.emojiArt}
                 />
-                {/* The upgrades button (todo: floating over the canvas, out of the
-            way): bottom-right of the cave. zIndex 3 keeps it BELOW the
-            drawer backdrop (z 4) — while the drawer is open it's dimmed
-            out and the drawer's own ✕/backdrop close it, so the button
-            never floats over the purchase rows. */}
-                <Pressable
-                  testID="upgrades-toggle"
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    upgradesOpen
-                      ? t("main.a11yHideUpgrades")
-                      : t("main.a11yShowUpgrades")
-                  }
-                  onPress={() => setUpgradesOpen(!upgradesOpen)}
-                  accessibilityHint={
-                    anyPurchaseAffordable
-                      ? t("main.a11yAffordablePurchase")
-                      : undefined
-                  }
-                  style={styles.upgradesToggleFloat}
-                >
-                  <Text style={styles.upgradesToggleText}>
-                    ⛏ {t("main.upgrades")}
-                  </Text>
-                  {/* Affordable-purchase indicator: a small dot in the button's
-              top-right corner, mirroring the onboarding-dot palette. */}
-                  {anyPurchaseAffordable && (
-                    <View
-                      testID="upgrades-affordable-dot"
-                      accessibilityElementsHidden
-                      style={styles.upgradesAffordableDot}
-                    />
-                  )}
-                </Pressable>
               </View>
-              {/* Keypad strip (todo: keypad in a tab view with upgrades): the
-            on-screen numpad lives in its own strip below the canvas —
-            the core-loop input, always reachable. Renders only while the
-            on-screen keypad setting is on; off, the OS keyboard handles
-            answers and the strip doesn't exist at all. The upgrades
-            drawer overlays it (todo: upgrades panel on top of keypad). */}
-              {onScreenKeypad && (
-                <NumericKeypad
-                  onDigit={handleKeypadDigit}
-                  onBackspace={handleKeypadBackspace}
-                  onClear={handleKeypadClear}
-                  onSubmit={handleKeypadSubmit}
+              {/* The upgrades panel + its backdrop moved OUT of the play
+            area and down to the hudRow level (todo: "Upgrades modal
+            should show up above keypad and equations"): from in here they
+            could only ever cover the cave and the keypad strip, so the
+            equation and the answer box stayed live — and visible — on top
+            of a modal the player had already opened, and the drawer sat
+            UNDER the floating numpads (z 6) in both orientations. At the
+            hudRow level the backdrop and the panel are the last children,
+            above everything the stage holds: the depth bar, the
+            equation/answer stack, the cave and the keypad(s). */}
+            </View>
+              {/* The on-screen numpad. A SIBLING of the play area, not a
+              child of it: in portrait hudRow is a column so this still
+              renders directly under the canvas (the order it always had),
+              but in landscape hudRow is a row and the numpad gets its own
+              column instead of eating the canvas's height. Without this the
+              canvas collapsed to nothing in landscape — the keypad's rows
+              are fixed-height and not shrinkable. Renders only while the
+              on-screen-keypad setting is on; off, the OS keyboard handles
+              answers and this does not exist at all. */}
+              {onScreenKeypad &&
+                (shortViewport ? (
+                  <>
+                    {/* Landscape: the numpad is a free-floating panel, not
+                        a row in a column — so the HUD can be centred and a
+                        SECOND numpad can sit on the other side. Both
+                        remember their own drop position (stored as a
+                        fraction of the viewport, so a position saved on a
+                        phone still lands sensibly on a tablet). */}
+                    <DraggableKeypad
+                      storageKey="keypadPrimaryPos"
+                      defaultX={Math.max(0, viewportWidth - 330)}
+                      defaultY={Math.max(
+                        0,
+                        (stageSize.h || viewportHeight) - KEYPAD_DEFAULT_H - 10,
+                      )}
+                      boundsWidth={stageSize.w || viewportWidth}
+                      boundsHeight={stageSize.h || viewportHeight}
+                      onDigit={handleKeypadDigit}
+                      onBackspace={handleKeypadBackspace}
+                      onClear={handleKeypadClear}
+                      onSubmit={handleKeypadSubmit}
+                    />
+                    {secondKeypad && (
+                      <DraggableKeypad
+                        storageKey="keypadSecondaryPos"
+                        // Right side, ABOVE the primary keypad — NOT the
+                        // bottom-left corner, which is where the question
+                        // and answer box now live (2026-10-04: the second
+                        // keypad was landing right on top of them and hiding
+                        // the equation the player is trying to read). The
+                        // bottom-left was the free corner back when the
+                        // question sat in the upper band; it isn't any more.
+                        defaultX={16}
+                        defaultY={Math.max(
+                          0,
+                          (stageSize.h || viewportHeight) -
+                            KEYPAD_DEFAULT_H -
+                            10,
+                        )}
+                        boundsWidth={stageSize.w || viewportWidth}
+                        boundsHeight={stageSize.h || viewportHeight}
+                        handleOpacity={0.4}
+                        onDigit={handleKeypadDigit}
+                        onBackspace={handleKeypadBackspace}
+                        onClear={handleKeypadClear}
+                        onSubmit={handleKeypadSubmit}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <View
+                      pointerEvents="box-none"
+                      style={[
+                        styles.keypadColumn,
+                        shortViewport && styles.keypadColumnShort,
+                      ]}
+                    >
+                      <NumericKeypad
+                        onDigit={handleKeypadDigit}
+                        onBackspace={handleKeypadBackspace}
+                        onClear={handleKeypadClear}
+                        onSubmit={handleKeypadSubmit}
+                      />
+                    </View>
+                    {/* Portrait's SECOND numpad. It has to float rather
+                        than sit in the column: the strip below is already
+                        the full width, so there is no column left for
+                        another one. Mounted INSIDE the play area (not as a
+                        sibling of it, like the landscape pair) because
+                        playArea is the position:relative containing block
+                        the panel needs — an absolute box hangs off the
+                        bottom of the offsetParent otherwise, and the
+                        bounds below are the play area's own size.
+                        Default corner is bottom-LEFT: the upgrades + save
+                        dock owns the bottom-right (todo: "move save
+                        button … next to upgrades"), so this lands beside it
+                        rather than on top of it. */}
+                    {secondKeypad && (
+                      <DraggableKeypad
+                        storageKey="keypadSecondaryPos"
+                        defaultX={8}
+                        defaultY={Math.max(
+                          0,
+                          (playAreaSize.h || viewportHeight) -
+                            KEYPAD_DEFAULT_H -
+                            10,
+                        )}
+                        boundsWidth={playAreaSize.w || viewportWidth}
+                        boundsHeight={playAreaSize.h || viewportHeight}
+                        handleOpacity={0.4}
+                        onDigit={handleKeypadDigit}
+                        onBackspace={handleKeypadBackspace}
+                        onClear={handleKeypadClear}
+                        onSubmit={handleKeypadSubmit}
+                      />
+                    )}
+                  </>
+                ))}
+            {/* The upgrades panel (todo: upgrades menu as a side hidden
+            overlay on the canvas; todo: "have upgrade modal take up whole
+            screen and be centered"): hidden by default, and when open it
+            covers the WHOLE stage — cave, keypad strip, equation and answer
+            box alike — so a control the modal covers can never be the one
+            the player is reaching for (the OS keyboard covers the bottom
+            strip too, so the panel has to be able to sit above it). A tap
+            on the dimmed backdrop closes it. */}
+            {upgradesOpen && (
+              <>
+                <Pressable
+                  testID="upgrades-backdrop"
+                  accessibilityRole="button"
+                  accessibilityLabel={t("main.a11yCloseUpgrades")}
+                  onPress={closeUpgrades}
+                  style={styles.upgradesBackdrop}
                 />
-              )}
-              {/* The upgrades drawer (todo: upgrades menu as a side hidden
-            overlay on the canvas; panel shows ON TOP of the keypad):
-            hidden by default, anchored to the play area's right edge
-            (canvas + keypad strip) so the OS keyboard — which covers the
-            bottom strip — can never hide it. A tap on the dimmed backdrop
-            closes it. */}
-              {upgradesOpen && (
-                <>
-                  <Pressable
-                    testID="upgrades-backdrop"
-                    accessibilityRole="button"
-                    accessibilityLabel={t("main.a11yCloseUpgrades")}
-                    onPress={() => setUpgradesOpen(false)}
-                    style={styles.upgradesBackdrop}
-                  />
-                  <View testID="upgrades-drawer" style={styles.upgradesDrawer}>
+                <View testID="upgrades-drawer" style={styles.upgradesDrawer}>
+                  {/* The width-capped, vertically-centred column: on a
+                      tablet the purchase rows keep a readable measure
+                      instead of stretching edge to edge, and on a phone
+                      the panel is the full width either way. */}
+                  <View style={styles.upgradesPanel}>
                     <View style={styles.purchasesHeader}>
                       <Pressable
                         testID="upgrades-drawer-close"
@@ -2190,8 +2495,9 @@ export default function MinesOfDoom() {
                       />
                     </ScrollView>
                   </View>
-                </>
-              )}
+                </View>
+              </>
+            )}
             </View>
           </View>
           {/* The live region stays mounted so screen readers announce each

@@ -1,7 +1,7 @@
 import { memo, useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
 import { T as Text } from "../textScale";
-import BottomModal from "src/components/BottomModal";
+import BottomModal, { NAV_ICON_SIZE } from "src/components/BottomModal";
 import { useT } from "src/hooks/useI18n";
 import MuteToggle from "src/components/MuteToggle";
 import { EquationSettings } from "src/utils/math/equations";
@@ -9,6 +9,7 @@ import { AnalyticsState } from "../analytics";
 import type { CloudSaveSettingsProps } from "../hooks/useCloudSave";
 import SettingsContent from "./SettingsPanel";
 import SaveTab from "./SaveTab";
+import SavePill from "./SavePill";
 import AccountTab, { type AccountSettingsProps } from "./AccountTab";
 import AboutTab from "./AboutTab";
 import GoalsContent from "./GoalsPanel";
@@ -50,6 +51,9 @@ function MenuPanel({
   onChangeEquationSettings,
   showMessage,
   onSave,
+  saveDirty,
+  reduceMotion,
+  onSaveNow,
   onReset,
   onEraseAllData,
   onExportSaveCode,
@@ -59,6 +63,8 @@ function MenuPanel({
   onMuteChange,
   onScreenKeypad,
   onKeypadChange,
+  secondKeypad,
+  onSecondKeypadChange,
   textScale,
   onTextScaleChange,
   hardModeUnlocked,
@@ -76,6 +82,16 @@ function MenuPanel({
   onChangeEquationSettings: (newSettings: EquationSettings) => void;
   showMessage: string | null;
   onSave: () => void;
+  /**
+   * The status-dot save pill, parked on the sheet's close row (todo: "Move
+   * save button inside menu (same row as close but on far left)"). It used
+   * to float over the bottom-right corner of the cave beside the upgrades
+   * button; that dock is gone (the upgrades button moved up into the depth
+   * bar), and the pill has a home that costs no cave space.
+   */
+  saveDirty: boolean;
+  reduceMotion: boolean;
+  onSaveNow: () => void;
   onReset: () => void;
   /** "Erase all data" (superset of Reset — see eraseAll.ts). */
   onEraseAllData: () => void;
@@ -90,6 +106,12 @@ function MenuPanel({
    *  unlike the SettingsData switches, which wait for the Save tap. */
   onScreenKeypad: boolean;
   onKeypadChange: (newVal: boolean) => void;
+  /** A SECOND numpad (2026-10-04), off by default. Not landscape-only
+   *  any more: the toggle read as a dead control in portrait, which is the
+   *  app's default orientation (todo: "second keypad toggle setting
+   *  doesn't work"). */
+  secondKeypad: boolean;
+  onSecondKeypadChange: (newVal: boolean) => void;
   /** UI text scale step multiplier (1 = default); see textScale.tsx. */
   textScale: number;
   onTextScaleChange: (dir: -1 | 1) => void;
@@ -129,6 +151,8 @@ function MenuPanel({
         onChangeEquationSettings={onChangeEquationSettings}
         onScreenKeypad={onScreenKeypad}
         onKeypadChange={onKeypadChange}
+        secondKeypad={secondKeypad}
+        onSecondKeypadChange={onSecondKeypadChange}
         textScale={textScale}
         onTextScaleChange={onTextScaleChange}
         hardModeUnlocked={hardModeUnlocked}
@@ -141,6 +165,17 @@ function MenuPanel({
       onChangeEquationSettings,
       onScreenKeypad,
       onKeypadChange,
+      // These two are REQUIRED, not optional (todo: "second keypad toggle
+      // setting doesn't work"). SettingsContent is memo()'d and this
+      // useMemo rebuilds its element, so leaving either out freezes the
+      // props it sees: flipping the switch updated the stored preference
+      // but the memoized panel kept rendering the OLD `secondKeypad`
+      // value, so the switch snapped straight back and read as a dead
+      // control. ESLint's exhaustive-deps warning is the tell — a
+      // dependency list that names a prop the memo body uses is a bug
+      // even when the "offending" callback happens to be stable today.
+      secondKeypad,
+      onSecondKeypadChange,
       textScale,
       onTextScaleChange,
       hardModeUnlocked,
@@ -204,7 +239,7 @@ function MenuPanel({
         // web) — invisible over the dark cave. An
         // explicit light color keeps the 3-line
         // menu button readable everywhere.
-        <Text style={{ fontSize: 30, color: "#eee" }}>☰</Text>
+        <Text style={{ fontSize: NAV_ICON_SIZE, color: "#eee" }}>☰</Text>
       }
       accessibilityLabel={t("main.a11yMenu")}
       scrollable
@@ -214,6 +249,13 @@ function MenuPanel({
       fullscreen
       testID="menu-button"
       sheetTestID="menu-sheet"
+      headerLeft={
+        <SavePill
+          dirty={saveDirty}
+          reduceMotion={reduceMotion}
+          onSave={onSaveNow}
+        />
+      }
     >
       <View style={{ gap: 4 }}>
         <View

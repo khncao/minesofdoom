@@ -81,13 +81,23 @@ export const storeConfig = {
   // __test__/storeConfig.test.ts pins the Android pair, pins iOS as still
   // empty, and keeps the no-test-id net honest (a Unity PUBLIC TEST
   // placement fills instantly on any device, so one must never ship).
-  androidGameId: "800386304",
+  // RETIRED 2026-10-03 — DO NOT RE-PASTE. Unity Ads was tried twice on
+  // device (builds 1.0.12/vc 12 rewarded and 1.0.14/vc 14 interstitial) and
+  // BOTH served real production-demand ads with no skip control and no way
+  // to close them at all. The format cannot be made closeable: the skip
+  // setting is gone from the redesigned dashboard (bidding placements only —
+  // ad units "can no longer be created"), Unity's ad-format-settings
+  // reference lists no skip control, and unity-ads 4.20.1/4.21.0 expose no
+  // skip API. Native ads moved to AdMob rewarded INTERSTITIAL below.
+  //   (the values that used to live here: Game ID 800386304, placement
+  //    BP_Rewarded_Android, and later an interstitial "rewarded_inter")
+  androidGameId: "",
   iosGameId: "",
   rewardedPlacementAndroid: {
-   gemRolls: "BP_Rewarded_Android",
-   offlineDouble: "BP_Rewarded_Android",
-   offlineTopUp: "BP_Rewarded_Android",
-   comboSave: "BP_Rewarded_Android",
+   gemRolls: "",
+   offlineDouble: "",
+   offlineTopUp: "",
+   comboSave: "",
   },
   rewardedPlacementIos: {
    gemRolls: "",
@@ -95,22 +105,62 @@ export const storeConfig = {
    offlineTopUp: "",
    comboSave: "",
   },
+ },
+ // AdMob rewarded INTERSTITIAL (2026-10-03) — the LIVE native ad config.
+ //
+ // WHY THIS FORMAT. Play's Families rules ban "rewarded or opt-in ads that
+ // cannot be closed after 5 seconds", and that is exactly what got v1.0.10
+ // rejected: a plain AdMob **rewarded** unit's close button is Google's
+ // creative UI on a per-creative 5-30 s countdown until the reward is
+ // granted, with no dismiss API on `RewardedAd`. Unity Ads was tried as the
+ // fix and failed on device twice (vc 12 rewarded, vc 14 interstitial — both
+ // served real ads with no skip and no close). A **rewarded INTERSTITIAL**
+ // only ever serves skippable ads, which is what Google's own rejection
+ // guidance points at, so this is the one remaining compliant format.
+ //
+ // Unlike Unity, the Game/Ad ID is NOT a function argument: GMA has no
+ // `initialize(context, appId)` overload, so `appId` is baked into the
+ // merged manifest at prebuild by plugins/withAdMobAds.js. An EMPTY appId
+ // writes nothing, so the repo's "empty = hidden" rule also keeps the App
+ // ID out of the APK entirely.
+ //
+ // VERIFY ON DEVICE before any store submission — the skip must appear
+ // within 5 seconds. Two formats have already failed this test; treat this
+ // one as unproven until it passes.
+ admob: {
+  /** The AdMob App ID, read by GMA from the manifest meta-data. Empty =
+   *  unset (no meta-data written, no SDK init, entry points hidden). */
+  appId: "ca-app-pub-2101316086878618~4973124022",
+  iosAppId: "",
+  /** ONE rewarded-INTERSTITIAL unit shared by all four AdKinds. */
+  rewardedUnitAndroid: {
+   gemRolls: "ca-app-pub-2101316086878618/8110332335",
+   offlineDouble: "ca-app-pub-2101316086878618/8110332335",
+   offlineTopUp: "ca-app-pub-2101316086878618/8110332335",
+   comboSave: "ca-app-pub-2101316086878618/8110332335",
+  },
+  rewardedUnitIos: {
+   gemRolls: "",
+   offlineDouble: "",
+   offlineTopUp: "",
+   comboSave: "",
+  },
   // Guardrail 6 (kid safety) + the Play Families rule that ads shown to
-  // children (or users of unknown age) must be non-personalized: contextual
-  // demand only, no remarketing. Applied natively as
-  // UnityAds.setNonBehavioral(true) BEFORE initialize (unityAdProvider.ts →
-  // modules/unity-ads), so the very first request is already child-treated.
+  // children (or users of unknown age) must be non-personalized. Applied
+  // natively as RequestConfiguration TAG_FOR_CHILD_DIRECTED_TREATMENT_TRUE
+  // + max content rating G BEFORE initialize (adMobAdProvider.ts →
+  // modules/admob-ads), so the very first request is already child-treated.
   // Every user is treated as a child on purpose — that is what makes ONE ad
   // surface valid for all ages (docs/store-integration.md §0 "Re-opened").
   // Flip to false ONLY together with a non-children target audience, a
   // personalization-capable stance (docs/blockers.md) and
   // `stripAdvertisingId` below — they are one decision, not three.
   childDirectedTreatment: true,
-  // Mirrored into plugins/withUnityAds.js: remove the ad-id permissions the
-  // Unity AAR merges in, so no ad code can read the advertising ID at all
-  // (Play: children must not be sent the AAID). Keep true unless the stance
-  // flips to a personalized teen+/adult posture; app.config.ts holds the
-  // mirror and storeConfig.test.ts pins the two together.
+  // Mirrored into plugins/withAdMobAds.js: remove the ad-id permissions
+  // the GMA AAR merges in, so no ad code can read the advertising ID at
+  // all (Play: children must not be sent the AAID). Keep true unless the
+  // stance flips to a personalized teen+/adult posture; app.config.ts holds
+  // the mirror and storeConfig.test.ts pins the two together.
   stripAdvertisingId: true,
  },
  // Self-hosted Pocketbase base URL — ONE deployment serves receipt
@@ -273,7 +323,9 @@ export const storeConfig = {
  },
 };
 
-/** The Unity Ads ids for one platform, straight out of the config. */
+/** The Unity Ads ids for one platform, straight out of the config.
+ *  RETIRED — kept for the historical record only; `unityAds` is empty, so
+ *  `isUnityAdsConfigured` is false and nothing selects the Unity provider. */
 export function getUnityAdsIds(platform: StorePlatform): UnityAdsIds {
  if (platform === "ios") {
   return {
@@ -293,6 +345,37 @@ export function isUnityAdsConfigured(ids: UnityAdsIds): boolean {
  return (
   ids.gameId.length > 0 &&
   Object.values(ids.rewardedPlacementIds).every((id) => id.length > 0)
+ );
+}
+
+export type AdMobIds = {
+ /** The AdMob App ID for this platform (a per-platform app in the console). */
+ appId: string;
+ /** The rewarded-INTERSTITIAL unit id per AdKind. */
+ adUnitIds: Record<AdKind, string>;
+};
+
+/** The AdMob ids for one platform, straight out of the config. */
+export function getAdMobIds(platform: StorePlatform): AdMobIds {
+ if (platform === "ios") {
+  return {
+   appId: storeConfig.admob.iosAppId,
+   adUnitIds: storeConfig.admob.rewardedUnitIos,
+  };
+ }
+ return {
+  appId: storeConfig.admob.appId,
+  adUnitIds: storeConfig.admob.rewardedUnitAndroid,
+ };
+}
+
+/** Pure: usable only when the App ID is set AND every unit id is — a
+ *  half-filled block keeps the whole surface hidden so no button can offer
+ *  an ad that could not fill. */
+export function isAdMobIdsConfigured(ids: AdMobIds): boolean {
+ return (
+  ids.appId.length > 0 &&
+  Object.values(ids.adUnitIds).every((id) => id.length > 0)
  );
 }
 

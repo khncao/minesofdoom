@@ -1,6 +1,7 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { memo, useCallback, useEffect, useState } from "react";
+import { Modal, Pressable, StyleSheet, View } from "react-native";
 import { T as Text } from "../textScale";
+import Button from "src/components/Button";
 import type { TranslationKey } from "src/utils/i18n/i18n";
 import {
   Equation,
@@ -9,13 +10,6 @@ import {
   isMissingDivisor,
 } from "src/utils/math/equations";
 import { useT } from "src/hooks/useI18n";
-
-/**
- * How long the hint bubble stays up before it dismisses itself. Long
- * enough to read and act on one tip, short enough that it never sits over
- * the game while the player is tapping the cave.
- */
-export const HINT_VISIBLE_MS = 6000;
 
 /**
  * The technique shown for each equation shape.
@@ -66,16 +60,93 @@ export function getHintKey(equation: Equation): TranslationKey {
 }
 
 /**
- * A "?" button under the equation that pops a temporary bubble with the
- * technique for the CURRENT question.
+ * A MODAL with the technique for the CURRENT question.
  *
- * "Temporary" is the point: it is not a toggle you leave open. The bubble
- * dismisses itself after HINT_VISIBLE_MS, and a new equation retires it
- * outright — the hint belongs to the question it was opened for, so
- * carrying it across a roll would be actively misleading.
+ * Why a modal and not a bubble (todo: "Equation hint/tips should show up
+ * as a modal"): the earlier version grew a bubble out of the equation
+ * panel's layout. That made the tip share a box with the question, so a
+ * long technique line re-flowed the whole plate — and the tip was
+ * *ephemeral*: it self-dismissed after six seconds, which is a fine rule
+ * for a bubble you read while the game keeps running and a bad one for a
+ * reference the player is actively working through. As a modal the tip is
+ * unambiguously ON TOP: the game behind it is dimmed and the player
+ * dismisses it deliberately (backdrop, ✕, the Android back gesture).
  *
- * The text is also exposed as the button's `accessibilityHint`, so the
+ * Controlled — the owner decides when it opens. The trigger is NOT a
+ * separate "?" button beside the equation any more (todo: "Instead of '?'
+ * replace with the input field with '?' placeholder text"): the answer
+ * field shows a "?" while it is empty, and AnswerInput owns the press
+ * target, the open state and the retire-on-new-question rule.
+ *
+ * The text is also exposed as that trigger's `accessibilityHint`, so the
  * content is available to a screen reader without ever opening it.
+ */
+const QuestionHintModal = memo(function QuestionHintModal({
+  equation,
+  visible,
+  onClose,
+}: {
+  equation: Equation;
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const t = useT();
+  const hint = t(getHintKey(equation));
+
+  return (
+    <Modal
+      // The tip is a whole-screen interruption now, so it gets its own
+      // window rather than an absolutely positioned overlay: on Android
+      // that is the only way the dimmed backdrop reliably covers the game
+      // (and the only way the hardware back button closes it).
+      animationType="fade"
+      visible={visible}
+      onRequestClose={onClose}
+      transparent
+    >
+      <View style={styles.backdrop}>
+        {/* Tap anywhere outside the card closes it (the sheet idiom the
+            rest of the app already uses). */}
+        <Pressable
+          testID="hint-backdrop"
+          accessibilityRole="button"
+          accessibilityLabel={t("a11y.closeHint")}
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+        />
+        <View testID="hint-modal" style={styles.card}>
+          <Text style={styles.cardTitle}>{t("hint.modalTitle")}</Text>
+          <Text testID="hint-modal-text" style={styles.cardText}>
+            {hint}
+          </Text>
+          <Button
+            title={t("hint.modalClose")}
+            onPress={onClose}
+            testId="hint-modal-close"
+          />
+        </View>
+      </View>
+    </Modal>
+  );
+});
+
+/**
+ * The hint BUTTON, and the modal it opens — self-contained, so a caller
+ * just mounts it next to the question.
+ *
+ * It is a SEPARATE control rather than something the answer field does
+ * (todo: "use a separate button from answer field to show hints"): the
+ * field is inlined INTO the equation now and is only a caret wide when
+ * empty, so making its placeholder the tap target meant aiming at a ~30px
+ * box to get help, and it collided with the field's own job. Two separate
+ * affordances also let the technique be opened for a question already
+ * half-answered — the field's version vanished the moment a digit landed.
+ *
+ * It renders LAST in the equation row so the field can grow underneath it
+ * without nudging the button sideways (see EquationDisplay's hintSlot).
+ *
+ * The text is also the button's `accessibilityHint`, so the content is
+ * available to a screen reader without ever opening it.
  */
 const QuestionHint = memo(function QuestionHint({
   equation,
@@ -84,68 +155,44 @@ const QuestionHint = memo(function QuestionHint({
 }) {
   const t = useT();
   const [visible, setVisible] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const close = useCallback(() => setVisible(false), []);
 
-  const clearTimer = useCallback(() => {
-    if (timer.current !== null) {
-      clearTimeout(timer.current);
-      timer.current = null;
-    }
-  }, []);
-
-  // A new question dismisses the old bubble. Keyed on the equation object,
+  // A new question dismisses the open modal. Keyed on the equation object,
   // which useEquations replaces wholesale on every roll.
   useEffect(() => {
     setVisible(false);
-    clearTimer();
-  }, [equation, clearTimer]);
-
-  // Self-dismiss. Depends on `visible` so re-opening restarts the clock.
-  useEffect(() => {
-    if (!visible) return;
-    timer.current = setTimeout(() => setVisible(false), HINT_VISIBLE_MS);
-    return clearTimer;
-  }, [visible, clearTimer]);
-
-  // Unmount safety: a pending timer must not setState on a dead component.
-  useEffect(() => clearTimer, [clearTimer]);
-
-  const hint = t(getHintKey(equation));
+  }, [equation]);
 
   return (
-    <View style={styles.wrap}>
+    <>
       <Pressable
         testID="hint-button"
         accessibilityRole="button"
         accessibilityLabel={t("hint.open")}
-        accessibilityHint={hint}
-        onPress={() => setVisible((wasVisible) => !wasVisible)}
+        accessibilityHint={t(getHintKey(equation))}
+        onPress={() => setVisible(true)}
         // 24px glyph + 10px padding each way = a 44px tap target.
         hitSlop={10}
         style={({ pressed }) => [
-          styles.button,
-          visible ? styles.buttonActive : null,
-          pressed ? styles.buttonPressed : null,
+          buttonStyles.button,
+          visible ? buttonStyles.buttonActive : null,
+          pressed ? buttonStyles.buttonPressed : null,
         ]}
       >
-        <Text style={styles.buttonGlyph}>?</Text>
+        <Text style={buttonStyles.buttonGlyph}>?</Text>
       </Pressable>
-      {visible && (
-        <View testID="hint-bubble" style={styles.bubble}>
-          <Text style={styles.bubbleText}>{hint}</Text>
-        </View>
-      )}
-    </View>
+      <QuestionHintModal
+        equation={equation}
+        visible={visible}
+        onClose={close}
+      />
+    </>
   );
 });
 
 export default QuestionHint;
 
-const styles = StyleSheet.create({
-  wrap: {
-    alignItems: "center",
-    gap: 4,
-  },
+const buttonStyles = StyleSheet.create({
   button: {
     width: 24,
     height: 24,
@@ -168,23 +215,45 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     userSelect: "none",
   },
-  // Sits UNDER the button and pushes the panel taller rather than
-  // overlaying it — the panel is near the top of the screen, and the cave
-  // canvas sits behind everything, so growing downward never covers
-  // anything the player is tapping.
-  bubble: {
-    maxWidth: 280,
-    backgroundColor: "rgba(0, 0, 0, 0.9)",
-    borderRadius: 8,
+});
+
+const styles = StyleSheet.create({
+  // Dim the whole screen so the tip reads as the only thing on it. Fixed
+  // edges on the root rather than flex:1 — a Modal's content view is not
+  // guaranteed to be a full-viewport flex container on every platform (the
+  // same trap BottomModal documents).
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+  // Width-capped so the sentence keeps a readable measure on a tablet, and
+  // capped as a fraction so it still fits a 360px phone.
+  card: {
+    width: "100%",
+    maxWidth: 380,
+    backgroundColor: "#303030",
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: "rgba(255, 170, 68, 0.45)",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    padding: 14,
+    gap: 10,
+    alignItems: "center",
+    elevation: 6,
   },
-  bubbleText: {
-    color: "#fff",
-    fontSize: 11,
+  cardTitle: {
+    color: "#ffaa44",
+    fontSize: 13,
+    fontWeight: "bold",
     textAlign: "center",
-    lineHeight: 15,
+    userSelect: "none",
+  },
+  cardText: {
+    color: "#fff",
+    fontSize: 12,
+    textAlign: "center",
+    lineHeight: 18,
   },
 });

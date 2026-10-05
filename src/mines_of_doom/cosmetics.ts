@@ -514,6 +514,20 @@ export function getCostGems(id: string): number | undefined {
 }
 
 /**
+ * Gem price of ONE reroll of the player's seeded look (todo: "add a 1 gem
+ * cost for rerolling outfit").
+ *
+ * Deliberately tiny. A reroll reshuffles the PALETTE of a look the player
+ * already owns — the shape is the outfit's, not the reroll's — so one gem
+ * is a rounding error next to the 15–250 gem cosmetic line and never a
+ * wall: the daily quests alone pay ~31 gems a month (see dailyQuests.ts),
+ * which covers a reroll every few days without any purchase. That keeps the
+ * guardrails honest in both directions — it is not a paywall, and it is
+ * not free either, which is what makes it a price rather than a formality.
+ */
+export const REROLL_COST_GEMS = 1;
+
+/**
  * Fixed seed for cosmetic PREVIEW thumbnails (shop listings + the
  * settings gem picker): one representative look per outfit, deterministic
  * so the same item reads the same on every screen.

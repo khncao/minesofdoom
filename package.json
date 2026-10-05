@@ -17,6 +17,7 @@
     "lint": "eslint .",
     "play": "node scripts/play/play.mjs",
     "playstoress": "node scripts/playstoress.mjs",
+    "landscape": "node scripts/landscape.mjs",
     "postinstall": "node scripts/link-playstoress-bin.mjs"
   },
   "dependencies": {
