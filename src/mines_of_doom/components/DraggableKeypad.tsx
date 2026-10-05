@@ -1,5 +1,5 @@
 /**
- * A DRAGGABLE on-screen numpad (2026-10-04).
+ * A DRAGGABLE on-screen numpad (2026-10-04, drag rewritten 2026-10-05).
  *
  * The plain `NumericKeypad` renders wherever its parent puts it, which is
  * fine in portrait (it lives in the column flow under the cave) but wrong
@@ -12,6 +12,17 @@
  *  - **PanResponder, not a gesture library.** The drag needs nothing but
  *    move events, and PanResponder ships with RN — no new dependency and no
  *    gesture-root/provider wiring (the app has no GestureHandlerRootView).
+ *  - **The drag runs on the UI thread.** Each move writes straight into two
+ *    `Animated.Value`s that drive a `translateX/translateY` transform — no
+ *    React re-render per touch event. The 2026-10-05 bug this fixes: the
+ *    original wrote `left`/`top` through `useState` on every move, so each
+ *    touch event went JS → prop diff → native layout pass, and on Android
+ *    the layout pass could not keep up with the touch rate — the panel
+ *    visibly lagged the finger (jitter) and, when the events outpaced the
+ *    renders, the last committed position lost to a stale one (the panel
+ *    appearing stuck a few pixels short of where the finger let go).
+ *    `setState` in a 60–120 Hz touch callback is the classic RN jank
+ *    pattern; the transform is the standard cure.
  *  - **The position is stored as a fraction of the viewport, not pixels.**
  *    A pixel offset captured on a 915×412 landscape phone would land in a
  *    corner (or off-screen entirely) on a tablet, on a foldable, or after
@@ -22,8 +33,16 @@
  *  - Persistence is device-local (`useLocalStorage`), never in the save
  *    blob: a shared/imported save must not carry someone's screen layout.
  */
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  Animated,
   PanResponder,
   View,
   useWindowDimensions,
@@ -92,22 +111,24 @@ const DraggableKeypad = memo(function DraggableKeypad({
   );
   const [size, setSize] = useState({ w: 0, h: 0 });
 
-  // Stored positions are FRACTIONS of the viewport; the live position is in
-  // pixels. Seed from the stored fraction on first render (viewport units
-  // are known at that point), then the drag handler owns the value — it
-  // changes every frame, so it lives in a ref and is mirrored into state
-  // only to re-lay-out the View. Re-deriving from `stored` on every render
-  // would fight the drag.
-  const initialPos = useRef<{ x: number; y: number } | null>(null);
-  if (initialPos.current === null) {
-    initialPos.current =
-      stored == null
-        ? { x: defaultX, y: defaultY }
-        : { x: stored.x * vw, y: stored.y * vh };
-  }
-  const posRef = useRef({ ...initialPos.current });
-  const originRef = useRef({ x: 0, y: 0 });
-  const [pos, setPos] = useState(posRef.current);
+  // Live position, in pixels, in a REF: it mutates at touch rate while
+  // dragging and must not trigger React renders (that was the jitter).
+  // The truth is mirrored into two Animated.Values so the native UI
+  // thread can move the panel between renders.
+  const posRef = useRef({ x: defaultX, y: defaultY });
+  const animX = useRef(new Animated.Value(defaultX)).current;
+  const animY = useRef(new Animated.Value(defaultY)).current;
+
+  /** Move the panel: ref (logic) + Animated.Values (render) together, so
+   *  the two never drift apart. */
+  const moveTo = useCallback(
+    (x: number, y: number) => {
+      posRef.current = { x, y };
+      animX.setValue(x);
+      animY.setValue(y);
+    },
+    [animX, animY],
+  );
 
   /** Keep the panel fully on screen: the origin is the panel's top-left, so
    *  clamp against its measured size (falls back to 0 before first layout,
@@ -127,7 +148,8 @@ const DraggableKeypad = memo(function DraggableKeypad({
     [],
   );
 
-  // Re-clamp whenever the measured size or the viewport changes.
+  // Re-clamp whenever the measured size or the viewport changes (rotation,
+  // keyboard, a first layout after the size settles).
   //
   // This CANNOT live in onLayout: `clamp` is memoized on `size`, so on the
   // first layout it still closes over {0,0} and cannot clamp at all, and
@@ -137,9 +159,12 @@ const DraggableKeypad = memo(function DraggableKeypad({
   useEffect(() => {
     const next = clamp(posRef.current.x, posRef.current.y);
     if (next.x === posRef.current.x && next.y === posRef.current.y) return;
-    posRef.current = next;
-    setPos(next);
-  }, [clamp, size.w, size.h]);
+    moveTo(next.x, next.y);
+  }, [clamp, size.w, size.h, moveTo]);
+
+  // Where the drag started, in panel coordinates (set on grant, read on
+  // every move). A ref, not state: it must not re-render.
+  const originRef = useRef({ x: 0, y: 0 });
 
   const responder = useMemo(
     () =>
@@ -155,12 +180,14 @@ const DraggableKeypad = memo(function DraggableKeypad({
           originRef.current = { ...posRef.current };
         },
         onPanResponderMove: (_e, g: PanResponderGestureState) => {
+          // Write straight into the Animated.Values: no state, no render,
+          // no bridge round-trip — the UI thread applies the transform at
+          // the display's own refresh rate.
           const next = clamp(
             originRef.current.x + g.dx,
             originRef.current.y + g.dy,
           );
-          posRef.current = next;
-          setPos(next);
+          moveTo(next.x, next.y);
         },
         onPanResponderRelease: () => {
           // Remember as a FRACTION of the viewport so the same drop lands
@@ -172,7 +199,7 @@ const DraggableKeypad = memo(function DraggableKeypad({
           });
         },
       }),
-    [clamp, setStored, vw, vh],
+    [clamp, moveTo, setStored, vw, vh],
   );
 
   // Adopt a stored position ONCE, when it arrives.
@@ -189,9 +216,8 @@ const DraggableKeypad = memo(function DraggableKeypad({
     if (adoptedRef.current || stored == null) return;
     adoptedRef.current = true;
     const next = clamp(stored.x * vw, stored.y * vh);
-    posRef.current = next;
-    setPos(next);
-  }, [stored, vw, vh, clamp]);
+    moveTo(next.x, next.y);
+  }, [stored, vw, vh, clamp, moveTo]);
 
   return (
     <View
@@ -216,43 +242,71 @@ const DraggableKeypad = memo(function DraggableKeypad({
       // collapsed every column to 0, so on a real phone the panel rendered
       // as just the drag handle with no keys under it. 320 matches
       // NumericKeypad's own `maxWidth`, so the keys get their natural size.
+      //
+      // The panel sits at left:0/top:0 and the Animated.View's transform
+      // carries the position (see the module note on why the drag must not
+      // go through React state).
+      //
+      // ZERO-SIZED, on purpose. The panel's position lives in the
+      // Animated.View's transform (below), so this root's LAYOUT footprint
+      // sits at (0,0) while the visible panel lives elsewhere — and in
+      // landscape (0,0) is exactly where the equation plate is. Any area on
+      // this root would swallow taps on the plate: the answer field stopped
+      // being clickable and the web harness's keypad step timed out on its
+      // very first click. `box-none` did NOT fix it — react-native-web
+      // passes the value straight to CSS, where it is not a legal
+      // pointer-events value, so the browser silently kept `auto`.
+      // A 0×0 root has no hit area at all; the transformed child below
+      // keeps its own (the KEYPAD_WIDTH basis the flex columns need lives
+      // THERE, which is also why the width cannot stay on this root).
       style={{
         position: "absolute",
-        left: pos.x,
-        top: pos.y,
-        width: KEYPAD_WIDTH,
+        left: 0,
+        top: 0,
+        width: 0,
+        height: 0,
+        overflow: "visible",
         zIndex: 6,
       }}
-      onLayout={onLayout}
       testID={`draggable-keypad-${storageKey}`}
     >
-      <View
-        {...responder.panHandlers}
+      {/* onLayout lives HERE, not on the 0×0 root: the clamp measures the
+          panel's real size, and the root no longer has one. */}
+      <Animated.View
+        onLayout={onLayout}
         style={{
-          height: 14,
-          marginBottom: 2,
-          borderRadius: 7,
-          backgroundColor: "#2a2a2a",
-          opacity: handleOpacity,
-          alignItems: "center",
-          justifyContent: "center",
+          width: KEYPAD_WIDTH,
+          transform: [{ translateX: animX }, { translateY: animY }],
         }}
       >
         <View
+          {...responder.panHandlers}
           style={{
-            width: 34,
-            height: 3,
-            borderRadius: 2,
-            backgroundColor: "#8a8a8a",
+            height: 14,
+            marginBottom: 2,
+            borderRadius: 7,
+            backgroundColor: "#2a2a2a",
+            opacity: handleOpacity,
+            alignItems: "center",
+            justifyContent: "center",
           }}
+        >
+          <View
+            style={{
+              width: 34,
+              height: 3,
+              borderRadius: 2,
+              backgroundColor: "#8a8a8a",
+            }}
+          />
+        </View>
+        <NumericKeypad
+          onDigit={onDigit}
+          onBackspace={onBackspace}
+          onClear={onClear}
+          onSubmit={onSubmit}
         />
-      </View>
-      <NumericKeypad
-        onDigit={onDigit}
-        onBackspace={onBackspace}
-        onClear={onClear}
-        onSubmit={onSubmit}
-      />
+      </Animated.View>
     </View>
   );
 });

@@ -156,6 +156,7 @@ import {
 import LoadingScreen from "./components/LoadingScreen";
 import AdRewardsPanel from "./components/AdRewardsPanel";
 import IapPanel from "./components/IapPanel";
+import SavePill from "./components/SavePill";
 import TextScaleProvider, { nextTextScale } from "./textScale";
 
 export default function MinesOfDoom() {
@@ -1942,7 +1943,8 @@ export default function MinesOfDoom() {
             >
               {/* Menu is the first button (todo: "move menu button to top
               left of main screen") — the entry point to every other
-              top-row button's settings and to save/account/goals. */}
+              top-row button's settings and to account/goals. (Save has its
+              own button in this row, far right.) */}
               <MenuPanel
                 settingsData={settingsData}
                 onChangeSettingsData={updateSettingsData}
@@ -1950,9 +1952,6 @@ export default function MinesOfDoom() {
                 onChangeEquationSettings={updateEquationSettings}
                 showMessage={showMessage}
                 onSave={handleSaveSettings}
-                saveDirty={saveDirty}
-                reduceMotion={reduceMotion}
-                onSaveNow={handleSaveNow}
                 onReset={handleReset}
                 onEraseAllData={handleEraseAllData}
                 onExportSaveCode={handleExportSaveCode}
@@ -2090,6 +2089,18 @@ export default function MinesOfDoom() {
                 onPurchase={handleIapPurchase}
                 onSelect={handleShopSelect}
                 onReroll={rerollPlayerSeed}
+              />
+              {/* Save is back in the navbar, far right (2026-10-05): it
+                  was moved into the menu sheet's close row when the row
+                  overflowed its 360px budget — with the fixed 44×44
+                  navbar boxes that budget is back, and saving is too
+                  important to bury one sheet deep. Far right keeps the
+                  menu button the leftmost entry (todo: "move menu button
+                  to top left of main screen"). */}
+              <SavePill
+                dirty={saveDirty}
+                reduceMotion={reduceMotion}
+                onSave={handleSaveNow}
               />
             </View>
             {/* Landscape / short-viewport split: in portrait this is an

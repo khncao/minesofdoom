@@ -3,7 +3,7 @@ import { Pressable } from "react-native";
 import { T as Text } from "../textScale";
 import { useT } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
-import { NAV_ICON_SIZE } from "src/components/BottomModal";
+import { NAV_BUTTON_STYLE, NAV_ICON_SIZE } from "src/components/BottomModal";
 
 /**
  * Daily bonus button (plan §4.2): sits next to the goals panel. 🎁 while a
@@ -44,11 +44,9 @@ const DailyBonusButton = memo(function DailyBonusButton({
       accessibilityLabel={label}
       disabled={!claimable}
       onPress={onClaim}
-      // 44px minimum tap target: padding either side plus the minHeight, so
-      // the smaller NAV_ICON_SIZE glyph does not erode it. Same metrics as
-      // the BottomModal menu button (margin 4 / padding 6) so the row icons
-      // are uniform (plan "Adjust").
-      style={{ margin: 4, paddingHorizontal: 6, paddingVertical: 8, minHeight: 44 }}
+      // Standard 44×44 navbar target — the same box the BottomModal toggle
+      // buttons use, so the row icons are uniform (plan "Adjust").
+      style={NAV_BUTTON_STYLE}
     >
       <Text style={{ fontSize: NAV_ICON_SIZE, opacity: claimable ? 1 : 0.5 }}>
         {claimable ? "🎁" : "🌙"}

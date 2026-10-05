@@ -29,16 +29,37 @@ test.describe("web build — boot & free path", () => {
     await expect(page.getByTestId("mining-canvas")).toBeVisible();
 
     // Wide-screen layout (todo: capped content, full-bleed cave): at
-    // desktop width the cave spans the viewport while the content column
-    // stays capped at 640px (styles.contentColumn / canvasFullBleed).
+    // desktop width the landscape overlay layout takes over — the cave
+    // fills the stage edge to edge (slightly zoomed out, 0.86,
+    // styles.landscapeCanvas, per docs/features.md) while the content
+    // stays capped (styles.contentColumn 640).
+    //
+    // The resize needs a beat: useWindowDimensions re-renders
+    // asynchronously, and reading the box before that re-render measures
+    // the stale PORTRAIT layout (the cave at 100vw) — which used to make
+    // this assertion pass for the wrong layout and then fail the mining
+    // step below for the same reason. Gate on the landscape geometry
+    // first: there the scaled cave is strictly narrower than the viewport.
     await page.setViewportSize({ width: 1440, height: 900 });
-    await expect(page.getByTestId("mining-canvas")).toBeVisible();
+    await expect(
+      page.getByTestId("mining-canvas"),
+    ).toBeVisible();
+    await expect
+      .poll(async () => {
+        const b = await page.getByTestId("mining-canvas").boundingBox();
+        return b ? b.width : 0;
+      }, { timeout: 5_000 })
+      .toBeLessThan(1440);
     const caveBox = await page.getByTestId("mining-canvas").boundingBox();
     if (caveBox === null) throw new Error("cave not laid out");
+    // Full-bleed across the STAGE, not the capped content column: the
+    // bounding box includes the 0.86 zoom-out, so a cave trapped in the
+    // 640px column (or a 1000px-capped frame — the 1.0.27 regression this
+    // caught) measures far below 75% of the viewport.
     expect(
       caveBox.width,
-      "the cave is full-bleed across the viewport",
-    ).toBeGreaterThan(1400);
+      "the cave fills the stage (full-bleed, zoomed out)",
+    ).toBeGreaterThan(0.75 * 1440);
     const eqBox = await page.getByTestId("equation-display").boundingBox();
     if (eqBox === null) throw new Error("equation display not laid out");
     expect(eqBox.width, "content stays width-capped").toBeLessThanOrEqual(640);

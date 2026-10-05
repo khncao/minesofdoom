@@ -58,15 +58,11 @@ export async function readMinerals(page: Page): Promise<number> {
  * Tap the save pill (persists the current game state). The pill is the
  * game's explicit save affordance; on web the storage is localStorage.
  *
- * It lives in the MENU SHEET's close row (todo: "Move save button inside
- * menu"), so it only exists while that sheet is open: open the menu, tap
- * the pill, close again. The sheet is closed before returning so callers
- * stay in the screen state they were in before.
+ * The pill lives in the top navbar (it used to sit in the menu sheet's
+ * close row), so it is always reachable — one tap, no sheet to open.
  */
 export async function saveNow(page: Page): Promise<void> {
- await page.getByTestId("menu-button").click();
  await page.getByTestId("save-pill").click();
- await page.getByTestId("menu-sheet-close").click();
 }
 
 /**

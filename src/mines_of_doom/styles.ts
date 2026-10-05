@@ -204,11 +204,17 @@ export const styles = StyleSheet.create({
   depthRow: {
     width: "100%",
   },
-  // The column cap is tuned for a portrait phone; a rotated one is ~900px
-  // wide, and capping the whole game at 640 would waste the space that the
-  // overlay layout exists to use.
+  // The base column cap (640) is tuned for a portrait phone; in landscape
+  // the overlay layout (side rails + full-bleed cave) needs the whole
+  // viewport, so the cap must be LIFTED, not merely raised: any fixed
+  // number (it was 1000) letterboxes a wide desktop — the cave stopped
+  // being full-bleed and the web boot spec's wide-screen assertion went
+  // red (regression of e631093 "full-bleed cave on wide screens").
+  // "100%" cancels the 640 cap at every width: a 915px rotated phone is
+  // unchanged (1000 was a no-op there) and a 1440px browser goes edge to
+  // edge.
   contentColumnShort: {
-    maxWidth: 1000,
+    maxWidth: "100%",
   },
   // Landscape: the cave fills the whole stage and is scaled down slightly
   // so the crew column reads as part of a scene rather than filling the

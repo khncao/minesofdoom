@@ -3,7 +3,7 @@ import { Pressable } from "react-native";
 import { T as Text } from "../textScale";
 import { useT } from "src/hooks/useI18n";
 import { formatNumber } from "src/utils/format";
-import { NAV_ICON_SIZE } from "src/components/BottomModal";
+import { NAV_BUTTON_STYLE, NAV_ICON_SIZE } from "src/components/BottomModal";
 
 /**
  * Equation-of-the-day button (todo "daily equation"): sits next to the
@@ -31,10 +31,9 @@ const DailyEquationButton = memo(function DailyEquationButton({
       accessibilityLabel={label}
       disabled={solved}
       onPress={onStart}
-      // 44px minimum tap target: padding either side plus the minHeight, so
-      // the smaller NAV_ICON_SIZE glyph does not erode it. Matches
-      // DailyBonusButton / BottomModal menu-button metrics.
-      style={{ margin: 4, paddingHorizontal: 6, paddingVertical: 8, minHeight: 44 }}
+      // Standard 44×44 navbar target — matches DailyBonusButton and the
+      // BottomModal toggle buttons.
+      style={NAV_BUTTON_STYLE}
     >
       <Text style={{ fontSize: NAV_ICON_SIZE, opacity: solved ? 0.5 : 1 }}>📅</Text>
     </Pressable>

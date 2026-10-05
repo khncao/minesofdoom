@@ -9,7 +9,6 @@ import { AnalyticsState } from "../analytics";
 import type { CloudSaveSettingsProps } from "../hooks/useCloudSave";
 import SettingsContent from "./SettingsPanel";
 import SaveTab from "./SaveTab";
-import SavePill from "./SavePill";
 import AccountTab, { type AccountSettingsProps } from "./AccountTab";
 import AboutTab from "./AboutTab";
 import GoalsContent from "./GoalsPanel";
@@ -51,9 +50,6 @@ function MenuPanel({
   onChangeEquationSettings,
   showMessage,
   onSave,
-  saveDirty,
-  reduceMotion,
-  onSaveNow,
   onReset,
   onEraseAllData,
   onExportSaveCode,
@@ -82,16 +78,6 @@ function MenuPanel({
   onChangeEquationSettings: (newSettings: EquationSettings) => void;
   showMessage: string | null;
   onSave: () => void;
-  /**
-   * The status-dot save pill, parked on the sheet's close row (todo: "Move
-   * save button inside menu (same row as close but on far left)"). It used
-   * to float over the bottom-right corner of the cave beside the upgrades
-   * button; that dock is gone (the upgrades button moved up into the depth
-   * bar), and the pill has a home that costs no cave space.
-   */
-  saveDirty: boolean;
-  reduceMotion: boolean;
-  onSaveNow: () => void;
   onReset: () => void;
   /** "Erase all data" (superset of Reset — see eraseAll.ts). */
   onEraseAllData: () => void;
@@ -249,13 +235,6 @@ function MenuPanel({
       fullscreen
       testID="menu-button"
       sheetTestID="menu-sheet"
-      headerLeft={
-        <SavePill
-          dirty={saveDirty}
-          reduceMotion={reduceMotion}
-          onSave={onSaveNow}
-        />
-      }
     >
       <View style={{ gap: 4 }}>
         <View

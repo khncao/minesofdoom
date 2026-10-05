@@ -62,12 +62,6 @@ const stableProps = {
   textScale: 1,
   onTextScaleChange: jest.fn(),
   hardModeUnlocked: true,
-  // The save pill now lives in the menu's close row (todo: "Move save
-  // button inside menu"), so it needs the engine's dirty flag + the
-  // immediate-save handler alongside the settings-surface onSave.
-  saveDirty: false,
-  reduceMotion: false,
-  onSaveNow: jest.fn(),
   stats: unused,
   session: null,
   analytics: unused as never,
