@@ -1582,3 +1582,38 @@ and the
   internal test link before any wider rollout** — the AdMob rewarded
   interstitial must be skippable and the AD_ID permission must stay
   stripped (see the app.config.ts note + §1 guardrails).
+
+### Post-1.0.27 fixes — 2026-10-05 (same version, no version bump)
+- **Web** (`4fdb35a`): fixed 44×44 navbar touch boxes, save pill back in
+  the navbar row (far right), and the draggable keypad drag rewritten on
+  the UI thread (`Animated.Value` transforms instead of `setState` per
+  touch — the old path lagged/jittered and could commit a stale final
+  position on Android). Also fixes the web E2E boot spec: it measured
+  the 1440×900 landscape cave before the re-render settled and asserted
+  the old full-bleed geometry; it now gates on the landscape layout and
+  asserts the zoomed-out cave width.
+  Deployed by **git integration** — the push to `main` triggered the
+  Cloudflare production build (deployment `b949ccba`, source `7ba0d82`);
+  production `https://minesofdoom.pages.dev` serves the new entry chunk.
+  (A manual `wrangler pages deploy` of the local `dist` also landed as
+  deployment `4c813dd6` — redundant, since a push to `main` already
+  builds and ships. The manual upload is only needed for builds that
+  must not go through `main`.)
+- **Android AAB size** (`7ba0d82`): the release AAB went **72.4M → 35.3M**
+  (sha256 `136c93b8…`). Two passes: the pre-existing bundle-size plugin
+  (no x86 ABIs, no .sym metadata) plus a new
+  `stripEmulatorAbisRelease` gradle task it appends — the buildType
+  `ndk.abiFilters` does NOT reach CMake's ABI selection, so the
+  emulator-only x86/x86_64 `.so`'s were still packed into the AAB; the
+  task strips them from
+  `intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib`
+  after `stripReleaseDebugSymbols` and before `bundleLibsToAabRelease`.
+  `withDebugSigning`'s buildTypes template now carries the ndk block too,
+  and both plugin transforms keep each other's output a fixed point
+  (cross-plugin spec added).
+  **The vc 27 build on the internal track is NOT re-uploaded**: its JS
+  is identical to this source; the AAB is packaging-only different (x86
+  ABIs removed). Play rejects a re-upload of the same versionCode anyway.
+  The slimmed AAB ships with the next version bump (1.0.28+).
+  Per-device install size is unchanged by the strip — Play splits the
+  bundle per ABI; only the uploaded/stored bundle is smaller.
