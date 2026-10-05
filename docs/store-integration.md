@@ -1565,3 +1565,20 @@ and the
   reached from the Placements page, on the AD UNIT row, not the nested
   placement).
   Confirm all three before the ids go live beyond test.
+
+---
+
+## 7. Release log
+
+### 1.0.27 (vc 27) — 2026-10-05
+- **Web**: pushed to `main` (`9f50a5b`), exported + deployed to Cloudflare
+  Pages (`pnpm run deploy`); production
+  `https://minesofdoom.pages.dev` answers 200 (deployment
+  `698d7440.minesofdoom.pages.dev`).
+- **Android internal track**: `./gradlew bundleRelease` (BUILD SUCCESSFUL),
+  `play upload` → vc 27 (sha256 `f8000dfe…`), then
+  `play release --track=internal --upload=27` — release "play-cli
+  2026-10-05 18:31", status completed. **Verify on device through the
+  internal test link before any wider rollout** — the AdMob rewarded
+  interstitial must be skippable and the AD_ID permission must stay
+  stripped (see the app.config.ts note + §1 guardrails).
