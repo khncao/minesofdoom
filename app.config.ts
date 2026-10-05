@@ -95,6 +95,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // flags as "deprecated APIs or parameters for edge-to-edge". Both are
     // re-applied on every prebuild because it regenerates `android/`.
     "./plugins/withAndroidReleaseHygiene",
+    // Release AAB size: real-device ABIs only (no x86/x86_64) + no native
+    // debug symbols in BUNDLE-METADATA. Re-applied on every prebuild.
+    "./plugins/withAndroidBundleSize",
     // Rewarded ads run on AdMob rewarded INTERSTITIAL (modules/admob-ads):
     // injects the App ID into the merged manifest and strips the ad-id
     // permissions the GMA AAR merges in.

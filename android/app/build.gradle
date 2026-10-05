@@ -154,6 +154,13 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
             def enablePngCrunchInRelease = findProperty('android.enablePngCrunchInReleaseBuilds') ?: 'true'
             crunchPngs enablePngCrunchInRelease.toBoolean()
+            // Added by plugins/withAndroidBundleSize.js — release bundle
+            // size: real-device ABIs only (x86/x86_64 are emulator-only)
+            // and no native debug symbols in BUNDLE-METADATA.
+            ndk {
+                abiFilters 'arm64-v8a', 'armeabi-v7a'
+                debugSymbolLevel 'none'
+            }
         }
     }
     packagingOptions {
@@ -214,4 +221,29 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+}
+
+// Added by plugins/withAndroidBundleSize.js — release bundle size:
+// the buildType ndk.abiFilters above does not reach CMake's ABI
+// selection, so the emulator-only x86/x86_64 .so's still merge into
+// the release bundle. Strip them from the final (symbol-stripped)
+// native-lib set after stripReleaseDebugSymbols and before the AAB
+// packs. (Play splits installs per device ABI anyway — this trims only
+// the uploaded/stored bundle. Debug is untouched.)
+def releaseNativeLibs = layout.buildDirectory.dir("intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib").get().asFile
+def stripEmulatorAbisRelease = tasks.register("stripEmulatorAbisRelease") {
+    inputs.dir(releaseNativeLibs).optional()
+    outputs.upToDateWhen { false }
+    doLast {
+        ["x86", "x86_64"].each { abi ->
+            def d = new File(releaseNativeLibs, abi)
+            if (d.directory) { d.deleteDir() }
+        }
+    }
+}
+tasks.matching { it.name == "stripReleaseDebugSymbols" }.all {
+    it.finalizedBy(stripEmulatorAbisRelease)
+}
+tasks.matching { it.name == "bundleLibsToAabRelease" }.configureEach {
+    it.dependsOn(stripEmulatorAbisRelease)
 }

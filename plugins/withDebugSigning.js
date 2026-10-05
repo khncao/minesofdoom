@@ -100,6 +100,16 @@ const BUILDTYPES_BLOCK = [
   '            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"',
   "            def enablePngCrunchInRelease = findProperty('android.enablePngCrunchInReleaseBuilds') ?: 'true'",
   "            crunchPngs enablePngCrunchInRelease.toBoolean()",
+  // Bundle-size block, kept in sync with plugins/withAndroidBundleSize.js
+  // (which re-adds it after prebuild; this constant must match byte-exactly
+  // or the fixed-point test in its spec fails).
+  "            // Added by plugins/withAndroidBundleSize.js — release bundle",
+  "            // size: real-device ABIs only (x86/x86_64 are emulator-only)",
+  "            // and no native debug symbols in BUNDLE-METADATA.",
+  "            ndk {",
+  "                abiFilters 'arm64-v8a', 'armeabi-v7a'",
+  "                debugSymbolLevel 'none'",
+  "            }",
   "        }",
   "    }",
 ].join("\n");
